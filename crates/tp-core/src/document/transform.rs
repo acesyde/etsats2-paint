@@ -3,6 +3,8 @@
 //! All functions start from the objects as they were when the gesture began,
 //! so live updates never accumulate rounding errors.
 
+use std::sync::Arc;
+
 use kurbo::{Affine, Point, Rect, Vec2};
 
 use super::object::{Frame, Object, normalize_degrees};
@@ -67,7 +69,7 @@ pub fn translate(objects: &[Object], delta: Vec2, constrain: bool) -> Vec<Object
         .iter()
         .map(|o| {
             let mut o = o.clone();
-            o.frame.center += delta;
+            o.translate_deep(delta);
             o
         })
         .collect()
@@ -140,37 +142,45 @@ pub fn resize(
 
     objects
         .iter()
-        .map(|o| {
-            let mut o = o.clone();
-            // Object axis relative to the bounds axis.
-            let rel = (o.frame.rotation_deg - bounds.rotation_deg).to_radians();
-            let (sin, cos) = rel.sin_cos();
-            let w_factor = (sx * cos).hypot(sy * sin);
-            let h_factor = (sx * sin).hypot(sy * cos);
-            // New direction of the object's x axis; shapes are symmetric, so
-            // the angle is folded into (-90°, 90°] to avoid 180° jumps on flips.
-            let mut new_rel = (sy * sin).atan2(sx * cos).to_degrees();
-            if new_rel > 90.0 {
-                new_rel -= 180.0;
-            } else if new_rel <= -90.0 {
-                new_rel += 180.0;
-            }
-            if rel.to_degrees().abs() > 90.0 {
-                // Preserve the original half-turn for objects that had one.
-                new_rel += 180.0;
-            }
-            o.frame = Frame {
-                center: transform * o.frame.center,
-                size: kurbo::Size::new(
-                    o.frame.size.width * w_factor,
-                    o.frame.size.height * h_factor,
-                ),
-                rotation_deg: bounds.rotation_deg + new_rel,
-            }
-            .sanitized();
-            o
-        })
+        .map(|o| resize_one(o, transform, sx, sy, bounds.rotation_deg))
         .collect()
+}
+
+/// Applies a resize (global `transform` plus the scale factors in the bounds'
+/// axes) to one object and, recursively, to its children.
+fn resize_one(o: &Object, transform: Affine, sx: f64, sy: f64, bounds_rotation: f64) -> Object {
+    let mut o = o.clone();
+    // Object axis relative to the bounds axis.
+    let rel = (o.frame.rotation_deg - bounds_rotation).to_radians();
+    let (sin, cos) = rel.sin_cos();
+    let w_factor = (sx * cos).hypot(sy * sin);
+    let h_factor = (sx * sin).hypot(sy * cos);
+    // New direction of the object's x axis; shapes are symmetric, so the angle
+    // is folded into (-90°, 90°] to avoid 180° jumps on flips.
+    let mut new_rel = (sy * sin).atan2(sx * cos).to_degrees();
+    if new_rel > 90.0 {
+        new_rel -= 180.0;
+    } else if new_rel <= -90.0 {
+        new_rel += 180.0;
+    }
+    if rel.to_degrees().abs() > 90.0 {
+        // Preserve the original half-turn for objects that had one.
+        new_rel += 180.0;
+    }
+    o.frame = Frame {
+        center: transform * o.frame.center,
+        size: kurbo::Size::new(
+            o.frame.size.width * w_factor,
+            o.frame.size.height * h_factor,
+        ),
+        rotation_deg: bounds_rotation + new_rel,
+    }
+    .sanitized();
+    for child in &mut o.children {
+        *child = Arc::new(resize_one(child, transform, sx, sy, bounds_rotation));
+    }
+    o.refresh_group_frame();
+    o
 }
 
 /// Rotates the selection by `angle_deg` around `pivot`. With `snap`, a single
@@ -190,13 +200,19 @@ pub fn rotate(objects: &[Object], pivot: Point, angle_deg: f64, snap: bool) -> V
         * Affine::translate(-pivot.to_vec2());
     objects
         .iter()
-        .map(|o| {
-            let mut o = o.clone();
-            o.frame.center = around * o.frame.center;
-            o.frame.rotation_deg = normalize_degrees(o.frame.rotation_deg + angle);
-            o
-        })
+        .map(|o| rotate_one(o, around, angle))
         .collect()
+}
+
+fn rotate_one(o: &Object, around: Affine, angle: f64) -> Object {
+    let mut o = o.clone();
+    o.frame.center = around * o.frame.center;
+    o.frame.rotation_deg = normalize_degrees(o.frame.rotation_deg + angle);
+    for child in &mut o.children {
+        *child = Arc::new(rotate_one(child, around, angle));
+    }
+    o.refresh_group_frame();
+    o
 }
 
 /// Angle in degrees of `point` around `pivot` (clockwise on screen).
@@ -339,6 +355,54 @@ mod tests {
         );
         assert!(close(out[0].frame.center.y, 0.0));
         assert!(out[0].frame.center.x > 99.0);
+    }
+
+    fn group_of(a: Object, b: Object) -> Object {
+        Object::group(ObjectId(9), vec![Arc::new(a), Arc::new(b)])
+    }
+
+    #[test]
+    fn moving_a_group_moves_children() {
+        let g = group_of(
+            rect((0.0, 0.0), (10.0, 10.0), 0.0),
+            rect((100.0, 0.0), (10.0, 10.0), 0.0),
+        );
+        let out = translate(&[g], Vec2::new(5.0, 7.0), false);
+        assert_eq!(out[0].children[1].frame.center, Point::new(105.0, 7.0));
+        assert_eq!(out[0].frame.center, Point::new(55.0, 7.0));
+    }
+
+    #[test]
+    fn rotating_a_group_rotates_children_and_keeps_a_rotated_frame() {
+        let g = group_of(
+            rect((-100.0, 0.0), (20.0, 20.0), 0.0),
+            rect((100.0, 0.0), (20.0, 20.0), 0.0),
+        );
+        let out = rotate(&[g], Point::ORIGIN, 90.0, false);
+        let child = &out[0].children[1];
+        assert!(close(child.frame.center.x, 0.0) && close(child.frame.center.y, 100.0));
+        assert!(close(child.frame.rotation_deg, 90.0));
+        assert!(close(out[0].frame.rotation_deg, 90.0));
+        assert!(close(out[0].frame.size.width, 220.0) && close(out[0].frame.size.height, 20.0));
+    }
+
+    #[test]
+    fn resizing_a_group_scales_children() {
+        let g = group_of(
+            rect((50.0, 50.0), (100.0, 100.0), 0.0),
+            rect((250.0, 50.0), (100.0, 100.0), 0.0),
+        );
+        let bounds = g.frame;
+        let out = resize(
+            &[g],
+            bounds,
+            Handle { x: 1, y: 0 },
+            Point::new(600.0, 50.0),
+            ResizeOptions::default(),
+        );
+        assert!(close(out[0].children[1].frame.center.x, 500.0));
+        assert!(close(out[0].children[1].frame.size.width, 200.0));
+        assert!(close(out[0].frame.size.width, 600.0));
     }
 
     #[test]

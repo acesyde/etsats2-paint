@@ -3,7 +3,8 @@ use std::sync::Arc;
 use kurbo::{Point, Rect, Vec2};
 use serde::{Deserialize, Serialize};
 
-use crate::document::{Object, ObjectId, convex_polygons_overlap};
+use crate::document::tree::{self, Hit, Placement};
+use crate::document::{Object, ObjectId, Rgba};
 
 /// Name given to a project created without a name.
 pub const DEFAULT_PROJECT_NAME: &str = "Untitled";
@@ -69,76 +70,41 @@ impl Surface {
         self.objects.iter().position(|o| o.id == id)
     }
 
+    /// The object with `id`, anywhere in the tree.
     pub fn get(&self, id: ObjectId) -> Option<&Arc<Object>> {
-        self.objects.iter().find(|o| o.id == id)
+        tree::get(&self.objects, id)
     }
 
-    /// Topmost object containing `point`, with a tolerance in texture pixels.
-    pub fn hit_test(&self, point: Point, tolerance: f64) -> Option<ObjectId> {
-        self.objects
-            .iter()
-            .rev()
-            .find(|o| o.contains(point, tolerance))
-            .map(|o| o.id)
+    /// Topmost visible, unlocked object under `point` (tolerance in texture
+    /// pixels): the top-level object a click selects and the innermost one.
+    pub fn hit_test(&self, point: Point, tolerance: f64) -> Option<Hit> {
+        tree::hit_test(&self.objects, point, tolerance)
     }
 
-    /// Objects touching `rect`, bottom to top.
+    /// Visible, unlocked top-level objects touching `rect`, bottom to top.
     pub fn objects_in_rect(&self, rect: Rect) -> Vec<ObjectId> {
-        let rect = rect.abs();
-        let corners = [
-            Point::new(rect.x0, rect.y0),
-            Point::new(rect.x1, rect.y0),
-            Point::new(rect.x1, rect.y1),
-            Point::new(rect.x0, rect.y1),
-        ];
-        self.objects
-            .iter()
-            .filter(|o| {
-                rect_touches(o.bounding_box(), rect)
-                    && convex_polygons_overlap(&o.flattened(0.5), &corners)
-            })
-            .map(|o| o.id)
-            .collect()
+        tree::top_level_in_rect(&self.objects, rect)
     }
 
-    /// Removes the given objects; returns how many were removed.
+    /// Removes the given objects (with their subtrees); returns how many.
     pub fn remove(&mut self, ids: &[ObjectId]) -> usize {
-        let before = self.objects.len();
-        self.objects.retain(|o| !ids.contains(&o.id));
-        before - self.objects.len()
+        tree::remove(&mut self.objects, ids).len()
     }
 
-    /// Replaces objects with the same ids, keeping their stacking position.
+    /// Replaces objects with the same ids, anywhere in the tree.
     pub fn replace(&mut self, objects: &[Object]) {
-        for object in objects {
-            if let Some(i) = self.index_of(object.id) {
-                self.objects[i] = Arc::new(object.clone());
-            }
-        }
+        tree::replace(&mut self.objects, objects);
     }
 
-    /// Moves each selected object one step up past the next unselected one.
+    /// Moves each selected object one step up within its parent.
     pub fn bring_forward(&mut self, ids: &[ObjectId]) {
-        let n = self.objects.len();
-        for i in (0..n.saturating_sub(1)).rev() {
-            if ids.contains(&self.objects[i].id) && !ids.contains(&self.objects[i + 1].id) {
-                self.objects.swap(i, i + 1);
-            }
-        }
+        tree::bring_forward(&mut self.objects, ids);
     }
 
-    /// Moves each selected object one step down past the previous unselected one.
+    /// Moves each selected object one step down within its parent.
     pub fn send_backward(&mut self, ids: &[ObjectId]) {
-        for i in 1..self.objects.len() {
-            if ids.contains(&self.objects[i].id) && !ids.contains(&self.objects[i - 1].id) {
-                self.objects.swap(i, i - 1);
-            }
-        }
+        tree::send_backward(&mut self.objects, ids);
     }
-}
-
-fn rect_touches(a: Rect, b: Rect) -> bool {
-    a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1
 }
 
 /// A livery project: one or more surfaces of vector objects.
@@ -148,6 +114,8 @@ pub struct Project {
     pub resolution: TextureResolution,
     pub surfaces: Vec<Surface>,
     pub active_surface: usize,
+    /// Saved colors, without duplicates.
+    pub palette: Vec<Rgba>,
     next_id: u64,
 }
 
@@ -169,6 +137,7 @@ impl Project {
                 f64::from(resolution.side()),
             )],
             active_surface: 0,
+            palette: Vec::new(),
             next_id: 1,
         }
     }
@@ -194,42 +163,109 @@ impl Project {
         id
     }
 
-    /// Adds an object on top of the active surface (its id is replaced by a
-    /// fresh one) and returns the id.
-    pub fn add(&mut self, mut object: Object) -> ObjectId {
+    /// Gives `object` and all its descendants fresh ids.
+    fn assign_fresh_ids(&mut self, object: &mut Object) {
         object.id = self.next_object_id();
+        for child in &mut object.children {
+            let mut c = (**child).clone();
+            self.assign_fresh_ids(&mut c);
+            *child = Arc::new(c);
+        }
+    }
+
+    /// Adds an object (fresh ids) on top of the active surface's top level.
+    pub fn add(&mut self, object: Object) -> ObjectId {
+        self.add_to(None, object)
+    }
+
+    /// Adds an object (fresh ids) at the top of `parent` (a group) or of the
+    /// top level. Falls back to the top level if `parent` is not a group.
+    pub fn add_to(&mut self, parent: Option<ObjectId>, mut object: Object) -> ObjectId {
+        self.assign_fresh_ids(&mut object);
+        object.refresh_group_frame();
         let id = object.id;
-        self.surface_mut().objects.push(Arc::new(object));
+        let objects = &mut self.surface_mut().objects;
+        let parent = parent.filter(|p| tree::get(objects, *p).is_some_and(|g| g.is_group()));
+        let len = match parent {
+            Some(p) => tree::get(objects, p).map_or(0, |g| g.children.len()),
+            None => objects.len(),
+        };
+        tree::insert(objects, parent, len, vec![Arc::new(object)]);
         id
     }
 
-    /// Adds copies of `objects` offset by `offset`, on top, keeping their
-    /// relative order; returns the new ids.
-    pub fn add_copies(&mut self, objects: &[Object], offset: Vec2) -> Vec<ObjectId> {
+    /// Adds copies of `objects` offset by `offset` at the top of `parent`,
+    /// keeping their relative order; returns the new ids.
+    pub fn add_copies(
+        &mut self,
+        objects: &[Object],
+        offset: Vec2,
+        parent: Option<ObjectId>,
+    ) -> Vec<ObjectId> {
         objects
             .iter()
             .map(|o| {
                 let mut copy = o.clone();
-                copy.frame.center += offset;
-                self.add(copy)
+                copy.translate_deep(offset);
+                self.add_to(parent, copy)
             })
             .collect()
     }
 
-    /// Duplicates the given objects (bottom-to-top order preserved).
+    /// Duplicates the given objects, each copy directly above its original.
     pub fn duplicate(&mut self, ids: &[ObjectId], offset: Vec2) -> Vec<ObjectId> {
         let originals = self.selected_objects(ids);
-        self.add_copies(&originals, offset)
+        let mut copies = Vec::new();
+        for original in originals {
+            let mut copy = original.clone();
+            copy.translate_deep(offset);
+            self.assign_fresh_ids(&mut copy);
+            let id = copy.id;
+            let objects = &mut self.surface_mut().objects;
+            let parent = tree::parent_of(objects, original.id).flatten();
+            let index = tree::find_path(objects, original.id)
+                .and_then(|p| p.last().copied())
+                .map_or(0, |i| i + 1);
+            tree::insert(objects, parent, index, vec![Arc::new(copy)]);
+            copies.push(id);
+        }
+        copies
     }
 
-    /// The given objects in stacking order (bottom to top), cloned.
+    /// The given objects (normalized: no descendant of another), in paint
+    /// order, cloned.
     pub fn selected_objects(&self, ids: &[ObjectId]) -> Vec<Object> {
-        self.surface()
-            .objects
-            .iter()
-            .filter(|o| ids.contains(&o.id))
-            .map(|o| (**o).clone())
+        let objects = &self.surface().objects;
+        let ids = tree::normalize_selection(objects, ids);
+        tree::in_paint_order(objects, &ids)
+            .into_iter()
+            .filter_map(|id| tree::get(objects, id).map(|o| (**o).clone()))
             .collect()
+    }
+
+    /// Wraps the given objects in a new group; returns its id.
+    pub fn group(&mut self, ids: &[ObjectId]) -> Option<ObjectId> {
+        let id = self.next_object_id();
+        tree::group(&mut self.surface_mut().objects, ids, id)
+    }
+
+    /// Releases the given groups' children; returns their ids.
+    pub fn ungroup(&mut self, ids: &[ObjectId]) -> Vec<ObjectId> {
+        tree::ungroup(&mut self.surface_mut().objects, ids)
+    }
+
+    /// Moves objects in the active surface's tree.
+    pub fn move_objects(&mut self, ids: &[ObjectId], placement: Placement) -> bool {
+        tree::move_to(&mut self.surface_mut().objects, ids, placement)
+    }
+
+    /// Adds a color to the palette unless already present.
+    pub fn add_to_palette(&mut self, color: Rgba) -> bool {
+        if self.palette.contains(&color) {
+            return false;
+        }
+        self.palette.push(color);
+        true
     }
 
     /// Captures the document state (cheap: objects are shared).
@@ -237,6 +273,7 @@ impl Project {
         Snapshot {
             surfaces: self.surfaces.iter().map(|s| s.objects.clone()).collect(),
             active_surface: self.active_surface,
+            palette: self.palette.clone(),
             selection: selection.to_vec(),
         }
     }
@@ -248,6 +285,7 @@ impl Project {
             surface.objects = objects.clone();
         }
         self.active_surface = snapshot.active_surface.min(self.surfaces.len() - 1);
+        self.palette = snapshot.palette.clone();
         snapshot.selection.clone()
     }
 }
@@ -257,6 +295,7 @@ impl Project {
 pub struct Snapshot {
     surfaces: Vec<Vec<Arc<Object>>>,
     active_surface: usize,
+    palette: Vec<Rgba>,
     selection: Vec<ObjectId>,
 }
 
@@ -265,6 +304,7 @@ impl Snapshot {
     /// Unchanged objects share their `Arc`, so this is mostly pointer checks.
     pub fn same_document(&self, other: &Snapshot) -> bool {
         self.active_surface == other.active_surface
+            && self.palette == other.palette
             && self.surfaces.len() == other.surfaces.len()
             && self.surfaces.iter().zip(&other.surfaces).all(|(a, b)| {
                 a.len() == b.len() && a.iter().zip(b).all(|(x, y)| Arc::ptr_eq(x, y) || x == y)
@@ -330,7 +370,7 @@ mod tests {
         let top = p.add(rect_at(120.0, 120.0));
         assert_eq!(
             p.surface().hit_test(Point::new(110.0, 110.0), 0.0),
-            Some(top)
+            Some(Hit { top, inner: top })
         );
         assert_eq!(p.surface().hit_test(Point::new(1000.0, 1000.0), 0.0), None);
     }
@@ -384,6 +424,55 @@ mod tests {
         p.surface_mut().send_backward(&[c]);
         let order: Vec<_> = p.surface().objects.iter().map(|o| o.id).collect();
         assert_eq!(order, vec![b, c, a]);
+    }
+
+    #[test]
+    fn palette_has_no_duplicates_and_is_snapshotted() {
+        let mut p = Project::new("p", TextureResolution::R2048);
+        let red = Rgba::rgb(255, 0, 0);
+        assert!(p.add_to_palette(red));
+        assert!(!p.add_to_palette(red));
+        assert_eq!(p.palette, vec![red]);
+        let snap = p.snapshot(&[]);
+        p.palette.clear();
+        assert!(!snap.same_document(&p.snapshot(&[])));
+        p.restore(&snap);
+        assert_eq!(p.palette, vec![red]);
+    }
+
+    #[test]
+    fn duplicate_inside_group_stays_in_group() {
+        let mut p = Project::new("p", TextureResolution::R2048);
+        let a = p.add(rect_at(100.0, 100.0));
+        let g = p.group(&[a]).unwrap();
+        let copies = p.duplicate(&[a], Vec2::new(20.0, 20.0));
+        let group = p.surface().get(g).unwrap();
+        assert_eq!(group.children.len(), 2);
+        assert_eq!(group.children[1].id, copies[0]);
+        assert_eq!(group.children[1].frame.center, Point::new(120.0, 120.0));
+    }
+
+    #[test]
+    fn copies_of_groups_get_fresh_ids() {
+        let mut p = Project::new("p", TextureResolution::R2048);
+        let a = p.add(rect_at(100.0, 100.0));
+        let b = p.add(rect_at(300.0, 100.0));
+        let g = p.group(&[a, b]).unwrap();
+        let copy = p.duplicate(&[g], Vec2::new(0.0, 50.0))[0];
+        let copied = p.surface().get(copy).unwrap();
+        assert!(copied.children.iter().all(|c| c.id != a && c.id != b));
+        assert_eq!(copied.children[0].frame.center, Point::new(100.0, 150.0));
+    }
+
+    #[test]
+    fn add_to_group() {
+        let mut p = Project::new("p", TextureResolution::R2048);
+        let a = p.add(rect_at(100.0, 100.0));
+        let g = p.group(&[a]).unwrap();
+        let b = p.add_to(Some(g), rect_at(500.0, 100.0));
+        let group = p.surface().get(g).unwrap();
+        assert_eq!(group.children.last().unwrap().id, b);
+        assert_eq!(group.frame.size.width, 500.0);
     }
 
     #[test]

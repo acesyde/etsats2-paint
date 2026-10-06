@@ -421,6 +421,7 @@ fn context_menu_on_object() {
     let mut h = open();
     let a = add_rect(&mut h, 1000.0, 1000.0, 400.0, 400.0);
     let p = screen(&h, 1000.0, 1000.0);
+    let deletes_before = h.get_all_by_label("Delete").count();
     h.event(Event::PointerMoved(p));
     for pressed in [true, false] {
         h.event(Event::PointerButton {
@@ -432,16 +433,11 @@ fn context_menu_on_object() {
     }
     h.run();
     assert_eq!(ws(&h).selection, vec![a]);
-    for label in [
-        "Cut",
-        "Copy",
-        "Duplicate",
-        "Delete",
-        "Bring Forward",
-        "Send Backward",
-    ] {
+    for label in ["Cut", "Copy", "Duplicate", "Bring Forward", "Send Backward"] {
         h.get_by_label(label);
     }
+    // The Layers footer also has a Delete button: the menu adds one more.
+    assert_eq!(h.get_all_by_label("Delete").count(), deletes_before + 1);
 }
 
 // --- navigation -------------------------------------------------------------------

@@ -27,7 +27,11 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     let Screen::Workspace(ws) = screen else {
         return;
     };
-    let layout = &mut prefs.layout;
+    let crate::prefs::Prefs {
+        layout,
+        recent_colors,
+        ..
+    } = prefs;
     let generation = layout.generation;
     let mut cmds = CommandUi::new(&ctx, queue, edit);
 
@@ -55,7 +59,14 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         .default_size(layout.column_width)
         .size_range(size::PANEL_COLUMN_MIN..=size::PANEL_COLUMN_MAX)
         .frame(Frame::new().fill(color::SURFACE_1))
-        .show(ui, |ui| panels::show(ui, &mut cmds, layout));
+        .show(ui, |ui| {
+            let mut env = panels::PanelEnv {
+                ws,
+                recent_colors,
+                now: ctx.input(|i| i.time),
+            };
+            panels::show(ui, &mut cmds, layout, &mut env);
+        });
     let width = column.response.rect.width().round();
     if (width - layout.column_width).abs() >= 1.0 {
         layout.column_width = width.clamp(size::PANEL_COLUMN_MIN, size::PANEL_COLUMN_MAX);

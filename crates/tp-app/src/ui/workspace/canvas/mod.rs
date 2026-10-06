@@ -7,7 +7,8 @@ use egui::{
     Ui, Vec2, WidgetInfo, WidgetType,
 };
 use tp_core::document::{
-    Handle, ResizeOptions, ShapeKind, angle_around, resize, rotate, selection_frame, translate,
+    Handle, ObjectId, ResizeOptions, Rgba, ShapeKind, angle_around, resize, rotate,
+    selection_frame, translate,
 };
 use tp_core::kurbo;
 use tp_ui::tokens::canvas as tokens;
@@ -17,7 +18,7 @@ use crate::gesture::{Gesture, OverlayTarget, Transforming, drawing_frame, overla
 use crate::tool::Tool;
 use crate::ui::CommandUi;
 use crate::viewport::{ScreenMap, Viewport};
-use crate::workspace::Workspace;
+use crate::workspace::{ColorTarget, Workspace};
 
 /// Points one wheel "line" is worth.
 const POINTS_PER_LINE: f32 = 40.0;
@@ -53,8 +54,8 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     let map = ws.viewport.expect("viewport set").map(area, ppp);
     let pointer = ctx.pointer_hover_pos().filter(|p| area.contains(*p));
     let modifiers = ctx.input(|i| i.modifiers);
-    let rotate_cursor = set_cursor(&ctx, ws, &map, pointer, modifiers, response.hovered());
-    paint::paint(ui, ws, area, &map, pointer, modifiers, now, rotate_cursor);
+    let drawn_cursor = set_cursor(&ctx, ws, &map, pointer, modifiers, response.hovered());
+    paint::paint(ui, ws, area, &map, pointer, modifiers, now, drawn_cursor);
     ws.geometry.prune();
 }
 
@@ -155,6 +156,20 @@ fn hit_tolerance(map: &ScreenMap) -> f64 {
     map.doc_len(tokens::HIT_TOLERANCE)
 }
 
+/// What a click at `doc` selects: the top-level object, or the innermost one
+/// with Cmd/Ctrl.
+pub fn click_target(
+    ws: &Workspace,
+    doc: kurbo::Point,
+    map: &ScreenMap,
+    deep: bool,
+) -> Option<ObjectId> {
+    ws.project
+        .surface()
+        .hit_test(doc, hit_tolerance(map))
+        .map(|hit| if deep { hit.inner } else { hit.top })
+}
+
 fn transforming(ws: &Workspace, start: kurbo::Point) -> Transforming {
     Transforming {
         start,
@@ -175,6 +190,7 @@ fn start_gesture(
     now: f64,
 ) {
     let doc = map.to_doc(origin);
+    ws.commit_pending(now);
     ws.gesture = match ws.tool {
         Tool::Hand => Gesture::Panning,
         Tool::Zoom => Gesture::ZoomRect { start: doc },
@@ -202,13 +218,14 @@ fn start_gesture(
                         base: transforming(ws, doc),
                     }
                 }
-                None => match ws.project.surface().hit_test(doc, hit_tolerance(map)) {
+                None => match click_target(ws, doc, map, modifiers.command) {
                     Some(id) => {
                         if !ws.selection.contains(&id) {
                             if !modifiers.shift {
                                 ws.selection.clear();
                             }
                             ws.selection.push(id);
+                            ws.normalize_selection();
                         }
                         Gesture::Moving(transforming(ws, doc))
                     }
@@ -223,6 +240,7 @@ fn start_gesture(
                 },
             }
         }
+        Tool::Eyedropper => Gesture::Idle,
         other => {
             ws.show_hint(unavailable_hint(other), now);
             Gesture::Idle
@@ -339,12 +357,13 @@ fn click(
 ) {
     let doc = map.to_doc(pointer);
     match ws.tool {
-        Tool::Select | Tool::Move => match ws.project.surface().hit_test(doc, hit_tolerance(map)) {
+        Tool::Select | Tool::Move => match click_target(ws, doc, map, modifiers.command) {
             Some(id) if modifiers.shift => {
                 if let Some(i) = ws.selection.iter().position(|s| *s == id) {
                     ws.selection.remove(i);
                 } else {
                     ws.selection.push(id);
+                    ws.normalize_selection();
                 }
             }
             Some(id) => ws.selection = vec![id],
@@ -358,9 +377,28 @@ fn click(
                 view.zoom_at(area, ppp, pointer, zoom);
             }
         }
+        Tool::Eyedropper => eyedropper(ws, doc, map, now),
         Tool::Rectangle | Tool::Ellipse | Tool::Hand => {}
         other => ws.show_hint(unavailable_hint(other), now),
     }
+}
+
+/// Takes the fill (or stroke, per the Colors target) of the topmost visible
+/// shape under `doc`, or the artboard color on empty canvas, and applies it.
+fn eyedropper(ws: &mut Workspace, doc: kurbo::Point, map: &ScreenMap, now: f64) {
+    let target = ws.panels.color_target;
+    let artboard = tokens::ARTBOARD;
+    let sampled =
+        tp_core::document::tree::sample(&ws.project.surface().objects, doc, hit_tolerance(map));
+    let color = match sampled {
+        Some(object) => match target {
+            ColorTarget::Stroke => object.stroke.map_or(object.fill, |s| s.color),
+            ColorTarget::Fill => object.fill,
+        },
+        None => Rgba::rgb(artboard.r(), artboard.g(), artboard.b()),
+    };
+    ws.apply_color(target, color);
+    ws.commit_pending(now);
 }
 
 fn select_under_pointer_for_menu(ws: &mut Workspace, response: &Response, area: Rect, ppp: f32) {
@@ -368,10 +406,8 @@ fn select_under_pointer_for_menu(ws: &mut Workspace, response: &Response, area: 
         return;
     };
     let map = ws.viewport.expect("viewport set").map(area, ppp);
-    if let Some(id) = ws
-        .project
-        .surface()
-        .hit_test(map.to_doc(pos), hit_tolerance(&map))
+    let deep = response.ctx.input(|i| i.modifiers.command);
+    if let Some(id) = click_target(ws, map.to_doc(pos), &map, deep)
         && !ws.selection.contains(&id)
     {
         ws.selection = vec![id];
@@ -406,7 +442,15 @@ pub fn resize_cursor(handle: Handle, rotation_deg: f64) -> CursorIcon {
     }
 }
 
-/// Sets the cursor; returns true when the canvas must draw a rotate cursor.
+/// A cursor the canvas draws itself (no system equivalent): glyph and the
+/// offset from the pointer to the glyph center (so the hotspot is right).
+pub type DrawnCursor = Option<(&'static str, Vec2)>;
+
+const ROTATE_CURSOR: (&str, Vec2) = (tp_ui::icons::ROTATE, Vec2::ZERO);
+/// The eyedropper tip is at the glyph's bottom-left.
+const EYEDROPPER_CURSOR: (&str, Vec2) = (tp_ui::icons::EYEDROPPER, Vec2::new(8.0, -8.0));
+
+/// Sets the system cursor, or hides it and returns the cursor to draw.
 fn set_cursor(
     ctx: &egui::Context,
     ws: &Workspace,
@@ -414,49 +458,48 @@ fn set_cursor(
     pointer: Option<Pos2>,
     modifiers: Modifiers,
     hovered: bool,
-) -> bool {
-    let icon = match &ws.gesture {
-        Gesture::Panning => Some(CursorIcon::Grabbing),
-        Gesture::Moving(_) => Some(CursorIcon::Move),
-        Gesture::Resizing { handle, bounds, .. } => {
-            Some(resize_cursor(*handle, bounds.rotation_deg))
-        }
-        Gesture::Rotating { .. } => None,
-        Gesture::Drawing { .. } => Some(CursorIcon::Crosshair),
-        Gesture::Marquee { .. } => Some(CursorIcon::Default),
-        Gesture::ZoomRect { .. } => Some(CursorIcon::ZoomIn),
+) -> DrawnCursor {
+    let icon: Result<CursorIcon, (&'static str, Vec2)> = match &ws.gesture {
+        Gesture::Panning => Ok(CursorIcon::Grabbing),
+        Gesture::Moving(_) => Ok(CursorIcon::Move),
+        Gesture::Resizing { handle, bounds, .. } => Ok(resize_cursor(*handle, bounds.rotation_deg)),
+        Gesture::Rotating { .. } => Err(ROTATE_CURSOR),
+        Gesture::Drawing { .. } => Ok(CursorIcon::Crosshair),
+        Gesture::Marquee { .. } => Ok(CursorIcon::Default),
+        Gesture::ZoomRect { .. } => Ok(CursorIcon::ZoomIn),
         Gesture::Idle => {
             if !hovered {
-                return false;
+                return None;
             }
             match ws.tool {
-                Tool::Hand => Some(CursorIcon::Grab),
-                Tool::Zoom if modifiers.alt => Some(CursorIcon::ZoomOut),
-                Tool::Zoom => Some(CursorIcon::ZoomIn),
-                Tool::Rectangle | Tool::Ellipse => Some(CursorIcon::Crosshair),
+                Tool::Hand => Ok(CursorIcon::Grab),
+                Tool::Zoom if modifiers.alt => Ok(CursorIcon::ZoomOut),
+                Tool::Zoom => Ok(CursorIcon::ZoomIn),
+                Tool::Eyedropper => Err(EYEDROPPER_CURSOR),
+                Tool::Rectangle | Tool::Ellipse => Ok(CursorIcon::Crosshair),
                 Tool::Select | Tool::Move => {
                     let bounds = selection_frame(&ws.selected_objects());
                     match pointer.and_then(|p| overlay_target(bounds.as_ref(), map, p)) {
                         Some(OverlayTarget::Handle(h)) => {
-                            Some(resize_cursor(h, bounds.map_or(0.0, |b| b.rotation_deg)))
+                            Ok(resize_cursor(h, bounds.map_or(0.0, |b| b.rotation_deg)))
                         }
-                        Some(OverlayTarget::Rotate) => None,
-                        None if ws.tool == Tool::Move => Some(CursorIcon::Move),
-                        None => Some(CursorIcon::Default),
+                        Some(OverlayTarget::Rotate) => Err(ROTATE_CURSOR),
+                        None if ws.tool == Tool::Move => Ok(CursorIcon::Move),
+                        None => Ok(CursorIcon::Default),
                     }
                 }
-                _ => Some(CursorIcon::NotAllowed),
+                _ => Ok(CursorIcon::NotAllowed),
             }
         }
     };
     match icon {
-        Some(icon) => {
+        Ok(icon) => {
             ctx.set_cursor_icon(icon);
-            false
+            None
         }
-        None => {
+        Err(drawn) => {
             ctx.set_cursor_icon(CursorIcon::None);
-            true
+            Some(drawn)
         }
     }
 }

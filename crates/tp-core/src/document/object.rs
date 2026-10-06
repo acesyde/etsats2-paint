@@ -1,5 +1,7 @@
 //! Vector objects, their frames and geometry.
 
+use std::sync::Arc;
+
 use kurbo::{Affine, BezPath, Ellipse, PathEl, Point, Rect, RoundedRect, Shape, Size, Vec2};
 
 use super::color::{DEFAULT_FILL, Rgba};
@@ -14,8 +16,12 @@ pub struct ObjectId(pub u64);
 /// The geometric kind of an object.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ShapeKind {
-    Rectangle { corner_radius: f64 },
+    Rectangle {
+        corner_radius: f64,
+    },
     Ellipse,
+    /// Holds `Object::children`; its frame is derived from them.
+    Group,
 }
 
 impl ShapeKind {
@@ -28,7 +34,12 @@ impl ShapeKind {
         match self {
             Self::Rectangle { .. } => "Rectangle",
             Self::Ellipse => "Ellipse",
+            Self::Group => "Group",
         }
+    }
+
+    pub fn is_group(self) -> bool {
+        matches!(self, Self::Group)
     }
 }
 
@@ -121,24 +132,119 @@ pub struct StrokeStyle {
 pub struct Object {
     pub id: ObjectId,
     pub kind: ShapeKind,
+    pub name: String,
     pub frame: Frame,
     pub fill: Rgba,
     pub stroke: Option<StrokeStyle>,
-    /// 0.0..=1.0
+    /// 0.0..=1.0; for groups, multiplied into the children.
     pub opacity: f32,
+    pub visible: bool,
+    pub locked: bool,
+    /// Children of a group, bottom to top. Empty for shapes.
+    pub children: Vec<Arc<Object>>,
 }
 
 impl Object {
-    /// A shape with the default appearance.
+    /// A shape with the default appearance and the default name of its kind.
     pub fn new(id: ObjectId, kind: ShapeKind, frame: Frame) -> Self {
         Self {
             id,
             kind,
+            name: kind.name().to_owned(),
             frame: frame.sanitized(),
             fill: DEFAULT_FILL,
             stroke: None,
             opacity: 1.0,
+            visible: true,
+            locked: false,
+            children: Vec::new(),
         }
+    }
+
+    /// A group of `children` (bottom to top), unrotated, frame derived.
+    pub fn group(id: ObjectId, children: Vec<Arc<Object>>) -> Self {
+        let mut group = Self::new(
+            id,
+            ShapeKind::Group,
+            Frame::new(Point::ORIGIN, Size::ZERO, 0.0),
+        );
+        group.children = children;
+        group.refresh_group_frame();
+        group
+    }
+
+    pub fn is_group(&self) -> bool {
+        self.kind.is_group()
+    }
+
+    /// Applies `f` to this object if it is a shape, or to every shape in
+    /// its subtree if it is a group (then refreshes group frames).
+    pub fn for_each_shape(&mut self, f: &mut impl FnMut(&mut Object)) {
+        if self.is_group() {
+            for child in &mut self.children {
+                Arc::make_mut(child).for_each_shape(f);
+            }
+            self.refresh_group_frame();
+        } else {
+            f(self);
+        }
+    }
+
+    /// Shapes of this object's subtree (itself if it is a shape).
+    pub fn shapes(&self) -> Vec<&Object> {
+        if self.is_group() {
+            self.children.iter().flat_map(|c| c.shapes()).collect()
+        } else {
+            vec![self]
+        }
+    }
+
+    /// Moves the object and all its descendants by `delta`.
+    pub fn translate_deep(&mut self, delta: Vec2) {
+        self.frame.center += delta;
+        for child in &mut self.children {
+            Arc::make_mut(child).translate_deep(delta);
+        }
+    }
+
+    /// Points describing the visible extent of the object (document space).
+    fn extent_points(&self, out: &mut Vec<Point>) {
+        if !self.visible {
+            return;
+        }
+        match self.kind {
+            ShapeKind::Group => {
+                for child in &self.children {
+                    child.extent_points(out);
+                }
+            }
+            ShapeKind::Rectangle { .. } => out.extend(self.frame.corners()),
+            ShapeKind::Ellipse => out.extend(self.flattened(0.5)),
+        }
+    }
+
+    /// Recomputes a group's frame as the bounds of its visible children,
+    /// measured in the group's own rotation. No-op for shapes.
+    pub fn refresh_group_frame(&mut self) {
+        if !self.is_group() {
+            return;
+        }
+        let mut points = Vec::new();
+        for child in &self.children {
+            child.extent_points(&mut points);
+        }
+        let Some(first) = points.first().copied() else {
+            self.frame.size = Size::new(MIN_SIZE, MIN_SIZE);
+            return;
+        };
+        let rotation = Affine::rotate(self.frame.rotation_deg.to_radians());
+        let unrotate = rotation.inverse();
+        let local = points.iter().map(|p| unrotate * *p).fold(
+            Rect::from_points(unrotate * first, unrotate * first),
+            |r, p| r.union_pt(p),
+        );
+        self.frame.center = rotation * local.center();
+        self.frame.size = Size::new(local.width().max(MIN_SIZE), local.height().max(MIN_SIZE));
     }
 
     /// Outline in local space (centered, unrotated), grown by `grow` on each
@@ -150,7 +256,7 @@ impl Object {
                 let max = rect.width().min(rect.height()) / 2.0;
                 RoundedRect::from_rect(rect, (corner_radius + grow).min(max)).to_path(0.01)
             }
-            ShapeKind::Rectangle { .. } => rect.to_path(0.01),
+            ShapeKind::Rectangle { .. } | ShapeKind::Group => rect.to_path(0.01),
             ShapeKind::Ellipse => Ellipse::from_rect(rect).to_path(0.01),
         }
     }
@@ -171,12 +277,29 @@ impl Object {
         match self.kind {
             ShapeKind::Ellipse => self.path().bounding_box(),
             ShapeKind::Rectangle { .. } => self.frame.bounding_box(),
+            ShapeKind::Group => {
+                let mut points = Vec::new();
+                self.extent_points(&mut points);
+                match points.first() {
+                    Some(first) => points
+                        .iter()
+                        .fold(Rect::from_points(*first, *first), |r, p| r.union_pt(*p)),
+                    None => self.frame.bounding_box(),
+                }
+            }
         }
     }
 
     /// Whether `point` (document space) is inside the filled shape, accepting
-    /// points up to `tolerance` texture pixels outside it.
+    /// points up to `tolerance` texture pixels outside it. For a group, whether
+    /// any visible child contains it.
     pub fn contains(&self, point: Point, tolerance: f64) -> bool {
+        if self.is_group() {
+            return self
+                .children
+                .iter()
+                .any(|c| c.visible && c.contains(point, tolerance));
+        }
         let local = self.frame.affine().inverse() * point;
         self.local_path(tolerance.max(0.0)).contains(local)
     }
@@ -310,6 +433,28 @@ mod tests {
     fn minimum_size_is_enforced() {
         let o = object(ShapeKind::rectangle(), (0.0, 0.0), (0.0, -5.0), 0.0);
         assert_eq!(o.frame.size, Size::new(MIN_SIZE, MIN_SIZE));
+    }
+
+    #[test]
+    fn default_names_and_flags() {
+        let o = object(ShapeKind::Ellipse, (0.0, 0.0), (10.0, 10.0), 0.0);
+        assert_eq!(o.name, "Ellipse");
+        assert!(o.visible && !o.locked && o.children.is_empty());
+        let g = Object::group(ObjectId(2), vec![Arc::new(o)]);
+        assert_eq!(g.name, "Group");
+    }
+
+    #[test]
+    fn group_frame_ignores_hidden_children_and_follows_rotation() {
+        let a = object(ShapeKind::rectangle(), (0.0, 0.0), (100.0, 100.0), 0.0);
+        let mut b = object(ShapeKind::rectangle(), (1000.0, 0.0), (100.0, 100.0), 0.0);
+        b.visible = false;
+        let mut g = Object::group(ObjectId(3), vec![Arc::new(a), Arc::new(b)]);
+        assert_eq!(g.frame.size, Size::new(100.0, 100.0));
+        g.frame.rotation_deg = 45.0;
+        g.refresh_group_frame();
+        let diag = 100.0 * 2f64.sqrt();
+        assert!((g.frame.size.width - diag).abs() < 1e-6);
     }
 
     #[test]

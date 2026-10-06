@@ -58,6 +58,10 @@ pub enum CommandId {
     // Help
     KeyboardShortcuts,
     About,
+    // Colors
+    SwapColorTarget,
+    SwapFillStroke,
+    DefaultColors,
     // Canvas
     Deselect,
     Nudge(Direction, bool),
@@ -100,6 +104,8 @@ pub struct EditContext {
     pub gesture_active: bool,
     pub undo_label: Option<&'static str>,
     pub redo_label: Option<&'static str>,
+    /// At least one selected object is a group.
+    pub selection_has_group: bool,
 }
 
 fn editable_selection(c: &EditContext) -> bool {
@@ -201,7 +207,7 @@ impl CommandId {
         ];
         all.extend([ViewMode::TwoD, ViewMode::ThreeD, ViewMode::Split].map(SetViewMode));
         all.extend(PanelKind::ALL.map(TogglePanel));
-        all.push(Deselect);
+        all.extend([SwapColorTarget, SwapFillStroke, DefaultColors, Deselect]);
         for direction in Direction::ALL {
             all.push(Nudge(direction, false));
             all.push(Nudge(direction, true));
@@ -320,7 +326,7 @@ impl CommandId {
             ),
             Delete => m(
                 "Delete",
-                None,
+                Some(icons::REMOVE),
                 const { &[sc(NONE, Key::Delete), sc(NONE, Key::Backspace)] },
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
@@ -335,17 +341,20 @@ impl CommandId {
 
             Group => m(
                 "Group",
-                None,
+                Some(icons::GROUP),
                 const { &[sc(CMD, Key::G)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(editable_selection, NEEDS_SELECTION),
             ),
             Ungroup => m(
                 "Ungroup",
-                None,
+                Some(icons::UNGROUP),
                 const { &[sc(CMD_SHIFT, Key::G)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(
+                    |c| editable_selection(c) && c.selection_has_group,
+                    "Select a group first.",
+                ),
             ),
             BringForward => m(
                 "Bring Forward",
@@ -371,19 +380,25 @@ impl CommandId {
 
             NewLayer => m(
                 "New Layer",
-                None,
+                Some(icons::NEW_LAYER),
                 const { &[sc(CMD_SHIFT, Key::N)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(|c| c.has_project && !c.gesture_active, ""),
             ),
             DuplicateLayer => m(
                 "Duplicate Layer",
                 None,
                 &[],
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(editable_selection, NEEDS_SELECTION),
             ),
-            DeleteLayer => m("Delete Layer", None, &[], Workspace, NotYet(SOON_EDITING)),
+            DeleteLayer => m(
+                "Delete Layer",
+                None,
+                &[],
+                Workspace,
+                When(editable_selection, NEEDS_SELECTION),
+            ),
 
             ZoomIn => m(
                 "Zoom In",
@@ -522,6 +537,27 @@ impl CommandId {
             ),
             About => m("About TruckPaint", None, &[], App, Always),
 
+            SwapColorTarget => m(
+                "Switch Fill/Stroke Target",
+                None,
+                const { &[sc(NONE, Key::X)] },
+                Workspace,
+                NeedsProject,
+            ),
+            SwapFillStroke => m(
+                "Swap Fill and Stroke",
+                None,
+                const { &[sc(SHIFT, Key::X)] },
+                Workspace,
+                NeedsProject,
+            ),
+            DefaultColors => m(
+                "Default Colors",
+                None,
+                const { &[sc(NONE, Key::D)] },
+                Workspace,
+                NeedsProject,
+            ),
             Deselect => m(
                 "Deselect",
                 None,
@@ -817,6 +853,30 @@ mod tests {
         assert!(!is_enabled(CommandId::Delete, &dragging));
         assert!(!is_enabled(CommandId::Undo, &dragging));
         assert!(!is_enabled(CommandId::Deselect, &dragging));
+    }
+
+    #[test]
+    fn grouping_commands_follow_the_selection() {
+        use crate::state::is_enabled;
+        let one = EditContext {
+            has_project: true,
+            has_selection: true,
+            ..EditContext::default()
+        };
+        assert!(is_enabled(CommandId::Group, &one));
+        assert!(!is_enabled(CommandId::Ungroup, &one));
+        let group = EditContext {
+            selection_has_group: true,
+            ..one
+        };
+        assert!(is_enabled(CommandId::Ungroup, &group));
+        assert!(is_enabled(
+            CommandId::NewLayer,
+            &EditContext {
+                has_project: true,
+                ..EditContext::default()
+            }
+        ));
     }
 
     #[test]

@@ -83,6 +83,25 @@ impl Widget for IconButton<'_> {
     }
 }
 
+/// Icon button with two states (e.g. eye open/closed, lock open/closed): the
+/// state is shown by the glyph shape, and the name says what a click does.
+/// Returns true when clicked.
+pub fn toggle_icon_button(
+    ui: &mut Ui,
+    on: bool,
+    on_icon: &str,
+    off_icon: &str,
+    name_when_on: &str,
+    name_when_off: &str,
+) -> bool {
+    let (icon, name) = if on {
+        (on_icon, name_when_on)
+    } else {
+        (off_icon, name_when_off)
+    };
+    ui.add(IconButton::new(icon, name).selected(!on)).clicked()
+}
+
 /// Call-to-action button with the accent fill.
 pub fn primary_button(text: &str) -> Button<'static> {
     Button::new(RichText::new(text.to_owned()).color(color::TEXT_ON_ACCENT))

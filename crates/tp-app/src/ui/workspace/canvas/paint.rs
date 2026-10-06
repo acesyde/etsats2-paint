@@ -47,7 +47,7 @@ pub fn paint(
     pointer: Option<Pos2>,
     modifiers: Modifiers,
     now: f64,
-    rotate_cursor: bool,
+    drawn_cursor: super::DrawnCursor,
 ) {
     let painter = ui.painter_at(area);
     painter.rect_filled(area, 0, tokens::PASTEBOARD);
@@ -66,15 +66,15 @@ pub fn paint(
 
     // Objects, bottom to top, culled to the visible area.
     let bucket = zoom_bucket(f64::from(map.scale));
-    let objects = surface.objects.clone();
-    for object in &objects {
+    let draw_list = tp_core::document::tree::draw_list(&surface.objects);
+    for (object, opacity) in &draw_list {
         let bounds = screen_rect(map, object.frame.bounding_box());
         if !bounds.intersects(area) {
             continue;
         }
         let outline = ws.geometry.outline(object, bucket);
         let points: Vec<Pos2> = outline.iter().map(|p| map.to_screen(*p)).collect();
-        draw_object(&painter, object, points, map.scale);
+        draw_object(&painter, object, *opacity, points, map.scale);
     }
 
     painter.rect_stroke(
@@ -92,14 +92,11 @@ pub fn paint(
         color::TEXT_SECONDARY,
     );
 
-    // Hover outline (idle, selection tools).
+    // Hover outline (idle, selection tools): what a click would select.
     if matches!(ws.gesture, Gesture::Idle)
         && matches!(ws.tool, crate::tool::Tool::Select | crate::tool::Tool::Move)
         && let Some(p) = pointer
-        && let Some(id) = ws
-            .project
-            .surface()
-            .hit_test(map.to_doc(p), map.doc_len(tokens::HIT_TOLERANCE))
+        && let Some(id) = super::click_target(ws, map.to_doc(p), map, modifiers.command)
         && !ws.selection.contains(&id)
         && let Some(object) = ws.project.surface().get(id).cloned()
     {
@@ -114,36 +111,32 @@ pub fn paint(
     draw_selection(&painter, ws, map, bucket);
     draw_gesture_feedback(ui, &painter, ws, map, pointer, modifiers);
 
-    if rotate_cursor && let Some(p) = pointer {
+    if let (Some((glyph, offset)), Some(p)) = (drawn_cursor, pointer) {
         let font = icons::font(18.0);
+        let at = p + offset;
         painter.text(
-            p + Vec2::splat(1.0),
+            at + Vec2::splat(1.0),
             Align2::CENTER_CENTER,
-            icons::ROTATE,
+            glyph,
             font.clone(),
             Color32::WHITE,
         );
-        painter.text(
-            p,
-            Align2::CENTER_CENTER,
-            icons::ROTATE,
-            font,
-            Color32::BLACK,
-        );
+        painter.text(at, Align2::CENTER_CENTER, glyph, font, Color32::BLACK);
     }
 
     draw_hint(ui, &painter, ws, area, now);
 }
 
-fn draw_object(painter: &Painter, object: &Object, points: Vec<Pos2>, scale: f32) {
+/// Draws a shape; `opacity` already includes the object's and its groups'.
+fn draw_object(painter: &Painter, object: &Object, opacity: f32, points: Vec<Pos2>, scale: f32) {
     if points.len() < 3 {
         return;
     }
-    let fill = color32(object.fill.with_opacity(object.opacity));
+    let fill = color32(object.fill.with_opacity(opacity));
     let stroke = object.stroke.map(|s| {
         Stroke::new(
             (s.width as f32 * scale).max(0.5),
-            color32(s.color.with_opacity(object.opacity)),
+            color32(s.color.with_opacity(opacity)),
         )
     });
     match stroke {
@@ -239,7 +232,7 @@ fn draw_gesture_feedback(
     match &ws.gesture {
         Gesture::Drawing { kind, start } => {
             let frame = drawing_frame(*start, doc, modifiers.shift, modifiers.alt);
-            let preview = Object::new(tp_core::document::ObjectId(0), *kind, frame);
+            let preview = ws.styled_shape(*kind, frame);
             let points: Vec<Pos2> = preview
                 .flattened(map.doc_len(0.25))
                 .iter()
@@ -247,7 +240,7 @@ fn draw_gesture_feedback(
                 .collect();
             let mut ghost = preview.clone();
             ghost.opacity = 0.6;
-            draw_object(painter, &ghost, points.clone(), map.scale);
+            draw_object(painter, &ghost, ghost.opacity, points.clone(), map.scale);
             halo_polyline(painter, points, true);
             label_pill(ui, painter, pointer, size_text(&frame));
         }

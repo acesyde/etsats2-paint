@@ -4,8 +4,9 @@ mod color;
 mod history;
 mod object;
 mod transform;
+pub mod tree;
 
-pub use color::{DEFAULT_FILL, Rgba};
+pub use color::{DEFAULT_FILL, Hsla, Hsva, Rgba};
 pub use history::{COALESCE_WINDOW, DEFAULT_MAX_STEPS, History};
 pub use object::{
     Frame, MIN_SIZE, Object, ObjectId, ShapeKind, StrokeStyle, convex_polygons_overlap,
