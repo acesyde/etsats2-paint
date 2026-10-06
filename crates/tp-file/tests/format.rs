@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tp_core::document::{
-    CharStyle, Frame, Object, ObjectId, Rgba, ShapeKind, StrokeStyle, TextAlign, TextBlock,
+    CharStyle, Frame, Node, Object, ObjectId, PathData, Rgba, ShapeKind, StrokeStyle, Subpath,
+    TextAlign, TextBlock,
 };
 use tp_core::kurbo::{Point, Size, Vec2};
 use tp_core::{AssetKind, Project, TextureResolution};
@@ -83,7 +84,59 @@ fn rich_project() -> Project {
         p.add(image);
     }
     p.add_to_palette(Rgba::rgb(0xF0, 0xB4, 0x4C));
+    for o in vector_objects() {
+        p.add(o);
+    }
     p
+}
+
+/// A star, a curved path with a hole and an open line (format 2).
+fn vector_objects() -> Vec<Object> {
+    let mut star = Object::new(
+        ObjectId(0),
+        ShapeKind::Polygon {
+            sides: 5,
+            star: Some(0.45),
+        },
+        Frame::new(Point::new(600.0, 2600.0), Size::new(400.0, 380.0), 15.0),
+    );
+    star.name = "Star".into();
+    let corner = |x: f64, y: f64| Node::corner(Point::new(x, y));
+    let outer = Subpath::new(
+        vec![
+            Node::smooth(Point::new(1000.0, 3000.0), Point::new(1200.0, 2900.0)),
+            corner(1600.0, 3000.0),
+            Node {
+                handle_in: Some(Point::new(1700.0, 3300.0)),
+                ..corner(1600.0, 3400.0)
+            },
+            corner(1000.0, 3400.0),
+        ],
+        true,
+    );
+    let hole = Subpath::new(
+        vec![
+            corner(1200.0, 3100.0),
+            corner(1200.0, 3300.0),
+            corner(1400.0, 3300.0),
+            corner(1400.0, 3100.0),
+        ],
+        true,
+    );
+    let mut swoosh = Object::from_path(ObjectId(0), PathData::new(vec![outer, hole]));
+    swoosh.frame.rotation_deg = -20.0;
+    swoosh.fill = Rgba::rgb(0x10, 0x60, 0xA0);
+    let mut line = Object::from_path(
+        ObjectId(0),
+        PathData::new(vec![Subpath::new(
+            vec![corner(2000.0, 3000.0), corner(2800.0, 3200.0)],
+            false,
+        )]),
+    );
+    line.name = "Line".into();
+    line.fill = Rgba::rgb(255, 255, 255);
+    line.edit_path(|p| p.line_width = 30.0);
+    vec![star, swoosh, line]
 }
 
 fn assert_same_document(a: &Project, b: &Project) {
@@ -224,6 +277,52 @@ fn fixture(version: u32) -> PathBuf {
 #[ignore = "regenerates a committed fixture"]
 fn write_current_fixture() {
     tp_file::write(&rich_project(), &fixture(FORMAT_VERSION)).unwrap();
+}
+
+#[test]
+fn v2_fixture_opens() {
+    let opened = tp_file::read(&fixture(2)).unwrap();
+    assert_eq!(opened.migrated, FORMAT_VERSION != 2);
+    let objects = &opened.project.surface().objects;
+    assert_eq!(objects.len(), 7);
+    assert_eq!(
+        objects[4].kind,
+        ShapeKind::Polygon {
+            sides: 5,
+            star: Some(0.45)
+        }
+    );
+    let swoosh = objects[5].path_data().unwrap();
+    assert_eq!(swoosh.subpaths.len(), 2);
+    assert!(swoosh.subpaths.iter().all(|s| s.closed));
+    assert!(swoosh.subpaths[0].nodes[0].smooth);
+    assert_eq!(objects[5].frame.rotation_deg, -20.0);
+    let line = &objects[6];
+    assert_eq!(line.name, "Line");
+    assert!(line.has_open_path());
+    assert_eq!(line.path_data().unwrap().line_width, 30.0);
+    // The fixture holds exactly what the test project builds.
+    let expected = vector_objects();
+    for (got, want) in objects[4..].iter().zip(&expected) {
+        assert_eq!(got.kind, want.kind);
+        assert_eq!(got.frame, want.frame);
+        assert_eq!(got.path, want.path);
+    }
+}
+
+#[test]
+fn format_3_is_newer() {
+    let err = tp_file::from_bytes(&zip_with("(format: 3, name: \"x\")")).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            Error::NewerVersion {
+                found: 3,
+                supported: 2
+            }
+        ),
+        "{err:?}"
+    );
 }
 
 /// Files of every released format version keep opening.

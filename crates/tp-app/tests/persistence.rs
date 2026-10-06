@@ -13,7 +13,10 @@ use tp_app::AppState;
 use tp_app::file_dialogs::ScriptedDialogs;
 use tp_app::state::{Modal, Screen};
 use tp_app::workspace::{SaveState, Workspace};
-use tp_core::document::{CharStyle, Frame, Object, ObjectId, Rgba, ShapeKind, TextBlock};
+use tp_core::document::{
+    CharStyle, Frame, Node, Object, ObjectId, PathData, Rgba, ShapeKind, StrokeStyle, Subpath,
+    TextBlock,
+};
 use tp_core::kurbo::{Point, Size};
 
 type H = Harness<'static, AppState>;
@@ -214,6 +217,7 @@ fn rich_file(path: &Path) -> Workspace {
         let file = tp_app::import::read_bytes("logo.png", png).unwrap();
         ws.place_files(vec![Ok(file)], Some(Point::new(2000.0, 2000.0)), 0.0);
         ws.project.add_to_palette(Rgba::rgb(1, 2, 3));
+        add_vector_objects(ws);
     }
     dialogs(&mut h, &[path.to_path_buf()], &[]);
     save_shortcut(&mut h);
@@ -222,6 +226,57 @@ fn rich_file(path: &Path) -> Workspace {
         unreachable!()
     };
     *ws
+}
+
+/// A star, a curved path with a hole and an open line.
+fn add_vector_objects(ws: &mut Workspace) {
+    ws.project.add(Object::new(
+        ObjectId(0),
+        ShapeKind::Polygon {
+            sides: 5,
+            star: Some(0.4),
+        },
+        Frame::new(Point::new(3000.0, 600.0), Size::new(500.0, 480.0), -12.0),
+    ));
+    let corner = |x: f64, y: f64| Node::corner(Point::new(x, y));
+    let mut swoosh = Object::from_path(
+        ObjectId(0),
+        PathData::new(vec![
+            Subpath::new(
+                vec![
+                    Node::smooth(Point::new(300.0, 2600.0), Point::new(1200.0, 1700.0)),
+                    Node::smooth(Point::new(3600.0, 2100.0), Point::new(3900.0, 2300.0)),
+                    corner(3500.0, 2600.0),
+                ],
+                true,
+            ),
+            Subpath::new(
+                vec![
+                    corner(1600.0, 2250.0),
+                    corner(1600.0, 2450.0),
+                    corner(1900.0, 2450.0),
+                ],
+                true,
+            ),
+        ]),
+    );
+    swoosh.frame.rotation_deg = 5.0;
+    ws.project.add(swoosh);
+    let mut line = Object::from_path(
+        ObjectId(0),
+        PathData::new(vec![Subpath::new(
+            vec![corner(400.0, 3200.0), corner(3700.0, 3300.0)],
+            false,
+        )]),
+    );
+    line.name = "Line".into();
+    line.fill = Rgba::rgb(255, 255, 255);
+    line.edit_path(|p| p.line_width = 30.0);
+    line.stroke = Some(StrokeStyle {
+        color: Rgba::rgb(0, 0, 0),
+        width: 4.0,
+    });
+    ws.project.add(line);
 }
 
 #[test]
@@ -508,4 +563,50 @@ fn discard_a_recovered_project() {
     drop(h);
     let h = harness_in(Some(dir.path()));
     assert!(h.state().recovered.is_empty());
+}
+
+#[test]
+fn vector_project_survives_a_crash_and_exports() {
+    let dir = tempfile::tempdir().unwrap();
+    let surfaces = {
+        let mut h = harness_in(Some(dir.path()));
+        common::create_project(&mut h);
+        add_vector_objects(ws_mut(&mut h));
+        edit_for_a_while(&mut h);
+        assert_eq!(copies(dir.path()).len(), 1);
+        ws(&h).project.surfaces.clone()
+    };
+    let mut h = harness_in(Some(dir.path()));
+    settle(&mut h);
+    h.get_by_label("Restore").click();
+    settle(&mut h);
+    assert_eq!(ws(&h).project.surfaces, surfaces);
+    // And the restored paths export.
+    let out = dir.path().join("vector.png");
+    let job = tp_app::export::ExportJob::start(
+        ws(&h).project.clone(),
+        tp_app::export::ExportSettings {
+            divisor: 4,
+            ..Default::default()
+        },
+        ws(&h).text.fonts.fork(),
+        out.clone(),
+        || {},
+    );
+    assert_eq!(
+        job.wait(),
+        tp_app::export::ExportOutcome::Written(out.clone())
+    );
+    let img = image::open(&out).unwrap().to_rgba8();
+    assert_eq!(img.dimensions(), (1024, 1024));
+    // Inside the hole of the swoosh: the white background shows.
+    let hole = img.get_pixel(1700 / 4 + 5, 2400 / 4).0;
+    assert_eq!(hole, [255, 255, 255, 255]);
+    // Just left of the hole: the swoosh fill.
+    let fill = img.get_pixel(1450 / 4, 2400 / 4).0;
+    assert_ne!(
+        fill,
+        [255, 255, 255, 255],
+        "the swoosh is drawn around the hole"
+    );
 }

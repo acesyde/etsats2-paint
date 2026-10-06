@@ -5,7 +5,7 @@ use kurbo::{Point, Rect, Size, Vec2};
 use serde::{Deserialize, Serialize};
 
 use crate::document::tree::{self, Hit, Placement};
-use crate::document::{AssetId, Object, ObjectId, Rgba, ShapeKind};
+use crate::document::{AssetId, Object, ObjectId, PointRef, Rgba, ShapeKind};
 
 /// Name given to a project created without a name.
 pub const DEFAULT_PROJECT_NAME: &str = "Untitled";
@@ -406,6 +406,7 @@ impl Project {
             palette: self.palette.clone(),
             assets: self.assets.clone(),
             selection: selection.to_vec(),
+            points: Vec::new(),
         }
     }
 
@@ -430,11 +431,24 @@ pub struct Snapshot {
     palette: Vec<Rgba>,
     assets: BTreeMap<AssetId, Arc<Asset>>,
     selection: Vec<ObjectId>,
+    /// Selected path points (Direct Selection).
+    points: Vec<PointRef>,
 }
 
 impl Snapshot {
-    /// Whether both snapshots hold the same document, ignoring selection.
-    /// Unchanged objects share their `Arc`, so this is mostly pointer checks.
+    /// The same snapshot recording selected path points.
+    pub fn with_points(mut self, points: impl IntoIterator<Item = PointRef>) -> Self {
+        self.points = points.into_iter().collect();
+        self
+    }
+
+    /// Selected path points at that time.
+    pub fn points(&self) -> &[PointRef] {
+        &self.points
+    }
+
+    /// Whether both snapshots hold the same document, ignoring selection
+    /// (objects and points). Unchanged objects share their `Arc`, so this is mostly pointer checks.
     pub fn same_document(&self, other: &Snapshot) -> bool {
         self.active_surface == other.active_surface
             && self.palette == other.palette
@@ -703,5 +717,17 @@ mod tests {
         assert_eq!(p.surface().objects.len(), 1);
         // The id counter is not rewound.
         assert_ne!(p.next_object_id(), a);
+    }
+
+    #[test]
+    fn point_selection_is_kept_but_not_part_of_the_document() {
+        let mut p = Project::new("P", TextureResolution::R2048);
+        let id = p.add(rect_at(10.0, 10.0));
+        let point = PointRef::new(id, crate::document::NodeRef::new(0, 2));
+        let a = p.snapshot(&[id]).with_points([point]);
+        let b = p.snapshot(&[id]);
+        assert!(a.same_document(&b));
+        assert_eq!(a.points(), &[point]);
+        assert!(b.points().is_empty());
     }
 }

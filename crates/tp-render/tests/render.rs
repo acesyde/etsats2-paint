@@ -3,7 +3,8 @@
 use std::sync::Arc;
 
 use tp_core::document::{
-    CharStyle, Frame, Object, ObjectId, Rgba, ShapeKind, StrokeStyle, TextBlock,
+    CharStyle, Frame, Node, Object, ObjectId, PathData, Rgba, ShapeKind, StrokeStyle, Subpath,
+    TextBlock,
 };
 use tp_core::kurbo::{Point, Shape, Size};
 use tp_core::{AssetKind, Project, TextureResolution};
@@ -284,4 +285,157 @@ fn progress_can_cancel() {
     );
     assert_eq!(result.unwrap_err(), Cancelled);
     assert_eq!(seen, vec![(1, 3), (2, 3)]);
+}
+
+fn polyline(points: &[(f64, f64)], closed: bool) -> Subpath {
+    Subpath::new(
+        points
+            .iter()
+            .map(|p| Node::corner(Point::new(p.0, p.1)))
+            .collect(),
+        closed,
+    )
+}
+
+const BLACK: Rgba = Rgba::rgb(0, 0, 0);
+
+fn red_v(line_width: f64) -> Object {
+    let mut v = Object::from_path(
+        ObjectId(0),
+        PathData::new(vec![polyline(
+            &[(100.0, 100.0), (200.0, 300.0), (300.0, 100.0)],
+            false,
+        )]),
+    );
+    v.fill = RED;
+    v.edit_path(|p| p.line_width = line_width);
+    v
+}
+
+#[test]
+fn open_path_is_a_line_in_the_fill_color() {
+    let mut p = project(TextureResolution::R2048);
+    p.add(red_v(20.0));
+    let img = draw(&p, 2048, Some(WHITE));
+    assert_eq!(px(&img, 200, 150), [255; 4], "nothing between the arms");
+    assert_eq!(
+        px(&img, 200, 295),
+        [255, 0, 0, 255],
+        "line at the bottom of the V"
+    );
+    assert_eq!(px(&img, 150, 200), [255, 0, 0, 255], "line along an arm");
+    // 20 px wide: about 10 px on each side of the center line.
+    assert_eq!(px(&img, 150 + 13, 200), [255; 4]);
+    // Round cap past the first point.
+    assert_eq!(px(&img, 100, 93), [255, 0, 0, 255]);
+}
+
+#[test]
+fn outlined_line() {
+    let mut p = project(TextureResolution::R2048);
+    let mut v = red_v(40.0);
+    v.stroke = Some(StrokeStyle {
+        color: BLACK,
+        width: 8.0,
+    });
+    p.add(v);
+    let img = draw(&p, 2048, Some(WHITE));
+    // Along the left arm, the center line goes through (150, 200); the
+    // normal direction is about (0.894, -0.447).
+    let at = |d: f64| {
+        let (x, y) = (150.0 + 0.894 * d, 200.0 - 0.447 * d);
+        px(&img, x.round() as u32, y.round() as u32)
+    };
+    assert_eq!(at(0.0), [255, 0, 0, 255], "red in the middle");
+    assert_eq!(at(20.0), [0, 0, 0, 255], "black on the edge");
+    assert_eq!(at(-20.0), [0, 0, 0, 255], "black on the other edge");
+    assert_eq!(at(30.0), [255; 4], "nothing past the outline");
+    // The outline also goes around the rounded end.
+    assert_eq!(px(&img, 100, 100 - 20), [0, 0, 0, 255]);
+}
+
+#[test]
+fn hole_shows_the_background() {
+    let mut p = project(TextureResolution::R2048);
+    let mut o = Object::from_path(
+        ObjectId(0),
+        PathData::new(vec![
+            polyline(
+                &[
+                    (100.0, 100.0),
+                    (400.0, 100.0),
+                    (400.0, 400.0),
+                    (100.0, 400.0),
+                ],
+                true,
+            ),
+            polyline(
+                &[
+                    (200.0, 200.0),
+                    (200.0, 300.0),
+                    (300.0, 300.0),
+                    (300.0, 200.0),
+                ],
+                true,
+            ),
+        ]),
+    );
+    o.fill = BLUE;
+    p.add(o);
+    let img = draw(&p, 2048, None);
+    assert_eq!(px(&img, 150, 150), [0, 0, 255, 255]);
+    assert_eq!(px(&img, 250, 250)[3], 0, "the hole is transparent");
+}
+
+#[test]
+fn star_notch_is_transparent() {
+    let mut p = project(TextureResolution::R2048);
+    p.add(shape(
+        ShapeKind::Polygon {
+            sides: 5,
+            star: Some(0.4),
+        },
+        (500.0, 500.0),
+        (400.0, 400.0),
+        0.0,
+        RED,
+    ));
+    let img = draw(&p, 2048, None);
+    assert_eq!(px(&img, 500, 520), [255, 0, 0, 255], "center");
+    assert_eq!(px(&img, 500, 330), [255, 0, 0, 255], "top point");
+    assert_eq!(px(&img, 340, 340)[3], 0, "notch between two points");
+}
+
+#[test]
+fn mirrored_path_renders_mirrored() {
+    use tp_core::document::{Handle, ResizeOptions, resize};
+    // A right triangle with its right angle at the bottom-left.
+    let tri = Object::from_path(
+        ObjectId(0),
+        PathData::new(vec![polyline(
+            &[(100.0, 100.0), (100.0, 300.0), (300.0, 300.0)],
+            true,
+        )]),
+    );
+    let mut flipped = resize(
+        std::slice::from_ref(&tri),
+        tri.frame,
+        Handle { x: 1, y: 0 },
+        Point::new(-100.0, 200.0),
+        ResizeOptions::default(),
+    )
+    .remove(0);
+    flipped.fill = RED;
+    // Now spans x -100..100 with the right angle at the bottom-right: move it
+    // back on the surface.
+    flipped.translate_deep(tp_core::kurbo::Vec2::new(300.0, 0.0));
+    let mut p = project(TextureResolution::R2048);
+    p.add(flipped);
+    let img = draw(&p, 2048, Some(WHITE));
+    assert_eq!(
+        px(&img, 390, 290),
+        [255, 0, 0, 255],
+        "bottom-right is filled"
+    );
+    assert_eq!(px(&img, 210, 120), [255; 4], "top-left is empty");
 }

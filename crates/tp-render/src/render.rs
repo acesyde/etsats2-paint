@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
 use resvg::tiny_skia::{
-    self, Color, FillRule, FilterQuality, LineJoin, Paint, PathBuilder, Pixmap, PixmapPaint,
-    Stroke, Transform,
+    self, Color, FillRule, FilterQuality, LineCap, LineJoin, Paint, PathBuilder, Pixmap,
+    PixmapPaint, Stroke, Transform,
 };
 use resvg::usvg;
 use tp_core::document::{AssetId, Object, Rgba, ShapeKind, tree};
@@ -68,34 +68,82 @@ fn skia_transform(a: Affine) -> Transform {
     Transform::from_row(sx, ky, kx, sy, tx, ty)
 }
 
-/// Fills then strokes a document-space path, `scale` mapping to pixels.
-fn draw_path(pixmap: &mut Pixmap, path: &BezPath, object: &Object, opacity: f32, scale: f64) {
-    let Some(path) = to_skia(&(Affine::scale(scale) * path.clone())) else {
-        return;
-    };
+/// Document-space geometry of a shape: the filled area, the outline the
+/// stroke follows, and the lines of a path's open subpaths with their width.
+struct Outline {
+    fill: BezPath,
+    stroke: BezPath,
+    lines: Option<(BezPath, f64)>,
+}
+
+impl Outline {
+    fn same(path: BezPath) -> Self {
+        Self {
+            fill: path.clone(),
+            stroke: path,
+            lines: None,
+        }
+    }
+
+    fn of(object: &Object) -> Self {
+        Self {
+            fill: object.fill_path(),
+            stroke: object.stroke_path(),
+            lines: object.line_path(),
+        }
+    }
+}
+
+/// Draws a shape, `scale` mapping to pixels: the fill, then the lines of
+/// open subpaths (fill color, outlined by the stroke), then the stroke.
+fn draw_path(pixmap: &mut Pixmap, outline: &Outline, object: &Object, opacity: f32, scale: f64) {
+    let to_px = |p: &BezPath| to_skia(&(Affine::scale(scale) * p.clone()));
     let mut paint = Paint {
         anti_alias: true,
         ..Paint::default()
     };
-    if object.fill.a > 0 {
-        paint.set_color(color(object.fill, opacity));
-        pixmap.fill_path(
-            &path,
-            &paint,
-            FillRule::Winding,
-            Transform::identity(),
-            None,
-        );
-    }
-    if let Some(s) = object.stroke.filter(|s| s.width > 0.0 && s.color.a > 0) {
-        paint.set_color(color(s.color, opacity));
+    let mut stroke_with = |pixmap: &mut Pixmap, path: &tiny_skia::Path, c: Color, width: f64| {
+        paint.set_color(c);
         let stroke = Stroke {
-            width: (s.width * scale) as f32,
+            width: (width * scale) as f32,
             line_join: LineJoin::MiterClip,
+            line_cap: LineCap::Round,
             miter_limit: 4.0,
             ..Stroke::default()
         };
-        pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+        pixmap.stroke_path(path, &paint, &stroke, Transform::identity(), None);
+    };
+    let stroke = object.stroke.filter(|s| s.width > 0.0 && s.color.a > 0);
+    if object.fill.a > 0
+        && let Some(path) = to_px(&outline.fill)
+    {
+        let mut fill = Paint {
+            anti_alias: true,
+            ..Paint::default()
+        };
+        fill.set_color(color(object.fill, opacity));
+        pixmap.fill_path(&path, &fill, FillRule::Winding, Transform::identity(), None);
+    }
+    // Lines: a casing in the stroke color, then the line narrowed by the
+    // stroke width, so the stroke is centered on the line's edges.
+    if let Some((lines, width)) = &outline.lines
+        && let Some(path) = to_px(lines)
+    {
+        let inner = match stroke {
+            Some(s) => {
+                stroke_with(pixmap, &path, color(s.color, opacity), width + s.width);
+                width - s.width
+            }
+            None => *width,
+        };
+        if inner > 0.0 && object.fill.a > 0 {
+            stroke_with(pixmap, &path, color(object.fill, opacity), inner);
+        }
+    }
+    if let Some(s) = stroke
+        && let Some(path) = to_px(&outline.stroke)
+    {
+        stroke_with(pixmap, &path, color(s.color, opacity), s.width);
     }
 }
 
@@ -258,14 +306,29 @@ pub fn render(
     let mut assets = AssetCache::default();
     for (i, (object, opacity)) in objects.iter().enumerate() {
         match object.kind {
-            ShapeKind::Rectangle { .. } | ShapeKind::Ellipse => {
-                draw_path(&mut pixmap, &object.path(), object, *opacity, scale);
+            ShapeKind::Rectangle { .. } | ShapeKind::Ellipse | ShapeKind::Polygon { .. } => {
+                draw_path(
+                    &mut pixmap,
+                    &Outline::same(object.path()),
+                    object,
+                    *opacity,
+                    scale,
+                );
+            }
+            ShapeKind::Path => {
+                draw_path(&mut pixmap, &Outline::of(object), object, *opacity, scale);
             }
             ShapeKind::Text => {
                 if let Some(block) = &object.text {
                     let layout = tp_text::layout(fonts, &block.content, &block.style);
                     let outline = layout_to_doc(object) * glyphs.outline(fonts, &layout);
-                    draw_path(&mut pixmap, &outline, object, *opacity, scale);
+                    draw_path(
+                        &mut pixmap,
+                        &Outline::same(outline),
+                        object,
+                        *opacity,
+                        scale,
+                    );
                 }
             }
             ShapeKind::Image { asset } => {

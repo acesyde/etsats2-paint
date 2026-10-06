@@ -8,6 +8,7 @@
 //! the current one; writing always uses the current version.
 
 pub mod v1;
+pub mod v2;
 
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
@@ -18,14 +19,14 @@ use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
 /// Current file format version.
-pub const FORMAT_VERSION: u32 = 1;
+pub const FORMAT_VERSION: u32 = 2;
 /// File extension, without the dot.
 pub const EXTENSION: &str = "truckpaint";
 const MIMETYPE: &str = "application/x-truckpaint";
 const DOCUMENT: &str = "project.ron";
 
 /// The current format's module.
-pub use v1 as current;
+pub use v2 as current;
 
 /// Why a file could not be read or written.
 #[derive(Debug)]
@@ -167,8 +168,13 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Opened, Error> {
 fn migrate(format: u32, text: &str) -> Result<(current::FileProject, bool), Error> {
     let parse_err = |e: ron::error::SpannedError| Error::Damaged(e.to_string());
     match format {
-        // Future versions: parse with `vN`, then chain `vN → vN+1` steps.
-        1 => Ok((ron_options().from_str(text).map_err(parse_err)?, false)),
+        // Each older version is parsed with its own module, then converted
+        // step by step (`vN → vN+1`).
+        1 => {
+            let v1: v1::FileProject = ron_options().from_str(text).map_err(parse_err)?;
+            Ok((v2::from_v1(v1), true))
+        }
+        2 => Ok((ron_options().from_str(text).map_err(parse_err)?, false)),
         0 => Err(Error::Damaged("invalid format version 0".into())),
         found => Err(Error::NewerVersion {
             found,

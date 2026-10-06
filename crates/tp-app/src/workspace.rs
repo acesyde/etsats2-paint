@@ -170,6 +170,14 @@ pub struct Workspace {
     /// The file dialog should open to place images, at a point or the view
     /// center (Place command, Image tool).
     pub place_request: Option<Option<tp_core::kurbo::Point>>,
+    /// Path being drawn with the Pen tool.
+    pub pen: Option<crate::path_edit::PenSession>,
+    /// Sides and star settings for new polygons.
+    pub polygon_style: crate::path_edit::PolygonStyle,
+    /// Line width for new open paths (lines).
+    pub line_width: f64,
+    /// Selected path points (Direct Selection tool).
+    pub points: std::collections::BTreeSet<tp_core::document::PointRef>,
 }
 
 impl Workspace {
@@ -204,11 +212,23 @@ impl Workspace {
             text_session: None,
             images: ImageCache::default(),
             place_request: None,
+            pen: None,
+            polygon_style: Default::default(),
+            line_width: tp_core::document::DEFAULT_LINE_WIDTH,
+            points: Default::default(),
         }
     }
 
     pub fn snapshot(&self) -> Snapshot {
-        self.project.snapshot(&self.selection)
+        self.project
+            .snapshot(&self.selection)
+            .with_points(self.points.iter().copied())
+    }
+
+    /// Restores a snapshot with its object and point selection.
+    pub fn restore(&mut self, state: &Snapshot) {
+        self.selection = self.project.restore(state);
+        self.points = state.points().iter().copied().collect();
     }
 
     /// Records the change from `before` to the current state, unless nothing
@@ -268,14 +288,14 @@ impl Workspace {
 
     pub fn undo(&mut self) {
         if let Some(state) = self.history.undo() {
-            self.selection = self.project.restore(&state);
+            self.restore(&state);
             self.gesture = Gesture::Idle;
         }
     }
 
     pub fn redo(&mut self) {
         if let Some(state) = self.history.redo() {
-            self.selection = self.project.restore(&state);
+            self.restore(&state);
             self.gesture = Gesture::Idle;
         }
     }
@@ -344,8 +364,9 @@ impl Workspace {
         parents.all(|p| p == Some(first)).then_some(first)
     }
 
+    /// Escape: clears the selected path points if any, else the selection.
     pub fn deselect(&mut self) {
-        self.selection.clear();
+        self.clear_points_or_selection();
     }
 
     /// A shape with the current style.
@@ -359,14 +380,22 @@ impl Workspace {
     /// Adds a shape with the current style to the active layer, selects it,
     /// records it.
     pub fn create_shape(&mut self, kind: ShapeKind, frame: Frame, now: f64) -> ObjectId {
-        let label = match kind {
+        let object = self.styled_shape(kind, frame);
+        self.create_object(object, now)
+    }
+
+    /// Adds `object` to the active layer, selects it, records it.
+    pub fn create_object(&mut self, object: Object, now: f64) -> ObjectId {
+        let label = match object.kind {
             ShapeKind::Rectangle { .. } => "Create Rectangle",
             ShapeKind::Ellipse => "Create Ellipse",
+            ShapeKind::Polygon { .. } => "Create Polygon",
+            ShapeKind::Path if object.name == "Line" => "Create Line",
+            ShapeKind::Path => "Create Path",
             ShapeKind::Group => "Create Group",
             ShapeKind::Text => "Create Text",
             ShapeKind::Image { .. } => "Place",
         };
-        let object = self.styled_shape(kind, frame);
         let layer = self.active_layer();
         if let Some(layer) = layer {
             self.panels.expanded.insert(layer);

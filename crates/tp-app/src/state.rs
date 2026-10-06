@@ -258,7 +258,7 @@ impl AppState {
             Some(ws) => EditContext {
                 has_project: true,
                 has_selection: !ws.selection.is_empty(),
-                can_undo: ws.history.can_undo(),
+                can_undo: ws.history.can_undo() || ws.is_drawing_pen(),
                 can_redo: ws.history.can_redo(),
                 has_clipboard: !self.clipboard.is_empty(),
                 gesture_active: ws.gesture.is_active(),
@@ -270,6 +270,7 @@ impl AppState {
                     .any(|id| ws.project.surface().get(*id).is_some_and(|o| o.is_group())),
                 single_text: matches!(ws.selection.as_slice(), [id] if ws.can_edit_text(*id)),
                 editing_text: ws.is_editing_text(),
+                selection_has_convertible: ws.selection_has_convertible(),
             },
             None => EditContext::default(),
         }
@@ -299,6 +300,9 @@ impl AppState {
             if !field_focused {
                 crate::text_input::handle(ctx, ws, now);
             }
+        }
+        if !field_focused && let Some(ws) = self.workspace_mut() {
+            crate::path_edit::handle_pen_keys(ctx, ws, now);
         }
         let typing = field_focused || editing_text;
         let has_project = self.has_project();
@@ -350,6 +354,21 @@ impl AppState {
                     _ => {}
                 }
             }
+            // While a pen path is drawn, Undo removes its last point; other
+            // commands (except view changes) finish it first.
+            if ws.is_drawing_pen() {
+                match id {
+                    CommandId::Undo => {
+                        ws.pen_pop();
+                        return;
+                    }
+                    CommandId::Redo => return,
+                    _ if !keeps_text_session(id) => {
+                        ws.finish_pen(false, now);
+                    }
+                    _ => {}
+                }
+            }
         }
         match id {
             CommandId::Place => self.with_workspace(|ws| ws.place_request = Some(None)),
@@ -390,6 +409,9 @@ impl AppState {
             CommandId::About => self.modal = Some(Modal::About),
             CommandId::SelectTool(tool) => {
                 if let Some(ws) = self.workspace_mut() {
+                    if tool != Tool::DirectSelect {
+                        ws.points.clear();
+                    }
                     ws.tool = tool;
                     ws.tool_before_space = None;
                 }
@@ -398,9 +420,15 @@ impl AppState {
             CommandId::Redo => self.with_workspace(Workspace::redo),
             CommandId::SelectAll => self.with_workspace(Workspace::select_all),
             CommandId::Deselect => self.with_workspace(Workspace::deselect),
-            CommandId::Delete | CommandId::DeleteLayer => {
-                self.with_workspace(|ws| ws.delete_selection(now));
-            }
+            CommandId::Delete => self.with_workspace(|ws| {
+                if ws.points.is_empty() {
+                    ws.delete_selection(now);
+                } else {
+                    ws.delete_points(now);
+                }
+            }),
+            CommandId::DeleteLayer => self.with_workspace(|ws| ws.delete_selection(now)),
+            CommandId::ConvertToPath => self.with_workspace(|ws| ws.convert_selection_to_path(now)),
             CommandId::Duplicate | CommandId::DuplicateLayer => {
                 self.with_workspace(|ws| ws.duplicate_selection(now));
             }
@@ -440,7 +468,13 @@ impl AppState {
             CommandId::Nudge(direction, big) => {
                 let (dx, dy) = direction.delta();
                 let step = if big { 10.0 } else { 1.0 };
-                self.with_workspace(|ws| ws.nudge(dx * step, dy * step, now));
+                self.with_workspace(|ws| {
+                    if ws.points.is_empty() {
+                        ws.nudge(dx * step, dy * step, now);
+                    } else {
+                        ws.nudge_points(dx * step, dy * step, now);
+                    }
+                });
             }
             CommandId::ZoomIn
             | CommandId::ZoomOut
@@ -498,6 +532,7 @@ impl AppState {
             return;
         };
         ws.check_text_session(now);
+        ws.prune_points();
         if self.system_fonts && !ws.text.fonts.system_requested() {
             let ctx = ctx.clone();
             ws.text

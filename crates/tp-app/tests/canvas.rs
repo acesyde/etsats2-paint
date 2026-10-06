@@ -187,17 +187,6 @@ fn escape_cancels_drawing() {
     assert!(ws(&h).project.surface().objects.is_empty());
 }
 
-#[test]
-fn unavailable_tool_shows_hint_and_keeps_document() {
-    let mut h = open();
-    set_tool(&mut h, Tool::Pen);
-    let p = screen(&h, 1000.0, 1000.0);
-    click(&mut h, p, Modifiers::NONE);
-    let hint = ws(&h).hint.as_ref().expect("hint shown");
-    assert!(hint.text.contains("Pen") && hint.text.contains("not available"));
-    assert!(ws(&h).project.surface().objects.is_empty());
-}
-
 // --- selection -------------------------------------------------------------
 
 #[test]

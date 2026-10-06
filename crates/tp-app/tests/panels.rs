@@ -308,6 +308,186 @@ fn corner_radius_is_clamped() {
     );
 }
 
+fn hexagon(h: &mut H) -> ObjectId {
+    add(
+        h,
+        ShapeKind::Polygon {
+            sides: 6,
+            star: None,
+        },
+        "Hex",
+        (800.0, 800.0),
+        (400.0, 300.0),
+        15.0,
+    )
+}
+
+#[test]
+fn make_a_five_point_star() {
+    let mut h = open();
+    let p = hexagon(&mut h);
+    let frame = obj(&h, p).frame;
+    select(&mut h, &[p]);
+    type_into(&mut h, "Sides", "5");
+    h.get_by_role_and_label(Role::CheckBox, "Star").click();
+    h.run();
+    let star = obj(&h, p);
+    assert_eq!(
+        star.kind,
+        ShapeKind::Polygon {
+            sides: 5,
+            star: Some(0.5)
+        }
+    );
+    assert_eq!(star.flattened(0.1).len(), 10);
+    assert_eq!(star.frame, frame, "bounds, center and rotation are kept");
+    assert_eq!(field_value(&h, "Inner radius"), "50");
+    // One step per change: Undo turns the star back into a pentagon.
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run();
+    assert_eq!(
+        obj(&h, p).kind,
+        ShapeKind::Polygon {
+            sides: 5,
+            star: None
+        }
+    );
+    // New polygons use the last values set.
+    assert_eq!(
+        ws(&h).polygon_style.kind(),
+        ShapeKind::Polygon {
+            sides: 5,
+            star: Some(0.5)
+        }
+    );
+}
+
+#[test]
+fn sides_are_clamped() {
+    let mut h = open();
+    let p = hexagon(&mut h);
+    select(&mut h, &[p]);
+    type_into(&mut h, "Sides", "40");
+    assert_eq!(
+        obj(&h, p).kind,
+        ShapeKind::Polygon {
+            sides: 12,
+            star: None
+        }
+    );
+}
+
+#[test]
+fn polygon_settings_show_mixed_and_hide_for_other_kinds() {
+    let mut h = open();
+    let a = hexagon(&mut h);
+    let b = add(
+        &mut h,
+        ShapeKind::Polygon {
+            sides: 3,
+            star: None,
+        },
+        "Tri",
+        (1500.0, 800.0),
+        (300.0, 300.0),
+        0.0,
+    );
+    select(&mut h, &[a, b]);
+    assert_eq!(field_value(&h, "Sides"), "");
+    let r = rect(&mut h, "R", (300.0, 200.0), (100.0, 100.0));
+    select(&mut h, &[a, r]);
+    assert!(h.query_by_label("Sides").is_none());
+}
+
+fn add_line(h: &mut H) -> ObjectId {
+    use tp_core::document::{Node, PathData, Subpath};
+    let line = Object::from_path(
+        ObjectId(0),
+        PathData::new(vec![Subpath::new(
+            vec![
+                Node::corner(Point::new(100.0, 100.0)),
+                Node::corner(Point::new(900.0, 400.0)),
+            ],
+            false,
+        )]),
+    );
+    let id = ws_mut(h).project.add(line);
+    h.run();
+    id
+}
+
+fn line_width(h: &H, id: ObjectId) -> f64 {
+    obj(h, id).path_data().unwrap().line_width
+}
+
+#[test]
+fn thicker_line() {
+    let mut h = open();
+    let l = add_line(&mut h);
+    select(&mut h, &[l]);
+    assert_eq!(field_value(&h, "Line width"), "8");
+    type_into(&mut h, "Line width", "40");
+    assert_eq!(line_width(&h, l), 40.0);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run();
+    assert_eq!(line_width(&h, l), 8.0);
+}
+
+#[test]
+fn next_line_uses_the_last_width() {
+    let mut h = open();
+    let l = add_line(&mut h);
+    select(&mut h, &[l]);
+    type_into(&mut h, "Line width", "40");
+    let from = screen(&h, 1000.0, 1000.0);
+    let to = screen(&h, 1500.0, 1200.0);
+    ws_mut(&mut h).tool = tp_app::tool::Tool::Line;
+    h.run();
+    drag(&mut h, from, to);
+    let new = *ws(&h).selection.first().unwrap();
+    assert_ne!(new, l);
+    assert_eq!(line_width(&h, new), 40.0);
+}
+
+#[test]
+fn nearly_horizontal_line() {
+    let mut h = open();
+    ws_mut(&mut h).tool = tp_app::tool::Tool::Line;
+    h.run();
+    let (a, b) = (screen(&h, 500.0, 1000.0), screen(&h, 3500.0, 1020.0));
+    drag(&mut h, a, b);
+    let id = ws(&h).selection[0];
+    let line = obj(&h, id);
+    let expected = (20.0f64 / 3000.0).atan().to_degrees();
+    assert!(
+        (line.frame.rotation_deg - expected).abs() < 0.05,
+        "{}",
+        line.frame.rotation_deg
+    );
+    assert!(
+        (line.frame.size.width - 3000.0).abs() < 2.0,
+        "the frame follows the line"
+    );
+    assert!(line.frame.size.height <= 1.0);
+    type_into(&mut h, "Rotation", "0");
+    let line = obj(&h, id);
+    let ends: Vec<Point> = line.path_data().unwrap().subpaths[0]
+        .nodes
+        .iter()
+        .map(|n| line.frame.affine() * n.point)
+        .collect();
+    assert!((ends[0].y - ends[1].y).abs() < 1e-6, "{ends:?}");
+}
+
+#[test]
+fn line_width_hidden_for_closed_shapes() {
+    let mut h = open();
+    let l = add_line(&mut h);
+    let r = rect(&mut h, "R", (300.0, 200.0), (100.0, 100.0));
+    select(&mut h, &[l, r]);
+    assert!(h.query_by_label("Line width").is_none());
+}
+
 #[test]
 fn stroke_swatch_reveals_colors_panel() {
     let mut h = open();

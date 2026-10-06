@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use kurbo::{Affine, Point, Rect, Vec2};
 
-use super::object::{Frame, Object, normalize_degrees};
+use super::object::{Frame, Object, ShapeKind, normalize_degrees};
 
 /// Bounds a selection is transformed against: the object's own frame for a
 /// single object, the axis-aligned union of bounds for several objects.
@@ -150,6 +150,8 @@ pub fn resize(
 /// axes) to one object and, recursively, to its children.
 fn resize_one(o: &Object, transform: Affine, sx: f64, sy: f64, bounds_rotation: f64) -> Object {
     let mut o = o.clone();
+    // Full document transform of the object's local space.
+    let full = transform * o.frame.affine();
     // Object axis relative to the bounds axis.
     let rel = (o.frame.rotation_deg - bounds_rotation).to_radians();
     let (sin, cos) = rel.sin_cos();
@@ -176,6 +178,24 @@ fn resize_one(o: &Object, transform: Affine, sx: f64, sy: f64, bounds_rotation: 
         rotation_deg: bounds_rotation + new_rel,
     }
     .sanitized();
+    match o.kind {
+        // Paths take the exact transform (mirror and skew included) in their
+        // points; the frame only carries the rotation and is refitted.
+        ShapeKind::Path => {
+            let to_local = o.frame.affine().inverse() * full;
+            o.edit_path(|p| p.transform(to_local));
+        }
+        // Polygons are symmetric about their vertical axis only: their
+        // rotation follows where the local "up" direction goes, so a
+        // vertical flip turns them upside down.
+        ShapeKind::Polygon { .. } => {
+            let up = full * Point::new(0.0, -1.0) - full * Point::ORIGIN;
+            if up.hypot2() > 1e-18 {
+                o.frame.rotation_deg = normalize_degrees(up.x.atan2(-up.y).to_degrees());
+            }
+        }
+        _ => {}
+    }
     o.sync_text_scale();
     for child in &mut o.children {
         *child = Arc::new(resize_one(child, transform, sx, sy, bounds_rotation));
@@ -411,5 +431,127 @@ mod tests {
         let f = Frame::new(Point::new(10.0, 10.0), Size::new(20.0, 10.0), 0.0);
         assert_eq!(Handle { x: -1, y: -1 }.position(&f), Point::new(0.0, 5.0));
         assert_eq!(Handle { x: 1, y: 0 }.position(&f), Point::new(20.0, 10.0));
+    }
+
+    use crate::document::path::{Node, PathData, Subpath};
+
+    /// An arrow pointing right: tip at (200, 50).
+    fn arrow() -> Object {
+        let pts = [
+            (0.0, 40.0),
+            (150.0, 40.0),
+            (150.0, 0.0),
+            (200.0, 50.0),
+            (150.0, 100.0),
+            (150.0, 60.0),
+            (0.0, 60.0),
+        ];
+        Object::from_path(
+            ObjectId(9),
+            PathData::new(vec![Subpath::new(
+                pts.iter().map(|p| Node::corner((*p).into())).collect(),
+                true,
+            )]),
+        )
+    }
+
+    fn doc_points(o: &Object) -> Vec<Point> {
+        let a = o.frame.affine();
+        o.path_data().unwrap().subpaths[0]
+            .nodes
+            .iter()
+            .map(|n| a * n.point)
+            .collect()
+    }
+
+    #[test]
+    fn flipping_a_path_mirrors_it() {
+        let a = arrow();
+        let bounds = a.frame;
+        // Drag the right handle past the left side, to x = -200.
+        let out = resize(
+            &[a],
+            bounds,
+            Handle { x: 1, y: 0 },
+            Point::new(-200.0, 50.0),
+            ResizeOptions::default(),
+        );
+        let o = &out[0];
+        let tip = doc_points(o)[3];
+        let tail = doc_points(o)[0];
+        assert!(
+            tip.x < tail.x,
+            "the arrow points left: tip {tip:?}, tail {tail:?}"
+        );
+        assert!(
+            close(o.frame.rotation_deg, 0.0),
+            "rotation {}",
+            o.frame.rotation_deg
+        );
+        assert!(close(tip.x, -200.0) && close(tip.y, 50.0));
+    }
+
+    #[test]
+    fn flipping_a_triangle_turns_it_upside_down() {
+        let t = Object::new(
+            ObjectId(4),
+            ShapeKind::Polygon {
+                sides: 3,
+                star: None,
+            },
+            Frame::new(Point::new(0.0, 0.0), Size::new(100.0, 100.0), 0.0),
+        );
+        let top = |o: &Object| o.bounding_box();
+        let first_vertex = |o: &Object| o.flattened(0.1)[0];
+        assert!(close(first_vertex(&t).y, top(&t).y0));
+        let out = resize(
+            std::slice::from_ref(&t),
+            t.frame,
+            Handle { x: 0, y: 1 },
+            Point::new(0.0, -150.0),
+            ResizeOptions::default(),
+        );
+        let f = &out[0];
+        assert!(close(f.frame.rotation_deg.abs(), 180.0));
+        assert!(close(first_vertex(f).y, top(f).y1), "points down");
+        // A horizontal flip changes nothing visible.
+        let h = resize(
+            std::slice::from_ref(&t),
+            t.frame,
+            Handle { x: 1, y: 0 },
+            Point::new(-150.0, 0.0),
+            ResizeOptions::default(),
+        );
+        assert!(close(h[0].frame.rotation_deg, 0.0));
+    }
+
+    #[test]
+    fn multi_resize_of_rotated_path_is_exact() {
+        let mut a = arrow();
+        a.frame.rotation_deg = 30.0;
+        let other = rect((1000.0, 1000.0), (100.0, 100.0), 0.0);
+        let objects = [a.clone(), other];
+        let bounds = selection_frame(&objects).unwrap();
+        let handle = Handle { x: 1, y: 1 };
+        let target = Point::new(
+            bounds.center.x + bounds.size.width,
+            bounds.center.y + bounds.size.height * 0.25,
+        );
+        let out = resize(&objects, bounds, handle, target, ResizeOptions::default());
+        // Expected: the bounds transform applied to every original point.
+        let half = Vec2::new(bounds.size.width / 2.0, bounds.size.height / 2.0);
+        let to_local = bounds.affine().inverse();
+        let local = to_local * target;
+        let sx = (local.x + half.x) / (2.0 * half.x);
+        let sy = (local.y + half.y) / (2.0 * half.y);
+        let anchor = Vec2::new(-half.x, -half.y);
+        let t = bounds.affine()
+            * Affine::translate(anchor)
+            * Affine::scale_non_uniform(sx, sy)
+            * Affine::translate(-anchor)
+            * to_local;
+        for (got, orig) in doc_points(&out[0]).iter().zip(doc_points(&a)) {
+            assert!(got.distance(t * orig) < 1e-6);
+        }
     }
 }

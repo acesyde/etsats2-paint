@@ -6,13 +6,16 @@ use egui::{
 };
 use std::sync::Arc;
 
-use tp_core::document::{Frame, Object, Rgba, ShapeKind, selection_frame};
+use tp_core::document::{
+    Frame, Node, Object, PathData, Rgba, ShapeKind, Subpath, flatten_subpaths, selection_frame,
+};
 use tp_core::kurbo;
 use tp_ui::icons;
 use tp_ui::tokens::{canvas as tokens, color, radius, space};
 
-use crate::geometry_cache::{tolerance, zoom_bucket};
-use crate::gesture::{Gesture, drawing_frame, screen_handles};
+use crate::geometry_cache::{ShapeMesh, shape_mesh, tolerance, uses_mesh, zoom_bucket};
+use crate::gesture::{Gesture, screen_handles};
+use crate::path_edit::line_points;
 use crate::text_engine::layout_to_doc;
 use crate::viewport::ScreenMap;
 use crate::workspace::Workspace;
@@ -81,9 +84,18 @@ pub fn paint(
                 draw_image(ui.ctx(), &painter, ws, object, asset, *opacity, map);
             }
             _ => {
-                let outline = ws.geometry.outline(object, bucket);
-                let points: Vec<Pos2> = outline.iter().map(|p| map.to_screen(*p)).collect();
-                draw_object(&painter, object, *opacity, points, map.scale);
+                let geometry = ws.geometry.geometry(object, bucket);
+                match &geometry.mesh {
+                    Some(mesh) => draw_mesh_object(&painter, object, *opacity, mesh, map),
+                    None => {
+                        let points: Vec<Pos2> = geometry
+                            .outline()
+                            .iter()
+                            .map(|p| map.to_screen(*p))
+                            .collect();
+                        draw_object(&painter, object, *opacity, points, map.scale);
+                    }
+                }
             }
         }
     }
@@ -111,12 +123,14 @@ pub fn paint(
         && !ws.selection.contains(&id)
         && let Some(object) = ws.project.surface().get(id).cloned()
     {
-        let outline = ws.geometry.outline(&object, bucket);
-        halo_polyline(
-            &painter,
-            outline.iter().map(|p| map.to_screen(*p)).collect(),
-            true,
-        );
+        let geometry = ws.geometry.geometry(&object, bucket);
+        for (points, closed) in &geometry.lines {
+            halo_polyline(
+                &painter,
+                points.iter().map(|p| map.to_screen(*p)).collect(),
+                *closed,
+            );
+        }
     }
 
     if ws.is_editing_text() {
@@ -125,6 +139,7 @@ pub fn paint(
         draw_selection(&painter, ws, map, bucket);
     }
     draw_gesture_feedback(ui, &painter, ws, map, pointer, modifiers);
+    draw_pen_session(&painter, ws, map, pointer);
 
     if let (Some((glyph, offset)), Some(p)) = (drawn_cursor, pointer) {
         let font = icons::font(18.0);
@@ -155,6 +170,33 @@ fn mesh_to_screen(mesh: &tp_text::mesh::Mesh, map: &ScreenMap, color: Color32) -
         })
         .collect();
     out
+}
+
+/// Draws a path, polygon or star from its triangles (fill, then stroke).
+fn draw_mesh_object(
+    painter: &Painter,
+    object: &Object,
+    opacity: f32,
+    mesh: &ShapeMesh,
+    map: &ScreenMap,
+) {
+    let fill = color32(object.fill.with_opacity(opacity));
+    let stroke = object
+        .stroke
+        .map(|s| color32(s.color.with_opacity(opacity)));
+    let layers = [
+        (&mesh.fill, Some(fill)),
+        (&mesh.casing, stroke),
+        (&mesh.line, Some(fill)),
+        (&mesh.stroke, stroke),
+    ];
+    for (part, color) in layers {
+        if let (Some(part), Some(color)) = (part, color)
+            && color.a() > 0
+        {
+            painter.add(Shape::mesh(mesh_to_screen(part, map, color)));
+        }
+    }
 }
 
 /// Draws a text from its glyph outlines (fill, then stroke on top).
@@ -317,13 +359,21 @@ fn draw_selection(painter: &Painter, ws: &mut Workspace, map: &ScreenMap, bucket
     // the object's stroke.
     for id in ws.selection.clone() {
         if let Some(object) = ws.project.surface().get(id).cloned() {
-            let outline = ws.geometry.outline(&object, bucket);
-            let points = outline.iter().map(|p| map.to_screen(*p)).collect();
-            painter.add(Shape::closed_line(
-                points,
-                Stroke::new(tokens::LINE, tokens::SELECTION),
-            ));
+            let geometry = ws.geometry.geometry(&object, bucket);
+            for (points, closed) in &geometry.lines {
+                let points: Vec<Pos2> = points.iter().map(|p| map.to_screen(*p)).collect();
+                let stroke = Stroke::new(tokens::LINE, tokens::SELECTION);
+                painter.add(if *closed {
+                    Shape::closed_line(points, stroke)
+                } else {
+                    Shape::line(points, stroke)
+                });
+            }
         }
+    }
+    if ws.tool == crate::tool::Tool::DirectSelect {
+        draw_points(painter, ws, map);
+        return;
     }
     if ws.gesture.edits_document() && !matches!(ws.gesture, Gesture::Moving(_)) {
         // Keep the overlay light while resizing/rotating: bounds only.
@@ -385,21 +435,36 @@ fn draw_gesture_feedback(
     };
     let doc = map.to_doc(pointer);
     match &ws.gesture {
+        Gesture::Drawing {
+            kind: ShapeKind::Path,
+            start,
+        } => {
+            let (a, b) = line_points(*start, doc, modifiers.shift, modifiers.alt);
+            let line = ws.styled_path(
+                PathData::new(vec![Subpath::new(
+                    vec![Node::corner(a), Node::corner(b)],
+                    false,
+                )]),
+                "Line",
+            );
+            draw_preview(painter, &line, map);
+            // Same value the Transform panel will show as the rotation.
+            let angle = crate::path_edit::line_angle(a, b);
+            label_pill(
+                ui,
+                painter,
+                pointer,
+                format!("{:.0} px · {angle:.1}°", a.distance(b)),
+            );
+        }
         Gesture::Drawing { kind, start } => {
-            let frame = drawing_frame(*start, doc, modifiers.shift, modifiers.alt);
-            let preview = ws.styled_shape(*kind, frame);
-            let points: Vec<Pos2> = preview
-                .flattened(map.doc_len(0.25))
-                .iter()
-                .map(|p| map.to_screen(*p))
-                .collect();
-            let mut ghost = preview.clone();
-            ghost.opacity = 0.6;
-            draw_object(painter, &ghost, ghost.opacity, points.clone(), map.scale);
-            halo_polyline(painter, points, true);
+            let frame = super::shape_frame(*kind, *start, doc, modifiers);
+            draw_preview(painter, &ws.styled_shape(*kind, frame), map);
             label_pill(ui, painter, pointer, size_text(&frame));
         }
-        Gesture::Marquee { start, .. } | Gesture::ZoomRect { start } => {
+        Gesture::Marquee { start, .. }
+        | Gesture::ZoomRect { start }
+        | Gesture::PointMarquee { start, .. } => {
             let r = Rect::from_two_pos(map.to_screen(*start), pointer);
             painter.rect_filled(r, 0, tokens::MARQUEE_FILL);
             halo_polyline(
@@ -442,7 +507,131 @@ fn draw_gesture_feedback(
                 label_pill(ui, painter, pointer, text);
             }
         }
-        Gesture::Idle | Gesture::Panning | Gesture::TextSelect => {}
+        Gesture::Idle
+        | Gesture::Panning
+        | Gesture::TextSelect
+        | Gesture::PenHandle
+        | Gesture::MovingPoints(_)
+        | Gesture::MovingHandle { .. } => {}
+    }
+}
+
+/// Draws a shape being created, translucent, with its outline.
+fn draw_preview(painter: &Painter, object: &Object, map: &ScreenMap) {
+    let tol = map.doc_len(0.25);
+    let opacity = 0.6;
+    if uses_mesh(object.kind) {
+        draw_mesh_object(painter, object, opacity, &shape_mesh(object, tol), map);
+    } else {
+        let points = object
+            .flattened(tol)
+            .iter()
+            .map(|p| map.to_screen(*p))
+            .collect();
+        draw_object(painter, object, opacity, points, map.scale);
+    }
+    for (points, closed) in flatten_subpaths(object.path(), tol) {
+        halo_polyline(
+            painter,
+            points.iter().map(|p| map.to_screen(*p)).collect(),
+            closed,
+        );
+    }
+}
+
+/// An anchor point square (filled when selected).
+fn draw_point(painter: &Painter, at: Pos2, selected: bool) {
+    let r = Rect::from_center_size(at, Vec2::splat(tokens::POINT_SIZE));
+    painter.rect_filled(r.expand(1.0), 0, tokens::HALO);
+    let fill = if selected {
+        tokens::SELECTION
+    } else {
+        tokens::HANDLE_FILL
+    };
+    painter.rect(
+        r,
+        0,
+        fill,
+        Stroke::new(tokens::LINE, tokens::SELECTION),
+        StrokeKind::Inside,
+    );
+}
+
+/// A handle: a line from its point to a dot.
+fn draw_handle(painter: &Painter, point: Pos2, handle: Pos2) {
+    halo_polyline(painter, vec![point, handle], false);
+    painter.circle(
+        handle,
+        tokens::HANDLE_DOT / 2.0,
+        tokens::SELECTION,
+        Stroke::new(1.0, tokens::HALO),
+    );
+}
+
+/// Anchor points and handles of the selected paths (Direct Selection).
+fn draw_points(painter: &Painter, ws: &Workspace, map: &ScreenMap) {
+    for o in ws.selected_paths() {
+        let affine = o.frame.affine();
+        let handles = ws.shown_handles(&o);
+        let Some(path) = o.path_data() else {
+            continue;
+        };
+        for (r, _, at) in &handles {
+            if let Some(node) = path.node(r.node) {
+                draw_handle(
+                    painter,
+                    map.to_screen(affine * node.point),
+                    map.to_screen(*at),
+                );
+            }
+        }
+        for r in path.node_refs() {
+            let at = map.to_screen(affine * path.node(r).expect("ref").point);
+            let selected = ws
+                .points
+                .contains(&tp_core::document::PointRef::new(o.id, r));
+            draw_point(painter, at, selected);
+        }
+    }
+}
+
+/// The path being drawn with the Pen tool, the next segment under the
+/// pointer, and its points.
+fn draw_pen_session(painter: &Painter, ws: &Workspace, map: &ScreenMap, pointer: Option<Pos2>) {
+    let Some(session) = &ws.pen else {
+        return;
+    };
+    let mut nodes = session.nodes.clone();
+    let closing = pointer
+        .is_some_and(|p| ws.pen_over_first(map.to_doc(p), map.doc_len(tokens::POINT_HIT_RADIUS)));
+    if !matches!(ws.gesture, Gesture::PenHandle)
+        && let Some(p) = pointer
+    {
+        // Preview of the next segment.
+        let target = if closing {
+            nodes[0].point
+        } else {
+            map.to_doc(p)
+        };
+        nodes.push(Node::corner(target));
+    }
+    if nodes.len() >= 2 {
+        let preview = ws.styled_path(PathData::new(vec![Subpath::new(nodes, false)]), "Path");
+        draw_preview(painter, &preview, map);
+    }
+    let to_screen = |p: kurbo::Point| map.to_screen(p);
+    if let Some(last) = session.nodes.last() {
+        for h in [last.handle_in, last.handle_out].into_iter().flatten() {
+            draw_handle(painter, to_screen(last.point), to_screen(h));
+        }
+    }
+    for (i, n) in session.nodes.iter().enumerate() {
+        let highlighted = i == 0 && closing;
+        draw_point(
+            painter,
+            to_screen(n.point),
+            highlighted || i + 1 == session.nodes.len(),
+        );
     }
 }
 
