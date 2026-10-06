@@ -39,9 +39,16 @@ Pressing Escape during a drag SHALL cancel the shape being drawn without modifyi
 - **WHEN** the user is dragging a new rectangle and presses Escape
 - **THEN** the preview disappears and no rectangle is created
 
-### Requirement: Tool feedback
-The canvas cursor SHALL show a crosshair while a shape tool is active and a text cursor (I-beam) while the Text tool is active. While a tool whose feature is not available yet is active (Polygon, Pen, Line, Direct Selection), the canvas SHALL show a short, non-blocking hint that the tool is not available yet and SHALL NOT modify the document.
+### Requirement: Tool cursors
+The canvas cursor SHALL show:
 
-#### Scenario: Unavailable tool
+- a crosshair while the Rectangle, Ellipse, Polygon or Line tool is active;
+- a pen cursor while the Pen tool is active;
+- the default arrow while the Direct Selection tool is active;
+- a text cursor (I-beam) while the Text tool is active.
+
+Every tool of the tool bar SHALL be functional: no tool SHALL show a "not available yet" hint.
+
+#### Scenario: Pen tool is available
 - **WHEN** the Pen tool is active and the user clicks on the canvas
-- **THEN** a hint states that the Pen tool is not available yet and the document is unchanged
+- **THEN** an anchor point is placed and no "not available yet" hint is shown
