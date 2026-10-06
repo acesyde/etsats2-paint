@@ -148,3 +148,10 @@ A polygon object SHALL be defined by a frame (like rectangles and ellipses), a n
 #### Scenario: Triangle fills its frame
 - **WHEN** a 3-sided polygon has a frame of 300 × 200
 - **THEN** its top vertex is at the top center of the frame and its two other vertices are at the bottom corners
+
+### Requirement: Surface guides
+Each surface SHALL hold an ordered list of guides. A guide is horizontal or vertical and has a position in texture pixels (y for horizontal guides, x for vertical guides); positions outside the surface are allowed. A new surface SHALL have no guides.
+
+#### Scenario: New project has no guides
+- **WHEN** a project is created
+- **THEN** its surface has no guides
