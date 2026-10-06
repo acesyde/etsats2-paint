@@ -162,6 +162,8 @@ pub enum PointTarget {
 #[derive(Clone, Debug)]
 pub struct PointDrag {
     pub start: Point,
+    /// Document position of the point grabbed, which is the one snapped.
+    pub grabbed: Option<Point>,
     pub originals: Vec<Arc<Object>>,
     pub before: Snapshot,
 }
@@ -314,6 +316,7 @@ impl Workspace {
     pub fn point_drag(&self, start: Point) -> PointDrag {
         PointDrag {
             start,
+            grabbed: None,
             originals: self.selected_paths(),
             before: self.snapshot(),
         }

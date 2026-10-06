@@ -30,14 +30,16 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     let crate::prefs::Prefs {
         layout,
         recent_colors,
+        view_aids,
         ..
     } = prefs;
+    let aids = *view_aids;
     let generation = layout.generation;
     let mut cmds = CommandUi::new(&ctx, queue, edit);
 
     Panel::top("menu_bar")
         .frame(bar_frame())
-        .show(ui, |ui| menu_bar::show(ui, &mut cmds, Some(layout)));
+        .show(ui, |ui| menu_bar::show(ui, &mut cmds, Some(layout), aids));
 
     Panel::bottom("status_bar")
         .exact_size(size::STATUS_BAR_HEIGHT)

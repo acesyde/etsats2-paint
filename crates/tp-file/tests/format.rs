@@ -87,6 +87,8 @@ fn rich_project() -> Project {
     for o in vector_objects() {
         p.add(o);
     }
+    p.add_guide(tp_core::Guide::new(tp_core::Axis::Vertical, 2048.0));
+    p.add_guide(tp_core::Guide::new(tp_core::Axis::Horizontal, 1200.5));
     p
 }
 
@@ -297,6 +299,13 @@ fn v2_fixture_opens() {
     assert!(swoosh.subpaths.iter().all(|s| s.closed));
     assert!(swoosh.subpaths[0].nodes[0].smooth);
     assert_eq!(objects[5].frame.rotation_deg, -20.0);
+    assert_eq!(
+        opened.project.surface().guides,
+        vec![
+            tp_core::Guide::new(tp_core::Axis::Vertical, 2048.0),
+            tp_core::Guide::new(tp_core::Axis::Horizontal, 1200.5),
+        ]
+    );
     let line = &objects[6];
     assert_eq!(line.name, "Line");
     assert!(line.has_open_path());
@@ -308,6 +317,15 @@ fn v2_fixture_opens() {
         assert_eq!(got.frame, want.frame);
         assert_eq!(got.path, want.path);
     }
+}
+
+#[test]
+fn v2_document_without_guides_opens() {
+    let doc = r#"(format: 2, name: "x", resolution: 2048, active_surface: 0,
+        surfaces: [(name: "Main texture", size: 2048.0)])"#;
+    let opened = tp_file::from_bytes(&zip_with(doc)).unwrap();
+    assert!(opened.project.surface().guides.is_empty());
+    assert!(!opened.migrated);
 }
 
 #[test]

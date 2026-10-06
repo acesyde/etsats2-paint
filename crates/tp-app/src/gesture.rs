@@ -20,6 +20,8 @@ pub enum Gesture {
     Drawing {
         kind: ShapeKind,
         start: Point,
+        /// The pointer, snapped.
+        current: Point,
     },
     Marquee {
         start: Point,
@@ -52,6 +54,13 @@ pub enum Gesture {
         point: PointRef,
         side: HandleSide,
     },
+    /// Creating (`index: None`, dragged from a ruler) or moving a guide.
+    Guide {
+        axis: tp_core::Axis,
+        index: Option<usize>,
+        position: f64,
+        before: Snapshot,
+    },
     /// Direct Selection: selecting points inside a rectangle.
     PointMarquee {
         start: Point,
@@ -82,6 +91,7 @@ impl Gesture {
                 | Self::Rotating { .. }
                 | Self::MovingPoints(_)
                 | Self::MovingHandle { .. }
+                | Self::Guide { index: Some(_), .. }
         )
     }
 }

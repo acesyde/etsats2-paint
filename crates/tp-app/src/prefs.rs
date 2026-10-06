@@ -28,6 +28,33 @@ pub struct RecentProject {
     pub last_opened: u64,
 }
 
+/// Default grid spacing, in texture pixels.
+pub const DEFAULT_GRID_SPACING: f64 = 64.0;
+/// Allowed grid spacing, in texture pixels.
+pub const GRID_SPACING_RANGE: std::ops::RangeInclusive<f64> = 4.0..=1024.0;
+
+/// Grid, guides and snapping settings (editor state, not part of projects).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ViewAids {
+    pub grid: bool,
+    pub guides: bool,
+    pub snapping: bool,
+    /// Grid spacing in texture pixels.
+    pub grid_spacing: f64,
+}
+
+impl Default for ViewAids {
+    fn default() -> Self {
+        Self {
+            grid: false,
+            guides: true,
+            snapping: true,
+            grid_spacing: DEFAULT_GRID_SPACING,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Prefs {
@@ -38,6 +65,7 @@ pub struct Prefs {
     pub recent: Vec<RecentProject>,
     /// Recently applied colors as RGBA, most recent first.
     pub recent_colors: Vec<[u8; 4]>,
+    pub view_aids: ViewAids,
 }
 
 impl Default for Prefs {
@@ -49,6 +77,7 @@ impl Default for Prefs {
             layout: WorkspaceLayout::default(),
             recent: Vec::new(),
             recent_colors: Vec::new(),
+            view_aids: ViewAids::default(),
         }
     }
 }
@@ -85,9 +114,12 @@ impl Prefs {
     }
 
     /// Restores UI scale and text size to 100%.
+    /// "Reset to defaults" of the Preferences dialog: scaling and grid
+    /// spacing.
     pub fn reset_scaling(&mut self) {
         self.ui_scale = 1.0;
         self.text_scale = 1.0;
+        self.view_aids.grid_spacing = DEFAULT_GRID_SPACING;
     }
 
     /// Repairs values coming from disk.
@@ -98,6 +130,12 @@ impl Prefs {
         self.layout = self.layout.sanitized();
         self.recent.truncate(MAX_RECENT);
         self.recent_colors.truncate(MAX_RECENT_COLORS);
+        let spacing = self.view_aids.grid_spacing;
+        self.view_aids.grid_spacing = if spacing.is_finite() {
+            spacing.clamp(*GRID_SPACING_RANGE.start(), *GRID_SPACING_RANGE.end())
+        } else {
+            DEFAULT_GRID_SPACING
+        };
         self
     }
 }
@@ -228,6 +266,29 @@ mod tests {
         let loaded = PrefsStore::new(dir.path()).load();
         assert_eq!(loaded.prefs, Prefs::default());
         assert!(loaded.issue.is_none());
+    }
+
+    #[test]
+    fn view_aids_default_and_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = PrefsStore::new(dir.path());
+        // A file written before view aids existed gets the defaults.
+        fs::write(store.path(), "(version: 1, ui_scale: 1.25)").unwrap();
+        let loaded = store.load();
+        assert!(loaded.issue.is_none());
+        assert_eq!(loaded.prefs.view_aids, ViewAids::default());
+        let mut prefs = Prefs::default();
+        assert_eq!(prefs.view_aids, ViewAids::default());
+        prefs.view_aids = ViewAids {
+            grid: true,
+            guides: false,
+            snapping: false,
+            grid_spacing: 128.0,
+        };
+        store.save(&prefs).unwrap();
+        assert_eq!(store.load().prefs.view_aids, prefs.view_aids);
+        prefs.reset_scaling();
+        assert_eq!(prefs.view_aids.grid_spacing, DEFAULT_GRID_SPACING);
     }
 
     #[test]

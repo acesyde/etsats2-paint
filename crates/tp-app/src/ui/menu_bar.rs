@@ -15,7 +15,12 @@ pub const MENUS: [&str; 8] = [
 ];
 
 /// Draws the menu bar row. `layout` is `None` on the home screen.
-pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, layout: Option<&WorkspaceLayout>) {
+pub fn show(
+    ui: &mut Ui,
+    cmds: &mut CommandUi<'_>,
+    layout: Option<&WorkspaceLayout>,
+    aids: crate::prefs::ViewAids,
+) {
     ui.set_height(size::MENU_BAR_HEIGHT);
     egui::MenuBar::new().ui(ui, |ui| {
         ui.label(
@@ -29,7 +34,7 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, layout: Option<&WorkspaceLayo
         for title in MENUS {
             ui.menu_button(title, |ui| {
                 ui.set_min_width(220.0);
-                menu_contents(ui, cmds, title, layout);
+                menu_contents(ui, cmds, title, layout, aids);
             });
         }
 
@@ -72,6 +77,7 @@ fn menu_contents(
     cmds: &mut CommandUi<'_>,
     title: &str,
     layout: Option<&WorkspaceLayout>,
+    aids: crate::prefs::ViewAids,
 ) {
     use CommandId::*;
     let item = |ui: &mut Ui, cmds: &mut CommandUi<'_>, id| {
@@ -136,9 +142,10 @@ fn menu_contents(
             }
             cmds.menu_toggle(ui, TogglePreview, mode.is_some_and(ViewMode::shows_preview));
             ui.separator();
-            item(ui, cmds, ShowGrid);
-            item(ui, cmds, ShowGuides);
-            item(ui, cmds, Snapping);
+            cmds.menu_toggle(ui, ShowGrid, layout.is_some() && aids.grid);
+            cmds.menu_toggle(ui, ShowGuides, layout.is_some() && aids.guides);
+            item(ui, cmds, ClearGuides);
+            cmds.menu_toggle(ui, Snapping, layout.is_some() && aids.snapping);
             ui.separator();
             for kind in PanelKind::ALL {
                 cmds.menu_toggle(

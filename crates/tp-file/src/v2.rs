@@ -10,7 +10,7 @@ use tp_core::document::{
     Subpath, TextAlign, TextBlock,
 };
 use tp_core::kurbo::{Point, Size, Vec2};
-use tp_core::{Asset, AssetKind, Project, Surface, TextureResolution};
+use tp_core::{Asset, AssetKind, Axis, Guide, Project, Surface, TextureResolution};
 
 /// The document (`project.ron`). Asset bytes live in separate ZIP entries.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -33,6 +33,16 @@ pub struct FileSurface {
     pub size: f64,
     #[serde(default)]
     pub objects: Vec<FileObject>,
+    /// Added before format 2 was released: optional, empty when absent.
+    #[serde(default)]
+    pub guides: Vec<FileGuide>,
+}
+
+/// A guide: vertical at x = `position`, or horizontal at y = `position`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileGuide {
+    pub vertical: bool,
+    pub position: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -237,6 +247,14 @@ pub fn from_project(project: &Project) -> FileProject {
                 name: s.name.clone(),
                 size: s.size,
                 objects: s.objects.iter().map(|o| object_to_file(o)).collect(),
+                guides: s
+                    .guides
+                    .iter()
+                    .map(|g| FileGuide {
+                        vertical: g.axis == Axis::Vertical,
+                        position: g.position,
+                    })
+                    .collect(),
             })
             .collect(),
         assets: project
@@ -387,6 +405,19 @@ pub fn into_project(
         .iter()
         .map(|s| {
             let mut surface = Surface::new(s.name.clone(), s.size);
+            surface.guides = s
+                .guides
+                .iter()
+                .filter(|g| g.position.is_finite())
+                .map(|g| {
+                    let axis = if g.vertical {
+                        Axis::Vertical
+                    } else {
+                        Axis::Horizontal
+                    };
+                    Guide::new(axis, g.position)
+                })
+                .collect();
             surface.objects = s
                 .objects
                 .iter()
@@ -464,6 +495,7 @@ pub fn from_v1(old: super::v1::FileProject) -> FileProject {
                 name: s.name,
                 size: s.size,
                 objects: s.objects.into_iter().map(object).collect(),
+                guides: Vec::new(),
             })
             .collect(),
         assets: old
