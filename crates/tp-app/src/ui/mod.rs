@@ -2,6 +2,7 @@
 
 pub mod command_ui;
 pub mod dialogs;
+pub mod export_dialog;
 pub mod gallery;
 pub mod home;
 pub mod menu_bar;

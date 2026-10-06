@@ -49,6 +49,8 @@ pub enum Modal {
         title: String,
         text: String,
     },
+    /// Export Texture dialog.
+    Export(Box<crate::ui::export_dialog::ExportDialog>),
 }
 
 pub struct AppState {
@@ -92,6 +94,8 @@ pub struct AppState {
     pub(crate) after_save: Option<PendingAction>,
     /// The window may close (the user already answered the prompt).
     pub(crate) allow_close: bool,
+    /// Last export choices, for the session.
+    pub export_settings: crate::export::ExportSettings,
 }
 
 impl AppState {
@@ -140,9 +144,15 @@ impl AppState {
             recovered: Vec::new(),
             after_save: None,
             allow_close: false,
+            export_settings: crate::export::ExportSettings::default(),
         };
         state.refresh_recent_availability();
         state
+    }
+
+    /// File names proposed by scripted dialogs (tests).
+    pub fn dialogs_suggested(&self) -> Vec<String> {
+        self.dialogs.suggested()
     }
 
     pub fn has_project(&self) -> bool {
@@ -350,6 +360,11 @@ impl AppState {
             }),
             CommandId::NewProject => self.guard(ctx, PendingAction::NewProject),
             CommandId::OpenProject => self.guard(ctx, PendingAction::OpenDialog),
+            CommandId::ExportTexture => {
+                self.modal = Some(Modal::Export(Box::new(
+                    crate::ui::export_dialog::ExportDialog::new(self.export_settings),
+                )));
+            }
             CommandId::Save => {
                 self.save(ctx, false);
             }

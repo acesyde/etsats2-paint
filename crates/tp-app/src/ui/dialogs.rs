@@ -31,7 +31,7 @@ fn dialog_frame() -> Frame {
         })
 }
 
-fn modal(id: &str) -> egui::Modal {
+pub(crate) fn modal(id: &str) -> egui::Modal {
     egui::Modal::new(egui::Id::new(id))
         .frame(dialog_frame())
         .backdrop_color(color::BACKDROP)
@@ -39,6 +39,17 @@ fn modal(id: &str) -> egui::Modal {
 
 /// Shows the active modal, if any.
 pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
+    if matches!(state.modal, Some(Modal::Export(_))) {
+        let Some(Modal::Export(mut dialog)) = state.modal.take() else {
+            unreachable!()
+        };
+        let keep = super::export_dialog::show(ctx, state, &mut dialog);
+        // The dialog may have opened another modal (an error message).
+        if keep && state.modal.is_none() {
+            state.modal = Some(Modal::Export(dialog));
+        }
+        return;
+    }
     let Some(modal_kind) = state.modal.as_mut() else {
         return;
     };
@@ -55,6 +66,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         Modal::KeyboardShortcuts => shortcuts(ctx),
         Modal::About => about(ctx),
         Modal::Message { title, text } => message(ctx, title, text),
+        Modal::Export(_) => unreachable!("handled above"),
         Modal::UnsavedChanges(action) => {
             let action = action.clone();
             let name = state

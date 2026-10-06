@@ -55,7 +55,7 @@ pub enum CommandId {
     ChooseVehicle,
     VehicleInfo,
     // Export
-    ExportPng,
+    ExportTexture,
     ExportMod,
     // Help
     KeyboardShortcuts,
@@ -163,7 +163,7 @@ const SHIFT: Modifiers = Modifiers::SHIFT;
 const SOON_EDITING: &str = "Available in a future update.";
 const NEEDS_SELECTION: &str = "Select one or more objects first.";
 const SOON_VEHICLES: &str = "Vehicle templates are not available yet.";
-const SOON_EXPORT: &str = "Export is not available yet.";
+const SOON_EXPORT: &str = "Game mods need vehicle templates, which are not available yet.";
 
 impl CommandId {
     /// Every command, including each parameterized variant.
@@ -207,7 +207,7 @@ impl CommandId {
             DesignGallery,
             ChooseVehicle,
             VehicleInfo,
-            ExportPng,
+            ExportTexture,
             ExportMod,
             KeyboardShortcuts,
             About,
@@ -543,12 +543,15 @@ impl CommandId {
                 NotYet(SOON_VEHICLES),
             ),
 
-            ExportPng => m(
-                "Export PNG…",
-                None,
+            ExportTexture => m(
+                "Export Texture…",
+                Some(icons::EXPORT),
                 const { &[sc(CMD, Key::E)] },
                 Workspace,
-                NotYet(SOON_EXPORT),
+                When(
+                    |c| c.has_project && !c.gesture_active,
+                    "Open or create a project first.",
+                ),
             ),
             ExportMod => m(
                 "Export Mod…",

@@ -10,6 +10,12 @@ pub trait FileDialogs {
     fn save_project(&mut self, suggested: &str) -> Option<PathBuf>;
     /// Images to place (Place…).
     fn pick_images(&mut self) -> Vec<PathBuf>;
+    /// Where to export a texture, proposing `suggested` (with its extension).
+    fn save_export(&mut self, suggested: &str) -> Option<PathBuf>;
+    /// Names proposed so far (scripted dialogs only).
+    fn suggested(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// The operating system's dialogs.
@@ -38,6 +44,18 @@ impl FileDialogs for NativeDialogs {
             .pick_files()
             .unwrap_or_default()
     }
+
+    fn save_export(&mut self, suggested: &str) -> Option<PathBuf> {
+        let ext = std::path::Path::new(suggested)
+            .extension()
+            .map(|e| e.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        rfd::FileDialog::new()
+            .set_title("Export Texture")
+            .add_filter(ext.to_uppercase(), &[ext.as_str()])
+            .set_file_name(suggested)
+            .save_file()
+    }
 }
 
 /// Dialogs answering from queues (tests). Empty queues mean "cancelled".
@@ -46,6 +64,7 @@ pub struct ScriptedDialogs {
     pub open: VecDeque<PathBuf>,
     pub save: VecDeque<PathBuf>,
     pub images: VecDeque<Vec<PathBuf>>,
+    pub export: VecDeque<PathBuf>,
     /// File names proposed by save dialogs, in order.
     pub suggested: Vec<String>,
 }
@@ -62,6 +81,15 @@ impl FileDialogs for ScriptedDialogs {
 
     fn pick_images(&mut self) -> Vec<PathBuf> {
         self.images.pop_front().unwrap_or_default()
+    }
+
+    fn save_export(&mut self, suggested: &str) -> Option<PathBuf> {
+        self.suggested.push(suggested.to_owned());
+        self.export.pop_front()
+    }
+
+    fn suggested(&self) -> Vec<String> {
+        self.suggested.clone()
     }
 }
 

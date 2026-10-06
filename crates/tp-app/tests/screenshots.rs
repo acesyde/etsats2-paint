@@ -593,3 +593,63 @@ fn render_persistence() {
         save(&mut h, &format!("status_saving_{suffix}"));
     }
 }
+
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_export() {
+    use tp_app::state::Modal;
+    use tp_app::ui::export_dialog::ExportDialog;
+    let wait_preview = |h: &mut egui_kittest::Harness<'static, tp_app::AppState>| {
+        for _ in 0..400 {
+            h.step();
+            let ready = matches!(&h.state().modal, Some(Modal::Export(d)) if d.preview_ready());
+            if ready {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        h.step();
+    };
+    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+        let prefs = Prefs {
+            ui_scale: scale,
+            ..Prefs::default()
+        };
+        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        common::create_project(&mut h);
+        lettering_scene(&mut h);
+        wait_for_images(&mut h);
+        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::E);
+        wait_preview(&mut h);
+        save(&mut h, &format!("export_png_{suffix}"));
+        if let Some(Modal::Export(d)) = &mut h.state_mut().modal {
+            d.settings.format = tp_app::export::ExportFormat::Dds;
+            d.settings.background = None;
+        }
+        wait_preview(&mut h);
+        save(&mut h, &format!("export_dds_transparent_{suffix}"));
+        let _ = ExportDialog::preview_ready;
+    }
+    // The exported texture itself, to compare with the canvas.
+    let mut h = common::wgpu_harness_with(Prefs::default(), Vec2::new(1440.0, 900.0));
+    common::create_project(&mut h);
+    lettering_scene(&mut h);
+    let ws = h.state_mut().workspace_mut().unwrap();
+    let pixmap = tp_render::render(
+        &ws.project,
+        0,
+        tp_render::RenderOptions {
+            size: 4096,
+            background: Some(tp_core::document::Rgba::rgb(255, 255, 255)),
+        },
+        &mut ws.text.fonts,
+        &mut |_, _| true,
+    )
+    .unwrap();
+    std::fs::write(
+        out_dir().join("export_4k.png"),
+        tp_render::encode_png(&pixmap).unwrap(),
+    )
+    .unwrap();
+}

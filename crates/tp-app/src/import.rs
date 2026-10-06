@@ -1,7 +1,7 @@
 //! Reading image files to import: format sniffing, validation and size.
 
 use std::path::Path;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use resvg::usvg;
 use tp_core::AssetKind;
@@ -32,21 +32,7 @@ impl std::fmt::Display for ImportError {
     }
 }
 
-/// Fonts available to texts inside SVG files (the bundled fonts).
-pub fn svg_options() -> &'static usvg::Options<'static> {
-    static OPTIONS: OnceLock<usvg::Options<'static>> = OnceLock::new();
-    OPTIONS.get_or_init(|| {
-        let mut db = usvg::fontdb::Database::new();
-        for data in tp_text::bundled_font_data() {
-            db.load_font_data(data.to_vec());
-        }
-        db.set_sans_serif_family(tp_text::FALLBACK_FAMILY);
-        usvg::Options {
-            fontdb: Arc::new(db),
-            ..usvg::Options::default()
-        }
-    })
-}
+pub use tp_render::svg_options;
 
 fn sniff(bytes: &[u8]) -> Option<AssetKind> {
     if bytes.starts_with(b"\x89PNG\r\n\x1a\n") || bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {

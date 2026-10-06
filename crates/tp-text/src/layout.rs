@@ -253,6 +253,19 @@ pub fn layout(fonts: &mut FontLibrary, content: &str, style: &CharStyle) -> Text
     }
 }
 
+/// Maps layout coordinates (top-left origin, y down) of a text object to
+/// the document: centered on the frame, scaled by the text's scale, then
+/// rotated and placed by the frame. Shared by the canvas and exports.
+pub fn layout_to_doc(object: &tp_core::document::Object) -> Affine {
+    let Some(block) = &object.text else {
+        return object.frame.affine();
+    };
+    let size = block.layout_size;
+    object.frame.affine()
+        * Affine::scale_non_uniform(block.scale.x, block.scale.y)
+        * Affine::translate(Vec2::new(-size.width / 2.0, -size.height / 2.0))
+}
+
 /// Converts skrifa pen commands into a `kurbo` path at a glyph position.
 struct KurboPen {
     path: BezPath,
