@@ -108,6 +108,12 @@ pub mod canvas {
     /// Contrasting halo drawn under every overlay line.
     pub const HALO: Color32 = Color32::from_rgba_premultiplied(230, 230, 230, 230);
     pub const HANDLE_FILL: Color32 = Color32::WHITE;
+    /// Highlight behind selected characters while editing a text.
+    pub const TEXT_SELECTION: Color32 = Color32::from_rgba_premultiplied(31, 111, 255, 90);
+    /// Caret of the text being edited.
+    pub const CARET: Color32 = Color32::from_rgb(0x1F, 0x6F, 0xFF);
+    /// Placeholder of an image still loading.
+    pub const IMAGE_PLACEHOLDER: Color32 = Color32::from_rgb(0xC8, 0xCA, 0xCF);
     pub const MARQUEE_FILL: Color32 = Color32::from_rgba_premultiplied(15, 55, 128, 40);
     /// Pasteboard around the artboard.
     pub const PASTEBOARD: Color32 = Color32::from_rgb(0x18, 0x19, 0x1C);

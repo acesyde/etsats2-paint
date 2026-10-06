@@ -12,10 +12,17 @@ publish = false
 [workspace.dependencies]
 tp-core = { path = "crates/tp-core" }
 tp-ui = { path = "crates/tp-ui" }
+tp-text = { path = "crates/tp-text" }
 
 eframe = { version = "0.36.2", default-features = false, features = ["wgpu", "default_fonts", "accesskit", "persistence", "wayland", "x11"] }
 egui = "0.36.2"
 kurbo = "0.13.1"
+cosmic-text = { version = "0.19.0", default-features = false, features = ["std", "fontconfig"] }
+lyon_tessellation = "1.0.22"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
+resvg = { version = "0.48.1", default-features = false, features = ["text", "system-fonts", "memmap-fonts"] }
+rfd = "0.17.2"
+blake3 = "1.8.7"
 egui_kittest = { version = "0.36.2", features = ["wgpu", "snapshot"] }
 egui-phosphor = "0.14.0"
 directories = "6.0.0"

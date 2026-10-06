@@ -9,6 +9,7 @@ use crate::commands::{self, Availability, CommandId, EditContext};
 use crate::layout::ViewMode;
 use crate::paths::APP_NAME;
 use crate::prefs::{Prefs, PrefsStore, recent_exists};
+use crate::text_engine::TextEngine;
 use crate::tool::Tool;
 use crate::ui;
 use crate::viewport::Viewport;
@@ -30,6 +31,17 @@ pub struct NewProjectDraft {
     pub name: String,
     pub resolution: TextureResolution,
     pub focus_requested: bool,
+}
+
+/// Opens the file dialog of Place… and returns the chosen files.
+pub type FilePicker = Box<dyn FnMut() -> Vec<std::path::PathBuf>>;
+
+fn pick_image_files() -> Vec<std::path::PathBuf> {
+    rfd::FileDialog::new()
+        .set_title("Place")
+        .add_filter("Images", &["png", "jpg", "jpeg", "svg"])
+        .pick_files()
+        .unwrap_or_default()
 }
 
 pub enum Modal {
@@ -63,6 +75,13 @@ pub struct AppState {
     /// that Escape for the field instead of canvas shortcuts.
     text_focus_last_frame: bool,
     title: String,
+    /// Fonts kept between projects (system fonts load once).
+    fonts: Option<tp_text::FontLibrary>,
+    /// Load the fonts installed on the computer (off in tests, so results
+    /// do not depend on the machine).
+    pub system_fonts: bool,
+    /// File dialog used by Place… (replaced in tests).
+    pub pick_files: FilePicker,
 }
 
 impl AppState {
@@ -78,7 +97,9 @@ impl AppState {
             }
             None => Prefs::default(),
         };
-        Self::with_prefs(prefs, store)
+        let mut state = Self::with_prefs(prefs, store);
+        state.system_fonts = true;
+        state
     }
 
     /// Creates the state from in-memory preferences (tests).
@@ -99,6 +120,9 @@ impl AppState {
             paste_count: 0,
             text_focus_last_frame: false,
             title: String::new(),
+            fonts: None,
+            system_fonts: false,
+            pick_files: Box::new(pick_image_files),
         };
         state.refresh_recent_availability();
         state
@@ -134,11 +158,18 @@ impl AppState {
     /// Opens the editor on a new project.
     pub fn open_project(&mut self, project: Project) {
         tracing::info!(name = %project.name, side = project.resolution.side(), "project created");
-        self.screen = Screen::Workspace(Box::new(Workspace::new(project)));
+        let fonts = self
+            .fonts
+            .take()
+            .unwrap_or_else(tp_text::FontLibrary::bundled);
+        let ws = Workspace::with_text_engine(project, TextEngine::new(fonts));
+        self.screen = Screen::Workspace(Box::new(ws));
     }
 
     pub fn close_project(&mut self) {
-        self.screen = Screen::Home;
+        if let Screen::Workspace(ws) = std::mem::replace(&mut self.screen, Screen::Home) {
+            self.fonts = Some(ws.text.fonts);
+        }
         self.refresh_recent_availability();
     }
 
@@ -170,6 +201,7 @@ impl AppState {
         for id in std::mem::take(&mut self.queue) {
             self.dispatch(&ctx, id);
         }
+        self.after_frame(&ctx);
         self.flush_recent_color(&ctx);
         self.text_focus_last_frame = ctx.text_edit_focused();
         self.sync_title(&ctx);
@@ -207,6 +239,8 @@ impl AppState {
                     .selection
                     .iter()
                     .any(|id| ws.project.surface().get(*id).is_some_and(|o| o.is_group())),
+                single_text: matches!(ws.selection.as_slice(), [id] if ws.can_edit_text(*id)),
+                editing_text: ws.is_editing_text(),
             },
             None => EditContext::default(),
         }
@@ -225,7 +259,19 @@ impl AppState {
     }
 
     fn handle_keyboard(&mut self, ctx: &egui::Context) {
-        let typing = ctx.text_edit_focused() || self.text_focus_last_frame || self.modal.is_some();
+        let field_focused =
+            ctx.text_edit_focused() || self.text_focus_last_frame || self.modal.is_some();
+        let now = ctx.input(|i| i.time);
+        let mut editing_text = false;
+        if let Some(ws) = self.workspace_mut()
+            && ws.is_editing_text()
+        {
+            editing_text = true;
+            if !field_focused {
+                crate::text_input::handle(ctx, ws, now);
+            }
+        }
+        let typing = field_focused || editing_text;
         let has_project = self.has_project();
         let edit = self.edit_context();
         let triggered = ctx.input_mut(|i| {
@@ -261,8 +307,28 @@ impl AppState {
         // A panel interaction in progress becomes one step before any command.
         if let Some(ws) = self.workspace_mut() {
             ws.commit_pending(now);
+            if ws.is_editing_text() {
+                match id {
+                    CommandId::Undo => {
+                        ws.text_undo(now);
+                        return;
+                    }
+                    CommandId::Redo => {
+                        ws.text_redo(now);
+                        return;
+                    }
+                    _ if !keeps_text_session(id) => ws.end_text_session(now),
+                    _ => {}
+                }
+            }
         }
         match id {
+            CommandId::Place => self.with_workspace(|ws| ws.place_request = Some(None)),
+            CommandId::EditText => self.with_workspace(|ws| {
+                if let [id] = ws.selection[..] {
+                    ws.start_editing(id, None, now);
+                }
+            }),
             CommandId::NewProject => {
                 self.modal = Some(Modal::NewProject(NewProjectDraft::default()));
             }
@@ -379,6 +445,60 @@ impl AppState {
         }
     }
 
+    /// Per-frame workspace upkeep after the UI: ends a text session whose
+    /// text lost the selection, picks up fonts, places requested or dropped
+    /// files.
+    fn after_frame(&mut self, ctx: &egui::Context) {
+        let now = ctx.input(|i| i.time);
+        let dropped = ctx.input(|i| i.raw.dropped_files.clone());
+        let hover = ctx.input(|i| i.pointer.latest_pos());
+        let ppp = ctx.pixels_per_point();
+        let Screen::Workspace(ws) = &mut self.screen else {
+            return;
+        };
+        ws.check_text_session(now);
+        if self.system_fonts && !ws.text.fonts.system_requested() {
+            let ctx = ctx.clone();
+            ws.text
+                .fonts
+                .load_system_fonts(move || ctx.request_repaint());
+        }
+        if ws.text.poll_fonts() {
+            ws.relayout_all_texts();
+        }
+        if let Some(at) = ws.place_request.take() {
+            let paths = (self.pick_files)();
+            if !paths.is_empty() {
+                let files = crate::import::read_files(&paths);
+                ws.place_files(files, at, now);
+            }
+        }
+        if !dropped.is_empty() {
+            let at = match (hover, ws.canvas_rect, ws.screen_map(ppp)) {
+                (Some(p), Some(rect), Some(map)) if rect.contains(p) => Some(map.to_doc(p)),
+                _ => None,
+            };
+            let files = dropped
+                .iter()
+                .map(|file| {
+                    let path = file.path();
+                    let name = path.file_name().map_or_else(
+                        || path.display().to_string(),
+                        |n| n.to_string_lossy().into_owned(),
+                    );
+                    match file.bytes() {
+                        Ok(bytes) => crate::import::read_bytes(&name, bytes),
+                        Err(reason) => Err(crate::import::ImportError {
+                            file: name,
+                            reason: format!("cannot be read ({reason})"),
+                        }),
+                    }
+                })
+                .collect();
+            ws.place_files(files, at, now);
+        }
+    }
+
     fn with_workspace(&mut self, f: impl FnOnce(&mut Workspace)) {
         if let Some(ws) = self.workspace_mut() {
             f(ws);
@@ -420,6 +540,25 @@ impl AppState {
         self.saved_prefs = self.prefs.clone();
         self.prefs_changed_at = None;
     }
+}
+
+/// Commands that leave a text editing session running (view changes).
+fn keeps_text_session(id: CommandId) -> bool {
+    matches!(
+        id,
+        CommandId::ZoomIn
+            | CommandId::ZoomOut
+            | CommandId::FitToScreen
+            | CommandId::ActualSize
+            | CommandId::SetViewMode(_)
+            | CommandId::TogglePreview
+            | CommandId::TogglePanel(_)
+            | CommandId::ResetWorkspace
+            | CommandId::DesignGallery
+            | CommandId::KeyboardShortcuts
+            | CommandId::About
+            | CommandId::Preferences
+    )
 }
 
 /// Whether a command can run in the current state.

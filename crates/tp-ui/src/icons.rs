@@ -58,6 +58,12 @@ pub const SAVED: &str = ph::CHECK_CIRCLE;
 pub const CHECK: &str = ph::CHECK;
 pub const UNSAVED: &str = ph::CIRCLE_DASHED;
 pub const WARNING: &str = ph::WARNING;
+pub const ALIGN_LEFT: &str = ph::TEXT_ALIGN_LEFT;
+pub const ALIGN_CENTER: &str = ph::TEXT_ALIGN_CENTER;
+pub const ALIGN_RIGHT: &str = ph::TEXT_ALIGN_RIGHT;
+pub const ITALIC: &str = ph::TEXT_ITALIC;
+pub const SEARCH: &str = ph::MAGNIFYING_GLASS;
+pub const RENAME: &str = ph::PENCIL_SIMPLE;
 
 pub const PROPERTIES: &str = ph::SLIDERS;
 pub const LAYERS: &str = ph::STACK;

@@ -1,10 +1,11 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use kurbo::{Point, Rect, Vec2};
+use kurbo::{Point, Rect, Size, Vec2};
 use serde::{Deserialize, Serialize};
 
 use crate::document::tree::{self, Hit, Placement};
-use crate::document::{Object, ObjectId, Rgba};
+use crate::document::{AssetId, Object, ObjectId, Rgba, ShapeKind};
 
 /// Name given to a project created without a name.
 pub const DEFAULT_PROJECT_NAME: &str = "Untitled";
@@ -107,6 +108,29 @@ impl Surface {
     }
 }
 
+/// What kind of file an asset holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AssetKind {
+    /// PNG or JPEG pixels.
+    Raster,
+    /// SVG source, rendered at any resolution.
+    Svg,
+}
+
+/// An imported file shared by image objects.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Asset {
+    pub id: AssetId,
+    pub name: String,
+    pub kind: AssetKind,
+    /// Original file content.
+    pub bytes: Arc<[u8]>,
+    /// Pixel size (raster) or declared size (SVG).
+    pub size: Size,
+    /// BLAKE3 hash of `bytes`, for deduplication.
+    pub hash: [u8; 32],
+}
+
 /// A livery project: one or more surfaces of vector objects.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Project {
@@ -116,6 +140,8 @@ pub struct Project {
     pub active_surface: usize,
     /// Saved colors, without duplicates.
     pub palette: Vec<Rgba>,
+    /// Imported files, shared by image objects.
+    pub assets: BTreeMap<AssetId, Arc<Asset>>,
     next_id: u64,
 }
 
@@ -138,6 +164,7 @@ impl Project {
             )],
             active_surface: 0,
             palette: Vec::new(),
+            assets: BTreeMap::new(),
             next_id: 1,
         }
     }
@@ -259,6 +286,61 @@ impl Project {
         tree::move_to(&mut self.surface_mut().objects, ids, placement)
     }
 
+    /// Adds an asset, or returns the existing one with the same content.
+    /// The bool is true when a new asset was stored.
+    pub fn add_asset(
+        &mut self,
+        name: &str,
+        kind: AssetKind,
+        bytes: Arc<[u8]>,
+        size: Size,
+    ) -> (AssetId, bool) {
+        let hash = *blake3::hash(&bytes).as_bytes();
+        if let Some(existing) = self.assets.values().find(|a| a.hash == hash) {
+            return (existing.id, false);
+        }
+        let id = AssetId(self.next_id);
+        self.next_id += 1;
+        self.assets.insert(
+            id,
+            Arc::new(Asset {
+                id,
+                name: name.to_owned(),
+                kind,
+                bytes,
+                size,
+                hash,
+            }),
+        );
+        (id, true)
+    }
+
+    /// Number of image objects (on every surface) using `asset`.
+    pub fn asset_usage(&self, asset: AssetId) -> usize {
+        fn count(list: &[Arc<Object>], asset: AssetId) -> usize {
+            list.iter()
+                .map(|o| {
+                    usize::from(o.kind == ShapeKind::Image { asset }) + count(&o.children, asset)
+                })
+                .sum()
+        }
+        self.surfaces.iter().map(|s| count(&s.objects, asset)).sum()
+    }
+
+    /// Removes an unused asset; returns false if it is used or unknown.
+    pub fn remove_asset(&mut self, asset: AssetId) -> bool {
+        if self.asset_usage(asset) > 0 {
+            return false;
+        }
+        self.assets.remove(&asset).is_some()
+    }
+
+    pub fn rename_asset(&mut self, asset: AssetId, name: &str) {
+        if let Some(a) = self.assets.get_mut(&asset) {
+            Arc::make_mut(a).name = name.to_owned();
+        }
+    }
+
     /// Adds a color to the palette unless already present.
     pub fn add_to_palette(&mut self, color: Rgba) -> bool {
         if self.palette.contains(&color) {
@@ -274,6 +356,7 @@ impl Project {
             surfaces: self.surfaces.iter().map(|s| s.objects.clone()).collect(),
             active_surface: self.active_surface,
             palette: self.palette.clone(),
+            assets: self.assets.clone(),
             selection: selection.to_vec(),
         }
     }
@@ -286,6 +369,7 @@ impl Project {
         }
         self.active_surface = snapshot.active_surface.min(self.surfaces.len() - 1);
         self.palette = snapshot.palette.clone();
+        self.assets = snapshot.assets.clone();
         snapshot.selection.clone()
     }
 }
@@ -296,6 +380,7 @@ pub struct Snapshot {
     surfaces: Vec<Vec<Arc<Object>>>,
     active_surface: usize,
     palette: Vec<Rgba>,
+    assets: BTreeMap<AssetId, Arc<Asset>>,
     selection: Vec<ObjectId>,
 }
 
@@ -305,6 +390,12 @@ impl Snapshot {
     pub fn same_document(&self, other: &Snapshot) -> bool {
         self.active_surface == other.active_surface
             && self.palette == other.palette
+            && self.assets.len() == other.assets.len()
+            && self
+                .assets
+                .iter()
+                .zip(&other.assets)
+                .all(|((ka, a), (kb, b))| ka == kb && (Arc::ptr_eq(a, b) || a == b))
             && self.surfaces.len() == other.surfaces.len()
             && self.surfaces.iter().zip(&other.surfaces).all(|(a, b)| {
                 a.len() == b.len() && a.iter().zip(b).all(|(x, y)| Arc::ptr_eq(x, y) || x == y)
@@ -473,6 +564,58 @@ mod tests {
         let group = p.surface().get(g).unwrap();
         assert_eq!(group.children.last().unwrap().id, b);
         assert_eq!(group.frame.size.width, 500.0);
+    }
+
+    fn image(asset: AssetId) -> Object {
+        Object::new(
+            ObjectId(0),
+            ShapeKind::Image { asset },
+            Frame::new(Point::new(10.0, 10.0), Size::new(80.0, 40.0), 0.0),
+        )
+    }
+
+    #[test]
+    fn assets_are_deduplicated_and_counted() {
+        let mut p = Project::new("p", TextureResolution::R2048);
+        let bytes: Arc<[u8]> = Arc::from(&b"fake png"[..]);
+        let (a, new) = p.add_asset(
+            "logo",
+            AssetKind::Raster,
+            bytes.clone(),
+            Size::new(800.0, 400.0),
+        );
+        assert!(new);
+        let (b, new) = p.add_asset(
+            "logo copy",
+            AssetKind::Raster,
+            bytes,
+            Size::new(800.0, 400.0),
+        );
+        assert!(!new);
+        assert_eq!(a, b);
+        assert_eq!(p.assets.len(), 1);
+        let img = p.add(image(a));
+        p.duplicate(&[img], Vec2::new(10.0, 10.0));
+        assert_eq!(p.asset_usage(a), 2);
+        assert!(!p.remove_asset(a), "used assets cannot be removed");
+    }
+
+    #[test]
+    fn removed_asset_comes_back_with_undo_snapshot() {
+        let mut p = Project::new("p", TextureResolution::R2048);
+        let (a, _) = p.add_asset(
+            "badge",
+            AssetKind::Svg,
+            Arc::from(&b"<svg/>"[..]),
+            Size::new(10.0, 10.0),
+        );
+        let snap = p.snapshot(&[]);
+        assert!(p.remove_asset(a));
+        assert!(!snap.same_document(&p.snapshot(&[])));
+        p.restore(&snap);
+        assert!(p.assets.contains_key(&a));
+        p.rename_asset(a, "Badge");
+        assert_eq!(p.assets[&a].name, "Badge");
     }
 
     #[test]

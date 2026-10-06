@@ -85,6 +85,8 @@ fn menu_contents(
             item(ui, cmds, Save);
             item(ui, cmds, SaveAs);
             ui.separator();
+            item(ui, cmds, Place);
+            ui.separator();
             item(ui, cmds, CloseProject);
             ui.separator();
             item(ui, cmds, Quit);
@@ -105,6 +107,8 @@ fn menu_contents(
             item(ui, cmds, Preferences);
         }
         "Object" => {
+            item(ui, cmds, EditText);
+            ui.separator();
             item(ui, cmds, Group);
             item(ui, cmds, Ungroup);
             ui.separator();

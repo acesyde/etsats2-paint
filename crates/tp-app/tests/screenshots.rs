@@ -312,3 +312,228 @@ fn render_editing_panels() {
         save(&mut h, &format!("panels_colors_stroke_{suffix}"));
     }
 }
+
+/// A text object laid out with the workspace's text engine.
+fn add_text(
+    ws: &mut tp_app::workspace::Workspace,
+    content: &str,
+    style: tp_core::document::CharStyle,
+    anchor: (f64, f64),
+    fill: tp_core::document::Rgba,
+    stroke: Option<tp_core::document::StrokeStyle>,
+) -> tp_core::document::ObjectId {
+    use tp_core::document::{Object, ObjectId, TextBlock};
+    let anchor = tp_core::kurbo::Point::new(anchor.0, anchor.1);
+    let mut o = Object::text(ObjectId(0), TextBlock::new(content, style), anchor);
+    o.fill = fill;
+    o.stroke = stroke;
+    ws.text.place_at(&mut o, anchor);
+    ws.project.add(o)
+}
+
+/// A livery with lettering, a PNG logo and an SVG badge.
+fn lettering_scene(
+    h: &mut egui_kittest::Harness<'static, tp_app::AppState>,
+) -> Vec<tp_core::document::ObjectId> {
+    use tp_core::document::TextAlign;
+    use tp_core::document::{CharStyle, Frame, Object, ObjectId, Rgba, ShapeKind, StrokeStyle};
+    use tp_core::kurbo::{Point, Size};
+    let ws = h.state_mut().workspace_mut().expect("project open");
+    let mut base = Object::new(
+        ObjectId(0),
+        ShapeKind::rectangle(),
+        Frame::new(Point::new(2048.0, 1700.0), Size::new(4096.0, 1800.0), 0.0),
+    );
+    base.fill = Rgba::rgb(0x7A, 0x1F, 0x2B);
+    ws.project.add(base);
+    let white = Rgba::rgb(255, 255, 255);
+    let black = Rgba::rgb(0x15, 0x15, 0x18);
+    let title = add_text(
+        ws,
+        "ACE LOGISTICS",
+        CharStyle {
+            family: "Barlow Condensed".into(),
+            weight: 700,
+            italic: true,
+            size: 420.0,
+            ..CharStyle::default()
+        },
+        (300.0, 1500.0),
+        white,
+        Some(StrokeStyle {
+            color: black,
+            width: 14.0,
+        }),
+    );
+    let phone = add_text(
+        ws,
+        "+33 1 23 45 67 89",
+        CharStyle {
+            family: "Oswald".into(),
+            weight: 500,
+            size: 160.0,
+            letter_spacing: 80.0,
+            ..CharStyle::default()
+        },
+        (320.0, 1850.0),
+        Rgba::rgb(0xF0, 0xB4, 0x4C),
+        None,
+    );
+    let slogan = add_text(
+        ws,
+        "EUROPE\nWIDE",
+        CharStyle {
+            family: "Bebas Neue".into(),
+            weight: 400,
+            size: 300.0,
+            align: TextAlign::Center,
+            line_height: 90.0,
+            ..CharStyle::default()
+        },
+        (3300.0, 3000.0),
+        Rgba::rgb(0x30, 0x30, 0x36),
+        None,
+    );
+    let rotated = add_text(
+        ws,
+        "Montserrat",
+        CharStyle {
+            family: "Montserrat".into(),
+            weight: 800,
+            size: 220.0,
+            ..CharStyle::default()
+        },
+        (500.0, 3300.0),
+        Rgba::rgb(0x1F, 0x6F, 0xFF),
+        None,
+    );
+    {
+        let mut o = (**ws.project.surface().get(rotated).unwrap()).clone();
+        o.frame.rotation_deg = -15.0;
+        o.frame.size.width *= 1.4;
+        o.sync_text_scale();
+        ws.project.surface_mut().replace(&[o]);
+    }
+    // A PNG logo (radial gradient) and an SVG badge.
+    let png = {
+        let img = image::RgbaImage::from_fn(512, 512, |x, y| {
+            let (dx, dy) = (x as f32 - 256.0, y as f32 - 256.0);
+            let d = (dx * dx + dy * dy).sqrt() / 256.0;
+            if d > 1.0 {
+                image::Rgba([0, 0, 0, 0])
+            } else {
+                image::Rgba([20, (60.0 + 150.0 * d) as u8, 220, 255])
+            }
+        });
+        let mut out = Vec::new();
+        img.write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
+            .unwrap();
+        out
+    };
+    let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="600" height="300" viewBox="0 0 600 300">
+  <rect x="10" y="10" width="580" height="280" rx="60" fill="#F0B44C" stroke="#151518" stroke-width="16"/>
+  <path d="M80 220 L180 80 L280 220 Z" fill="#7A1F2B"/>
+  <circle cx="420" cy="150" r="90" fill="none" stroke="#151518" stroke-width="24"/>
+</svg>"##;
+    let files = vec![
+        tp_app::import::read_bytes("logo.png", png),
+        tp_app::import::read_bytes("badge.svg", svg.to_vec()),
+    ];
+    ws.place_files(files, Some(Point::new(3000.0, 1300.0)), 0.0);
+    let images = ws.selection.clone();
+    {
+        let mut badge = ws.selected_objects()[1].clone();
+        badge.frame.center = Point::new(1900.0, 3000.0);
+        badge.frame.size = Size::new(1200.0, 600.0);
+        badge.frame.rotation_deg = 8.0;
+        ws.project.surface_mut().replace(&[badge]);
+    }
+    ws.selection.clear();
+    let mut ids = vec![title, phone, slogan, rotated];
+    ids.extend(images);
+    ids
+}
+
+/// Steps until SVG renders from the background thread are uploaded.
+fn wait_for_images(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
+    for _ in 0..200 {
+        h.step();
+        if !h.state().workspace().unwrap().images.is_rendering() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    h.step();
+}
+
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_text_and_images() {
+    use tp_app::layout::PanelKind;
+    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+        let mut prefs = Prefs {
+            ui_scale: scale,
+            ..Prefs::default()
+        };
+        for slot in &mut prefs.layout.panels {
+            slot.collapsed = false;
+            slot.open = matches!(
+                slot.kind,
+                PanelKind::Properties | PanelKind::Layers | PanelKind::Assets
+            );
+        }
+        prefs.layout.column_width = 300.0;
+        let size = Vec2::new(1440.0, 1000.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        common::create_project(&mut h);
+        let ids = lettering_scene(&mut h);
+        wait_for_images(&mut h);
+        h.state_mut().workspace_mut().unwrap().selection = vec![ids[0]];
+        save(&mut h, &format!("text_livery_{suffix}"));
+
+        // Editing on the canvas, with part of the text selected.
+        {
+            let ws = h.state_mut().workspace_mut().unwrap();
+            ws.start_editing(ids[0], None, 0.0);
+            ws.text_move(tp_text::Motion::WordLeft, true, 0.0);
+        }
+        save(&mut h, &format!("text_editing_{suffix}"));
+        h.state_mut().workspace_mut().unwrap().end_text_session(0.0);
+
+        // Font picker.
+        h.get_by_label_contains("Font family").click();
+        h.run();
+        save(&mut h, &format!("font_picker_{suffix}"));
+        h.key_press(egui::Key::Escape);
+        h.run();
+
+        // Image selected: image information, no fill/stroke.
+        h.state_mut().workspace_mut().unwrap().selection = vec![ids[5]];
+        save(&mut h, &format!("image_selected_{suffix}"));
+    }
+    // Zoomed out and in on the images.
+    let mut h = common::wgpu_harness_with(Prefs::default(), Vec2::new(1440.0, 900.0));
+    common::create_project(&mut h);
+    lettering_scene(&mut h);
+    for (zoom, center, name) in [
+        (0.25, (2048.0, 2048.0), "images_zoom_25"),
+        (8.0, (1700.0, 2900.0), "images_zoom_800_svg"),
+        (8.0, (3000.0, 1300.0), "images_zoom_800_png"),
+        (8.0, (700.0, 1450.0), "text_zoom_800"),
+    ] {
+        {
+            let view = h
+                .state_mut()
+                .workspace_mut()
+                .unwrap()
+                .viewport
+                .as_mut()
+                .unwrap();
+            view.center = tp_core::kurbo::Point::new(center.0, center.1);
+            view.set_zoom_centered(zoom);
+        }
+        h.step();
+        wait_for_images(&mut h);
+        save(&mut h, name);
+    }
+}

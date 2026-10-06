@@ -8,5 +8,6 @@ mod project;
 
 pub use kurbo;
 pub use project::{
-    DEFAULT_PROJECT_NAME, MAIN_SURFACE_NAME, Project, Snapshot, Surface, TextureResolution,
+    Asset, AssetKind, DEFAULT_PROJECT_NAME, MAIN_SURFACE_NAME, Project, Snapshot, Surface,
+    TextureResolution,
 };

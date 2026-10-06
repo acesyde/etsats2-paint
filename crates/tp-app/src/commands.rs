@@ -14,6 +14,7 @@ pub enum CommandId {
     OpenProject,
     Save,
     SaveAs,
+    Place,
     CloseProject,
     Preferences,
     Quit,
@@ -27,6 +28,7 @@ pub enum CommandId {
     Delete,
     SelectAll,
     // Object
+    EditText,
     Group,
     Ungroup,
     BringForward,
@@ -106,6 +108,10 @@ pub struct EditContext {
     pub redo_label: Option<&'static str>,
     /// At least one selected object is a group.
     pub selection_has_group: bool,
+    /// Exactly one editable (visible, unlocked) text is selected.
+    pub single_text: bool,
+    /// A text is being edited on the canvas.
+    pub editing_text: bool,
 }
 
 fn editable_selection(c: &EditContext) -> bool {
@@ -169,6 +175,7 @@ impl CommandId {
             OpenProject,
             Save,
             SaveAs,
+            Place,
             CloseProject,
             Preferences,
             Quit,
@@ -180,6 +187,7 @@ impl CommandId {
             Duplicate,
             Delete,
             SelectAll,
+            EditText,
             Group,
             Ungroup,
             BringForward,
@@ -257,6 +265,13 @@ impl CommandId {
                 Global,
                 NotYet(SOON_FILES),
             ),
+            Place => m(
+                "Place…",
+                Some(icons::IMAGE),
+                const { &[sc(CMD_SHIFT, Key::P)] },
+                Workspace,
+                When(|c| c.has_project && !c.gesture_active, ""),
+            ),
             CloseProject => m(
                 "Close",
                 None,
@@ -279,7 +294,7 @@ impl CommandId {
                 const { &[sc(CMD, Key::Z)] },
                 Workspace,
                 When(
-                    |c| c.has_project && c.can_undo && !c.gesture_active,
+                    |c| c.has_project && (c.can_undo || c.editing_text) && !c.gesture_active,
                     "Nothing to undo.",
                 ),
             ),
@@ -289,7 +304,7 @@ impl CommandId {
                 const { &[sc(CMD_SHIFT, Key::Z), sc(CMD, Key::Y)] },
                 Workspace,
                 When(
-                    |c| c.has_project && c.can_redo && !c.gesture_active,
+                    |c| c.has_project && (c.can_redo || c.editing_text) && !c.gesture_active,
                     "Nothing to redo.",
                 ),
             ),
@@ -339,6 +354,16 @@ impl CommandId {
                 When(|c| c.has_project && !c.gesture_active, ""),
             ),
 
+            EditText => m(
+                "Edit Text",
+                Some(icons::TEXT),
+                const { &[sc(NONE, Key::Enter)] },
+                Workspace,
+                When(
+                    |c| c.single_text && !c.gesture_active,
+                    "Select one text first.",
+                ),
+            ),
             Group => m(
                 "Group",
                 Some(icons::GROUP),

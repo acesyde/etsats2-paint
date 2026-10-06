@@ -37,6 +37,8 @@ pub enum Gesture {
     ZoomRect {
         start: Point,
     },
+    /// Selecting characters of the text being edited.
+    TextSelect,
 }
 
 /// What every transform gesture remembers from its start.

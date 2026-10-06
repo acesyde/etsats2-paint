@@ -9,8 +9,8 @@ pub mod tree;
 pub use color::{DEFAULT_FILL, Hsla, Hsva, Rgba};
 pub use history::{COALESCE_WINDOW, DEFAULT_MAX_STEPS, History};
 pub use object::{
-    Frame, MIN_SIZE, Object, ObjectId, ShapeKind, StrokeStyle, convex_polygons_overlap,
-    flatten_closed, normalize_degrees,
+    AssetId, CharStyle, Frame, MIN_SIZE, Object, ObjectId, ShapeKind, StrokeStyle, TextAlign,
+    TextBlock, convex_polygons_overlap, flatten_closed, normalize_degrees,
 };
 pub use transform::{
     Handle, ResizeOptions, angle_around, resize, rotate, selection_frame, snap_direction, translate,

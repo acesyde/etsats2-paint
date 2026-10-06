@@ -2,11 +2,12 @@
 //! fill/stroke swatches.
 
 use egui::{RichText, Slider, Ui, WidgetInfo, WidgetType};
+use tp_core::AssetKind;
 use tp_core::document::{Object, ShapeKind};
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, space};
-use tp_ui::widgets::{ColorSwatch, NumericField, SwatchColor};
+use tp_ui::widgets::{ColorSwatch, NumericField, SwatchColor, secondary_button};
 
 use super::{PanelEnv, apply_field, reveal};
 use crate::layout::{PanelKind, WorkspaceLayout};
@@ -17,6 +18,8 @@ pub fn kind_icon(kind: ShapeKind) -> &'static str {
         ShapeKind::Rectangle { .. } => icons::RECTANGLE,
         ShapeKind::Ellipse => icons::ELLIPSE,
         ShapeKind::Group => icons::GROUP,
+        ShapeKind::Text => icons::TEXT,
+        ShapeKind::Image { .. } => icons::IMAGE,
     }
 }
 
@@ -114,8 +117,40 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
     let top = ui.cursor().top();
     ui.vertical(|ui| body(ui, env, layout));
     let used = ui.cursor().top() - top;
-    if used < BODY_HEIGHT {
-        ui.add_space(BODY_HEIGHT - used);
+    // The body only grows (texts show more settings), so rows of the panels
+    // below do not move between two clicks.
+    let id = ui.id().with("properties_height");
+    let height = ui
+        .data(|d| d.get_temp::<f32>(id))
+        .unwrap_or(BODY_HEIGHT)
+        .max(used);
+    ui.data_mut(|d| d.insert_temp(id, height));
+    if used < height {
+        ui.add_space(height - used);
+    }
+}
+
+fn image_info(ui: &mut Ui, env: &mut PanelEnv<'_>, object: &Object) {
+    let ShapeKind::Image { asset } = object.kind else {
+        return;
+    };
+    let Some(asset) = env.ws.project.assets.get(&asset).cloned() else {
+        return;
+    };
+    let source = match asset.kind {
+        AssetKind::Svg => "SVG · Vector".to_owned(),
+        AssetKind::Raster => format!(
+            "Image · {:.0} × {:.0} px",
+            asset.size.width, asset.size.height
+        ),
+    };
+    ui.label(
+        RichText::new(format!("Source: {} · {source}", asset.name))
+            .small()
+            .color(color::TEXT_SECONDARY),
+    );
+    if ui.add(secondary_button("Reset Size")).clicked() {
+        env.ws.reset_image_size(env.now);
     }
 }
 
@@ -123,8 +158,16 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
     let objects = env.ws.selected_objects();
     summary(ui, &objects, env.ws);
     if objects.is_empty() {
+        if env.ws.tool == crate::tool::Tool::Text {
+            ui.add_space(space::XS);
+            super::character::show(ui, env);
+        }
         return;
     }
+    let shapes = env.ws.selected_shapes();
+    let only = |f: fn(&ShapeKind) -> bool| !shapes.is_empty() && shapes.iter().all(|o| f(&o.kind));
+    let only_images = only(|k| matches!(k, ShapeKind::Image { .. }));
+    let only_texts = only(|k| *k == ShapeKind::Text);
     ui.add_space(space::XS);
 
     // Opacity: field + slider.
@@ -161,6 +204,19 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
             .range(0.0..=100_000.0)
             .show(ui);
         apply_field(env, e, set_corner_radius);
+    }
+
+    if let [single] = objects.as_slice()
+        && only_images
+    {
+        image_info(ui, env, single);
+    }
+    if only_texts {
+        super::character::show(ui, env);
+    }
+    if only_images {
+        // Fill and stroke do not apply to images.
+        return;
     }
 
     // Fill / stroke swatches → Colors panel.

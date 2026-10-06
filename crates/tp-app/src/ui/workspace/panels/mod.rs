@@ -1,5 +1,7 @@
 //! Right-hand stack of collapsible, closable panels.
 
+mod assets;
+mod character;
 mod colors;
 mod layers;
 mod properties;
@@ -130,7 +132,8 @@ fn body(
         PanelKind::Colors => colors::show(ui, env),
         PanelKind::Stroke => stroke::show(ui, env),
         PanelKind::Layers => layers::show(ui, cmds, env),
-        PanelKind::Assets | PanelKind::Vehicle => {
+        PanelKind::Assets => assets::show(ui, cmds, env),
+        PanelKind::Vehicle => {
             let (title, message) = kind.empty_state();
             EmptyState::new(kind.icon(), title, message).show(ui);
         }

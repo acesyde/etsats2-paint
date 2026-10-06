@@ -33,6 +33,7 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     let ctx = ui.ctx().clone();
     let ppp = ctx.pixels_per_point();
     let now = ctx.input(|i| i.time);
+    ws.images.poll(&ctx);
 
     // Fit on first display, and keep fitting until the user navigates.
     let size = ws.project.surface().size;
@@ -57,6 +58,14 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     let drawn_cursor = set_cursor(&ctx, ws, &map, pointer, modifiers, response.hovered());
     paint::paint(ui, ws, area, &map, pointer, modifiers, now, drawn_cursor);
     ws.geometry.prune();
+    ws.text.prune();
+    ws.images.prune();
+
+    // An asset dragged from the Assets panel and dropped here.
+    if let Some(asset) = response.dnd_release_payload::<tp_core::document::AssetId>() {
+        let at = ctx.pointer_interact_pos().map(|p| map.to_doc(p));
+        ws.place_asset(*asset, at, now);
+    }
 }
 
 fn handle_wheel(ctx: &egui::Context, ws: &mut Workspace, area: Rect, ppp: f32) {
@@ -150,6 +159,34 @@ fn handle_pointer(
     if response.clicked_by(PointerButton::Primary) {
         click(ws, &map, pointer, modifiers, area, ppp, now);
     }
+    if response.double_clicked_by(PointerButton::Primary) {
+        double_click(ws, &map, pointer, now);
+    }
+}
+
+/// Whether `doc` is over the text being edited.
+fn in_edited_text(ws: &Workspace, doc: kurbo::Point, map: &ScreenMap) -> bool {
+    ws.editing_text()
+        .and_then(|id| ws.project.surface().get(id))
+        .is_some_and(|o| o.contains(doc, hit_tolerance(map)))
+}
+
+/// The editable text under `doc`, looking inside groups.
+fn text_under(ws: &Workspace, doc: kurbo::Point, map: &ScreenMap) -> Option<ObjectId> {
+    let id = click_target(ws, doc, map, true)?;
+    ws.can_edit_text(id).then_some(id)
+}
+
+fn double_click(ws: &mut Workspace, map: &ScreenMap, pointer: Pos2, now: f64) {
+    if !matches!(ws.tool, Tool::Select | Tool::Move | Tool::Text) {
+        return;
+    }
+    let doc = map.to_doc(pointer);
+    if in_edited_text(ws, doc, map) {
+        ws.text_select_word(doc, now);
+    } else if let Some(id) = text_under(ws, doc, map) {
+        ws.start_editing(id, Some(doc), now);
+    }
 }
 
 fn hit_tolerance(map: &ScreenMap) -> f64 {
@@ -191,6 +228,17 @@ fn start_gesture(
 ) {
     let doc = map.to_doc(origin);
     ws.commit_pending(now);
+    if ws.is_editing_text() {
+        if matches!(ws.tool, Tool::Select | Tool::Move | Tool::Text) && in_edited_text(ws, doc, map)
+        {
+            ws.text_click(doc, modifiers.shift, now);
+            ws.gesture = Gesture::TextSelect;
+            return;
+        }
+        if !matches!(ws.tool, Tool::Hand | Tool::Zoom) {
+            ws.end_text_session(now);
+        }
+    }
     ws.gesture = match ws.tool {
         Tool::Hand => Gesture::Panning,
         Tool::Zoom => Gesture::ZoomRect { start: doc },
@@ -240,7 +288,7 @@ fn start_gesture(
                 },
             }
         }
-        Tool::Eyedropper => Gesture::Idle,
+        Tool::Eyedropper | Tool::Text | Tool::Image => Gesture::Idle,
         other => {
             ws.show_hint(unavailable_hint(other), now);
             Gesture::Idle
@@ -298,6 +346,7 @@ fn update_gesture(
             }
             ws.selection = selection;
         }
+        Gesture::TextSelect => ws.text_click(doc, true, 0.0),
         Gesture::Idle | Gesture::Drawing { .. } | Gesture::ZoomRect { .. } => {}
     }
 }
@@ -331,7 +380,7 @@ fn finish_gesture(
                 view.zoom_to_rect(area, ppp, kurbo::Rect::from_points(start, doc));
             }
         }
-        Gesture::Idle | Gesture::Panning | Gesture::Marquee { .. } => {}
+        Gesture::Idle | Gesture::Panning | Gesture::Marquee { .. } | Gesture::TextSelect => {}
     }
 }
 
@@ -356,7 +405,26 @@ fn click(
     now: f64,
 ) {
     let doc = map.to_doc(pointer);
+    if ws.is_editing_text() {
+        if matches!(ws.tool, Tool::Select | Tool::Move | Tool::Text) && in_edited_text(ws, doc, map)
+        {
+            ws.text_click(doc, modifiers.shift, now);
+            return;
+        }
+        if !matches!(ws.tool, Tool::Hand | Tool::Zoom) {
+            ws.end_text_session(now);
+        }
+    }
     match ws.tool {
+        Tool::Text => match text_under(ws, doc, map) {
+            Some(id) => {
+                ws.start_editing(id, Some(doc), now);
+            }
+            None => {
+                ws.start_new_text(doc, now);
+            }
+        },
+        Tool::Image => ws.place_request = Some(Some(doc)),
         Tool::Select | Tool::Move => match click_target(ws, doc, map, modifiers.command) {
             Some(id) if modifiers.shift => {
                 if let Some(i) = ws.selection.iter().position(|s| *s == id) {
@@ -390,12 +458,25 @@ fn eyedropper(ws: &mut Workspace, doc: kurbo::Point, map: &ScreenMap, now: f64) 
     let artboard = tokens::ARTBOARD;
     let sampled =
         tp_core::document::tree::sample(&ws.project.surface().objects, doc, hit_tolerance(map));
+    let background = Rgba::rgb(artboard.r(), artboard.g(), artboard.b());
     let color = match sampled {
-        Some(object) => match target {
-            ColorTarget::Stroke => object.stroke.map_or(object.fill, |s| s.color),
-            ColorTarget::Fill => object.fill,
+        Some(object) => match object.kind {
+            ShapeKind::Image { asset } => {
+                // The pixel under the pointer, opaque.
+                let local = object.frame.affine().inverse() * doc;
+                let size = object.frame.size;
+                let uv = [local.x / size.width + 0.5, local.y / size.height + 0.5];
+                match ws.images.sample(asset, uv) {
+                    Some(c) if c.a > 0 => Rgba::rgb(c.r, c.g, c.b),
+                    _ => background,
+                }
+            }
+            _ => match target {
+                ColorTarget::Stroke => object.stroke.map_or(object.fill, |s| s.color),
+                ColorTarget::Fill => object.fill,
+            },
         },
-        None => Rgba::rgb(artboard.r(), artboard.g(), artboard.b()),
+        None => background,
     };
     ws.apply_color(target, color);
     ws.commit_pending(now);
@@ -467,6 +548,7 @@ fn set_cursor(
         Gesture::Drawing { .. } => Ok(CursorIcon::Crosshair),
         Gesture::Marquee { .. } => Ok(CursorIcon::Default),
         Gesture::ZoomRect { .. } => Ok(CursorIcon::ZoomIn),
+        Gesture::TextSelect => Ok(CursorIcon::Text),
         Gesture::Idle => {
             if !hovered {
                 return None;
@@ -476,7 +558,13 @@ fn set_cursor(
                 Tool::Zoom if modifiers.alt => Ok(CursorIcon::ZoomOut),
                 Tool::Zoom => Ok(CursorIcon::ZoomIn),
                 Tool::Eyedropper => Err(EYEDROPPER_CURSOR),
-                Tool::Rectangle | Tool::Ellipse => Ok(CursorIcon::Crosshair),
+                Tool::Rectangle | Tool::Ellipse | Tool::Image => Ok(CursorIcon::Crosshair),
+                Tool::Text => Ok(CursorIcon::Text),
+                Tool::Select | Tool::Move
+                    if pointer.is_some_and(|p| in_edited_text(ws, map.to_doc(p), map)) =>
+                {
+                    Ok(CursorIcon::Text)
+                }
                 Tool::Select | Tool::Move => {
                     let bounds = selection_frame(&ws.selected_objects());
                     match pointer.and_then(|p| overlay_target(bounds.as_ref(), map, p)) {
