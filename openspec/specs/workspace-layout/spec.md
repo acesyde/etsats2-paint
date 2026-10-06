@@ -29,7 +29,7 @@ The workspace SHALL show a vertical tool bar on the left with, in order: Selecti
 - **THEN** the Rectangle tool shows the active state and the previously active tool no longer does
 
 ### Requirement: Canvas area
-The canvas area SHALL occupy all space not used by bars and panels and SHALL display the project's active texture surface as an artboard framed against a neutral pasteboard background. When a project is opened, the view SHALL be fitted so the whole artboard is centered and visible; afterwards the view is controlled by the user (see `canvas-navigation`). Resizing the canvas area SHALL keep the document point at the center of the canvas area fixed and SHALL NOT change the zoom level, unless the user has not navigated since the last fit, in which case the view is refitted.
+The canvas area SHALL occupy all space not used by bars and panels, SHALL show rulers along its top and left edges (see `canvas-guides`), and SHALL display the project's active texture surface as an artboard framed against a neutral pasteboard background. When a project is opened, the view SHALL be fitted so the whole artboard is centered and visible; afterwards the view is controlled by the user (see `canvas-navigation`). Resizing the canvas area SHALL keep the document point at the center of the canvas area fixed and SHALL NOT change the zoom level, unless the user has not navigated since the last fit, in which case the view is refitted.
 
 #### Scenario: Artboard visible
 - **WHEN** a new 4096×4096 project is opened
