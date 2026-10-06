@@ -22,6 +22,15 @@ use tp_core::kurbo::{Point, Size};
 
 type H = Harness<'static, AppState>;
 
+/// Runs a few frames. Background threads (saves, recovery copies, SVG
+/// renders) wake the UI at unpredictable times, so `Harness::run`, which
+/// waits until nothing asks for a repaint, would be flaky.
+fn settle(h: &mut H) {
+    for _ in 0..4 {
+        h.step();
+    }
+}
+
 /// Tall window with every panel open and expanded.
 fn open() -> H {
     let mut prefs = Prefs::default();
@@ -36,7 +45,7 @@ fn open() -> H {
             AppState::with_prefs(prefs, None),
         );
     common::create_project(&mut h);
-    h.run();
+    settle(&mut h);
     h
 }
 
@@ -65,7 +74,7 @@ fn screen(h: &H, x: f64, y: f64) -> Pos2 {
 
 fn set_tool(h: &mut H, tool: Tool) {
     ws_mut(h).tool = tool;
-    h.run();
+    settle(h);
 }
 
 fn click_at(h: &mut H, at: Pos2, mods: Modifiers) {
@@ -81,7 +90,7 @@ fn click_at(h: &mut H, at: Pos2, mods: Modifiers) {
     }
     h.step();
     h.event(Event::ModifiersChanged(Modifiers::NONE));
-    h.run();
+    settle(h);
 }
 
 fn double_click_at(h: &mut H, at: Pos2) {
@@ -99,7 +108,7 @@ fn double_click_at(h: &mut H, at: Pos2) {
         h.step();
     }
     h.input_mut().time = None;
-    h.run();
+    settle(h);
 }
 
 fn drag(h: &mut H, from: Pos2, to: Pos2, mods: Modifiers) {
@@ -124,7 +133,7 @@ fn drag(h: &mut H, from: Pos2, to: Pos2, mods: Modifiers) {
     });
     h.step();
     h.event(Event::ModifiersChanged(Modifiers::NONE));
-    h.run();
+    settle(h);
 }
 
 /// Types like a keyboard: a key press and the text it produces.
@@ -142,7 +151,7 @@ fn type_text(h: &mut H, text: &str) {
         h.event(Event::Text(c.to_string()));
         h.step();
     }
-    h.run();
+    settle(h);
 }
 
 /// Creates a text with the Text tool at document point (x, y).
@@ -152,7 +161,7 @@ fn create_text(h: &mut H, x: f64, y: f64, text: &str) -> ObjectId {
     type_text(h, text);
     let id = ws(h).editing_text().expect("editing");
     h.key_press(Key::Escape);
-    h.run();
+    settle(h);
     id
 }
 
@@ -163,7 +172,7 @@ fn place_bytes(h: &mut H, files: Vec<(&str, Vec<u8>)>, at: Option<Point>) {
         .collect();
     let now = h.ctx.input(|i| i.time);
     ws_mut(h).place_files(files, at, now);
-    h.run();
+    settle(h);
 }
 
 const BLUE: [u8; 4] = [20, 60, 220, 255];
@@ -197,7 +206,7 @@ fn empty_text_is_removed() {
     click_at(&mut h, p, Modifiers::NONE);
     assert!(ws(&h).is_editing_text());
     h.key_press(Key::Escape);
-    h.run();
+    settle(&mut h);
     assert!(ws(&h).project.surface().objects.is_empty());
     assert!(!ws(&h).history.can_undo());
 }
@@ -223,7 +232,7 @@ fn typing_a_tool_letter_while_editing() {
     assert_eq!(ws(&h).tool, Tool::Text);
     // Delete/Backspace edit the text, not the selection.
     h.key_press(Key::Backspace);
-    h.run();
+    settle(&mut h);
     assert_eq!(content(&h, id), "");
     assert!(ws(&h).project.surface().get(id).is_some());
 }
@@ -238,7 +247,7 @@ fn select_all_and_replace() {
     double_click_at(&mut h, p);
     assert_eq!(ws(&h).editing_text(), Some(id));
     h.key_press_modifiers(Modifiers::COMMAND, Key::A);
-    h.run();
+    settle(&mut h);
     type_text(&mut h, "New name");
     assert_eq!(content(&h, id), "New name");
     // Cmd+A did not select every object either.
@@ -254,7 +263,7 @@ fn new_line() {
     let id = ws(&h).editing_text().unwrap();
     type_text(&mut h, "Line 1");
     h.key_press(Key::Enter);
-    h.run();
+    settle(&mut h);
     type_text(&mut h, "Line 2");
     assert_eq!(content(&h, id), "Line 1\nLine 2");
     let object = obj(&h, id);
@@ -270,20 +279,20 @@ fn undo_an_editing_session() {
     let id = create_text(&mut h, 800.0, 900.0, "ACE");
     set_tool(&mut h, Tool::Select);
     h.key_press(Key::Enter);
-    h.run();
+    settle(&mut h);
     assert_eq!(ws(&h).editing_text(), Some(id));
     type_text(&mut h, " Logistics");
     // Undo inside the session.
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
-    h.run();
+    settle(&mut h);
     assert_eq!(content(&h, id), "ACE");
     type_text(&mut h, " Logistics");
     h.key_press(Key::Escape);
-    h.run();
+    settle(&mut h);
     assert_eq!(content(&h, id), "ACE Logistics");
     assert_eq!(ws(&h).history.undo_label(), Some("Edit Text"));
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
-    h.run();
+    settle(&mut h);
     assert_eq!(content(&h, id), "ACE");
 }
 
@@ -294,7 +303,7 @@ fn clicking_outside_ends_editing() {
     let id = create_text(&mut h, 800.0, 900.0, "ACE");
     set_tool(&mut h, Tool::Select);
     h.key_press(Key::Enter);
-    h.run();
+    settle(&mut h);
     assert!(ws(&h).is_editing_text());
     let p = screen(&h, 3000.0, 3000.0);
     click_at(&mut h, p, Modifiers::NONE);
@@ -326,21 +335,21 @@ fn change_size_of_two_texts() {
     let a = create_text(&mut h, 600.0, 600.0, "ACE");
     let b = create_text(&mut h, 600.0, 1200.0, "LOGISTICS");
     ws_mut(&mut h).selection = vec![a, b];
-    h.run();
+    settle(&mut h);
     h.get_by_role_and_label(Role::TextInput, "Font size")
         .focus();
-    h.run();
+    settle(&mut h);
     h.key_press_modifiers(Modifiers::COMMAND, Key::A);
     h.get_by_role_and_label(Role::TextInput, "Font size")
         .type_text("300");
-    h.run();
+    settle(&mut h);
     h.key_press(Key::Enter);
-    h.run();
+    settle(&mut h);
     for id in [a, b] {
         assert_eq!(obj(&h, id).text.unwrap().style.size, 300.0);
     }
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
-    h.run();
+    settle(&mut h);
     for id in [a, b] {
         assert_eq!(obj(&h, id).text.unwrap().style.size, 200.0);
     }
@@ -357,9 +366,9 @@ fn centered_multi_line_text() {
     h.key_press(Key::Enter);
     type_text(&mut h, "ab");
     h.key_press(Key::Escape);
-    h.run();
+    settle(&mut h);
     h.get_by_label("Align center").click();
-    h.run();
+    settle(&mut h);
     let object = obj(&h, id);
     assert_eq!(object.text.as_ref().unwrap().style.align, TextAlign::Center);
     let layout = ws_mut(&mut h)
@@ -381,7 +390,7 @@ fn outlined_lettering() {
         width: 6.0,
     });
     ws_mut(&mut h).project.surface_mut().replace(&[o]);
-    h.run();
+    settle(&mut h);
     let object = ws(&h).project.surface().get(id).unwrap().clone();
     let mesh = ws_mut(&mut h).text.mesh(&object, 0, 0.25);
     assert!(mesh.stroke.as_ref().is_some_and(|m| !m.is_empty()));
@@ -392,16 +401,16 @@ fn search_a_font() {
     let mut h = open();
     create_text(&mut h, 800.0, 900.0, "ACE");
     h.get_by_label_contains("Font family").click();
-    h.run();
+    settle(&mut h);
     h.get_by_role_and_label(Role::TextInput, "Search fonts")
         .type_text("bebas");
-    h.run();
+    settle(&mut h);
     assert!(h.query_by_label("Bebas Neue").is_some());
     assert!(h.query_by_label("Oswald").is_none());
     assert!(h.query_by_label("Inter").is_none());
     // Keyboard choice.
     h.key_press(Key::Enter);
-    h.run();
+    settle(&mut h);
     let id = ws(&h).selection[0];
     let style = obj(&h, id).text.unwrap().style;
     assert_eq!(style.family, "Bebas Neue");
@@ -417,7 +426,7 @@ fn font_not_installed() {
     let mut o = obj(&h, id);
     o.text.as_mut().unwrap().style.family = "Some Missing Font".into();
     ws_mut(&mut h).project.surface_mut().replace(&[o]);
-    h.run();
+    settle(&mut h);
     assert!(
         h.query_by_label_contains("Font not found: Some Missing Font")
             .is_some()
@@ -491,7 +500,7 @@ fn undo_an_import() {
     place_bytes(&mut h, vec![("logo.png", solid_png(80, 40, BLUE))], None);
     assert!(h.query_by_label("Asset logo").is_some());
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
-    h.run();
+    settle(&mut h);
     assert!(ws(&h).project.surface().objects.is_empty());
     assert!(ws(&h).project.assets.is_empty());
     assert!(h.query_by_label("No assets").is_some());
@@ -542,7 +551,7 @@ fn drop_two_files() {
     ];
     h.step();
     h.input_mut().dropped_files.clear();
-    h.run();
+    settle(&mut h);
     let selected = ws(&h).selected_objects();
     assert_eq!(selected.len(), 2);
     let names: Vec<_> = selected.iter().map(|o| o.name.as_str()).collect();
@@ -581,13 +590,13 @@ fn reset_a_distorted_image() {
     let mut o = ws(&h).selected_objects()[0].clone();
     o.frame.size = Size::new(800.0, 800.0);
     ws_mut(&mut h).project.surface_mut().replace(&[o]);
-    h.run();
+    settle(&mut h);
     assert!(
         h.query_by_label("Fill color").is_none(),
         "no fill for images"
     );
     h.get_by_label("Reset Size").click();
-    h.run();
+    settle(&mut h);
     let o = &ws(&h).selected_objects()[0];
     assert_eq!(o.frame.size, Size::new(800.0, 400.0));
     assert_eq!(o.frame.center, Point::new(1500.0, 1500.0));
@@ -626,14 +635,14 @@ fn remove_an_unused_asset() {
     let mut h = open();
     place_bytes(&mut h, vec![("badge.png", solid_png(80, 40, BLUE))], None);
     h.key_press(Key::Delete);
-    h.run();
+    settle(&mut h);
     assert!(ws(&h).project.surface().objects.is_empty());
     h.get_by_label("Remove Asset").click();
-    h.run();
+    settle(&mut h);
     assert!(ws(&h).project.assets.is_empty());
     assert!(h.query_by_label("Asset badge").is_none());
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
-    h.run();
+    settle(&mut h);
     assert_eq!(ws(&h).project.assets.len(), 1);
     assert!(h.query_by_label("Asset badge").is_some());
 }
@@ -645,7 +654,7 @@ fn remove_is_disabled_while_used() {
     let remove = h.get_by_label("Remove Asset");
     assert!(remove.accesskit_node().is_disabled());
     remove.click();
-    h.run();
+    settle(&mut h);
     assert_eq!(ws(&h).project.assets.len(), 1);
 }
 
@@ -654,16 +663,16 @@ fn place_and_rename_from_the_assets_panel() {
     let mut h = open();
     place_bytes(&mut h, vec![("badge.png", solid_png(80, 40, BLUE))], None);
     h.get_by_label("Place Asset").click();
-    h.run();
+    settle(&mut h);
     assert_eq!(ws(&h).project.surface().objects.len(), 2);
     h.get_by_label("Rename Asset").click();
-    h.run();
+    settle(&mut h);
     h.key_press_modifiers(Modifiers::COMMAND, Key::A);
     h.get_by_role_and_label(Role::TextInput, "Asset name")
         .type_text("ACE badge");
-    h.run();
+    settle(&mut h);
     h.key_press(Key::Enter);
-    h.run();
+    settle(&mut h);
     let asset = ws(&h).project.assets.values().next().unwrap().clone();
     assert_eq!(asset.name, "ACE badge");
     // Existing objects keep their names.
@@ -689,7 +698,7 @@ fn empty_assets_panel_offers_place() {
         ..Default::default()
     });
     h.get_by_label("Place…").click();
-    h.run();
+    settle(&mut h);
     assert_eq!(ws(&h).project.assets.len(), 1);
 }
 
@@ -738,7 +747,7 @@ fn pan_with_50_texts_stays_fast() {
             ws.project.add(o);
         }
     }
-    h.run();
+    settle(&mut h);
     let frames = 60;
     let start = std::time::Instant::now();
     for _ in 0..frames {
