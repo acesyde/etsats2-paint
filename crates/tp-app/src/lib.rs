@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod arrange;
+pub mod combine;
 pub mod commands;
 pub mod export;
 pub mod file_dialogs;

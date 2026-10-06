@@ -120,6 +120,12 @@ fn menu_contents(
             ui.separator();
             item(ui, cmds, ConvertToPath);
             item(ui, cmds, CreateOutlines);
+            ui.menu_button("Combine", |ui| {
+                ui.set_min_width(220.0);
+                for op in tp_core::document::BooleanOp::ALL {
+                    item(ui, cmds, Combine(op));
+                }
+            });
             ui.menu_button("Align", |ui| {
                 ui.set_min_width(260.0);
                 for edge in tp_core::document::Edge::ALL {

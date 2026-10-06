@@ -59,6 +59,11 @@ pub const SAVED: &str = ph::CHECK_CIRCLE;
 pub const CHECK: &str = ph::CHECK;
 pub const UNSAVED: &str = ph::CIRCLE_DASHED;
 pub const WARNING: &str = ph::WARNING;
+// Boolean operations.
+pub const UNITE: &str = ph::UNITE_SQUARE;
+pub const MINUS_FRONT: &str = ph::SUBTRACT_SQUARE;
+pub const INTERSECT: &str = ph::INTERSECT_SQUARE;
+pub const EXCLUDE: &str = ph::EXCLUDE_SQUARE;
 // Object alignment and distribution.
 pub const OBJ_ALIGN_LEFT: &str = ph::ALIGN_LEFT;
 pub const OBJ_ALIGN_HCENTER: &str = ph::ALIGN_CENTER_HORIZONTAL;

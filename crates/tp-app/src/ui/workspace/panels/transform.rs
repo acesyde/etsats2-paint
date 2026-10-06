@@ -198,4 +198,10 @@ fn align_rows(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelE
             cmds.icon_button(ui, CommandId::Distribute(axis, mode), false);
         }
     });
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 2.0;
+        for op in tp_core::document::BooleanOp::ALL {
+            cmds.icon_button(ui, CommandId::Combine(op), false);
+        }
+    });
 }

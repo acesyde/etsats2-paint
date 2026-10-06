@@ -278,6 +278,7 @@ impl AppState {
                 has_guides: !ws.project.surface().guides.is_empty(),
                 selection_count: ws.selection.len(),
                 selection_has_text: ws.selection_has_text(),
+                combine_block: ws.combine_block(),
                 align_to_key: ws.panels.align_to == crate::arrange::AlignTo::KeyObject,
             },
             None => EditContext::default(),
@@ -438,6 +439,7 @@ impl AppState {
             CommandId::DeleteLayer => self.with_workspace(|ws| ws.delete_selection(now)),
             CommandId::ConvertToPath => self.with_workspace(|ws| ws.convert_selection_to_path(now)),
             CommandId::CreateOutlines => self.with_workspace(|ws| ws.create_outlines(now)),
+            CommandId::Combine(op) => self.with_workspace(|ws| ws.combine_selection(op, now)),
             CommandId::Align(edge) => self.with_workspace(|ws| ws.align_selection(edge, now)),
             CommandId::Distribute(axis, mode) => {
                 self.with_workspace(|ws| ws.distribute_selection(axis, mode, now));
@@ -670,6 +672,15 @@ pub fn is_enabled(id: CommandId, edit: &EditContext) -> bool {
         Availability::NeedsProject => edit.has_project,
         Availability::When(check, _) => check(edit),
         Availability::NotYet(_) => false,
+    }
+}
+
+/// Tooltip explaining why a command is disabled in the current state
+/// (combine commands name what blocks them).
+pub fn disabled_reason_for(id: CommandId, edit: &EditContext) -> Option<&'static str> {
+    match (id, edit.combine_block) {
+        (CommandId::Combine(_), Some(reason)) if edit.has_selection => Some(reason),
+        _ => disabled_reason(id),
     }
 }
 
