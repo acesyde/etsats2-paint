@@ -2,7 +2,7 @@
 node = "24.21.0"
 openspec = "1.12.0"
 pnpm = "12.6.0"
-rust = "1.98.1"
+rust = { version = "1.98.1", components = "rustfmt,clippy" }
 
 [tool_alias]
 openspec = "npm:@fission-ai/openspec"
@@ -11,3 +11,46 @@ openspec = "npm:@fission-ai/openspec"
 minimum_release_age = "30d"
 pin = true
 npm.package_manager = "pnpm"
+
+# --- Tasks (used locally and by CI) -------------------------------------------
+
+[tasks.run]
+description = "Run the desktop app (debug build)"
+run = "cargo run -p tp-app"
+
+[tasks.fmt]
+description = "Format all Rust code"
+run = "cargo fmt --all"
+
+[tasks."fmt:check"]
+description = "Check Rust formatting"
+run = "cargo fmt --all --check"
+
+[tasks.lint]
+description = "Run clippy on all targets, warnings denied"
+run = "cargo clippy --workspace --all-targets --locked -- -D warnings"
+
+[tasks.test]
+description = "Run the test suite (unit + headless UI tests)"
+run = "cargo test --workspace --locked"
+
+[tasks."test:release"]
+description = "Run the test suite in release mode (shares artifacts with `build`)"
+run = "cargo test --workspace --release --locked"
+
+[tasks.build]
+description = "Build the workspace in release mode"
+run = "cargo build --workspace --release --locked"
+
+[tasks.screenshots]
+description = "Render key screens to target/screenshots (needs a GPU)"
+run = "cargo test -p tp-app --test screenshots -- --ignored"
+
+[tasks.ci]
+description = "Everything CI runs, in order"
+run = [
+  { task = "fmt:check" },
+  { task = "lint" },
+  { task = "test" },
+  { task = "build" },
+]

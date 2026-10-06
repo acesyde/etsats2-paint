@@ -1,0 +1,209 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # `mise run` would otherwise install every tool in mise.toml (node, pnpm,
+  # openspec); CI only needs Rust, installed by mise-action below.
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
+
+defaults:
+  run:
+    # Same shell on every runner (Git Bash on Windows). GitHub runs it with
+    # `-eo pipefail`, so `cmd | tee log` still fails when `cmd` fails.
+    shell: bash
+
+jobs:
+  # OS-independent checks: run once, fail fast before the matrix starts.
+  checks:
+    name: Format & lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Linux system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev \
+            libxrandr-dev libxi-dev libxcb-render0-dev libxcb-shape0-dev \
+            libxcb-xfixes0-dev libgl1-mesa-dev
+
+      # Toolchain versions come from mise.toml; only Rust is needed here.
+      # Keep `version` in sync with the mise used locally.
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          version: 2026.10.3
+          install_args: rust
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        id: cache
+        with:
+          cache-on-failure: true
+
+      - name: Format
+        id: fmt
+        run: mise run fmt:check 2>&1 | tee fmt.log
+
+      - name: Lint
+        id: lint
+        if: ${{ !cancelled() }}
+        run: mise run lint 2>&1 | tee lint.log
+
+      - name: Summary
+        if: ${{ !cancelled() }}
+        env:
+          FMT: ${{ steps.fmt.outcome }}
+          LINT: ${{ steps.lint.outcome }}
+          CACHE_HIT: ${{ steps.cache.outputs.cache-hit }}
+        run: |
+          # Logs are colored (CARGO_TERM_COLOR); strip ANSI codes before parsing.
+          plain() { sed 's/\x1b\[[0-9;]*m//g' "$1"; }
+          icon() { case "$1" in success) echo "✅ passed";; failure) echo "❌ failed";; *) echo "⏭️ $1";; esac; }
+          {
+            echo "## Format & lint"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| \`mise run fmt:check\` | $(icon "$FMT") |"
+            echo "| \`mise run lint\` | $(icon "$LINT") |"
+            echo "| Rust cache | $([ "$CACHE_HIT" = "true" ] && echo "hit" || echo "miss") |"
+            if [ "$FMT" = "failure" ]; then
+              echo
+              echo "<details><summary>Formatting diff — fix with <code>mise run fmt</code></summary>"
+              echo
+              echo '```diff'
+              plain fmt.log | head -n 200
+              echo '```'
+              echo "</details>"
+            fi
+            if [ "$LINT" = "failure" ]; then
+              echo
+              echo "<details><summary>Clippy errors</summary>"
+              echo
+              echo '```'
+              plain lint.log | grep -E -A 12 '^(error|warning)' | head -n 200 || true
+              echo '```'
+              echo "</details>"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Platform-dependent work: tests (file system, OS directories) and builds.
+  build:
+    name: Test & build (${{ matrix.os }})
+    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Linux system packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev \
+            libxrandr-dev libxi-dev libxcb-render0-dev libxcb-shape0-dev \
+            libxcb-xfixes0-dev libgl1-mesa-dev
+
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          version: 2026.10.3
+          install_args: rust
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        id: cache
+        with:
+          cache-on-failure: true
+
+      # Tests run in release mode so the build step reuses their artifacts.
+      - name: Test
+        id: test
+        run: |
+          set +e
+          start=$(date +%s)
+          mise run test:release 2>&1 | tee test.log
+          status=${PIPESTATUS[0]}
+          echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Release build
+        id: build
+        run: |
+          set +e
+          start=$(date +%s)
+          mise run build 2>&1 | tee build.log
+          status=${PIPESTATUS[0]}
+          echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Summary
+        if: ${{ !cancelled() }}
+        env:
+          OS: ${{ matrix.os }}
+          TEST: ${{ steps.test.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          TEST_SECONDS: ${{ steps.test.outputs.seconds }}
+          BUILD_SECONDS: ${{ steps.build.outputs.seconds }}
+          CACHE_HIT: ${{ steps.cache.outputs.cache-hit }}
+        run: |
+          # Logs are colored (CARGO_TERM_COLOR); strip ANSI codes before parsing.
+          plain() { sed 's/\x1b\[[0-9;]*m//g' "$1"; }
+          icon() { case "$1" in success) echo "✅";; failure) echo "❌";; *) echo "⏭️";; esac; }
+          duration() { if [ -n "$1" ]; then printf '%dm%02ds' $(( $1 / 60 )) $(( $1 % 60 )); else echo "—"; fi; }
+          cpus=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "${NUMBER_OF_PROCESSORS:-?}")
+          rust=$(rustc --version 2>/dev/null | cut -d' ' -f2)
+          passed=0; failed=0; ignored=0
+          if [ -f test.log ]; then
+            read -r passed failed ignored < <(plain test.log | grep -E '^test result:' \
+              | awk '{p+=$4; f+=$6; i+=$8} END {print p+0, f+0, i+0}')
+          fi
+          binary=target/release/truckpaint
+          [ -f "$binary.exe" ] && binary="$binary.exe"
+          size="—"
+          [ -f "$binary" ] && size="$(( $(wc -c < "$binary") / 1024 / 1024 )) MB"
+          {
+            echo "## Test & build — $OS"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Runner | $RUNNER_OS $RUNNER_ARCH, $cpus CPUs |"
+            echo "| Rust | ${rust:-?} |"
+            echo "| Rust cache | $([ "$CACHE_HIT" = "true" ] && echo "hit" || echo "miss (cold compile)") |"
+            echo "| Tests | $(icon "$TEST") $passed passed, $failed failed, $ignored ignored — $(duration "$TEST_SECONDS") |"
+            echo "| Release build | $(icon "$BUILD") $(duration "$BUILD_SECONDS") |"
+            echo "| \`truckpaint\` binary | $size |"
+            if [ "$TEST" = "failure" ]; then
+              echo
+              echo "<details><summary>Failing tests</summary>"
+              echo
+              echo '```'
+              plain test.log | grep -E -A 15 -- '^---- .* stdout ----' | head -n 200 || true
+              plain test.log | grep -E -A 12 '^error(\[|:)' | head -n 100 || true
+              echo '```'
+              echo "</details>"
+            fi
+            if [ "$BUILD" = "failure" ]; then
+              echo
+              echo "<details><summary>Build errors</summary>"
+              echo
+              echo '```'
+              plain build.log | grep -E -A 12 '^error' | head -n 200 || true
+              echo '```'
+              echo "</details>"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
