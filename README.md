@@ -12,11 +12,14 @@ Windows and macOS.
 
 ## Building
 
-The toolchain is pinned in `rust-toolchain.toml` (also managed by `mise`).
+Runtimes and commands are managed by [mise](https://mise.jdx.dev): `mise.toml` pins
+Rust (with rustfmt and clippy) and defines the project tasks.
 
 ```sh
-cargo run -p tp-app            # debug build
-cargo run -p tp-app --release  # optimized build
+mise install       # install the pinned toolchain
+mise run run       # run the app (debug build)
+mise run build     # release build
+mise tasks         # list all tasks
 ```
 
 The executable is named `truckpaint`.
@@ -50,17 +53,19 @@ WGPU_BACKEND=vulkan truckpaint  # Vulkan
 ## Development
 
 ```sh
-cargo fmt --all
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+mise run fmt       # format
+mise run lint      # clippy, warnings denied
+mise run test      # unit + headless UI tests
+mise run ci        # everything CI runs, in order
 ```
+
+CI runs the same mise tasks on Linux, Windows and macOS.
 
 UI behavior is tested headlessly with `egui_kittest`. To render screenshots of the main
 screens for visual review (needs a GPU), run:
 
 ```sh
-cargo test -p tp-app --test screenshots -- --ignored
-# images in target/screenshots/
+mise run screenshots   # images in target/screenshots/
 ```
 
 Logs are written to stderr and to a daily file in the application data directory

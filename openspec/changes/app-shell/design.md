@@ -88,7 +88,9 @@ Saving is debounced (on change + on exit) to avoid disk churn while dragging div
 - Headless UI tests with `egui_kittest` in `tp-app` for spec scenarios (tool switching, panel collapse/close/reopen, modal keyboard flow, disabled commands). Image snapshot tests are deferred until rendering is stable across CI GPUs.
 
 ### D11. CI
-GitHub Actions matrix `ubuntu-latest`, `windows-latest`, `macos-latest`: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --workspace`, `cargo build --release`. Toolchain pinned to 1.98.1 via `rust-toolchain.toml` (consistent with `mise.toml`). Linux job installs the winit/wgpu/rfd system packages (libxkbcommon, wayland, x11, gtk3 / portal). Cargo cache via `Swatinem/rust-cache`.
+`mise.toml` is the single source of truth for runtimes (Rust 1.98.1 with rustfmt and clippy) and for build commands, exposed as mise tasks: `fmt`, `fmt:check`, `lint`, `test`, `build`, `run`, `screenshots`, and `ci` (all checks in order). GitHub Actions matrix `ubuntu-latest`, `windows-latest`, `macos-latest` installs Rust through `jdx/mise-action` (mise version pinned) and calls `mise run fmt:check`, `lint`, `test`, `build`, so CI and local runs execute the same commands. Third-party actions are pinned by commit SHA, choosing the newest release that respects the repository's 30-day `minimum_release_age`. The Linux job installs the winit/wgpu system packages (libxkbcommon, wayland, x11, xcb). Cargo cache via `Swatinem/rust-cache`.
+
+*Alternatives:* `rust-toolchain.toml` plus raw `cargo` commands in the workflow — rejected, as it duplicates the version pin and lets CI drift from local commands.
 
 ### D12. Logging
 `tracing` + `tracing-subscriber` with env-filter; logs to stderr and, on desktop, a rolling file in the data dir (useful for crash reports from non-technical users).

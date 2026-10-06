@@ -1,10 +1,10 @@
 ## 1. Workspace & CI foundation
 
-- [x] 1.1 Create the Cargo workspace (`Cargo.toml` with `[workspace.dependencies]`, `crates/tp-core`, `crates/tp-ui`, `crates/tp-app`) and `rust-toolchain.toml` pinned to 1.98.1; verify `cargo build --workspace` succeeds
+- [x] 1.1 Create the Cargo workspace (`Cargo.toml` with `[workspace.dependencies]`, `crates/tp-core`, `crates/tp-ui`, `crates/tp-app`) with Rust 1.98.1 (rustfmt, clippy) pinned in `mise.toml`; verify `cargo build --workspace` succeeds
 - [x] 1.2 Add a minimal `eframe` (wgpu backend) window in `tp-app` titled with the placeholder product name; verify `cargo run -p tp-app` opens a window on macOS
 - [x] 1.3 Add `tracing` logging to stderr and a rolling file in the per-OS data dir; verify a log file is created on startup
 - [x] 1.4 Show a clear error dialog/message and exit cleanly when no GPU adapter is available, and honor `WGPU_BACKEND`; verify by running with an invalid backend override
-- [ ] 1.5 Add `.github/workflows/ci.yml` with an ubuntu/windows/macos matrix running fmt, clippy `-D warnings`, tests and release build (Linux system packages installed, rust-cache enabled); verify the workflow passes on all three runners
+- [ ] 1.5 Add mise tasks (`fmt`, `fmt:check`, `lint`, `test`, `build`, `run`, `screenshots`, `ci`) and `.github/workflows/ci.yml` with an ubuntu/windows/macos matrix that installs Rust via mise and runs those tasks (Linux system packages installed, rust-cache enabled, actions pinned by SHA); verify `mise run ci` passes locally and the workflow passes on all three runners
 - [ ] 1.6 Document build prerequisites per OS (Linux packages, `WGPU_BACKEND=gl` fallback) in `README.md`; verify instructions by following them on a clean checkout
 
 ## 2. Design system (tp-ui)

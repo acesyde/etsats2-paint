@@ -12,7 +12,7 @@ This is the first of a sequence of changes (app-shell → canvas-core → editin
 - Add the editor workspace layout: menu bar (File, Edit, Object, Layer, View, Vehicle, Export, Help) showing platform-correct shortcuts, left tool bar with all planned tools and a clearly identifiable active tool, central canvas area, right-hand stack of collapsible / closable / resizable panels (Properties, Layers, Colors, Stroke, Transform, Assets, Vehicle), a hideable/resizable 3D preview panel placeholder, a 2D / 3D / Split view-mode switch, and a status bar (zoom, cursor position, active surface, save state).
 - Introduce a central command registry: every user action (menu item, tool, shortcut, button) is a command with an id, label, icon, shortcut and enabled state; shortcuts use Cmd on macOS and Ctrl elsewhere.
 - Add user preferences persisted to the platform config directory: UI scale, text size, panel visibility/sizes, window geometry, recent projects list.
-- Add GitHub Actions CI with a Linux / Windows / macOS matrix running fmt, clippy (deny warnings), tests and a release build.
+- Add mise tasks for formatting, linting, testing and building, and GitHub Actions CI with a Linux / Windows / macOS matrix that installs the toolchain with mise and runs those same tasks.
 
 Not in this change: canvas navigation, shapes, selection, undo, vehicles, templates, persistence of documents, export, 3D rendering. Menu entries and panels for these exist but are disabled or show an explicit empty state.
 
@@ -32,7 +32,7 @@ Not in this change: canvas navigation, shapes, selection, undo, vehicles, templa
 
 ## Impact
 
-- New code: entire `crates/` workspace, `Cargo.toml`, `rust-toolchain` alignment with `mise.toml` (Rust 1.98.1), `.github/workflows/ci.yml`, embedded assets under `assets/` (UI font, icon font, app icon).
+- New code: entire `crates/` workspace, `Cargo.toml`, `mise.toml` Rust toolchain and build tasks (Rust 1.98.1), `.github/workflows/ci.yml`, embedded assets under `assets/` (UI font, icon font, app icon).
 - New dependencies (indicative): `eframe`/`egui` (wgpu), `egui-phosphor` (icons), `serde`/`serde_json` or `ron`, `directories`, `rfd`, `tracing`/`tracing-subscriber`.
 - Linux build requires system packages for winit/wgpu and file dialogs (documented in README and installed in CI).
 - Open question carried forward, not blocking this change: the source of 3D vehicle models (provided glTF/OBJ, read from the game install, or generic proxy) is **to be determined**; this change only reserves the 3D panel and view modes.
