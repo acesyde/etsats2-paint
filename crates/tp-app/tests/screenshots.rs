@@ -537,3 +537,59 @@ fn render_text_and_images() {
         save(&mut h, name);
     }
 }
+
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_persistence() {
+    use tp_app::recovery::{RecoveryMeta, RecoveryStore};
+    use tp_app::state::{Modal, PendingAction};
+    let dir = tempfile::tempdir().unwrap();
+    let recovery = dir.path().join("recovery");
+    {
+        // A copy left by a crashed session.
+        let store = RecoveryStore::open(&recovery).unwrap();
+        tp_file::write(
+            &tp_core::Project::new("ACE Logistics", tp_core::TextureResolution::R4096),
+            &store.copy_path(),
+        )
+        .unwrap();
+        let (path, text) = store.meta_file(&RecoveryMeta {
+            name: "ACE Logistics".into(),
+            original: Some("/home/user/Liveries/ace.truckpaint".into()),
+            saved_at: tp_app::prefs::now_unix() - 300,
+        });
+        std::fs::write(path, text).unwrap();
+    }
+    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+        let mut prefs = Prefs {
+            ui_scale: scale,
+            ..Prefs::default()
+        };
+        prefs.recent = vec![RecentProject {
+            name: "Scania fleet".into(),
+            path: "/home/user/Liveries/scania.truckpaint".into(),
+            last_opened: tp_app::prefs::now_unix() - 86_400 * 3,
+        }];
+        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        h.state_mut().enable_recovery(&recovery);
+        save(&mut h, &format!("home_recovered_{suffix}"));
+
+        common::create_project(&mut h);
+        h.state_mut().modal = Some(Modal::UnsavedChanges(PendingAction::CloseProject));
+        save(&mut h, &format!("unsaved_prompt_{suffix}"));
+        h.state_mut().modal = Some(Modal::Message {
+            title: "Cannot open project".into(),
+            text: "ace.truckpaint was created with a newer version of TruckPaint.".into(),
+        });
+        save(&mut h, &format!("message_{suffix}"));
+        h.state_mut().modal = None;
+        let ws = h.state_mut().workspace_mut().unwrap();
+        ws.saving = Some(tp_app::workspace::PendingSave {
+            id: 0,
+            snapshot: ws.snapshot(),
+            path: "/tmp/a.truckpaint".into(),
+        });
+        save(&mut h, &format!("status_saving_{suffix}"));
+    }
+}

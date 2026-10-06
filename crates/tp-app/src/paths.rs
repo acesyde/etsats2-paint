@@ -12,7 +12,7 @@ pub const APP_NAME: &str = "TruckPaint";
 pub struct AppDirs {
     /// Preferences and window state.
     pub config: PathBuf,
-    /// Logs and (later) autosave data.
+    /// Logs and crash-recovery copies.
     pub data: PathBuf,
 }
 
@@ -29,5 +29,10 @@ impl AppDirs {
 
     pub fn logs(&self) -> PathBuf {
         self.data.join("logs")
+    }
+
+    /// Crash-recovery copies of unsaved projects.
+    pub fn recovery(&self) -> PathBuf {
+        self.data.join("recovery")
     }
 }

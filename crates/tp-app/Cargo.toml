@@ -15,6 +15,7 @@ path = "src/main.rs"
 tp-core.workspace = true
 tp-ui.workspace = true
 tp-text.workspace = true
+tp-file.workspace = true
 image.workspace = true
 resvg.workspace = true
 rfd.workspace = true
@@ -31,6 +32,7 @@ tracing-appender.workspace = true
 [dev-dependencies]
 egui_kittest.workspace = true
 tempfile.workspace = true
+zip.workspace = true
 
 [lints]
 workspace = true

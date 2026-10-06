@@ -327,7 +327,7 @@ fn undo_and_redo_a_creation() {
     assert_eq!(ws(&h).project.surface().objects.len(), 1);
     assert_eq!(ws(&h).selection.len(), 1);
     assert_eq!(
-        h.state().workspace().unwrap().save_state,
+        h.state().workspace().unwrap().save_state(),
         tp_app::workspace::SaveState::Unsaved
     );
 }

@@ -44,6 +44,9 @@ fn closing_project_returns_home() {
     open_menu(&mut h, "File");
     h.get_by_label("Close").click();
     h.run();
+    // A new project has unsaved changes: the prompt comes first.
+    h.get_by_label("Don't Save").click();
+    h.run();
     assert!(matches!(h.state().screen, Screen::Home));
 }
 
@@ -66,7 +69,7 @@ fn missing_recent_file_can_be_removed() {
 }
 
 #[test]
-fn open_project_is_disabled() {
+fn cancelled_open_dialog_does_nothing() {
     let mut h = harness();
     h.get_by_label("Open Project…").click();
     h.run();

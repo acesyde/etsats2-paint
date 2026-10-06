@@ -131,6 +131,20 @@ pub struct Asset {
     pub hash: [u8; 32],
 }
 
+impl Asset {
+    /// An asset with its content hash computed.
+    pub fn new(id: AssetId, name: &str, kind: AssetKind, bytes: Arc<[u8]>, size: Size) -> Self {
+        Self {
+            id,
+            name: name.to_owned(),
+            kind,
+            hash: *blake3::hash(&bytes).as_bytes(),
+            bytes,
+            size,
+        }
+    }
+}
+
 /// A livery project: one or more surfaces of vector objects.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Project {
@@ -167,6 +181,39 @@ impl Project {
             assets: BTreeMap::new(),
             next_id: 1,
         }
+    }
+
+    /// Rebuilds a project from stored parts, keeping object and asset ids;
+    /// new ids continue after the largest one found. Needs at least one
+    /// surface.
+    pub fn from_parts(
+        name: &str,
+        resolution: TextureResolution,
+        surfaces: Vec<Surface>,
+        active_surface: usize,
+        palette: Vec<Rgba>,
+        assets: BTreeMap<AssetId, Arc<Asset>>,
+    ) -> Self {
+        fn max_id(list: &[Arc<Object>]) -> u64 {
+            list.iter()
+                .map(|o| o.id.0.max(max_id(&o.children)))
+                .max()
+                .unwrap_or(0)
+        }
+        let largest = surfaces
+            .iter()
+            .map(|s| max_id(&s.objects))
+            .chain(assets.keys().map(|a| a.0))
+            .max()
+            .unwrap_or(0);
+        let mut project = Self::new(name, resolution);
+        assert!(!surfaces.is_empty(), "a project has at least one surface");
+        project.active_surface = active_surface.min(surfaces.len() - 1);
+        project.surfaces = surfaces;
+        project.palette = palette;
+        project.assets = assets;
+        project.next_id = largest + 1;
+        project
     }
 
     /// Texture size in pixels (width, height).
@@ -287,6 +334,7 @@ impl Project {
     }
 
     /// Adds an asset, or returns the existing one with the same content.
+    /// (See [`Asset::new`] for building one with a given id.)
     /// The bool is true when a new asset was stored.
     pub fn add_asset(
         &mut self,
@@ -572,6 +620,32 @@ mod tests {
             ShapeKind::Image { asset },
             Frame::new(Point::new(10.0, 10.0), Size::new(80.0, 40.0), 0.0),
         )
+    }
+
+    #[test]
+    fn from_parts_keeps_ids_and_continues_after_them() {
+        let mut p = Project::new("a", TextureResolution::R2048);
+        p.add(Object::new(
+            ObjectId(0),
+            ShapeKind::Ellipse,
+            crate::document::Frame::new(Point::new(1.0, 1.0), Size::new(2.0, 2.0), 0.0),
+        ));
+        let (asset, _) = p.add_asset(
+            "logo",
+            AssetKind::Svg,
+            Arc::from(&b"<svg/>"[..]),
+            Size::new(1.0, 1.0),
+        );
+        let mut q = Project::from_parts(
+            &p.name,
+            p.resolution,
+            p.surfaces.clone(),
+            0,
+            vec![Rgba::rgb(1, 2, 3)],
+            p.assets.clone(),
+        );
+        assert_eq!(q.surfaces, p.surfaces);
+        assert!(q.next_object_id().0 > asset.0);
     }
 
     #[test]

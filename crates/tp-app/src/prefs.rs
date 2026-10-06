@@ -69,6 +69,21 @@ impl Prefs {
         self.recent_colors.truncate(MAX_RECENT_COLORS);
     }
 
+    /// Moves a project file to the top of the recent projects (no
+    /// duplicates, capped).
+    pub fn push_recent(&mut self, name: &str, path: &Path) {
+        self.recent.retain(|r| r.path != path);
+        self.recent.insert(
+            0,
+            RecentProject {
+                name: name.to_owned(),
+                path: path.to_path_buf(),
+                last_opened: now_unix(),
+            },
+        );
+        self.recent.truncate(MAX_RECENT);
+    }
+
     /// Restores UI scale and text size to 100%.
     pub fn reset_scaling(&mut self) {
         self.ui_scale = 1.0;

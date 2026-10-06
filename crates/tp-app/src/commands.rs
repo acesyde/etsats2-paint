@@ -162,7 +162,6 @@ const SHIFT: Modifiers = Modifiers::SHIFT;
 
 const SOON_EDITING: &str = "Available in a future update.";
 const NEEDS_SELECTION: &str = "Select one or more objects first.";
-const SOON_FILES: &str = "Opening and saving projects is not available yet.";
 const SOON_VEHICLES: &str = "Vehicle templates are not available yet.";
 const SOON_EXPORT: &str = "Export is not available yet.";
 
@@ -249,21 +248,27 @@ impl CommandId {
                 Some(icons::OPEN_PROJECT),
                 const { &[sc(CMD, Key::O)] },
                 Global,
-                NotYet(SOON_FILES),
+                When(|c| !c.gesture_active, ""),
             ),
             Save => m(
                 "Save",
                 Some(icons::SAVE),
                 const { &[sc(CMD, Key::S)] },
                 Global,
-                NotYet(SOON_FILES),
+                When(
+                    |c| c.has_project && !c.gesture_active,
+                    "Open or create a project first.",
+                ),
             ),
             SaveAs => m(
                 "Save As…",
                 None,
                 const { &[sc(CMD_SHIFT, Key::S)] },
                 Global,
-                NotYet(SOON_FILES),
+                When(
+                    |c| c.has_project && !c.gesture_active,
+                    "Open or create a project first.",
+                ),
             ),
             Place => m(
                 "Place…",

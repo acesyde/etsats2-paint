@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod commands;
+pub mod file_dialogs;
 pub mod geometry_cache;
 pub mod gesture;
 pub mod image_cache;
@@ -11,6 +12,9 @@ pub mod logging;
 pub mod paths;
 pub mod placement;
 pub mod prefs;
+pub mod project_io;
+pub mod recovery;
+pub mod saver;
 pub mod state;
 pub mod text_engine;
 pub mod text_input;

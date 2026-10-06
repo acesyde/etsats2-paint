@@ -54,10 +54,110 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         Modal::Preferences => preferences(ctx, &mut state.prefs),
         Modal::KeyboardShortcuts => shortcuts(ctx),
         Modal::About => about(ctx),
+        Modal::Message { title, text } => message(ctx, title, text),
+        Modal::UnsavedChanges(action) => {
+            let action = action.clone();
+            let name = state
+                .workspace()
+                .map(|ws| ws.project.name.clone())
+                .unwrap_or_default();
+            match unsaved_changes(ctx, &name) {
+                PromptAnswer::Pending => false,
+                answer => {
+                    state.modal = None;
+                    match answer {
+                        PromptAnswer::Save => state.save_then(ctx, action),
+                        PromptAnswer::DontSave => state.run_action(ctx, action),
+                        PromptAnswer::Cancel | PromptAnswer::Pending => {}
+                    }
+                    return;
+                }
+            }
+        }
     };
     if close {
         state.modal = None;
     }
+}
+
+enum PromptAnswer {
+    Pending,
+    Save,
+    DontSave,
+    Cancel,
+}
+
+/// "Save changes to “<name>” before closing?" with Save / Don't Save / Cancel.
+fn unsaved_changes(ctx: &egui::Context, name: &str) -> PromptAnswer {
+    let mut answer = PromptAnswer::Pending;
+    modal("unsaved_changes_modal").show(ctx, |ui| {
+        ui.set_width(440.0);
+        ui.horizontal(|ui| {
+            ui.label(icons::rich(icons::WARNING).size(22.0).color(color::WARNING));
+            ui.label(
+                RichText::new(format!("Save changes to “{name}” before closing?"))
+                    .text_style(label_strong_style())
+                    .color(color::TEXT_PRIMARY),
+            );
+        });
+        ui.add_space(space::XS);
+        ui.label(
+            RichText::new("Your changes will be lost if you don't save them.")
+                .color(color::TEXT_SECONDARY),
+        );
+        ui.add_space(space::XL);
+        ui.horizontal(|ui| {
+            if ui.add(secondary_button("Don't Save")).clicked() {
+                answer = PromptAnswer::DontSave;
+            }
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if ui.add(primary_button("Save")).clicked() {
+                    answer = PromptAnswer::Save;
+                }
+                if ui.add(secondary_button("Cancel")).clicked() {
+                    answer = PromptAnswer::Cancel;
+                }
+            });
+        });
+    });
+    if matches!(answer, PromptAnswer::Pending) {
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::Escape)) {
+            answer = PromptAnswer::Cancel;
+        } else if ctx.memory(|m| m.focused().is_none())
+            && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::Enter))
+        {
+            answer = PromptAnswer::Save;
+        }
+    }
+    answer
+}
+
+/// An error or information message with an OK button.
+fn message(ctx: &egui::Context, title: &str, text: &str) -> bool {
+    let mut close = false;
+    modal("message_modal").show(ctx, |ui| {
+        ui.set_width(420.0);
+        ui.horizontal(|ui| {
+            ui.label(icons::rich(icons::WARNING).size(22.0).color(color::WARNING));
+            ui.label(
+                RichText::new(title)
+                    .text_style(label_strong_style())
+                    .color(color::TEXT_PRIMARY),
+            );
+        });
+        ui.add_space(space::XS);
+        let label = ui.label(RichText::new(text).color(color::TEXT_SECONDARY));
+        label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
+        ui.add_space(space::LG);
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            close |= ui.add(primary_button("OK")).clicked();
+        });
+    });
+    close
+        || ctx.input_mut(|i| {
+            i.consume_key(egui::Modifiers::NONE, Key::Escape)
+                || i.consume_key(egui::Modifiers::NONE, Key::Enter)
+        })
 }
 
 enum WizardOutcome {
