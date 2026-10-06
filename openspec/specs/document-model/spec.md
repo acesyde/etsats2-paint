@@ -14,7 +14,7 @@ A project SHALL contain one or more surfaces. Each surface represents one textur
 - **THEN** it contains one active surface named "Main texture" spanning (0, 0) to (4096, 4096)
 
 ### Requirement: Ordered vector objects
-Each surface SHALL hold an ordered tree of objects: a top-level ordered list where any object may be a group holding its own ordered list of children (groups can nest). Within a list, later objects are drawn above earlier ones, and a group is drawn at its position with its children in order. Every object SHALL have a unique, stable identifier that does not change when the object is moved, transformed, reordered, grouped or ungrouped, and a name (default: "Rectangle", "Ellipse" or "Group").
+Each surface SHALL hold an ordered tree of objects: a top-level ordered list where any object may be a group holding its own ordered list of children (groups can nest). Within a list, later objects are drawn above earlier ones, and a group is drawn at its position with its children in order. Every object SHALL have a unique, stable identifier that does not change when the object is moved, transformed, reordered, grouped or ungrouped, and a name (default: "Rectangle", "Ellipse", "Group", "Text" or, for images, the imported file name without extension).
 
 #### Scenario: Stacking order
 - **WHEN** a rectangle is created and then an ellipse overlapping it
@@ -51,7 +51,7 @@ Objects SHALL be allowed to lie partly or fully outside the surface bounds; they
 - **THEN** it still exists, is drawn on the pasteboard and can be selected and moved back
 
 ### Requirement: Hit testing
-The document SHALL determine which object is under a given point by testing the actual filled shape (including rotation and rounded corners), from topmost to bottommost, descending into groups. Hidden objects and locked objects (including children of hidden or locked groups) SHALL NOT be hit. For objects whose drawn size on screen is very small, a tolerance of a few screen pixels SHALL apply so they remain clickable.
+The document SHALL determine which object is under a given point by testing the actual filled shape (including rotation and rounded corners) for rectangles and ellipses, the laid-out text bounds for texts, and the frame for images, from topmost to bottommost, descending into groups. Hidden objects and locked objects (including children of hidden or locked groups) SHALL NOT be hit. For objects whose drawn size on screen is very small, a tolerance of a few screen pixels SHALL apply so they remain clickable.
 
 #### Scenario: Clicking the corner of an ellipse's bounding box
 - **WHEN** the user clicks inside an ellipse's bounding box but outside the ellipse itself
@@ -64,6 +64,10 @@ The document SHALL determine which object is under a given point by testing the 
 #### Scenario: Hidden object is not hit
 - **WHEN** a hidden rectangle lies above a visible ellipse at the clicked point
 - **THEN** the ellipse is hit
+
+#### Scenario: Clicking between letters
+- **WHEN** the user clicks in the gap between two letters of a text
+- **THEN** the text is hit
 
 ### Requirement: Visibility and lock flags
 Every object SHALL have a visible flag (default true) and a locked flag (default false). An object is effectively hidden or locked when it or any ancestor group is. Hidden objects SHALL NOT be drawn.
@@ -78,3 +82,17 @@ A project SHALL hold an ordered palette of colors without duplicates, starting e
 #### Scenario: No duplicate swatches
 - **WHEN** the same color is added to the palette twice
 - **THEN** the palette contains it once
+
+### Requirement: Text and image objects
+A text object SHALL hold its content (one or more lines) and its character style; its frame is derived from its laid-out bounds and scale. An image object SHALL reference a project asset and keep its own frame; it has no fill or stroke. Both kinds SHALL support opacity, visibility, lock, grouping and all transforms.
+
+#### Scenario: Text bounds follow content
+- **WHEN** characters are added to a text
+- **THEN** its width grows and the selection bounds follow
+
+### Requirement: Project assets
+A project SHALL hold an asset store: each asset has a stable identifier, a name, its kind (raster or SVG), its original file bytes and its pixel or declared size. Assets are shared by every image object referencing them and are deduplicated by content.
+
+#### Scenario: Asset shared by two images
+- **WHEN** an image is duplicated
+- **THEN** both objects reference the same asset
