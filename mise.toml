@@ -46,6 +46,14 @@ run = "cargo build --workspace --release --locked"
 description = "Render key screens to target/screenshots (needs a GPU)"
 run = "cargo test -p tp-app --test screenshots -- --ignored"
 
+[tasks."ci:changes"]
+description = "Print code=true|false: whether BASE..HEAD changes more than docs (CI gating)"
+run = "bash scripts/ci-changes.sh {{arg(name='base', default='')}} {{arg(name='head', default='HEAD')}}"
+
+[tasks."ci:changes:test"]
+description = "Self-test of the ci:changes detection on a throwaway Git repository"
+run = "bash scripts/ci-changes-test.sh"
+
 [tasks.ci]
 description = "Everything CI runs, in order"
 run = [

@@ -61,6 +61,12 @@ mise run ci        # everything CI runs, in order
 
 CI runs the same mise tasks on Linux, Windows and macOS.
 
+Changes that only touch documentation (`*.md` files, `openspec/`, `.claude/`) skip
+format, lint, tests and builds; any other file runs everything. Check a range locally
+with `mise run ci:changes <base> <head>` (self-test: `mise run ci:changes:test`).
+Branch protection should require the **CI result** check, which passes when the Rust
+jobs pass or are skipped for a documentation-only change.
+
 UI behavior is tested headlessly with `egui_kittest`. To render screenshots of the main
 screens for visual review (needs a GPU), run:
 
