@@ -193,7 +193,7 @@ fn artboard_stays_visible_when_resizing() {
         h.set_size(size);
         h.run();
         let canvas = h.get_by_label("Canvas").rect();
-        let artboard = h.state().workspace().unwrap().artboard_rect.unwrap();
+        let artboard = h.state().workspace().unwrap().artboard_rect(1.0).unwrap();
         assert!(canvas.contains_rect(artboard), "{size:?}");
         assert!((artboard.width() - artboard.height()).abs() < 0.5);
     }
@@ -378,7 +378,7 @@ fn typing_in_text_field_does_not_switch_tools() {
         ),
     );
     h.run();
-    h.state_mut().0.open_project(tp_core::ProjectStub::new(
+    h.state_mut().0.open_project(tp_core::Project::new(
         "Test",
         tp_core::TextureResolution::R2048,
     ));

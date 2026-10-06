@@ -17,6 +17,7 @@ use crate::state::{AppState, Screen};
 
 pub fn show(ui: &mut Ui, state: &mut AppState) {
     let ctx = ui.ctx().clone();
+    let edit = state.edit_context();
     let AppState {
         prefs,
         queue,
@@ -28,7 +29,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     };
     let layout = &mut prefs.layout;
     let generation = layout.generation;
-    let mut cmds = CommandUi::new(&ctx, queue, true);
+    let mut cmds = CommandUi::new(&ctx, queue, edit);
 
     Panel::top("menu_bar")
         .frame(bar_frame())
@@ -63,13 +64,8 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     CentralPanel::no_frame()
         .frame(Frame::new().fill(color::SURFACE_0))
         .show(ui, |ui| match layout.view_mode {
-            ViewMode::TwoD => {
-                ws.artboard_rect = Some(canvas::show(ui, &mut cmds, ws));
-            }
-            ViewMode::ThreeD => {
-                ws.artboard_rect = None;
-                preview::show(ui, &mut cmds, false);
-            }
+            ViewMode::TwoD => canvas::show(ui, &mut cmds, ws),
+            ViewMode::ThreeD => preview::show(ui, &mut cmds, false),
             ViewMode::Split => {
                 let total = ui.available_width();
                 let (min, max) = (*SPLIT_FRACTION_RANGE.start(), *SPLIT_FRACTION_RANGE.end());
@@ -87,9 +83,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
                 }
                 CentralPanel::no_frame()
                     .frame(Frame::new().fill(color::SURFACE_0))
-                    .show(ui, |ui| {
-                        ws.artboard_rect = Some(canvas::show(ui, &mut cmds, ws));
-                    });
+                    .show(ui, |ui| canvas::show(ui, &mut cmds, ws));
             }
         });
 }

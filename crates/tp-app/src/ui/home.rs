@@ -10,7 +10,7 @@ use tp_ui::tokens::{color, radius, size, space};
 use tp_ui::widgets::{EmptyState, IconButton, primary_button, secondary_button};
 
 use super::{CommandUi, menu_bar};
-use crate::commands::CommandId;
+use crate::commands::{CommandId, EditContext};
 use crate::prefs::{RecentProject, now_unix};
 use crate::state::{AppState, disabled_reason, is_enabled};
 
@@ -19,7 +19,7 @@ const ROW_HEIGHT: f32 = 52.0;
 
 pub fn show(ui: &mut Ui, state: &mut AppState) {
     let ctx = ui.ctx().clone();
-    let mut cmds = CommandUi::new(&ctx, &mut state.queue, false);
+    let mut cmds = CommandUi::new(&ctx, &mut state.queue, EditContext::default());
 
     Panel::top("home_menu_bar")
         .frame(bar_frame())
@@ -142,7 +142,7 @@ fn recent_list(ui: &mut Ui, recent: &[RecentProject], available: &[bool]) -> Opt
 fn recent_row(ui: &mut Ui, project: &RecentProject, exists: bool, now: u64) -> bool {
     let width = ui.available_width().min(760.0);
     let (rect, response) = ui.allocate_exact_size(Vec2::new(width, ROW_HEIGHT), Sense::hover());
-    let open_enabled = is_enabled(CommandId::OpenProject, false);
+    let open_enabled = is_enabled(CommandId::OpenProject, &EditContext::default());
     let label = if exists {
         project.name.clone()
     } else {

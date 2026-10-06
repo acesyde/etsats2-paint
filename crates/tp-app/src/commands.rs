@@ -58,8 +58,52 @@ pub enum CommandId {
     // Help
     KeyboardShortcuts,
     About,
+    // Canvas
+    Deselect,
+    Nudge(Direction, bool),
     // Tools
     SelectTool(Tool),
+}
+
+/// Arrow-key nudge direction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Direction {
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
+impl Direction {
+    pub const ALL: [Self; 4] = [Self::Left, Self::Right, Self::Up, Self::Down];
+
+    /// Unit step in texture pixels.
+    pub fn delta(self) -> (f64, f64) {
+        match self {
+            Self::Left => (-1.0, 0.0),
+            Self::Right => (1.0, 0.0),
+            Self::Up => (0.0, -1.0),
+            Self::Down => (0.0, 1.0),
+        }
+    }
+}
+
+/// State that decides whether commands can run, built once per frame.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct EditContext {
+    pub has_project: bool,
+    pub has_selection: bool,
+    pub can_undo: bool,
+    pub can_redo: bool,
+    pub has_clipboard: bool,
+    /// A canvas drag (move, resize, draw…) is in progress.
+    pub gesture_active: bool,
+    pub undo_label: Option<&'static str>,
+    pub redo_label: Option<&'static str>,
+}
+
+fn editable_selection(c: &EditContext) -> bool {
+    c.has_project && c.has_selection && !c.gesture_active
 }
 
 /// Where a command's shortcut is active.
@@ -73,11 +117,13 @@ pub enum Scope {
     Workspace,
 }
 
-/// Whether a command can run, independent of the current state.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Whether a command can run.
+#[derive(Clone, Copy, Debug)]
 pub enum Availability {
     Always,
     NeedsProject,
+    /// Depends on the editing state; the string explains when it is disabled.
+    When(fn(&EditContext) -> bool, &'static str),
     /// Feature not built yet; the string explains it in tooltips.
     NotYet(&'static str),
 }
@@ -102,7 +148,8 @@ const CMD_ALT: Modifiers = Modifiers::COMMAND.plus(Modifiers::ALT);
 const NONE: Modifiers = Modifiers::NONE;
 const SHIFT: Modifiers = Modifiers::SHIFT;
 
-const SOON_EDITING: &str = "Available once canvas editing is added.";
+const SOON_EDITING: &str = "Available in a future update.";
+const NEEDS_SELECTION: &str = "Select one or more objects first.";
 const SOON_FILES: &str = "Opening and saving projects is not available yet.";
 const SOON_VEHICLES: &str = "Vehicle templates are not available yet.";
 const SOON_EXPORT: &str = "Export is not available yet.";
@@ -154,12 +201,17 @@ impl CommandId {
         ];
         all.extend([ViewMode::TwoD, ViewMode::ThreeD, ViewMode::Split].map(SetViewMode));
         all.extend(PanelKind::ALL.map(TogglePanel));
+        all.push(Deselect);
+        for direction in Direction::ALL {
+            all.push(Nudge(direction, false));
+            all.push(Nudge(direction, true));
+        }
         all.extend(Tool::ALL.map(SelectTool));
         all
     }
 
     pub fn meta(self) -> CommandMeta {
-        use Availability::{Always, NeedsProject, NotYet};
+        use Availability::{Always, NeedsProject, NotYet, When};
         use CommandId::*;
         use Scope::{App, Global, Workspace};
 
@@ -220,56 +272,65 @@ impl CommandId {
                 None,
                 const { &[sc(CMD, Key::Z)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(
+                    |c| c.has_project && c.can_undo && !c.gesture_active,
+                    "Nothing to undo.",
+                ),
             ),
             Redo => m(
                 "Redo",
                 None,
                 const { &[sc(CMD_SHIFT, Key::Z), sc(CMD, Key::Y)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(
+                    |c| c.has_project && c.can_redo && !c.gesture_active,
+                    "Nothing to redo.",
+                ),
             ),
             Cut => m(
                 "Cut",
                 None,
                 const { &[sc(CMD, Key::X)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(editable_selection, NEEDS_SELECTION),
             ),
             Copy => m(
                 "Copy",
                 None,
                 const { &[sc(CMD, Key::C)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(editable_selection, NEEDS_SELECTION),
             ),
             Paste => m(
                 "Paste",
                 None,
                 const { &[sc(CMD, Key::V)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(
+                    |c| c.has_project && c.has_clipboard && !c.gesture_active,
+                    "The clipboard is empty.",
+                ),
             ),
             Duplicate => m(
                 "Duplicate",
                 None,
                 const { &[sc(CMD, Key::D)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(editable_selection, NEEDS_SELECTION),
             ),
             Delete => m(
                 "Delete",
                 None,
-                const { &[sc(NONE, Key::Delete)] },
+                const { &[sc(NONE, Key::Delete), sc(NONE, Key::Backspace)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(editable_selection, NEEDS_SELECTION),
             ),
             SelectAll => m(
                 "Select All",
                 None,
                 const { &[sc(CMD, Key::A)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(|c| c.has_project && !c.gesture_active, ""),
             ),
 
             Group => m(
@@ -291,14 +352,14 @@ impl CommandId {
                 None,
                 const { &[sc(CMD, Key::CloseBracket)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(editable_selection, NEEDS_SELECTION),
             ),
             SendBackward => m(
                 "Send Backward",
                 None,
                 const { &[sc(CMD, Key::OpenBracket)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                When(editable_selection, NEEDS_SELECTION),
             ),
             MirrorToOtherSide => m(
                 "Mirror to Other Side",
@@ -329,28 +390,28 @@ impl CommandId {
                 None,
                 const { &[sc(CMD, Key::Equals), sc(CMD, Key::Plus)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                NeedsProject,
             ),
             ZoomOut => m(
                 "Zoom Out",
                 None,
                 const { &[sc(CMD, Key::Minus)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                NeedsProject,
             ),
             FitToScreen => m(
                 "Fit to Screen",
                 None,
                 const { &[sc(CMD, Key::Num0)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                NeedsProject,
             ),
             ActualSize => m(
                 "Actual Size (100%)",
                 None,
                 const { &[sc(CMD, Key::Num1)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                NeedsProject,
             ),
             SetViewMode(ViewMode::TwoD) => m(
                 "2D Canvas",
@@ -461,6 +522,29 @@ impl CommandId {
             ),
             About => m("About TruckPaint", None, &[], App, Always),
 
+            Deselect => m(
+                "Deselect",
+                None,
+                const { &[sc(NONE, Key::Escape)] },
+                Workspace,
+                When(editable_selection, NEEDS_SELECTION),
+            ),
+            Nudge(direction, big) => m(
+                match (direction, big) {
+                    (Direction::Left, false) => "Nudge Left",
+                    (Direction::Right, false) => "Nudge Right",
+                    (Direction::Up, false) => "Nudge Up",
+                    (Direction::Down, false) => "Nudge Down",
+                    (Direction::Left, true) => "Nudge Left ×10",
+                    (Direction::Right, true) => "Nudge Right ×10",
+                    (Direction::Up, true) => "Nudge Up ×10",
+                    (Direction::Down, true) => "Nudge Down ×10",
+                },
+                None,
+                nudge_shortcut(direction, big),
+                Workspace,
+                When(editable_selection, NEEDS_SELECTION),
+            ),
             SelectTool(tool) => m(
                 tool.name(),
                 Some(tool.icon()),
@@ -474,6 +558,19 @@ impl CommandId {
     /// Primary (displayed) shortcut.
     pub fn shortcut(self) -> Option<KeyboardShortcut> {
         self.meta().shortcuts.first().copied()
+    }
+}
+
+fn nudge_shortcut(direction: Direction, big: bool) -> &'static [KeyboardShortcut] {
+    match (direction, big) {
+        (Direction::Left, false) => const { &[sc(NONE, Key::ArrowLeft)] },
+        (Direction::Right, false) => const { &[sc(NONE, Key::ArrowRight)] },
+        (Direction::Up, false) => const { &[sc(NONE, Key::ArrowUp)] },
+        (Direction::Down, false) => const { &[sc(NONE, Key::ArrowDown)] },
+        (Direction::Left, true) => const { &[sc(SHIFT, Key::ArrowLeft)] },
+        (Direction::Right, true) => const { &[sc(SHIFT, Key::ArrowRight)] },
+        (Direction::Up, true) => const { &[sc(SHIFT, Key::ArrowUp)] },
+        (Direction::Down, true) => const { &[sc(SHIFT, Key::ArrowDown)] },
     }
 }
 
@@ -547,6 +644,7 @@ fn key_label(key: Key) -> &'static str {
         Key::Minus => "-",
         Key::Plus => "+",
         Key::Delete => "Del",
+        Key::Escape => "Esc",
         other => other.symbol_or_name(),
     }
 }
@@ -682,6 +780,43 @@ mod tests {
         assert_eq!(format_shortcut(&undo, false, false), "Ctrl+Z");
         assert_eq!(format_shortcut(&redo, false, false), "Ctrl+Shift+Z");
         assert_eq!(format_shortcut(&undo, true, true), "⌘Z");
+    }
+
+    #[test]
+    fn editing_commands_follow_the_edit_context() {
+        use crate::state::is_enabled;
+        let idle = EditContext {
+            has_project: true,
+            ..EditContext::default()
+        };
+        assert!(!is_enabled(CommandId::Delete, &idle));
+        assert!(!is_enabled(CommandId::Paste, &idle));
+        assert!(!is_enabled(CommandId::Undo, &idle));
+        assert!(is_enabled(CommandId::SelectAll, &idle));
+        assert!(is_enabled(CommandId::FitToScreen, &idle));
+
+        let selected = EditContext {
+            has_selection: true,
+            has_clipboard: true,
+            can_undo: true,
+            ..idle
+        };
+        for id in [
+            CommandId::Delete,
+            CommandId::Duplicate,
+            CommandId::Copy,
+            CommandId::Paste,
+            CommandId::Undo,
+        ] {
+            assert!(is_enabled(id, &selected), "{id:?}");
+        }
+        let dragging = EditContext {
+            gesture_active: true,
+            ..selected
+        };
+        assert!(!is_enabled(CommandId::Delete, &dragging));
+        assert!(!is_enabled(CommandId::Undo, &dragging));
+        assert!(!is_enabled(CommandId::Deselect, &dragging));
     }
 
     #[test]

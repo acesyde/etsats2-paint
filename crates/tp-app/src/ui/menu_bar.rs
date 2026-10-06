@@ -100,6 +100,7 @@ fn menu_contents(
             item(ui, cmds, Delete);
             ui.separator();
             item(ui, cmds, SelectAll);
+            item(ui, cmds, Deselect);
             ui.separator();
             item(ui, cmds, Preferences);
         }
