@@ -59,6 +59,17 @@ pub const SAVED: &str = ph::CHECK_CIRCLE;
 pub const CHECK: &str = ph::CHECK;
 pub const UNSAVED: &str = ph::CIRCLE_DASHED;
 pub const WARNING: &str = ph::WARNING;
+// Object alignment and distribution.
+pub const OBJ_ALIGN_LEFT: &str = ph::ALIGN_LEFT;
+pub const OBJ_ALIGN_HCENTER: &str = ph::ALIGN_CENTER_HORIZONTAL;
+pub const OBJ_ALIGN_RIGHT: &str = ph::ALIGN_RIGHT;
+pub const OBJ_ALIGN_TOP: &str = ph::ALIGN_TOP;
+pub const OBJ_ALIGN_VCENTER: &str = ph::ALIGN_CENTER_VERTICAL;
+pub const OBJ_ALIGN_BOTTOM: &str = ph::ALIGN_BOTTOM;
+pub const DISTRIBUTE_H_CENTERS: &str = ph::ARROWS_OUT_LINE_HORIZONTAL;
+pub const DISTRIBUTE_V_CENTERS: &str = ph::ARROWS_OUT_LINE_VERTICAL;
+pub const DISTRIBUTE_H_SPACING: &str = ph::COLUMNS;
+pub const DISTRIBUTE_V_SPACING: &str = ph::ROWS;
 pub const ALIGN_LEFT: &str = ph::TEXT_ALIGN_LEFT;
 pub const ALIGN_CENTER: &str = ph::TEXT_ALIGN_CENTER;
 pub const ALIGN_RIGHT: &str = ph::TEXT_ALIGN_RIGHT;

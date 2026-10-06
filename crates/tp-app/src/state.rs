@@ -276,6 +276,8 @@ impl AppState {
                 editing_text: ws.is_editing_text(),
                 selection_has_convertible: ws.selection_has_convertible(),
                 has_guides: !ws.project.surface().guides.is_empty(),
+                selection_count: ws.selection.len(),
+                align_to_key: ws.panels.align_to == crate::arrange::AlignTo::KeyObject,
             },
             None => EditContext::default(),
         }
@@ -434,6 +436,10 @@ impl AppState {
             }),
             CommandId::DeleteLayer => self.with_workspace(|ws| ws.delete_selection(now)),
             CommandId::ConvertToPath => self.with_workspace(|ws| ws.convert_selection_to_path(now)),
+            CommandId::Align(edge) => self.with_workspace(|ws| ws.align_selection(edge, now)),
+            CommandId::Distribute(axis, mode) => {
+                self.with_workspace(|ws| ws.distribute_selection(axis, mode, now));
+            }
             CommandId::ShowGrid => self.prefs.view_aids.grid = !self.prefs.view_aids.grid,
             CommandId::ShowGuides => self.prefs.view_aids.guides = !self.prefs.view_aids.guides,
             CommandId::Snapping => self.prefs.view_aids.snapping = !self.prefs.view_aids.snapping,

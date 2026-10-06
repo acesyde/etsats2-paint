@@ -128,7 +128,7 @@ fn body(
 ) {
     match kind {
         PanelKind::Properties => properties::show(ui, env, layout),
-        PanelKind::Transform => transform::show(ui, env),
+        PanelKind::Transform => transform::show(ui, cmds, env),
         PanelKind::Colors => colors::show(ui, env),
         PanelKind::Stroke => stroke::show(ui, env),
         PanelKind::Layers => layers::show(ui, cmds, env),

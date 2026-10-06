@@ -4,6 +4,8 @@
 use egui::{Key, KeyboardShortcut, Modifiers};
 use tp_ui::icons;
 
+use tp_core::document::{DistributeAxis, DistributeMode, Edge};
+
 use crate::layout::{PanelKind, ViewMode};
 use crate::tool::Tool;
 
@@ -32,6 +34,8 @@ pub enum CommandId {
     Group,
     Ungroup,
     ConvertToPath,
+    Align(Edge),
+    Distribute(DistributeAxis, DistributeMode),
     BringForward,
     SendBackward,
     MirrorToOtherSide,
@@ -118,6 +122,20 @@ pub struct EditContext {
     pub selection_has_convertible: bool,
     /// The active surface has guides.
     pub has_guides: bool,
+    /// Number of selected objects.
+    pub selection_count: usize,
+    /// Align to: Key object (aligning needs two objects).
+    pub align_to_key: bool,
+}
+
+fn can_align(c: &EditContext) -> bool {
+    editable_selection(c)
+        && !c.editing_text
+        && c.selection_count >= if c.align_to_key { 2 } else { 1 }
+}
+
+fn can_distribute(c: &EditContext) -> bool {
+    editable_selection(c) && !c.editing_text && c.selection_count >= 3
 }
 
 fn editable_selection(c: &EditContext) -> bool {
@@ -163,6 +181,8 @@ const fn sc(modifiers: Modifiers, key: Key) -> KeyboardShortcut {
 const CMD: Modifiers = Modifiers::COMMAND;
 const CMD_SHIFT: Modifiers = Modifiers::COMMAND.plus(Modifiers::SHIFT);
 const CMD_ALT: Modifiers = Modifiers::COMMAND.plus(Modifiers::ALT);
+const ALT: Modifiers = Modifiers::ALT;
+const ALT_SHIFT: Modifiers = Modifiers::ALT.plus(Modifiers::SHIFT);
 const NONE: Modifiers = Modifiers::NONE;
 const SHIFT: Modifiers = Modifiers::SHIFT;
 
@@ -227,6 +247,12 @@ impl CommandId {
             all.push(Nudge(direction, true));
         }
         all.extend(Tool::ALL.map(SelectTool));
+        all.extend(Edge::ALL.map(Align));
+        for axis in [DistributeAxis::Horizontal, DistributeAxis::Vertical] {
+            for mode in [DistributeMode::Centers, DistributeMode::Spacing] {
+                all.push(Distribute(axis, mode));
+            }
+        }
         all
     }
 
@@ -402,6 +428,58 @@ impl CommandId {
                     |c| editable_selection(c) && c.selection_has_convertible,
                     "Select a rectangle, ellipse or polygon first.",
                 ),
+            ),
+            Align(edge) => m(
+                crate::arrange::align_label(edge),
+                Some(match edge {
+                    Edge::Left => icons::OBJ_ALIGN_LEFT,
+                    Edge::HCenter => icons::OBJ_ALIGN_HCENTER,
+                    Edge::Right => icons::OBJ_ALIGN_RIGHT,
+                    Edge::Top => icons::OBJ_ALIGN_TOP,
+                    Edge::VCenter => icons::OBJ_ALIGN_VCENTER,
+                    Edge::Bottom => icons::OBJ_ALIGN_BOTTOM,
+                }),
+                match edge {
+                    Edge::Left => const { &[sc(ALT, Key::A)] },
+                    Edge::HCenter => const { &[sc(ALT, Key::H)] },
+                    Edge::Right => const { &[sc(ALT, Key::D)] },
+                    Edge::Top => const { &[sc(ALT, Key::W)] },
+                    Edge::VCenter => const { &[sc(ALT, Key::V)] },
+                    Edge::Bottom => const { &[sc(ALT, Key::S)] },
+                },
+                Workspace,
+                When(
+                    can_align,
+                    "Select an object (two with Align to: Key object).",
+                ),
+            ),
+            Distribute(axis, mode) => m(
+                crate::arrange::distribute_label(axis, mode),
+                Some(match (axis, mode) {
+                    (DistributeAxis::Horizontal, DistributeMode::Centers) => {
+                        icons::DISTRIBUTE_H_CENTERS
+                    }
+                    (DistributeAxis::Vertical, DistributeMode::Centers) => {
+                        icons::DISTRIBUTE_V_CENTERS
+                    }
+                    (DistributeAxis::Horizontal, DistributeMode::Spacing) => {
+                        icons::DISTRIBUTE_H_SPACING
+                    }
+                    (DistributeAxis::Vertical, DistributeMode::Spacing) => {
+                        icons::DISTRIBUTE_V_SPACING
+                    }
+                }),
+                match (axis, mode) {
+                    (DistributeAxis::Horizontal, DistributeMode::Spacing) => {
+                        const { &[sc(ALT_SHIFT, Key::H)] }
+                    }
+                    (DistributeAxis::Vertical, DistributeMode::Spacing) => {
+                        const { &[sc(ALT_SHIFT, Key::V)] }
+                    }
+                    _ => &[],
+                },
+                Workspace,
+                When(can_distribute, "Select three objects or more."),
             ),
             BringForward => m(
                 "Bring Forward",

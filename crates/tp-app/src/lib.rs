@@ -1,6 +1,7 @@
 //! TruckPaint desktop application.
 
 pub mod app;
+pub mod arrange;
 pub mod commands;
 pub mod export;
 pub mod file_dialogs;

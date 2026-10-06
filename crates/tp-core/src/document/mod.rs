@@ -1,5 +1,6 @@
 //! The vector document: objects, geometry, transforms and undo history.
 
+pub mod align;
 mod color;
 mod history;
 mod object;
@@ -7,6 +8,7 @@ pub mod path;
 mod transform;
 pub mod tree;
 
+pub use align::{DistributeAxis, DistributeMode, Edge, align, distribute};
 pub use color::{DEFAULT_FILL, Hsla, Hsva, Rgba};
 pub use history::{COALESCE_WINDOW, DEFAULT_MAX_STEPS, History};
 pub use object::{

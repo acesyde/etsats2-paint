@@ -161,4 +161,6 @@ pub mod canvas {
     pub const SNAP: Color32 = Color32::from_rgb(0xFF, 0x2D, 0xA6);
     /// Distance within which positions snap, in points.
     pub const SNAP_DISTANCE: f32 = 6.0;
+    /// Outline of the key object (Align to: Key object), in points.
+    pub const KEY_OBJECT_LINE: f32 = 2.5;
 }

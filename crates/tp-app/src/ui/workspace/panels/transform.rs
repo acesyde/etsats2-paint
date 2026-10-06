@@ -77,7 +77,7 @@ fn common_rotation(objects: &[Object]) -> Option<f64> {
         .then_some(first)
 }
 
-pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv<'_>) {
     let objects = env.ws.selected_objects();
     let Some(bounds): Option<Frame> = selection_frame(&objects) else {
         EmptyState::new(
@@ -157,4 +157,45 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
             });
             ui.end_row();
         });
+    align_rows(ui, cmds, env);
+}
+
+/// Align buttons with the Align to selector, then distribute buttons.
+fn align_rows(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv<'_>) {
+    use tp_core::document::{DistributeAxis, DistributeMode, Edge};
+
+    use crate::arrange::AlignTo;
+    use crate::commands::CommandId;
+
+    ui.add_space(space::SM);
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 2.0;
+        for edge in Edge::ALL {
+            cmds.icon_button(ui, CommandId::Align(edge), false);
+        }
+        ui.add_space(space::XS);
+        let current = env.ws.panels.align_to;
+        let combo = egui::ComboBox::from_id_salt("align_to")
+            .width(88.0)
+            .selected_text(current.label())
+            .show_ui(ui, |ui| {
+                for to in AlignTo::ALL {
+                    ui.selectable_value(&mut env.ws.panels.align_to, to, to.label());
+                }
+            });
+        combo.response.widget_info(|| {
+            egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Align to")
+        });
+    });
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 2.0;
+        for (axis, mode) in [
+            (DistributeAxis::Horizontal, DistributeMode::Centers),
+            (DistributeAxis::Vertical, DistributeMode::Centers),
+            (DistributeAxis::Horizontal, DistributeMode::Spacing),
+            (DistributeAxis::Vertical, DistributeMode::Spacing),
+        ] {
+            cmds.icon_button(ui, CommandId::Distribute(axis, mode), false);
+        }
+    });
 }
