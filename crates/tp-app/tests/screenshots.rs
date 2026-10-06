@@ -895,3 +895,63 @@ fn render_precision_aids() {
             .unwrap();
     }
 }
+
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_align() {
+    use tp_app::layout::PanelKind;
+    use tp_core::document::{Frame, Object, ObjectId, Rgba, ShapeKind};
+    use tp_core::kurbo::{Point, Size};
+    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+        let mut prefs = Prefs {
+            ui_scale: scale,
+            ..Prefs::default()
+        };
+        for slot in &mut prefs.layout.panels {
+            match slot.kind {
+                PanelKind::Transform => {
+                    slot.open = true;
+                    slot.collapsed = false;
+                }
+                // Room for the Transform panel's align rows.
+                PanelKind::Colors | PanelKind::Layers => slot.collapsed = true,
+                _ => {}
+            }
+        }
+        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        common::create_project(&mut h);
+        {
+            let ws = h.state_mut().workspace_mut().unwrap();
+            let colors = [
+                Rgba::rgb(0xC0, 0x39, 0x2B),
+                Rgba::rgb(0x2E, 0x86, 0xDE),
+                Rgba::rgb(0xF0, 0xB4, 0x4C),
+            ];
+            let mut ids = Vec::new();
+            for (i, (x, y)) in [(700.0, 1200.0), (1700.0, 1500.0), (2800.0, 1000.0)]
+                .into_iter()
+                .enumerate()
+            {
+                let mut o = Object::new(
+                    ObjectId(0),
+                    if i == 1 {
+                        ShapeKind::Ellipse
+                    } else {
+                        ShapeKind::rectangle()
+                    },
+                    Frame::new(
+                        Point::new(x, y),
+                        Size::new(500.0, 300.0 + 100.0 * i as f64),
+                        0.0,
+                    ),
+                );
+                o.fill = colors[i];
+                ids.push(ws.project.add(o));
+            }
+            ws.selection = ids;
+            ws.panels.align_to = tp_app::arrange::AlignTo::KeyObject;
+        }
+        save(&mut h, &format!("align_key_object_{suffix}"));
+    }
+}

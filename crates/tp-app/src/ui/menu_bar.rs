@@ -119,6 +119,22 @@ fn menu_contents(
             item(ui, cmds, Ungroup);
             ui.separator();
             item(ui, cmds, ConvertToPath);
+            ui.menu_button("Align", |ui| {
+                ui.set_min_width(260.0);
+                for edge in tp_core::document::Edge::ALL {
+                    item(ui, cmds, Align(edge));
+                }
+                ui.separator();
+                use tp_core::document::{DistributeAxis, DistributeMode};
+                for (axis, mode) in [
+                    (DistributeAxis::Horizontal, DistributeMode::Centers),
+                    (DistributeAxis::Vertical, DistributeMode::Centers),
+                    (DistributeAxis::Horizontal, DistributeMode::Spacing),
+                    (DistributeAxis::Vertical, DistributeMode::Spacing),
+                ] {
+                    item(ui, cmds, Distribute(axis, mode));
+                }
+            });
             ui.separator();
             item(ui, cmds, BringForward);
             item(ui, cmds, SendBackward);

@@ -445,6 +445,21 @@ fn draw_selection(painter: &Painter, ws: &mut Workspace, map: &ScreenMap, bucket
             }
         }
     }
+    // Align to: Key object — the object the others align to.
+    if let Some(key) = ws.key_object()
+        && let Some(object) = ws.project.surface().get(key).cloned()
+    {
+        let geometry = ws.geometry.geometry(&object, bucket);
+        for (points, closed) in &geometry.lines {
+            let points: Vec<Pos2> = points.iter().map(|p| map.to_screen(*p)).collect();
+            let stroke = Stroke::new(tokens::KEY_OBJECT_LINE, tokens::SELECTION);
+            painter.add(if *closed {
+                Shape::closed_line(points, stroke)
+            } else {
+                Shape::line(points, stroke)
+            });
+        }
+    }
     if ws.tool == crate::tool::Tool::DirectSelect {
         draw_points(painter, ws, map);
         return;

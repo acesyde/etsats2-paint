@@ -115,6 +115,8 @@ pub struct PanelState {
     pub font_picker: Option<FontPicker>,
     /// Asset being renamed in the Assets panel, with its edit buffer.
     pub renaming_asset: Option<(tp_core::document::AssetId, String)>,
+    /// What the align commands align to (session only).
+    pub align_to: crate::arrange::AlignTo,
 }
 
 /// State of the font family picker popup.
