@@ -19,4 +19,4 @@
 ## 4. Integration
 
 - [x] 4.1 Screenshot review of the export dialog (PNG and DDS, transparent background) at 100 % and 200 % UI scale, and of an exported 4K PNG of the lettering scene compared with the canvas; perf check of a 4K and an 8K export in release
-- [ ] 4.2 Run `openspec validate export-and-preview --strict` and `mise run ci`; verify both pass locally and the CI matrix is green on the PR
+- [x] 4.2 Run `openspec validate export-and-preview --strict` and `mise run ci`; verify both pass locally and the CI matrix is green on the PR
