@@ -161,10 +161,13 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
                     );
                 }
                 None => {
-                    ui.put(
-                        Rect::from_center_size(rect.center(), Vec2::splat(24.0)),
-                        egui::Spinner::new(),
-                    );
+                    // Painted, not added as a widget: adding one only while
+                    // loading would shift the ids of the controls next to
+                    // it, and a click landing when the preview arrives would
+                    // be lost.
+                    egui::Spinner::new()
+                        .paint_at(ui, Rect::from_center_size(rect.center(), Vec2::splat(24.0)));
+                    ui.ctx().request_repaint();
                 }
             }
             ui.painter().rect_stroke(

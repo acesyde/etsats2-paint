@@ -35,6 +35,15 @@ fn open() -> H {
     h
 }
 
+/// Runs a few frames. Background work (preview renders, exports) wakes the
+/// UI at unpredictable times, so `Harness::run` (which waits until nothing
+/// asks for a repaint) is not usable while the dialog is open.
+fn settle(h: &mut H) {
+    for _ in 0..4 {
+        h.step();
+    }
+}
+
 fn ws(h: &H) -> &Workspace {
     h.state().workspace().expect("project open")
 }
@@ -48,7 +57,7 @@ fn dialog(h: &H) -> Option<&ExportDialog> {
 
 fn open_dialog(h: &mut H) {
     h.key_press_modifiers(Modifiers::COMMAND, Key::E);
-    h.run();
+    settle(h);
     assert!(dialog(h).is_some(), "export dialog open");
 }
 
@@ -87,7 +96,7 @@ fn default_export_settings() {
     });
     assert!(dialog(&h).unwrap().preview_ready());
     h.key_press(Key::Escape);
-    h.run();
+    settle(&mut h);
     assert!(h.state().modal.is_none());
 }
 
@@ -134,7 +143,7 @@ fn export_does_not_change_the_project() {
 
 fn dialog_quarter_size(h: &mut H) {
     h.get_by_label("1024 × 1024").click();
-    h.run();
+    settle(h);
 }
 
 #[test]
@@ -160,7 +169,7 @@ fn cancel_during_export_leaves_no_file() {
     let mut h = open();
     open_dialog(&mut h);
     h.get_by_label("DDS").click();
-    h.run();
+    settle(&mut h);
     export_to(&mut h, &dir.path().join("ace.dds"));
     assert!(dialog(&h).unwrap().job.is_some());
     // The modal re-centers once its content (progress bar) is laid out.
@@ -180,18 +189,18 @@ fn transparent_background_preview_and_size_info() {
     let mut h = open();
     open_dialog(&mut h);
     h.get_by_label("Transparent").click();
-    h.run();
+    settle(&mut h);
     assert_eq!(dialog(&h).unwrap().settings.background, None);
     wait_until(&mut h, |h| {
         dialog(h).is_some_and(ExportDialog::preview_ready)
     });
     assert_eq!(dialog(&h).unwrap().preview_for.unwrap().background, None);
     h.get_by_label("2048 × 2048").click();
-    h.run();
+    settle(&mut h);
     assert!(h.query_by_label_contains("2048 × 2048 px · PNG").is_some());
     // Settings are remembered for the next export.
     h.key_press(Key::Escape);
-    h.run();
+    settle(&mut h);
     open_dialog(&mut h);
     assert_eq!(dialog(&h).unwrap().settings.divisor, 2);
 }
@@ -203,7 +212,7 @@ fn dds_export_has_mipmaps() {
     let mut h = open();
     open_dialog(&mut h);
     h.get_by_label("DDS").click();
-    h.run();
+    settle(&mut h);
     dialog_quarter_size(&mut h);
     export_to(&mut h, &path);
     wait_until(&mut h, |h| h.state().modal.is_none());
