@@ -31,4 +31,4 @@
 ## 6. Integration
 
 - [x] 6.1 Screenshot review of the save prompt, the error message, the home screen with recovered and recent projects, and the "Saving…" status at 100% and 200% UI scale
-- [ ] 6.2 Run `openspec validate persistence --strict` and `mise run ci`; verify both pass locally and the CI matrix is green on the PR
+- [x] 6.2 Run `openspec validate persistence --strict` and `mise run ci`; verify both pass locally and the CI matrix is green on the PR
