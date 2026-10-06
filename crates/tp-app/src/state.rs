@@ -6,9 +6,13 @@ use tp_core::{Project, TextureResolution};
 use tp_ui::ThemeSettings;
 
 use crate::commands::{self, Availability, CommandId, EditContext};
+use crate::file_dialogs::{FileDialogs, NativeDialogs};
 use crate::layout::ViewMode;
 use crate::paths::APP_NAME;
 use crate::prefs::{Prefs, PrefsStore, recent_exists};
+pub use crate::project_io::PendingAction;
+use crate::recovery::{Recovered, RecoveryStore};
+use crate::saver::Saver;
 use crate::text_engine::TextEngine;
 use crate::tool::Tool;
 use crate::ui;
@@ -33,22 +37,18 @@ pub struct NewProjectDraft {
     pub focus_requested: bool,
 }
 
-/// Opens the file dialog of Place… and returns the chosen files.
-pub type FilePicker = Box<dyn FnMut() -> Vec<std::path::PathBuf>>;
-
-fn pick_image_files() -> Vec<std::path::PathBuf> {
-    rfd::FileDialog::new()
-        .set_title("Place")
-        .add_filter("Images", &["png", "jpg", "jpeg", "svg"])
-        .pick_files()
-        .unwrap_or_default()
-}
-
 pub enum Modal {
     NewProject(NewProjectDraft),
     Preferences,
     KeyboardShortcuts,
     About,
+    /// "Save changes before closing?", then the action.
+    UnsavedChanges(PendingAction),
+    /// An error or information message.
+    Message {
+        title: String,
+        text: String,
+    },
 }
 
 pub struct AppState {
@@ -80,8 +80,18 @@ pub struct AppState {
     /// Load the fonts installed on the computer (off in tests, so results
     /// do not depend on the machine).
     pub system_fonts: bool,
-    /// File dialog used by Place… (replaced in tests).
-    pub pick_files: FilePicker,
+    /// Open / Save / Place dialogs (scripted in tests).
+    pub dialogs: Box<dyn FileDialogs>,
+    /// Background writer of project files and recovery copies.
+    pub(crate) saver: Option<Saver>,
+    /// This session's crash-recovery files.
+    pub(crate) recovery: Option<RecoveryStore>,
+    /// Copies left by earlier sessions, offered on the home screen.
+    pub recovered: Vec<Recovered>,
+    /// Action to run once the save started from the prompt succeeds.
+    pub(crate) after_save: Option<PendingAction>,
+    /// The window may close (the user already answered the prompt).
+    pub(crate) allow_close: bool,
 }
 
 impl AppState {
@@ -99,6 +109,7 @@ impl AppState {
         };
         let mut state = Self::with_prefs(prefs, store);
         state.system_fonts = true;
+        state.dialogs = Box::new(NativeDialogs);
         state
     }
 
@@ -122,7 +133,13 @@ impl AppState {
             title: String::new(),
             fonts: None,
             system_fonts: false,
-            pick_files: Box::new(pick_image_files),
+            // Tests never open real dialogs; `new` installs the native ones.
+            dialogs: Box::new(crate::file_dialogs::ScriptedDialogs::default()),
+            saver: None,
+            recovery: None,
+            recovered: Vec::new(),
+            after_save: None,
+            allow_close: false,
         };
         state.refresh_recent_availability();
         state
@@ -167,6 +184,7 @@ impl AppState {
     }
 
     pub fn close_project(&mut self) {
+        self.clear_recovery();
         if let Screen::Workspace(ws) = std::mem::replace(&mut self.screen, Screen::Home) {
             self.fonts = Some(ws.text.fonts);
         }
@@ -187,6 +205,7 @@ impl AppState {
             // frame's root `Ui` directly so the first frame is themed too.
             tp_ui::theme::configure_style(ui.style_mut(), self.prefs.theme().text_scale);
         }
+        self.handle_close_request(&ctx);
         self.handle_keyboard(&ctx);
 
         match self.screen {
@@ -329,12 +348,17 @@ impl AppState {
                     ws.start_editing(id, None, now);
                 }
             }),
-            CommandId::NewProject => {
-                self.modal = Some(Modal::NewProject(NewProjectDraft::default()));
+            CommandId::NewProject => self.guard(ctx, PendingAction::NewProject),
+            CommandId::OpenProject => self.guard(ctx, PendingAction::OpenDialog),
+            CommandId::Save => {
+                self.save(ctx, false);
             }
-            CommandId::CloseProject => self.close_project(),
+            CommandId::SaveAs => {
+                self.save(ctx, true);
+            }
+            CommandId::CloseProject => self.guard(ctx, PendingAction::CloseProject),
             CommandId::Preferences => self.modal = Some(Modal::Preferences),
-            CommandId::Quit => ctx.send_viewport_cmd(ViewportCommand::Close),
+            CommandId::Quit => self.guard(ctx, PendingAction::Quit),
             CommandId::SetViewMode(mode) => self.prefs.layout.view_mode = mode,
             CommandId::TogglePreview => {
                 let layout = &mut self.prefs.layout;
@@ -453,6 +477,8 @@ impl AppState {
         let dropped = ctx.input(|i| i.raw.dropped_files.clone());
         let hover = ctx.input(|i| i.pointer.latest_pos());
         let ppp = ctx.pixels_per_point();
+        self.poll_saves(ctx);
+        self.write_recovery(ctx, now);
         let Screen::Workspace(ws) = &mut self.screen else {
             return;
         };
@@ -467,7 +493,7 @@ impl AppState {
             ws.relayout_all_texts();
         }
         if let Some(at) = ws.place_request.take() {
-            let paths = (self.pick_files)();
+            let paths = self.dialogs.pick_images();
             if !paths.is_empty() {
                 let files = crate::import::read_files(&paths);
                 ws.place_files(files, at, now);
@@ -558,6 +584,8 @@ fn keeps_text_session(id: CommandId) -> bool {
             | CommandId::KeyboardShortcuts
             | CommandId::About
             | CommandId::Preferences
+            | CommandId::Save
+            | CommandId::SaveAs
     )
 }
 

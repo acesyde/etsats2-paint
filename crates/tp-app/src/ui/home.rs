@@ -12,7 +12,8 @@ use tp_ui::widgets::{EmptyState, IconButton, primary_button, secondary_button};
 use super::{CommandUi, menu_bar};
 use crate::commands::{CommandId, EditContext};
 use crate::prefs::{RecentProject, now_unix};
-use crate::state::{AppState, disabled_reason, is_enabled};
+use crate::recovery::Recovered;
+use crate::state::{AppState, PendingAction, disabled_reason, is_enabled};
 
 const SIDEBAR_WIDTH: f32 = 280.0;
 const ROW_HEIGHT: f32 = 52.0;
@@ -35,7 +36,8 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         )
         .show(ui, |ui| sidebar(ui, &mut cmds));
 
-    let mut remove = None;
+    let mut action = None;
+    let mut recovery_action = None;
     CentralPanel::no_frame()
         .frame(
             Frame::new()
@@ -43,12 +45,109 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
                 .inner_margin(Margin::symmetric(40, 32)),
         )
         .show(ui, |ui| {
-            remove = recent_list(ui, &state.prefs.recent, &state.recent_available);
+            if !state.recovered.is_empty() {
+                recovery_action = recovered_list(ui, &state.recovered);
+                ui.add_space(space::XXL);
+            }
+            action = recent_list(ui, &state.prefs.recent, &state.recent_available);
         });
-    if let Some(index) = remove {
-        state.prefs.recent.remove(index);
-        state.recent_available.remove(index);
+    match action {
+        Some((index, RowAction::Remove)) => {
+            state.prefs.recent.remove(index);
+            state.recent_available.remove(index);
+        }
+        Some((index, RowAction::Open)) => {
+            let path = state.prefs.recent[index].path.clone();
+            state.guard(&ctx, PendingAction::Open(path));
+        }
+        None => {}
     }
+    match recovery_action {
+        Some((session, true)) => state.guard(&ctx, PendingAction::Restore(session)),
+        Some((session, false)) => state.discard_recovered(&session),
+        None => {}
+    }
+}
+
+/// What a click on a recent entry asks for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RowAction {
+    Open,
+    Remove,
+}
+
+/// Recovered projects; returns a session to restore (true) or discard.
+fn recovered_list(ui: &mut Ui, recovered: &[Recovered]) -> Option<(String, bool)> {
+    ui.horizontal(|ui| {
+        ui.label(icons::rich(icons::WARNING).size(20.0).color(color::WARNING));
+        ui.label(
+            RichText::new("Recovered projects")
+                .text_style(title_style())
+                .color(color::TEXT_PRIMARY),
+        );
+    });
+    ui.label(
+        RichText::new("TruckPaint closed unexpectedly. These projects had unsaved changes.")
+            .color(color::TEXT_SECONDARY),
+    );
+    ui.add_space(space::SM);
+    let now = now_unix();
+    let mut chosen = None;
+    for r in recovered {
+        let width = ui.available_width().min(760.0);
+        Frame::new()
+            .fill(color::SURFACE_1)
+            .corner_radius(CornerRadius::same(radius::MD))
+            .inner_margin(Margin::symmetric(space::LG as i8, space::SM as i8))
+            .show(ui, |ui| {
+                ui.set_width(width - 2.0 * space::LG);
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        let (title, detail) = match &r.meta {
+                            Some(meta) => (
+                                meta.name.clone(),
+                                format!(
+                                    "{} · {}",
+                                    meta.original
+                                        .as_ref()
+                                        .map_or("Never saved".to_owned(), |p| p
+                                            .display()
+                                            .to_string()),
+                                    relative_time(now, meta.saved_at)
+                                ),
+                            ),
+                            None => (
+                                "Damaged recovery copy".to_owned(),
+                                "This copy cannot be restored.".to_owned(),
+                            ),
+                        };
+                        let label = ui.label(
+                            RichText::new(&title)
+                                .text_style(label_strong_style())
+                                .color(color::TEXT_PRIMARY),
+                        );
+                        label.widget_info(|| {
+                            WidgetInfo::labeled(
+                                WidgetType::Label,
+                                true,
+                                format!("Recovered {title}"),
+                            )
+                        });
+                        ui.label(RichText::new(detail).small().color(color::TEXT_SECONDARY));
+                    });
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if r.meta.is_some() && ui.add(primary_button("Restore")).clicked() {
+                            chosen = Some((r.session.clone(), true));
+                        }
+                        if ui.add(secondary_button("Discard")).clicked() {
+                            chosen = Some((r.session.clone(), false));
+                        }
+                    });
+                });
+            });
+        ui.add_space(space::XS);
+    }
+    chosen
 }
 
 pub fn bar_frame() -> Frame {
@@ -103,8 +202,12 @@ fn sidebar(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
     });
 }
 
-/// Draws the recent projects list; returns the index of an entry to remove.
-fn recent_list(ui: &mut Ui, recent: &[RecentProject], available: &[bool]) -> Option<usize> {
+/// Draws the recent projects list; returns the entry clicked and what for.
+fn recent_list(
+    ui: &mut Ui,
+    recent: &[RecentProject],
+    available: &[bool],
+) -> Option<(usize, RowAction)> {
     ui.label(
         RichText::new("Recent projects")
             .text_style(title_style())
@@ -125,23 +228,29 @@ fn recent_list(ui: &mut Ui, recent: &[RecentProject], available: &[bool]) -> Opt
     }
 
     let now = now_unix();
-    let mut remove = None;
+    let mut action = None;
     ScrollArea::vertical().show(ui, |ui| {
         for (index, project) in recent.iter().enumerate() {
             let exists = available.get(index).copied().unwrap_or(false);
-            if recent_row(ui, project, exists, now) {
-                remove = Some(index);
+            if let Some(a) = recent_row(ui, project, exists, now) {
+                action = Some((index, a));
             }
             ui.add_space(space::XS);
         }
     });
-    remove
+    action
 }
 
-/// One recent entry. Returns true when "Remove from list" was clicked.
-fn recent_row(ui: &mut Ui, project: &RecentProject, exists: bool, now: u64) -> bool {
+/// One recent entry: opens on click, or offers "Remove from list" when its
+/// file is missing.
+fn recent_row(ui: &mut Ui, project: &RecentProject, exists: bool, now: u64) -> Option<RowAction> {
     let width = ui.available_width().min(760.0);
-    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, ROW_HEIGHT), Sense::hover());
+    let sense = if exists {
+        Sense::click()
+    } else {
+        Sense::hover()
+    };
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, ROW_HEIGHT), sense);
     let open_enabled = is_enabled(CommandId::OpenProject, &EditContext::default());
     let label = if exists {
         project.name.clone()
@@ -229,15 +338,18 @@ fn recent_row(ui: &mut Ui, project: &RecentProject, exists: bool, now: u64) -> b
         );
     }
 
-    if !removed {
-        let tip = if !exists {
-            "This project's file was moved or deleted."
-        } else {
-            disabled_reason(CommandId::OpenProject).unwrap_or_default()
-        };
-        response.on_hover_text(tip);
+    if removed {
+        return Some(RowAction::Remove);
     }
-    removed
+    if exists && open_enabled {
+        let response = response.on_hover_text(format!("Open {}", project.path.display()));
+        if response.clicked() {
+            return Some(RowAction::Open);
+        }
+    } else if !exists {
+        response.on_hover_text("This project's file was moved or deleted.");
+    }
+    None
 }
 
 /// Human-friendly "time ago" text.

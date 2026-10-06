@@ -27,6 +27,17 @@ pub const COPY_OFFSET: f64 = 20.0;
 pub enum SaveState {
     Saved,
     Unsaved,
+    /// A save to the project file is running.
+    Saving,
+}
+
+/// A save to the project file in progress.
+#[derive(Clone, Debug)]
+pub struct PendingSave {
+    pub id: u64,
+    /// The document being written: it becomes the saved state on success.
+    pub snapshot: Snapshot,
+    pub path: std::path::PathBuf,
 }
 
 /// A short message shown over the canvas until `until` (seconds).
@@ -120,7 +131,16 @@ pub struct Workspace {
     pub tool: Tool,
     /// Tool to restore when the temporary Hand tool (Space) is released.
     pub tool_before_space: Option<Tool>,
-    pub save_state: SaveState,
+    /// The project's file, once saved or opened.
+    pub path: Option<std::path::PathBuf>,
+    /// The document as last saved or opened (`None`: never saved).
+    pub saved: Option<Snapshot>,
+    /// Save in progress, and a path to save again once it finishes.
+    pub saving: Option<PendingSave>,
+    pub save_queued: Option<std::path::PathBuf>,
+    /// Last recovery copy: when, and of which document.
+    pub recovery_at: f64,
+    pub recovery_written: Option<Snapshot>,
     /// Selected objects of the active surface, in selection order.
     pub selection: Vec<ObjectId>,
     /// `None` until the canvas size is known (first frame).
@@ -162,7 +182,12 @@ impl Workspace {
             project,
             tool: Tool::default(),
             tool_before_space: None,
-            save_state: SaveState::Unsaved,
+            path: None,
+            saved: None,
+            saving: None,
+            save_queued: None,
+            recovery_at: 0.0,
+            recovery_written: None,
             selection: Vec::new(),
             viewport: None,
             history: History::default(),
@@ -194,7 +219,6 @@ impl Workspace {
             return;
         }
         self.history.record(label, before, after, now, coalesce);
-        self.save_state = SaveState::Unsaved;
     }
 
     /// Runs `edit` on the project and selection as one undoable step.
@@ -246,7 +270,6 @@ impl Workspace {
         if let Some(state) = self.history.undo() {
             self.selection = self.project.restore(&state);
             self.gesture = Gesture::Idle;
-            self.save_state = SaveState::Unsaved;
         }
     }
 
@@ -254,8 +277,32 @@ impl Workspace {
         if let Some(state) = self.history.redo() {
             self.selection = self.project.restore(&state);
             self.gesture = Gesture::Idle;
-            self.save_state = SaveState::Unsaved;
         }
+    }
+
+    /// Whether the document differs from its saved state (always true for a
+    /// project never saved).
+    pub fn has_unsaved_changes(&self) -> bool {
+        self.saved
+            .as_ref()
+            .is_none_or(|saved| !self.snapshot().same_document(saved))
+    }
+
+    /// Save state shown in the status bar.
+    pub fn save_state(&self) -> SaveState {
+        if self.saving.is_some() {
+            SaveState::Saving
+        } else if self.has_unsaved_changes() {
+            SaveState::Unsaved
+        } else {
+            SaveState::Saved
+        }
+    }
+
+    /// Marks the current document as saved to `path`.
+    pub fn mark_saved(&mut self, path: std::path::PathBuf) {
+        self.saved = Some(self.snapshot());
+        self.path = Some(path);
     }
 
     /// Selected objects in stacking order (bottom to top).
@@ -699,6 +746,24 @@ mod tests {
         assert_eq!(ws.history.undo_label(), Some("Hide"));
         ws.rename(id, "  ", 2.0);
         assert_eq!(ws.project.surface().get(id).unwrap().name, "Rectangle");
+    }
+
+    #[test]
+    fn save_state_follows_the_saved_document() {
+        let mut ws = ws();
+        assert_eq!(ws.save_state(), SaveState::Unsaved, "never saved");
+        ws.mark_saved("/tmp/a.truckpaint".into());
+        assert_eq!(ws.save_state(), SaveState::Saved);
+        ws.create_shape(ShapeKind::Ellipse, frame(100.0), 0.0);
+        assert_eq!(ws.save_state(), SaveState::Unsaved);
+        ws.undo();
+        assert_eq!(ws.save_state(), SaveState::Saved);
+        ws.redo();
+        assert_eq!(ws.save_state(), SaveState::Unsaved);
+        // Selection changes are not document changes.
+        ws.undo();
+        ws.select_all();
+        assert_eq!(ws.save_state(), SaveState::Saved);
     }
 
     #[test]

@@ -557,7 +557,10 @@ fn image_tool_click_places_at_the_click() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("logo.png");
     std::fs::write(&path, solid_png(80, 40, BLUE)).unwrap();
-    h.state_mut().pick_files = Box::new(move || vec![path.clone()]);
+    h.state_mut().dialogs = Box::new(tp_app::file_dialogs::ScriptedDialogs {
+        images: [vec![path]].into(),
+        ..Default::default()
+    });
     set_tool(&mut h, Tool::Image);
     let at = screen(&h, 900.0, 700.0);
     click_at(&mut h, at, Modifiers::NONE);
@@ -681,7 +684,10 @@ fn empty_assets_panel_offers_place() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("logo.png");
     std::fs::write(&path, solid_png(80, 40, BLUE)).unwrap();
-    h.state_mut().pick_files = Box::new(move || vec![path.clone()]);
+    h.state_mut().dialogs = Box::new(tp_app::file_dialogs::ScriptedDialogs {
+        images: [vec![path]].into(),
+        ..Default::default()
+    });
     h.get_by_label("Place…").click();
     h.run();
     assert_eq!(ws(&h).project.assets.len(), 1);

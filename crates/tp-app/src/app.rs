@@ -8,8 +8,15 @@ pub struct TruckPaintApp {
 }
 
 impl TruckPaintApp {
-    pub fn new(cc: &eframe::CreationContext<'_>, store: Option<PrefsStore>) -> Self {
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        store: Option<PrefsStore>,
+        recovery_dir: Option<std::path::PathBuf>,
+    ) -> Self {
         let mut state = AppState::new(store);
+        if let Some(dir) = recovery_dir {
+            state.enable_recovery(&dir);
+        }
         state.install_theme(&cc.egui_ctx);
         Self { state }
     }
@@ -21,6 +28,7 @@ impl eframe::App for TruckPaintApp {
     }
 
     fn on_exit(&mut self) {
+        self.state.shutdown();
         self.state.persist_prefs(f64::MAX, true);
     }
 

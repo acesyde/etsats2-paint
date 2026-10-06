@@ -61,9 +61,10 @@ pub fn show(ui: &mut Ui, ws: &Workspace, view_mode: ViewMode) {
         item(ui, &ws.project.surface().name);
 
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let (icon, text, tint) = match ws.save_state {
+            let (icon, text, tint) = match ws.save_state() {
                 SaveState::Saved => (icons::SAVED, "Saved", color::SUCCESS),
                 SaveState::Unsaved => (icons::UNSAVED, "Unsaved changes", color::WARNING),
+                SaveState::Saving => (icons::SAVE, "Saving…", color::TEXT_SECONDARY),
             };
             ui.label(RichText::new(text).small().color(color::TEXT_PRIMARY));
             ui.label(icons::rich(icon).color(tint));
