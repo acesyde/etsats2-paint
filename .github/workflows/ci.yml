@@ -39,9 +39,10 @@ jobs:
             libxcb-xfixes0-dev libgl1-mesa-dev
 
       # Toolchain versions come from mise.toml; only Rust is needed here.
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      # Keep `version` in sync with the mise used locally.
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
-          version: 2026.9.1
+          version: 2026.10.3
           install_args: rust
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
