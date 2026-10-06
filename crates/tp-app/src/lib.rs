@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod commands;
+pub mod export;
 pub mod file_dialogs;
 pub mod geometry_cache;
 pub mod gesture;

@@ -3405,6 +3405,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "texpresso"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8550677e2259d675a7841cb1403db35f330cc9e58674c8c5caa12dd12c51dc71"
+dependencies = [
+ "libm",
+ "rayon",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3598,6 +3608,7 @@ dependencies = [
  "tempfile",
  "tp-core",
  "tp-file",
+ "tp-render",
  "tp-text",
  "tp-ui",
  "tracing",
@@ -3624,6 +3635,17 @@ dependencies = [
  "tempfile",
  "tp-core",
  "zip",
+]
+
+[[package]]
+name = "tp-render"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "resvg",
+ "texpresso",
+ "tp-core",
+ "tp-text",
 ]
 
 [[package]]

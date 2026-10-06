@@ -157,7 +157,7 @@ fn menu_contents(
             item(ui, cmds, VehicleInfo);
         }
         "Export" => {
-            item(ui, cmds, ExportPng);
+            item(ui, cmds, ExportTexture);
             item(ui, cmds, ExportMod);
         }
         "Help" => {

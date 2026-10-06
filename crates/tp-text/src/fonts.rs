@@ -142,6 +142,17 @@ impl FontLibrary {
         }
     }
 
+    /// An independent library with the same fonts (for a worker thread).
+    pub fn fork(&self) -> Self {
+        Self {
+            system: font_system(self.system.db().clone()),
+            families: self.families.clone(),
+            pending: None,
+            system_requested: true,
+            generation: self.generation,
+        }
+    }
+
     pub fn is_loading(&self) -> bool {
         self.pending.is_some()
     }

@@ -1,0 +1,21 @@
+[package]
+name = "tp-render"
+description = "TruckPaint full-resolution texture renderer and encoders (PNG, DDS)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+tp-core.workspace = true
+tp-text.workspace = true
+resvg.workspace = true
+image.workspace = true
+texpresso.workspace = true
+
+[dev-dependencies]
+image = { workspace = true, features = ["dds"] }
+
+[lints]
+workspace = true

@@ -41,6 +41,7 @@ pub const HAND: &str = ph::HAND;
 pub const NEW_PROJECT: &str = ph::PLUS;
 pub const OPEN_PROJECT: &str = ph::FOLDER_OPEN;
 pub const SAVE: &str = ph::FLOPPY_DISK;
+pub const EXPORT: &str = ph::EXPORT;
 pub const RECENT: &str = ph::CLOCK_COUNTER_CLOCKWISE;
 pub const FILE: &str = ph::FILE;
 pub const FILE_MISSING: &str = ph::FILE_DASHED;

@@ -18,6 +18,15 @@ use tp_core::kurbo::{Point, Size};
 
 type H = Harness<'static, AppState>;
 
+/// Runs a few frames. Background threads (saves, recovery copies, SVG
+/// renders) wake the UI at unpredictable times, so `Harness::run`, which
+/// waits until nothing asks for a repaint, would be flaky.
+fn settle(h: &mut H) {
+    for _ in 0..4 {
+        h.step();
+    }
+}
+
 fn harness_in(recovery: Option<&Path>) -> H {
     let mut state = AppState::with_prefs(tp_app::prefs::Prefs::default(), None);
     if let Some(dir) = recovery {
@@ -31,7 +40,7 @@ fn harness_in(recovery: Option<&Path>) -> H {
 fn open() -> H {
     let mut h = harness_in(None);
     common::create_project(&mut h);
-    h.run();
+    settle(&mut h);
     h
 }
 
@@ -61,7 +70,7 @@ fn wait_saves(h: &mut H) {
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    h.run();
+    settle(h);
 }
 
 fn save_shortcut(h: &mut H) {
@@ -73,7 +82,7 @@ fn add_rect(h: &mut H, x: f64) -> ObjectId {
     let now = h.ctx.input(|i| i.time);
     let frame = Frame::new(Point::new(x, 500.0), Size::new(200.0, 100.0), 0.0);
     let id = ws_mut(h).create_shape(ShapeKind::rectangle(), frame, now);
-    h.run();
+    settle(h);
     id
 }
 
@@ -132,7 +141,7 @@ fn undo_back_to_the_saved_state() {
     add_rect(&mut h, 300.0);
     assert_eq!(status(&h), SaveState::Unsaved);
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
-    h.run();
+    settle(&mut h);
     assert_eq!(status(&h), SaveState::Saved);
     assert!(h.query_by_label("Saved").is_some());
 }
@@ -145,7 +154,7 @@ fn saving_status_is_shown() {
         snapshot: ws(&h).snapshot(),
         path: "/tmp/x.truckpaint".into(),
     });
-    h.run();
+    settle(&mut h);
     assert!(h.query_by_label("Saving…").is_some());
 }
 
@@ -166,7 +175,7 @@ fn save_to_a_read_only_location() {
     assert_eq!(status(&h), SaveState::Unsaved);
     assert!(!locked.join("ace.truckpaint").exists());
     h.key_press(Key::Enter);
-    h.run();
+    settle(&mut h);
     assert!(h.state().modal.is_none());
 }
 
@@ -223,7 +232,7 @@ fn round_trip() {
     let mut h = harness_in(None);
     dialogs(&mut h, &[], std::slice::from_ref(&path));
     h.key_press_modifiers(Modifiers::COMMAND, Key::O);
-    h.run();
+    settle(&mut h);
     let opened = &ws(&h).project;
     assert_eq!(opened.name, "ACE Logistics");
     assert_eq!(opened.palette, original.project.palette);
@@ -243,12 +252,12 @@ fn open_from_the_menu() {
     // Replacing an unsaved project asks first.
     dialogs(&mut h, &[], std::slice::from_ref(&path));
     h.get_by_label("File").click();
-    h.run();
+    settle(&mut h);
     h.get_by_label("Open Project…").click();
-    h.run();
+    settle(&mut h);
     assert!(matches!(h.state().modal, Some(Modal::UnsavedChanges(_))));
     h.get_by_label("Don't Save").click();
-    h.run();
+    settle(&mut h);
     assert_eq!(ws(&h).project.name, "ACE Logistics");
     assert_eq!(h.state().title(), "ACE Logistics — TruckPaint");
     assert!(h.query_by_label("Saved").is_some());
@@ -266,9 +275,9 @@ fn damaged_file() {
     let before = ws(&h).project.clone();
     dialogs(&mut h, &[], &[path]);
     h.key_press_modifiers(Modifiers::COMMAND, Key::O);
-    h.run();
+    settle(&mut h);
     h.get_by_label("Don't Save").click();
-    h.run();
+    settle(&mut h);
     assert_eq!(
         message_text(&h).as_deref(),
         Some("ace.truckpaint is damaged and cannot be opened.")
@@ -291,7 +300,7 @@ fn newer_format() {
     let mut h = harness_in(None);
     dialogs(&mut h, &[], &[path]);
     h.get_by_label("Open Project…").click();
-    h.run();
+    settle(&mut h);
     assert_eq!(
         message_text(&h).as_deref(),
         Some("future.truckpaint was created with a newer version of TruckPaint.")
@@ -307,15 +316,15 @@ fn open_from_the_home_screen_and_recent_entries() {
     let mut h = harness_in(None);
     dialogs(&mut h, &[], std::slice::from_ref(&path));
     h.get_by_label("Open Project…").click();
-    h.run();
+    settle(&mut h);
     assert_eq!(ws(&h).project.name, "ACE Logistics");
     // Saved project closes without a prompt and is listed first.
     h.key_press_modifiers(Modifiers::COMMAND, Key::W);
-    h.run();
+    settle(&mut h);
     assert!(matches!(h.state().screen, Screen::Home));
     assert_eq!(h.state().prefs.recent[0].path, path);
     h.get_by_label("ACE Logistics").click();
-    h.run();
+    settle(&mut h);
     assert_eq!(ws(&h).path.as_deref(), Some(path.as_path()));
 }
 
@@ -326,10 +335,10 @@ fn cancel_keeps_working() {
     let mut h = open();
     add_rect(&mut h, 300.0);
     h.key_press_modifiers(Modifiers::COMMAND, Key::W);
-    h.run();
+    settle(&mut h);
     assert!(h.query_by_label_contains("Save changes to").is_some());
     h.key_press(Key::Escape);
-    h.run();
+    settle(&mut h);
     assert!(h.state().modal.is_none());
     assert_eq!(ws(&h).project.surface().objects.len(), 1);
     assert_eq!(status(&h), SaveState::Unsaved);
@@ -342,7 +351,7 @@ fn no_prompt_when_saved() {
     dialogs(&mut h, &[dir.path().join("a.truckpaint")], &[]);
     save_shortcut(&mut h);
     h.key_press_modifiers(Modifiers::COMMAND, Key::W);
-    h.run();
+    settle(&mut h);
     assert!(matches!(h.state().screen, Screen::Home));
 }
 
@@ -354,9 +363,9 @@ fn save_from_the_prompt_then_close() {
     add_rect(&mut h, 300.0);
     dialogs(&mut h, std::slice::from_ref(&path), &[]);
     h.key_press_modifiers(Modifiers::COMMAND, Key::W);
-    h.run();
+    settle(&mut h);
     h.get_by_role_and_label(Role::Button, "Save").click();
-    h.run();
+    settle(&mut h);
     for _ in 0..200 {
         h.step();
         if !h.state().has_project() {
@@ -381,10 +390,10 @@ fn new_project_asks_first() {
     let mut h = open();
     add_rect(&mut h, 300.0);
     h.key_press_modifiers(Modifiers::COMMAND, Key::N);
-    h.run();
+    settle(&mut h);
     assert!(matches!(h.state().modal, Some(Modal::UnsavedChanges(_))));
     h.get_by_label("Don't Save").click();
-    h.run();
+    settle(&mut h);
     assert!(matches!(h.state().modal, Some(Modal::NewProject(_))));
 }
 
@@ -401,9 +410,9 @@ fn quit_with_unsaved_changes() {
     h.step();
     assert!(matches!(h.state().modal, Some(Modal::UnsavedChanges(_))));
     assert!(h.state().has_project());
-    h.run();
+    settle(&mut h);
     h.get_by_label("Cancel").click();
-    h.run();
+    settle(&mut h);
     assert!(h.state().modal.is_none());
     assert!(h.state().has_project());
 }
@@ -426,7 +435,7 @@ fn edit_for_a_while(h: &mut H) {
     h.input_mut().time = Some(1000.0 + tp_app::recovery::INTERVAL + 1.0);
     h.step();
     h.input_mut().time = None;
-    h.run();
+    settle(h);
     // Recovery copies are written in the background.
     for _ in 0..200 {
         if !copies(h.state().recovery_dir().unwrap()).is_empty() {
@@ -445,9 +454,9 @@ fn recovery_copy_while_editing_and_normal_close() {
     assert_eq!(copies(dir.path()).len(), 1);
     assert_eq!(status(&h), SaveState::Unsaved);
     h.key_press_modifiers(Modifiers::COMMAND, Key::W);
-    h.run();
+    settle(&mut h);
     h.get_by_label("Don't Save").click();
-    h.run();
+    settle(&mut h);
     assert!(copies(dir.path()).is_empty());
 }
 
@@ -467,22 +476,22 @@ fn restore_unsaved_work() {
     let dir = tempfile::tempdir().unwrap();
     crashed_session(dir.path());
     let mut h = harness_in(Some(dir.path()));
-    h.run();
+    settle(&mut h);
     let recovered = h.get_by_label("Recovered projects").rect();
     let recent = h.get_by_label("Recent projects").rect();
     assert!(recovered.top() < recent.top(), "recovery shown first");
     assert!(h.query_by_label("Recovered ACE Logistics").is_some());
     h.get_by_label("Restore").click();
-    h.run();
+    settle(&mut h);
     assert_eq!(ws(&h).project.name, "ACE Logistics");
     assert_eq!(ws(&h).project.surface().objects.len(), 1);
     assert_eq!(status(&h), SaveState::Unsaved);
     assert!(h.state().recovered.is_empty());
     // The copy now belongs to this session: closing removes it.
     h.key_press_modifiers(Modifiers::COMMAND, Key::W);
-    h.run();
+    settle(&mut h);
     h.get_by_label("Don't Save").click();
-    h.run();
+    settle(&mut h);
     assert!(copies(dir.path()).is_empty());
 }
 
@@ -491,9 +500,9 @@ fn discard_a_recovered_project() {
     let dir = tempfile::tempdir().unwrap();
     crashed_session(dir.path());
     let mut h = harness_in(Some(dir.path()));
-    h.run();
+    settle(&mut h);
     h.get_by_label("Discard").click();
-    h.run();
+    settle(&mut h);
     assert!(h.query_by_label("Recovered projects").is_none());
     assert!(copies(dir.path()).is_empty());
     drop(h);

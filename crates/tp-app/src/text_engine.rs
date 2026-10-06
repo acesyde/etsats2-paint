@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use tp_core::document::{CharStyle, Object, ObjectId, StrokeStyle, TextAlign, TextBlock};
-use tp_core::kurbo::{Affine, BezPath, Point, Vec2};
+use tp_core::kurbo::{Affine, BezPath, Point};
 use tp_text::mesh::{self, Mesh};
 use tp_text::{FontLibrary, GlyphCache, TextLayout};
 
@@ -24,16 +24,7 @@ fn layout_key(content: &str, style: &CharStyle) -> String {
     )
 }
 
-/// Maps layout coordinates (top-left origin) of a text to the document.
-pub fn layout_to_doc(object: &Object) -> Affine {
-    let Some(block) = &object.text else {
-        return object.frame.affine();
-    };
-    let size = block.layout_size;
-    object.frame.affine()
-        * Affine::scale_non_uniform(block.scale.x, block.scale.y)
-        * Affine::translate(Vec2::new(-size.width / 2.0, -size.height / 2.0))
-}
+pub use tp_text::layout_to_doc;
 
 /// Filled and stroked triangles of a text, in document space.
 pub struct TextMesh {
