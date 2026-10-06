@@ -1,0 +1,46 @@
+# Normalize line endings to LF in the repo
+* text=auto eol=lf
+
+# Windows scripts keep CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Source / config
+*.rs    text diff=rust
+*.ts    text
+*.tsx   text
+*.js    text
+*.mjs   text
+*.cjs   text
+*.json  text
+*.toml  text
+*.yaml  text
+*.yml   text
+*.md    text diff=markdown
+*.css   text diff=css
+*.html  text diff=html
+*.svg   text
+
+# Lockfiles: generated, collapse in diffs/PRs
+pnpm-lock.yaml  linguist-generated=true -diff
+Cargo.lock      linguist-generated=true -diff
+
+# Binary assets
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.tga   binary
+*.dds   binary
+*.psd   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.zip   binary
+*.scs   binary
+*.wasm  binary
+*.pdf   binary
