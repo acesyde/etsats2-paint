@@ -223,32 +223,36 @@ fn line_from_the_middle() {
 }
 
 #[test]
-fn line_without_a_current_stroke() {
+fn default_line() {
     let mut h = open();
     ws_mut(&mut h).style.fill = tp_core::document::Rgba::rgb(255, 0, 0);
     set_tool(&mut h, Tool::Line);
     let (a, b) = (screen(&h, 100.0, 100.0), screen(&h, 500.0, 300.0));
     drag(&mut h, a, b, Modifiers::NONE);
-    let stroke = only_object(&h).stroke.expect("a stroke");
-    assert_eq!(stroke.color, tp_core::document::Rgba::rgb(255, 0, 0));
-    assert_eq!(stroke.width, 8.0);
+    let line = only_object(&h);
+    assert_eq!(line.fill, tp_core::document::Rgba::rgb(255, 0, 0));
+    assert!(line.stroke.is_none(), "stroke off by default");
+    assert_eq!(line.path_data().unwrap().line_width, 8.0);
 }
 
 #[test]
-fn line_uses_the_current_stroke() {
+fn line_uses_the_current_stroke_as_an_outline() {
     let mut h = open();
     {
         let style = &mut ws_mut(&mut h).style;
+        style.fill = tp_core::document::Rgba::rgb(255, 255, 255);
         style.stroke_enabled = true;
         style.stroke = StrokeStyle {
             color: tp_core::document::Rgba::rgb(0, 0, 0),
-            width: 20.0,
+            width: 4.0,
         };
     }
     set_tool(&mut h, Tool::Line);
     let (a, b) = (screen(&h, 100.0, 100.0), screen(&h, 500.0, 300.0));
     drag(&mut h, a, b, Modifiers::NONE);
-    assert_eq!(only_object(&h).stroke.unwrap().width, 20.0);
+    let line = only_object(&h);
+    assert_eq!(line.fill, tp_core::document::Rgba::rgb(255, 255, 255));
+    assert_eq!(line.stroke.unwrap().width, 4.0);
 }
 
 // --- Pen -------------------------------------------------------------------------

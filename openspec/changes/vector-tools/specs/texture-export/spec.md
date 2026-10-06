@@ -6,7 +6,7 @@ The exported image SHALL be rendered from the vector document at the chosen size
 It SHALL include every visible object in stacking order, drawn with:
 
 - fill, stroke, opacity (including group opacity), rotation and rounded corners;
-- polygons, stars and paths with their exact curves, the same as on the canvas: closed subpaths filled with the non-zero rule (holes included), open subpaths stroked only with rounded ends;
+- polygons, stars and paths with their exact curves, the same as on the canvas: closed subpaths filled with the non-zero rule (holes included), open subpaths drawn as lines of their width in the fill color with rounded ends, outlined by the stroke when set;
 - text drawn from the same glyph outlines as the canvas.
 
 Raster images SHALL be resampled smoothly; SVG images SHALL be rendered from their vector source at the output resolution. Hidden objects (and children of hidden groups) SHALL NOT be rendered; locked objects SHALL be rendered. Parts of objects outside the surface SHALL be clipped.
@@ -24,5 +24,5 @@ Raster images SHALL be resampled smoothly; SVG images SHALL be rendered from the
 - **THEN** the overlapping pixels are the 50% blend of red over blue
 
 #### Scenario: Open path in the export
-- **WHEN** a red-filled open "V" path with a black 20 px stroke is exported
-- **THEN** the image shows only the black "V" stroke, with no red area between its arms
+- **WHEN** a red open "V" path with a line width of 20 px and no stroke is exported
+- **THEN** the image shows a red "V" line 20 px wide, with no red area between its arms

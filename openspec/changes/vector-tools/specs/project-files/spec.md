@@ -4,7 +4,7 @@
 A project SHALL be saved as one `.truckpaint` file containing everything needed to reopen it identically. The file SHALL contain:
 
 - the project's name, texture resolution and surfaces;
-- the full object tree, with every object's identity, name, kind, geometry (including polygon settings and the points and handles of every path subpath, with its open or closed state), fill, stroke, opacity, visibility and lock flags;
+- the full object tree, with every object's identity, name, kind, geometry (including polygon settings, the points and handles of every path subpath with its open or closed state, and the path's line width), fill, stroke, opacity, visibility and lock flags;
 - each text's content and character style;
 - image references;
 - the project palette;

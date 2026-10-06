@@ -134,10 +134,8 @@ fn vector_objects() -> Vec<Object> {
         )]),
     );
     line.name = "Line".into();
-    line.stroke = Some(StrokeStyle {
-        color: Rgba::rgb(255, 255, 255),
-        width: 8.0,
-    });
+    line.fill = Rgba::rgb(255, 255, 255);
+    line.edit_path(|p| p.line_width = 30.0);
     vec![star, swoosh, line]
 }
 
@@ -302,6 +300,7 @@ fn v2_fixture_opens() {
     let line = &objects[6];
     assert_eq!(line.name, "Line");
     assert!(line.has_open_path());
+    assert_eq!(line.path_data().unwrap().line_width, 30.0);
     // The fixture holds exactly what the test project builds.
     let expected = vector_objects();
     for (got, want) in objects[4..].iter().zip(&expected) {

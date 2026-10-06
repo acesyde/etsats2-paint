@@ -54,15 +54,26 @@ With the Line tool active, dragging on the canvas SHALL draw a straight line fro
 - **THEN** a line from (400, 500) to (600, 500) is created
 
 ### Requirement: Appearance of new open paths
-Open paths (pen paths that were not closed, and lines) SHALL be created with the current fill and stroke. When the current style has no stroke, a new open path SHALL get a stroke in the current fill color with a width of 8 texture pixels, so that it is visible; the current style itself SHALL NOT change.
+Open paths (pen paths that were not closed, and lines) SHALL be created with the current fill and stroke, like every other shape: their line is drawn in the fill color and the stroke (off by default) outlines it. They SHALL use the line width last set in the Properties panel, initially 8 texture pixels.
 
-#### Scenario: Line without a current stroke
-- **WHEN** the current fill is red with no stroke and the user draws a line
-- **THEN** the line has a red stroke 8 texture pixels wide
+#### Scenario: Default line
+- **WHEN** the current fill is red with no stroke and the user draws a line in a new project
+- **THEN** the line is red, 8 texture pixels wide, and has no stroke
 
-#### Scenario: Line uses the current stroke
-- **WHEN** the current stroke is black at 20 px and the user draws a line
-- **THEN** the line has a black stroke 20 px wide
+#### Scenario: Line uses the current stroke as an outline
+- **WHEN** the current fill is white, the current stroke is black at 4 px, and the user draws a line
+- **THEN** the line is white with a black outline
+
+### Requirement: Line width
+When every selected object is a path with at least one open subpath, the Properties panel SHALL show a Width field (texture pixels, from 0.5 to 1000) setting the width of the open subpaths' lines. Changes SHALL apply to every selected path, be one undo step per change, and show "Mixed" for differing values. The value set SHALL also become the width used for new open paths. The width SHALL NOT change when the path is resized.
+
+#### Scenario: Thicker line
+- **WHEN** a line is selected and the user sets Width to 40
+- **THEN** the line is drawn 40 texture pixels wide and one Undo restores 8
+
+#### Scenario: Next line uses the last width
+- **WHEN** the user sets a line's Width to 40 and then draws another line
+- **THEN** the new line is 40 texture pixels wide
 
 ### Requirement: Polygon tool
 With the Polygon tool active, dragging on the canvas SHALL draw a polygon (or star) filling the dragged box, with a live preview; releasing SHALL create it, select it, place it at the top of the active layer and keep the tool active. The first vertex SHALL point straight up, and the polygon's bounds SHALL match the dragged box. Holding Shift SHALL keep the polygon regular (equal sides and angles), and holding Alt/Option SHALL draw from the press point as the center; both SHALL apply live. A drag shorter than 2 screen pixels SHALL NOT create a polygon, and Escape during the drag SHALL cancel it. New polygons SHALL use the current fill and stroke, and the sides and star settings last chosen in the Properties panel (initially 6 sides, not a star, 50% inner radius).

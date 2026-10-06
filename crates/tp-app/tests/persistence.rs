@@ -270,9 +270,11 @@ fn add_vector_objects(ws: &mut Workspace) {
         )]),
     );
     line.name = "Line".into();
+    line.fill = Rgba::rgb(255, 255, 255);
+    line.edit_path(|p| p.line_width = 30.0);
     line.stroke = Some(StrokeStyle {
-        color: Rgba::rgb(255, 255, 255),
-        width: 30.0,
+        color: Rgba::rgb(0, 0, 0),
+        width: 4.0,
     });
     ws.project.add(line);
 }

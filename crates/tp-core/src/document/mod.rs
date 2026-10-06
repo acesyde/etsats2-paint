@@ -14,7 +14,9 @@ pub use object::{
     TextBlock, convex_polygons_overlap, flatten_closed, flatten_subpaths, normalize_degrees,
     segments_intersect,
 };
-pub use path::{HandleSide, Node, NodeRef, PathData, PointRef, SegmentHit, Subpath};
+pub use path::{
+    DEFAULT_LINE_WIDTH, HandleSide, Node, NodeRef, PathData, PointRef, SegmentHit, Subpath,
+};
 pub use transform::{
     Handle, ResizeOptions, angle_around, resize, rotate, selection_frame, snap_direction, translate,
 };

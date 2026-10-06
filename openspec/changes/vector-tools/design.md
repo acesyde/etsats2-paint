@@ -42,7 +42,7 @@ Snapshots (undo) hold the surfaces and the object selection.
 ### D1. Data model: marker kind plus side data, nodes in frame-local space
 
 - `ShapeKind::Path` (a unit variant, keeping `ShapeKind: Copy`) with `Object.path: Option<Arc<PathData>>`, following the `text` pattern.
-- `PathData { subpaths: Vec<Subpath> }`, where `Subpath { nodes: Vec<Node>, closed: bool }` and `Node { point, handle_in: Option<Point>, handle_out: Option<Point>, smooth: bool }`.
+- `PathData { subpaths: Vec<Subpath>, line_width: f64 }`, where `Subpath { nodes: Vec<Node>, closed: bool }` and `Node { point, handle_in: Option<Point>, handle_out: Option<Point>, smooth: bool }`.
 - Positions are absolute in frame-local coordinates (origin at the frame center, unrotated).
 - `smooth` is stored rather than derived from handle alignment. Derived smoothness flips on its own when handles happen to line up, and the handle-drag behavior has to be predictable.
 
@@ -84,7 +84,8 @@ The Transform panel's W/H edits go through `resize`, so they get exactness for f
 The `GeometryCache` entry stores, per object and zoom bucket:
 
 - a **fill mesh**: closed subpaths only, NonZero;
-- a **stroke mesh**: all subpaths, miter join with limit 4 to match the export, round caps;
+- a **stroke mesh**: the outline of the closed subpaths (all of a polygon), miter join with limit 4 to match the export;
+- for open subpaths, a **line mesh** (fill color) and, when stroked, a **casing mesh** (stroke color), see D14;
 - the flattened outline, kept for hover and selection outlines.
 
 Meshes are in document coordinates and mapped to the screen at paint time, as texts already are (`mesh_to_screen`).
@@ -103,7 +104,7 @@ Alternative considered: egui's `PathShape` with its own concave fill. Rejected b
 `Object::contains(point, tol)`:
 
 - **Closed paths and polygons**: kurbo `contains`, which uses non-zero winding. The point is also accepted when it lies within `stroke_width/2 + tol` of the outline (nearest point on each segment, via `ParamCurveNearest`).
-- **Open paths**: only the distance test, with the tolerance at least the screen hit tolerance.
+- **Open paths**: only the distance test against the line (D14), with the tolerance at least the screen hit tolerance.
 
 Marquee selection replaces the convex SAT test for these kinds with a general test on the flattened outline (closed subpaths filled):
 
@@ -170,10 +171,24 @@ kurbo's own `Ellipse::to_path` is not used, because it emits more segments than 
 
 ### D12. Export rendering
 
-- `tp-render` builds two kurbo paths per path object: the closed subpaths (fill) and all subpaths (stroke).
-- The stroke is drawn with `LineCap::Round`, which only affects open ends, and `MiterClip` with limit 4.
+- `tp-render` draws a path object as: closed subpaths filled, then for open subpaths the casing and the line (D14), then the stroke of the closed subpaths (`MiterClip`, limit 4).
 - Polygons go through the same `object.path()` as the other shapes.
-- Pixel tests cover: an open "V" that isn't filled, a hole, a star notch, and a mirrored path.
+- Pixel tests cover: an open "V" line with nothing between its arms, an outlined line, a hole, a star notch, and a mirrored path.
+
+### D14. Open subpaths are lines with an outline
+
+An open subpath is drawn like a shape whose body is the line itself: the body uses the fill color and the path's `line_width` (stored in `PathData`, default 8 px, not scaled by resizes, like stroke widths); the stroke outlines that body, centered on its edges as it is for other shapes and texts. It is rendered with the "casing" technique rather than by computing the outline of the line:
+
+1. if stroked, the open subpaths are stroked at `line_width + stroke_width` in the stroke color (round caps);
+2. the open subpaths are stroked at `line_width − stroke_width` (or `line_width` without a stroke) in the fill color (round caps).
+
+The visible result is exactly a line of `line_width` with a centered outline of `stroke_width`, without the self-overlap artifacts that stroking an offset outline would have at sharp joins. The same order is used by the canvas meshes and by `tp-render`.
+
+Hit testing an open subpath accepts points within `(line_width + stroke_width)/2 + tolerance` of the center line.
+
+New open paths take the current fill and stroke like any shape (the stroke is off by default) and `Workspace::line_width`, the width last set in the Properties panel's Width field (accessible name "Line width").
+
+Alternative considered (and shipped first): open paths stroked only, with a default stroke in the fill color. Rejected after review: the Fill control did nothing on lines and turning the stroke off made the line disappear or keep its color, which was confusing.
 
 ### D13. UI details
 

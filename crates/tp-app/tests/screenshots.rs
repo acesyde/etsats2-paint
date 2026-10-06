@@ -736,10 +736,15 @@ fn vector_scene(
                 false,
             )]),
         );
-        line.stroke = Some(StrokeStyle {
-            color: Rgba::rgb(255, 255, 255),
-            width: 20.0 + 20.0 * i as f64,
-        });
+        line.fill = Rgba::rgb(255, 255, 255);
+        line.edit_path(|p| p.line_width = 20.0 + 20.0 * i as f64);
+        if i == 2 {
+            // The thickest line outlined in black.
+            line.stroke = Some(StrokeStyle {
+                color: Rgba::rgb(0, 0, 0),
+                width: 12.0,
+            });
+        }
         line.name = "Line".into();
         add(line);
     }

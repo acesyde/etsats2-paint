@@ -1,5 +1,5 @@
 //! Properties panel: selection summary, opacity, corner radius, polygon
-//! settings and fill/stroke swatches.
+//! settings, line width and fill/stroke swatches.
 
 use egui::{RichText, Slider, Ui, WidgetInfo, WidgetType};
 use tp_core::AssetKind;
@@ -109,6 +109,20 @@ fn set_inner_radius(ws: &mut Workspace, percent: f64) {
         if star.is_some() {
             *star = Some(inner);
         }
+    });
+}
+
+fn set_line_width(ws: &mut Workspace, width: f64) {
+    let width = width.clamp(0.5, 1000.0);
+    let mut objects = ws.selected_objects();
+    for o in &mut objects {
+        if o.has_open_path() {
+            o.edit_path(|p| p.line_width = width);
+        }
+    }
+    ws.line_width = width;
+    ws.live_edit("Change Line Width", |project, _| {
+        project.surface_mut().replace(&objects)
     });
 }
 
@@ -284,6 +298,20 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
         .collect();
     if polygons.len() == objects.len() {
         polygon_settings(ui, env, &polygons);
+    }
+
+    // Line width when every selected object is a path with open subpaths.
+    let widths: Vec<f64> = objects
+        .iter()
+        .filter(|o| o.has_open_path())
+        .filter_map(|o| o.path_data().map(|p| p.line_width))
+        .collect();
+    if widths.len() == objects.len() {
+        let e = NumericField::new("Width", "Line width", common(widths.iter().copied()))
+            .suffix("px")
+            .range(0.5..=1000.0)
+            .show(ui);
+        apply_field(env, e, set_line_width);
     }
 
     if let [single] = objects.as_slice()

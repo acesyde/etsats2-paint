@@ -174,6 +174,8 @@ pub struct Workspace {
     pub pen: Option<crate::path_edit::PenSession>,
     /// Sides and star settings for new polygons.
     pub polygon_style: crate::path_edit::PolygonStyle,
+    /// Line width for new open paths (lines).
+    pub line_width: f64,
     /// Selected path points (Direct Selection tool).
     pub points: std::collections::BTreeSet<tp_core::document::PointRef>,
 }
@@ -212,6 +214,7 @@ impl Workspace {
             place_request: None,
             pen: None,
             polygon_style: Default::default(),
+            line_width: tp_core::document::DEFAULT_LINE_WIDTH,
             points: Default::default(),
         }
     }

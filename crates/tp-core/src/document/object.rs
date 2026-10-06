@@ -487,9 +487,22 @@ impl Object {
         }
     }
 
-    /// Whether the outline is drawn as an open line somewhere (never filled).
+    /// Whether the object has open subpaths (drawn as lines).
     pub fn has_open_path(&self) -> bool {
         self.path.as_ref().is_some_and(|p| p.has_open())
+    }
+
+    /// Outline the stroke follows in document space: for a path, its closed
+    /// subpaths (open subpaths are outlined as lines, see `line_path`).
+    pub fn stroke_path(&self) -> BezPath {
+        self.fill_path()
+    }
+
+    /// Open subpaths of a path in document space, drawn as lines of
+    /// `line_width` in the fill color; `None` without open subpaths.
+    pub fn line_path(&self) -> Option<(BezPath, f64)> {
+        let p = self.path.as_ref().filter(|p| p.has_open())?;
+        Some((self.frame.affine() * p.open_outline(), p.line_width))
     }
 
     /// Outline flattened to a closed polygon in document space, accurate to
@@ -538,14 +551,18 @@ impl Object {
             .map_or(0.0, |s| s.width / 2.0);
         match self.kind {
             ShapeKind::Polygon { .. } | ShapeKind::Path => {
-                let fill = match &self.path {
-                    Some(p) => p.fill_outline(),
-                    None => self.local_path(0.0),
+                let (fill, lines) = match &self.path {
+                    Some(p) => (p.fill_outline(), Some((p.open_outline(), p.line_width))),
+                    None => (self.local_path(0.0), None),
                 };
-                if fill.contains(local) {
+                if fill.contains(local)
+                    || local_outline_distance(&fill, local) <= half_stroke + tolerance
+                {
                     return true;
                 }
-                local_outline_distance(&self.local_path(0.0), local) <= half_stroke + tolerance
+                lines.is_some_and(|(open, width)| {
+                    local_outline_distance(&open, local) <= width / 2.0 + half_stroke + tolerance
+                })
             }
             _ => self.local_path(tolerance + half_stroke).contains(local),
         }
@@ -970,32 +987,39 @@ mod tests {
     }
 
     #[test]
-    fn open_path_hits_its_stroke_only() {
+    fn open_path_hits_its_line_only() {
         let mut v = path_object(vec![polyline(
             &[(0.0, 0.0), (100.0, 200.0), (200.0, 0.0)],
             false,
         )]);
-        v.stroke = Some(StrokeStyle {
-            color: Rgba::rgb(0, 0, 0),
-            width: 20.0,
-        });
+        v.edit_path(|p| p.line_width = 20.0);
         assert!(v.contains(Point::new(100.0, 195.0), 0.0));
         assert!(v.contains(Point::new(52.0, 100.0), 0.0));
         assert!(
             !v.contains(Point::new(100.0, 100.0), 0.0),
             "between the arms"
         );
+        assert!(
+            !v.contains(Point::new(65.0, 100.0), 0.0),
+            "outside the 20 px line"
+        );
+        // A stroke outlines the line: it widens what is hit.
+        v.stroke = Some(StrokeStyle {
+            color: Rgba::rgb(0, 0, 0),
+            width: 20.0,
+        });
+        assert!(v.contains(Point::new(65.0, 100.0), 0.0));
         assert!(v.has_open_path());
         assert!(v.fill_path().elements().is_empty());
+        let (line, width) = v.line_path().unwrap();
+        assert_eq!(width, 20.0);
+        assert!(!line.elements().is_empty());
     }
 
     #[test]
     fn thin_line_hit_within_tolerance() {
         let mut line = path_object(vec![polyline(&[(0.0, 0.0), (100.0, 0.0)], false)]);
-        line.stroke = Some(StrokeStyle {
-            color: Rgba::rgb(0, 0, 0),
-            width: 1.0,
-        });
+        line.edit_path(|p| p.line_width = 1.0);
         assert!(!line.contains(Point::new(50.0, 2.0), 0.0));
         assert!(line.contains(Point::new(50.0, 2.0), 2.0));
     }

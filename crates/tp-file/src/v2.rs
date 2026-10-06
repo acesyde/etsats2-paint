@@ -119,6 +119,9 @@ pub struct FileObject {
     pub text: Option<FileText>,
     #[serde(default)]
     pub path: Option<Vec<FileSubpath>>,
+    /// Width of the lines of a path's open subpaths.
+    #[serde(default)]
+    pub line_width: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -215,6 +218,7 @@ fn object_to_file(o: &Object) -> FileObject {
                 })
                 .collect()
         }),
+        line_width: o.path_data().map(|p| p.line_width),
     }
 }
 
@@ -338,7 +342,11 @@ fn object_from_file(
             })
             .collect();
         // Stored as written: the frame was fitted to the points on save.
-        o.path = Some(Arc::new(PathData::new(subpaths)));
+        let mut data = PathData::new(subpaths);
+        if let Some(width) = f.line_width.filter(|w| w.is_finite() && *w > 0.0) {
+            data.line_width = width;
+        }
+        o.path = Some(Arc::new(data));
     }
     if o.is_group() {
         o.refresh_group_frame();
@@ -440,6 +448,7 @@ pub fn from_v1(old: super::v1::FileProject) -> FileProject {
                 scale: t.scale,
             }),
             path: None,
+            line_width: None,
         }
     }
     FileProject {

@@ -299,9 +299,7 @@ fn polyline(points: &[(f64, f64)], closed: bool) -> Subpath {
 
 const BLACK: Rgba = Rgba::rgb(0, 0, 0);
 
-#[test]
-fn open_path_is_stroked_not_filled() {
-    let mut p = project(TextureResolution::R2048);
+fn red_v(line_width: f64) -> Object {
     let mut v = Object::from_path(
         ObjectId(0),
         PathData::new(vec![polyline(
@@ -310,21 +308,50 @@ fn open_path_is_stroked_not_filled() {
         )]),
     );
     v.fill = RED;
+    v.edit_path(|p| p.line_width = line_width);
+    v
+}
+
+#[test]
+fn open_path_is_a_line_in_the_fill_color() {
+    let mut p = project(TextureResolution::R2048);
+    p.add(red_v(20.0));
+    let img = draw(&p, 2048, Some(WHITE));
+    assert_eq!(px(&img, 200, 150), [255; 4], "nothing between the arms");
+    assert_eq!(
+        px(&img, 200, 295),
+        [255, 0, 0, 255],
+        "line at the bottom of the V"
+    );
+    assert_eq!(px(&img, 150, 200), [255, 0, 0, 255], "line along an arm");
+    // 20 px wide: about 10 px on each side of the center line.
+    assert_eq!(px(&img, 150 + 13, 200), [255; 4]);
+    // Round cap past the first point.
+    assert_eq!(px(&img, 100, 93), [255, 0, 0, 255]);
+}
+
+#[test]
+fn outlined_line() {
+    let mut p = project(TextureResolution::R2048);
+    let mut v = red_v(40.0);
     v.stroke = Some(StrokeStyle {
         color: BLACK,
-        width: 20.0,
+        width: 8.0,
     });
     p.add(v);
     let img = draw(&p, 2048, Some(WHITE));
-    assert_eq!(px(&img, 200, 150), [255; 4], "no fill between the arms");
-    assert_eq!(
-        px(&img, 200, 295),
-        [0, 0, 0, 255],
-        "stroke at the bottom of the V"
-    );
-    assert_eq!(px(&img, 150, 200), [0, 0, 0, 255], "stroke along an arm");
-    // Round cap past the first point.
-    assert_eq!(px(&img, 100, 93), [0, 0, 0, 255]);
+    // Along the left arm, the center line goes through (150, 200); the
+    // normal direction is about (0.894, -0.447).
+    let at = |d: f64| {
+        let (x, y) = (150.0 + 0.894 * d, 200.0 - 0.447 * d);
+        px(&img, x.round() as u32, y.round() as u32)
+    };
+    assert_eq!(at(0.0), [255, 0, 0, 255], "red in the middle");
+    assert_eq!(at(20.0), [0, 0, 0, 255], "black on the edge");
+    assert_eq!(at(-20.0), [0, 0, 0, 255], "black on the other edge");
+    assert_eq!(at(30.0), [255; 4], "nothing past the outline");
+    // The outline also goes around the rounded end.
+    assert_eq!(px(&img, 100, 100 - 20), [0, 0, 0, 255]);
 }
 
 #[test]

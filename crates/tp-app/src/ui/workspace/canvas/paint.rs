@@ -13,7 +13,7 @@ use tp_core::kurbo;
 use tp_ui::icons;
 use tp_ui::tokens::{canvas as tokens, color, radius, space};
 
-use crate::geometry_cache::{ShapeMesh, tolerance, uses_mesh, zoom_bucket};
+use crate::geometry_cache::{ShapeMesh, shape_mesh, tolerance, uses_mesh, zoom_bucket};
 use crate::gesture::{Gesture, screen_handles};
 use crate::path_edit::line_points;
 use crate::text_engine::layout_to_doc;
@@ -180,13 +180,22 @@ fn draw_mesh_object(
     mesh: &ShapeMesh,
     map: &ScreenMap,
 ) {
-    if let Some(fill) = mesh.fill.as_ref().filter(|_| object.fill.a > 0) {
-        let color = color32(object.fill.with_opacity(opacity));
-        painter.add(Shape::mesh(mesh_to_screen(fill, map, color)));
-    }
-    if let (Some(stroke_mesh), Some(stroke)) = (&mesh.stroke, object.stroke) {
-        let color = color32(stroke.color.with_opacity(opacity));
-        painter.add(Shape::mesh(mesh_to_screen(stroke_mesh, map, color)));
+    let fill = color32(object.fill.with_opacity(opacity));
+    let stroke = object
+        .stroke
+        .map(|s| color32(s.color.with_opacity(opacity)));
+    let layers = [
+        (&mesh.fill, Some(fill)),
+        (&mesh.casing, stroke),
+        (&mesh.line, Some(fill)),
+        (&mesh.stroke, stroke),
+    ];
+    for (part, color) in layers {
+        if let (Some(part), Some(color)) = (part, color)
+            && color.a() > 0
+        {
+            painter.add(Shape::mesh(mesh_to_screen(part, map, color)));
+        }
     }
 }
 
@@ -520,19 +529,6 @@ fn draw_preview(painter: &Painter, object: &Object, map: &ScreenMap) {
             points.iter().map(|p| map.to_screen(*p)).collect(),
             closed,
         );
-    }
-}
-
-/// Fill and stroke meshes of `object` at `tolerance` (uncached previews).
-fn shape_mesh(object: &Object, tolerance: f64) -> ShapeMesh {
-    let fill_path = object.fill_path();
-    ShapeMesh {
-        fill: (!fill_path.elements().is_empty())
-            .then(|| tp_text::mesh::fill(&fill_path, tolerance)),
-        stroke: object
-            .stroke
-            .filter(|s| s.width > 0.0)
-            .map(|s| tp_text::mesh::stroke_with_caps(&object.path(), s.width, tolerance, true)),
     }
 }
 

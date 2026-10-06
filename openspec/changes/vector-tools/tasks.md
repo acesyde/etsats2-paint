@@ -69,3 +69,11 @@
 - [x] 7.1 Add screenshot tests `render_vector_tools`: the pen preview while drawing, Direct Selection points and handles on a curved path, and stars and paths with holes on the canvas. Verify by reviewing the images that they match the export render.
 - [x] 7.2 Run the save, reopen, export and recovery round trip on a project with paths in a kittest. Measure release timings (50 stars plus 50 paths of 40 nodes while panning; export at 4K and 8K) and record them in the PR description.
 - [x] 7.3 Run `mise run checks` and the full test suite (including 4 parallel stress runs of the new kittest binaries). Verify that every check passes and that no `settle()` or run-step flakiness appears.
+
+## 8. Lines drawn with the fill color (review feedback)
+
+- [x] 8.1 Add `line_width` to `PathData` (default 8 px, kept by resizes) and to the v2 file format; regenerate the v2 fixture (format 2 is not released yet). Verify the format round trip and fixture tests with a 30 px line.
+- [x] 8.2 Draw open subpaths as lines in the fill color at their width, outlined by the stroke (casing technique, D14), on the canvas meshes and in `tp-render`; hit test the line width. Verify pixel tests "Open path is a line" and "Outlined line", the hit test of a wide line, and the screenshots.
+- [x] 8.3 New open paths use the current fill and stroke (no forced stroke) and `Workspace::line_width`; add the Width field (accessible name "Line width") to Properties for paths with open subpaths. Verify the kittests "Default line", "Line uses the current stroke as an outline", "Thicker line" and "Next line uses the last width".
+- [x] 8.4 Run `mise run checks`, the full test suite and the stress run again. Verify everything passes.
+

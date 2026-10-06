@@ -6,7 +6,7 @@ Liveries are built from custom shapes: stripes, swooshes, flames, silhouettes, c
 
 - **Path objects**: a new kind of vector object made of one or more subpaths of anchor points with optional Bézier handles. Each subpath is open or closed.
   - Closed paths are filled and stroked.
-  - Open paths are lines: they're stroked only and never filled. If no stroke is set when an open path is created, it gets a default stroke in the current fill color so it is visible.
+  - Open paths are lines: drawn in the fill color at a line width (8 px by default, editable as "Width" in Properties), never filled between their points. The stroke, off by default as for other shapes, outlines the line.
   - Paths stay fully vector. They behave like every other object: moving, resizing, rotating, flipping with handles, grouping, opacity, visibility, lock, undo, layers, export and hit testing on the actual shape.
 - **Pen tool (P)**:
   - Click to add corner points, or drag to add smooth points with symmetric handles.
@@ -41,18 +41,18 @@ Not in this change:
 
 ### New Capabilities
 
-- `path-tools`: the Pen, Line and Polygon tools. Covers creating paths point by point, finishing, closing and cancelling, modifier constraints, the defaults for new paths and polygons, and the polygon and star settings in the Properties panel.
+- `path-tools`: the Pen, Line and Polygon tools. Covers creating paths point by point, finishing, closing and cancelling, modifier constraints, the defaults for new paths and polygons, and the polygon, star and line width settings in the Properties panel.
 - `path-editing`: the Direct Selection tool and Convert to Path. Covers point and handle selection, moving and nudging, corner/smooth conversion, inserting and deleting points, and undo.
 
 ### Modified Capabilities
 
 - `document-model`:
   - adds path and polygon objects (geometry, open versus closed subpaths, default names "Path", "Line" and "Polygon");
-  - hit testing for paths: the filled area for closed paths, the stroke with a tolerance for open paths;
+  - hit testing for paths: the filled area for closed paths, the line (with its width and stroke) for open paths;
   - non-zero fill rule.
 - `shape-tools`: the "Tool feedback" requirement (unavailable-tool hint) is replaced by "Tool cursors": every tool works, with a crosshair for Polygon and Line, a pen cursor for Pen and the default arrow for Direct Selection.
 - `project-files`: a version-2 format containing paths and polygons. Opening a version-1 file migrates it.
-- `texture-export`: exported textures render paths, open strokes and polygons exactly like the canvas.
+- `texture-export`: exported textures render paths, lines and polygons exactly like the canvas.
 - `undo-history`: path point edits, polygon settings and Convert to Path are undoable, and undo restores the selected points.
 
 ## Impact
@@ -69,6 +69,6 @@ Not in this change:
   - the Convert to Path command;
   - the Polygon section in Properties;
   - canvas filling through the lyon tessellation (already used for texts) instead of convex polygons, with geometry cached per object and zoom.
-- **`tp-render`**: draws paths and polygons with tiny-skia, filling closed subpaths only and stroking with round joins and caps on open ends.
+- **`tp-render`**: draws paths and polygons with tiny-skia: closed subpaths filled, open subpaths drawn as lines of their width (with an outline when stroked).
 - **`tp-file`**: new `v2` module and `FORMAT_VERSION = 2`; v1 is frozen and migrated by `v1 → v2`; a committed `v2.truckpaint` fixture.
 - **Dependencies**: none new. kurbo and lyon are already in the workspace.

@@ -152,15 +152,30 @@ pub struct SegmentHit {
     pub distance: f64,
 }
 
+/// Width of new lines (open subpaths), in texture pixels.
+pub const DEFAULT_LINE_WIDTH: f64 = 8.0;
+
 /// The geometry of a path object.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PathData {
     pub subpaths: Vec<Subpath>,
+    /// Width of the lines open subpaths are drawn as (fill color), in
+    /// texture pixels. Not scaled by resizes.
+    pub line_width: f64,
+}
+
+impl Default for PathData {
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
 }
 
 impl PathData {
     pub fn new(subpaths: Vec<Subpath>) -> Self {
-        Self { subpaths }
+        Self {
+            subpaths,
+            line_width: DEFAULT_LINE_WIDTH,
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -188,6 +203,15 @@ impl PathData {
     pub fn fill_outline(&self) -> BezPath {
         let mut path = BezPath::new();
         for s in self.subpaths.iter().filter(|s| s.closed) {
+            s.append_to(&mut path);
+        }
+        path
+    }
+
+    /// Open subpaths only (what is drawn as lines).
+    pub fn open_outline(&self) -> BezPath {
+        let mut path = BezPath::new();
+        for s in self.subpaths.iter().filter(|s| !s.closed) {
             s.append_to(&mut path);
         }
         path

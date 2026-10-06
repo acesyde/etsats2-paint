@@ -13,8 +13,41 @@ use tp_text::mesh::{self, Mesh};
 pub struct ShapeMesh {
     /// Filled area (closed subpaths), if any.
     pub fill: Option<Mesh>,
-    /// Stroke, when the object has one.
+    /// Outline of the lines of open subpaths (stroke color), when stroked.
+    pub casing: Option<Mesh>,
+    /// Lines of open subpaths (fill color), narrowed by the stroke width.
+    pub line: Option<Mesh>,
+    /// Stroke of the closed outline, when the object has one.
     pub stroke: Option<Mesh>,
+}
+
+/// Meshes of a path or polygon at `tolerance`, drawn in field order: fill,
+/// casing, line, stroke (the stroke ends up centered on every edge, as in
+/// the export).
+pub fn shape_mesh(object: &Object, tolerance: f64) -> ShapeMesh {
+    let non_empty = |p: &tp_core::kurbo::BezPath| !p.elements().is_empty();
+    let fill_path = object.fill_path();
+    let stroke_width = object.stroke.map(|s| s.width).filter(|w| *w > 0.0);
+    let (casing, line) = match object.line_path() {
+        Some((lines, width)) => {
+            let casing =
+                stroke_width.map(|s| mesh::stroke_with_caps(&lines, width + s, tolerance, true));
+            let inner = width - stroke_width.unwrap_or(0.0);
+            let line =
+                (inner > 0.0).then(|| mesh::stroke_with_caps(&lines, inner, tolerance, true));
+            (casing, line)
+        }
+        None => (None, None),
+    };
+    let stroke_path = object.stroke_path();
+    ShapeMesh {
+        fill: non_empty(&fill_path).then(|| mesh::fill(&fill_path, tolerance)),
+        casing,
+        line,
+        stroke: stroke_width
+            .filter(|_| non_empty(&stroke_path))
+            .map(|s| mesh::stroke(&stroke_path, s, tolerance)),
+    }
 }
 
 /// Geometry of one object at one zoom bucket.
@@ -79,15 +112,7 @@ pub fn tolerance(bucket: i32) -> f64 {
 fn compute(object: &Object, bucket: i32) -> Geometry {
     let tol = tolerance(bucket);
     let lines = flatten_subpaths(object.path(), tol);
-    let mesh = uses_mesh(object.kind).then(|| {
-        let fill_path = object.fill_path();
-        let fill = (!fill_path.elements().is_empty()).then(|| mesh::fill(&fill_path, tol));
-        let stroke = object
-            .stroke
-            .filter(|s| s.width > 0.0)
-            .map(|s| mesh::stroke_with_caps(&object.path(), s.width, tol, true));
-        ShapeMesh { fill, stroke }
-    });
+    let mesh = uses_mesh(object.kind).then(|| shape_mesh(object, tol));
     Geometry { lines, mesh }
 }
 
@@ -196,7 +221,11 @@ mod tests {
         assert_eq!(g.lines.len(), 2);
         assert!(!g.lines[1].1, "the second subpath is open");
         let mesh = g.mesh.as_ref().unwrap();
-        assert!(mesh.fill.is_some() && mesh.stroke.is_none());
+        assert!(mesh.fill.is_some() && mesh.line.is_some());
+        assert!(
+            mesh.stroke.is_none() && mesh.casing.is_none(),
+            "no stroke set"
+        );
         // Same allocation, edited in place: the key still sees the change.
         Arc::make_mut(&mut o).edit_path(|p| p.subpaths[0].nodes[2].point.y = 120.0);
         cache.geometry(&o, 0);

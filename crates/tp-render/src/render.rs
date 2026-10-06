@@ -68,11 +68,12 @@ fn skia_transform(a: Affine) -> Transform {
     Transform::from_row(sx, ky, kx, sy, tx, ty)
 }
 
-/// Document-space geometry of a shape: the filled area and the outline the
-/// stroke follows (they differ for paths with open subpaths).
+/// Document-space geometry of a shape: the filled area, the outline the
+/// stroke follows, and the lines of a path's open subpaths with their width.
 struct Outline {
     fill: BezPath,
     stroke: BezPath,
+    lines: Option<(BezPath, f64)>,
 }
 
 impl Outline {
@@ -80,42 +81,69 @@ impl Outline {
         Self {
             fill: path.clone(),
             stroke: path,
+            lines: None,
+        }
+    }
+
+    fn of(object: &Object) -> Self {
+        Self {
+            fill: object.fill_path(),
+            stroke: object.stroke_path(),
+            lines: object.line_path(),
         }
     }
 }
 
-/// Fills then strokes a shape, `scale` mapping to pixels. Open ends get
-/// round caps.
+/// Draws a shape, `scale` mapping to pixels: the fill, then the lines of
+/// open subpaths (fill color, outlined by the stroke), then the stroke.
 fn draw_path(pixmap: &mut Pixmap, outline: &Outline, object: &Object, opacity: f32, scale: f64) {
     let to_px = |p: &BezPath| to_skia(&(Affine::scale(scale) * p.clone()));
     let mut paint = Paint {
         anti_alias: true,
         ..Paint::default()
     };
-    if object.fill.a > 0
-        && let Some(path) = to_px(&outline.fill)
-    {
-        paint.set_color(color(object.fill, opacity));
-        pixmap.fill_path(
-            &path,
-            &paint,
-            FillRule::Winding,
-            Transform::identity(),
-            None,
-        );
-    }
-    if let Some(s) = object.stroke.filter(|s| s.width > 0.0 && s.color.a > 0)
-        && let Some(path) = to_px(&outline.stroke)
-    {
-        paint.set_color(color(s.color, opacity));
+    let mut stroke_with = |pixmap: &mut Pixmap, path: &tiny_skia::Path, c: Color, width: f64| {
+        paint.set_color(c);
         let stroke = Stroke {
-            width: (s.width * scale) as f32,
+            width: (width * scale) as f32,
             line_join: LineJoin::MiterClip,
             line_cap: LineCap::Round,
             miter_limit: 4.0,
             ..Stroke::default()
         };
-        pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+        pixmap.stroke_path(path, &paint, &stroke, Transform::identity(), None);
+    };
+    let stroke = object.stroke.filter(|s| s.width > 0.0 && s.color.a > 0);
+    if object.fill.a > 0
+        && let Some(path) = to_px(&outline.fill)
+    {
+        let mut fill = Paint {
+            anti_alias: true,
+            ..Paint::default()
+        };
+        fill.set_color(color(object.fill, opacity));
+        pixmap.fill_path(&path, &fill, FillRule::Winding, Transform::identity(), None);
+    }
+    // Lines: a casing in the stroke color, then the line narrowed by the
+    // stroke width, so the stroke is centered on the line's edges.
+    if let Some((lines, width)) = &outline.lines
+        && let Some(path) = to_px(lines)
+    {
+        let inner = match stroke {
+            Some(s) => {
+                stroke_with(pixmap, &path, color(s.color, opacity), width + s.width);
+                width - s.width
+            }
+            None => *width,
+        };
+        if inner > 0.0 && object.fill.a > 0 {
+            stroke_with(pixmap, &path, color(object.fill, opacity), inner);
+        }
+    }
+    if let Some(s) = stroke
+        && let Some(path) = to_px(&outline.stroke)
+    {
+        stroke_with(pixmap, &path, color(s.color, opacity), s.width);
     }
 }
 
@@ -288,11 +316,7 @@ pub fn render(
                 );
             }
             ShapeKind::Path => {
-                let outline = Outline {
-                    fill: object.fill_path(),
-                    stroke: object.path(),
-                };
-                draw_path(&mut pixmap, &outline, object, *opacity, scale);
+                draw_path(&mut pixmap, &Outline::of(object), object, *opacity, scale);
             }
             ShapeKind::Text => {
                 if let Some(block) = &object.text {

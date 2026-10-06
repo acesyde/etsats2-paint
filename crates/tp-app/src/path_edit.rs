@@ -6,15 +6,12 @@ use std::sync::Arc;
 
 use tp_core::Snapshot;
 use tp_core::document::{
-    HandleSide, Node, NodeRef, Object, ObjectId, PathData, PointRef, ShapeKind, StrokeStyle,
-    Subpath, snap_direction,
+    HandleSide, Node, NodeRef, Object, ObjectId, PathData, PointRef, ShapeKind, Subpath,
+    snap_direction,
 };
 use tp_core::kurbo::{Affine, Point, Rect, Vec2};
 
 use crate::workspace::Workspace;
-
-/// Stroke width given to new open paths when no stroke is set.
-pub const OPEN_PATH_STROKE_WIDTH: f64 = 8.0;
 
 /// Sides and star settings for new polygons (set from the Properties panel).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -61,26 +58,14 @@ impl Workspace {
         self.pen.is_some()
     }
 
-    /// Stroke for a new open path: the current one, or the fill color.
-    pub fn open_path_stroke(&self) -> StrokeStyle {
-        self.style.stroke().unwrap_or(StrokeStyle {
-            color: self.style.fill,
-            width: OPEN_PATH_STROKE_WIDTH,
-        })
-    }
-
-    /// A path object with the current style (`closed` decides the stroke
-    /// default for open paths).
-    pub fn styled_path(&self, data: PathData, name: &str) -> Object {
-        let open = data.has_open();
+    /// A path object with the current style; its open subpaths use the
+    /// line width last set.
+    pub fn styled_path(&self, mut data: PathData, name: &str) -> Object {
+        data.line_width = self.line_width;
         let mut object = Object::from_path(ObjectId(0), data);
         object.name = name.to_owned();
         object.fill = self.style.fill;
-        object.stroke = if open {
-            Some(self.open_path_stroke())
-        } else {
-            self.style.stroke()
-        };
+        object.stroke = self.style.stroke();
         object
     }
 
@@ -588,17 +573,18 @@ mod tests {
     }
 
     #[test]
-    fn open_paths_get_a_visible_stroke() {
+    fn new_lines_use_the_current_style_and_line_width() {
         let mut ws = ws();
         ws.style.fill = tp_core::document::Rgba::rgb(255, 0, 0);
         let id = ws.create_line(Point::new(0.0, 0.0), Point::new(10.0, 0.0), 1.0);
-        let stroke = ws.project.surface().get(id).unwrap().stroke.unwrap();
-        assert_eq!(stroke.color, ws.style.fill);
-        assert_eq!(stroke.width, OPEN_PATH_STROKE_WIDTH);
-        assert!(
-            ws.style.stroke().is_none(),
-            "the current style is unchanged"
-        );
+        let line = ws.project.surface().get(id).unwrap();
+        assert_eq!(line.fill, ws.style.fill);
+        assert!(line.stroke.is_none(), "stroke off by default");
+        assert_eq!(line.path_data().unwrap().line_width, 8.0);
+        ws.line_width = 40.0;
+        let id = ws.create_line(Point::new(0.0, 0.0), Point::new(10.0, 0.0), 2.0);
+        let line = ws.project.surface().get(id).unwrap();
+        assert_eq!(line.path_data().unwrap().line_width, 40.0);
     }
 
     #[test]
