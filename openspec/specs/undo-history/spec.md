@@ -7,7 +7,7 @@ Makes every document change reversible with predictable undo and redo, so users 
 ## Requirements
 
 ### Requirement: Undo and redo every document change
-Every change to the document — creating, deleting, moving, resizing, rotating, pasting, duplicating and reordering objects — SHALL be undoable with Undo (Cmd/Ctrl+Z) and redoable with Redo (Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y). Undo and redo SHALL also restore the selection that existed at that point. View changes (zoom, pan) and selection-only changes SHALL NOT create history entries.
+Every change to the document — creating, deleting, moving, resizing, rotating, pasting, duplicating and reordering objects; changing fill, stroke, opacity, corner radius or transform values from panels; renaming, hiding, showing, locking, unlocking, grouping and ungrouping; and adding or removing palette colors — SHALL be undoable with Undo (Cmd/Ctrl+Z) and redoable with Redo (Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y). Undo and redo SHALL also restore the selection that existed at that point. View changes (zoom, pan), selection-only changes, panel layout changes, the current style for new shapes and recent colors SHALL NOT create history entries.
 
 #### Scenario: Undo a creation
 - **WHEN** the user draws a rectangle and presses Cmd/Ctrl+Z
@@ -16,6 +16,10 @@ Every change to the document — creating, deleting, moving, resizing, rotating,
 #### Scenario: Zoom is not undone
 - **WHEN** the user moves an object, zooms in, and presses Cmd/Ctrl+Z
 - **THEN** the object returns to its previous position and the zoom is unchanged
+
+#### Scenario: Undo a color change
+- **WHEN** the user changes a rectangle's fill from blue to red with the picker in one drag and presses Cmd/Ctrl+Z
+- **THEN** the rectangle is blue again and the Edit menu offered "Undo Change Fill"
 
 ### Requirement: One gesture, one step
 A continuous gesture (dragging to move, resize, rotate or draw) SHALL produce exactly one history entry when it ends. Consecutive nudges with arrow keys SHALL be merged into one entry as long as less than one second separates them. A gesture cancelled with Escape SHALL produce no entry.

@@ -39,4 +39,4 @@
 ## 6. Integration
 
 - [x] 6.1 Screenshot review of each panel with a sample livery tree at 100% and 200% UI scale
-- [ ] 6.2 Run `openspec validate editing-panels --strict` and `mise run ci`; verify both pass locally and the CI matrix is green on the PR
+- [x] 6.2 Run `openspec validate editing-panels --strict` and `mise run ci`; verify both pass locally and the CI matrix is green on the PR
