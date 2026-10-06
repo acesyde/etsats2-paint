@@ -4,7 +4,7 @@ use egui::{
     Align, Align2, CornerRadius, Frame, Key, Layout, Margin, RichText, Sense, Stroke, StrokeKind,
     TextEdit, Ui, Vec2, WidgetInfo, WidgetType,
 };
-use tp_core::{DEFAULT_PROJECT_NAME, ProjectStub, TextureResolution};
+use tp_core::{DEFAULT_PROJECT_NAME, Project, TextureResolution};
 use tp_ui::icons;
 use tp_ui::theme::{TEXT_SCALE_RANGE, UI_SCALE_RANGE, label_strong_style, title_style};
 use tp_ui::tokens::{color, radius, space, stroke};
@@ -63,7 +63,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
 enum WizardOutcome {
     Pending,
     Cancel,
-    Create(ProjectStub),
+    Create(Project),
 }
 
 fn new_project(ctx: &egui::Context, draft: &mut NewProjectDraft) -> WizardOutcome {
@@ -130,7 +130,7 @@ fn new_project(ctx: &egui::Context, draft: &mut NewProjectDraft) -> WizardOutcom
     if cancel || escape {
         outcome = WizardOutcome::Cancel;
     } else if create {
-        outcome = WizardOutcome::Create(ProjectStub::new(&draft.name, draft.resolution));
+        outcome = WizardOutcome::Create(Project::new(&draft.name, draft.resolution));
     }
     outcome
 }

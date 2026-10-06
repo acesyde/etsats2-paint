@@ -15,6 +15,7 @@ tp-ui = { path = "crates/tp-ui" }
 
 eframe = { version = "0.36.2", default-features = false, features = ["wgpu", "default_fonts", "accesskit", "persistence", "wayland", "x11"] }
 egui = "0.36.2"
+kurbo = "0.13.1"
 egui_kittest = { version = "0.36.2", features = ["wgpu", "snapshot"] }
 egui-phosphor = "0.14.0"
 directories = "6.0.0"

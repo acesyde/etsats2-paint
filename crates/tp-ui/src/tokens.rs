@@ -97,3 +97,33 @@ pub mod typography {
     pub const DISPLAY: f32 = 30.0;
     pub const MONO: f32 = 12.0;
 }
+
+/// Canvas overlay styling (selection, handles, guides drawn over artwork).
+pub mod canvas {
+    use egui::Color32;
+
+    /// Selection outlines and handle borders: saturated so they stand out on
+    /// light and dark artwork alike (always drawn over a halo).
+    pub const SELECTION: Color32 = Color32::from_rgb(0x1F, 0x6F, 0xFF);
+    /// Contrasting halo drawn under every overlay line.
+    pub const HALO: Color32 = Color32::from_rgba_premultiplied(230, 230, 230, 230);
+    pub const HANDLE_FILL: Color32 = Color32::WHITE;
+    pub const MARQUEE_FILL: Color32 = Color32::from_rgba_premultiplied(15, 55, 128, 40);
+    /// Pasteboard around the artboard.
+    pub const PASTEBOARD: Color32 = Color32::from_rgb(0x18, 0x19, 0x1C);
+    /// Empty artboard (texture background).
+    pub const ARTBOARD: Color32 = Color32::from_rgb(0xE6, 0xE7, 0xEA);
+
+    /// Side of a resize handle square, in points.
+    pub const HANDLE_SIZE: f32 = 8.0;
+    /// Distance at which a press grabs a handle, in points.
+    pub const HANDLE_HIT_RADIUS: f32 = 7.0;
+    /// Distance from a corner within which a press outside the bounds rotates.
+    pub const ROTATE_ZONE: f32 = 28.0;
+    pub const CENTER_MARK: f32 = 6.0;
+    pub const LINE: f32 = 1.0;
+    /// Hit tolerance for clicking objects, in points.
+    pub const HIT_TOLERANCE: f32 = 4.0;
+    /// Pointer travel before a press becomes a drag, in points.
+    pub const DRAG_THRESHOLD: f32 = 3.0;
+}

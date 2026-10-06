@@ -4,27 +4,41 @@
 use egui::{Response, Ui};
 use tp_ui::widgets::{IconButton, MenuRow, ToolButton};
 
-use crate::commands::{CommandId, ShortcutFormatter};
+use crate::commands::{CommandId, EditContext, ShortcutFormatter};
 use crate::state::{disabled_reason, is_enabled};
 
 /// Per-frame helper bound to the command queue.
 pub struct CommandUi<'q> {
     pub queue: &'q mut Vec<CommandId>,
-    pub has_project: bool,
+    pub edit: EditContext,
     pub shortcuts: ShortcutFormatter,
 }
 
 impl<'q> CommandUi<'q> {
-    pub fn new(ctx: &egui::Context, queue: &'q mut Vec<CommandId>, has_project: bool) -> Self {
+    pub fn new(ctx: &egui::Context, queue: &'q mut Vec<CommandId>, edit: EditContext) -> Self {
         Self {
             queue,
-            has_project,
+            edit,
             shortcuts: ShortcutFormatter::new(ctx),
         }
     }
 
     pub fn enabled(&self, id: CommandId) -> bool {
-        is_enabled(id, self.has_project)
+        is_enabled(id, &self.edit)
+    }
+
+    /// Menu label, naming the operation for Undo/Redo ("Undo Move").
+    pub fn label(&self, id: CommandId) -> String {
+        let base = id.meta().label;
+        let detail = match id {
+            CommandId::Undo => self.edit.undo_label,
+            CommandId::Redo => self.edit.redo_label,
+            _ => None,
+        };
+        match detail {
+            Some(detail) => format!("{base} {detail}"),
+            None => base.to_owned(),
+        }
     }
 
     pub fn push(&mut self, id: CommandId) {
@@ -43,11 +57,12 @@ impl<'q> CommandUi<'q> {
 
     fn menu_row(&mut self, ui: &mut Ui, id: CommandId, checked: Option<bool>) -> Response {
         let meta = id.meta();
+        let label = self.label(id);
         let shortcut = self.shortcuts.command(id);
         let enabled = self.enabled(id);
         let mut response = ui.add_enabled(
             enabled,
-            MenuRow::new(meta.label)
+            MenuRow::new(&label)
                 .icon(meta.icon)
                 .shortcut(shortcut.as_deref())
                 .checked(checked),

@@ -47,6 +47,7 @@ pub const FILE_MISSING: &str = ph::FILE_DASHED;
 pub const CLOSE: &str = ph::X;
 pub const SETTINGS: &str = ph::GEAR;
 pub const RESET: &str = ph::ARROW_COUNTER_CLOCKWISE;
+pub const ROTATE: &str = ph::ARROW_CLOCKWISE;
 pub const REMOVE: &str = ph::TRASH;
 pub const MORE: &str = ph::DOTS_THREE_VERTICAL;
 

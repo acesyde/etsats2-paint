@@ -4,9 +4,8 @@ use egui::{Align, Layout, RichText, Ui};
 use tp_ui::icons;
 use tp_ui::tokens::{color, space};
 
-use super::canvas::{screen_to_texture, zoom_percent};
 use crate::layout::ViewMode;
-use crate::state::{SaveState, Workspace};
+use crate::workspace::{SaveState, Workspace};
 
 fn item(ui: &mut Ui, text: impl Into<String>) {
     ui.label(
@@ -32,20 +31,24 @@ pub fn format_zoom(percent: f32) -> String {
 }
 
 pub fn show(ui: &mut Ui, ws: &Workspace, view_mode: ViewMode) {
-    let side = ws.project.resolution.side();
-    let ppp = ui.ctx().pixels_per_point();
     ui.horizontal_centered(|ui| {
-        let zoom = match (view_mode.shows_canvas(), ws.artboard_rect) {
-            (true, Some(rect)) => format_zoom(zoom_percent(rect, side, ppp)),
+        let zoom = match (view_mode.shows_canvas(), ws.viewport) {
+            (true, Some(view)) => format_zoom((view.zoom * 100.0) as f32),
             _ => "—".to_owned(),
         };
         item(ui, format!("Zoom {zoom}"));
         divider(ui);
 
+        let ppp = ui.ctx().pixels_per_point();
         let pointer = ui.ctx().pointer_hover_pos();
-        let position = match (ws.artboard_rect, pointer) {
-            (Some(rect), Some(pos)) if view_mode.shows_canvas() => {
-                screen_to_texture(rect, side, pos)
+        let side = ws.project.surface().size;
+        let position = match (ws.viewport, ws.canvas_rect, pointer) {
+            (Some(view), Some(canvas), Some(pos))
+                if view_mode.shows_canvas() && canvas.contains(pos) =>
+            {
+                let p = view.map(canvas, ppp).to_doc(pos);
+                (p.x >= 0.0 && p.y >= 0.0 && p.x < side && p.y < side)
+                    .then(|| (p.x.floor() as i64, p.y.floor() as i64))
             }
             _ => None,
         };
@@ -55,7 +58,7 @@ pub fn show(ui: &mut Ui, ws: &Workspace, view_mode: ViewMode) {
         );
         item(ui, position);
         divider(ui);
-        item(ui, &ws.active_surface);
+        item(ui, &ws.project.surface().name);
 
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let (icon, text, tint) = match ws.save_state {

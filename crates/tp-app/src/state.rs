@@ -1,15 +1,18 @@
 //! Application state machine and per-frame orchestration.
 
-use egui::{Key, Rect, Ui, ViewportCommand};
-use tp_core::{ProjectStub, TextureResolution};
+use egui::{Key, Ui, ViewportCommand};
+use tp_core::document::Object;
+use tp_core::{Project, TextureResolution};
 use tp_ui::ThemeSettings;
 
-use crate::commands::{self, Availability, CommandId};
+use crate::commands::{self, Availability, CommandId, EditContext};
 use crate::layout::ViewMode;
 use crate::paths::APP_NAME;
 use crate::prefs::{Prefs, PrefsStore, recent_exists};
 use crate::tool::Tool;
 use crate::ui;
+use crate::viewport::Viewport;
+pub use crate::workspace::{COPY_OFFSET, SaveState, Workspace};
 
 /// Delay after the last preference change before it is written to disk.
 const PREFS_SAVE_DELAY: f64 = 1.0;
@@ -18,39 +21,6 @@ const PREFS_SAVE_DELAY: f64 = 1.0;
 pub enum Screen {
     Home,
     Workspace(Box<Workspace>),
-}
-
-/// Document save state shown in the status bar.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SaveState {
-    Saved,
-    Unsaved,
-}
-
-/// An open project and its editor state.
-pub struct Workspace {
-    pub project: ProjectStub,
-    pub tool: Tool,
-    /// Tool to restore when the temporary Hand tool (Space) is released.
-    pub tool_before_space: Option<Tool>,
-    pub save_state: SaveState,
-    /// Artboard rectangle on screen during the last frame.
-    pub artboard_rect: Option<Rect>,
-    /// Name of the texture surface being edited.
-    pub active_surface: String,
-}
-
-impl Workspace {
-    pub fn new(project: ProjectStub) -> Self {
-        Self {
-            project,
-            tool: Tool::default(),
-            tool_before_space: None,
-            save_state: SaveState::Unsaved,
-            artboard_rect: None,
-            active_surface: "Main texture".to_owned(),
-        }
-    }
 }
 
 /// Draft of the New Project wizard.
@@ -84,6 +54,10 @@ pub struct AppState {
     pub queue: Vec<CommandId>,
     /// Whether each recent project's file exists (aligned with `prefs.recent`).
     pub recent_available: Vec<bool>,
+    /// Objects copied or cut, shared by every project in this session.
+    pub clipboard: Vec<Object>,
+    /// Pastes since the last copy, for the repeated-paste offset.
+    pub paste_count: u32,
     title: String,
 }
 
@@ -117,6 +91,8 @@ impl AppState {
             show_gallery: false,
             queue: Vec::new(),
             recent_available: Vec::new(),
+            clipboard: Vec::new(),
+            paste_count: 0,
             title: String::new(),
         };
         state.refresh_recent_availability();
@@ -151,7 +127,7 @@ impl AppState {
     }
 
     /// Opens the editor on a new project.
-    pub fn open_project(&mut self, project: ProjectStub) {
+    pub fn open_project(&mut self, project: Project) {
         tracing::info!(name = %project.name, side = project.resolution.side(), "project created");
         self.screen = Screen::Workspace(Box::new(Workspace::new(project)));
     }
@@ -204,6 +180,25 @@ impl AppState {
         tp_ui::theme::install(ctx, theme);
         self.fonts_installed = true;
         self.applied_theme = Some(theme);
+        // Cmd/Ctrl +/-/0 zoom the canvas, not the whole interface.
+        ctx.options_mut(|o| o.zoom_with_keyboard = false);
+    }
+
+    /// What the editing commands can do right now.
+    pub fn edit_context(&self) -> EditContext {
+        match self.workspace() {
+            Some(ws) => EditContext {
+                has_project: true,
+                has_selection: !ws.selection.is_empty(),
+                can_undo: ws.history.can_undo(),
+                can_redo: ws.history.can_redo(),
+                has_clipboard: !self.clipboard.is_empty(),
+                gesture_active: ws.gesture.is_active(),
+                undo_label: ws.history.undo_label(),
+                redo_label: ws.history.redo_label(),
+            },
+            None => EditContext::default(),
+        }
     }
 
     /// Re-applies the theme when scaling preferences changed; returns true
@@ -221,8 +216,9 @@ impl AppState {
     fn handle_keyboard(&mut self, ctx: &egui::Context) {
         let typing = ctx.text_edit_focused() || self.modal.is_some();
         let has_project = self.has_project();
+        let edit = self.edit_context();
         let triggered = ctx.input_mut(|i| {
-            commands::take_triggered(i, typing, has_project, |id| is_enabled(id, has_project))
+            commands::take_triggered(i, typing, has_project, |id| is_enabled(id, &edit))
         });
         self.queue.extend(triggered);
 
@@ -245,10 +241,12 @@ impl AppState {
 
     /// Executes a command. Disabled commands are ignored.
     pub fn dispatch(&mut self, ctx: &egui::Context, id: CommandId) {
-        if !is_enabled(id, self.has_project()) {
+        if !is_enabled(id, &self.edit_context()) {
             return;
         }
         tracing::debug!(?id, "command");
+        let now = ctx.input(|i| i.time);
+        let ppp = ctx.pixels_per_point();
         match id {
             CommandId::NewProject => {
                 self.modal = Some(Modal::NewProject(NewProjectDraft::default()));
@@ -276,8 +274,69 @@ impl AppState {
                     ws.tool_before_space = None;
                 }
             }
+            CommandId::Undo => self.with_workspace(Workspace::undo),
+            CommandId::Redo => self.with_workspace(Workspace::redo),
+            CommandId::SelectAll => self.with_workspace(Workspace::select_all),
+            CommandId::Deselect => self.with_workspace(Workspace::deselect),
+            CommandId::Delete => self.with_workspace(|ws| ws.delete_selection(now)),
+            CommandId::Duplicate => self.with_workspace(|ws| ws.duplicate_selection(now)),
+            CommandId::BringForward => self.with_workspace(|ws| ws.bring_forward(now)),
+            CommandId::SendBackward => self.with_workspace(|ws| ws.send_backward(now)),
+            CommandId::Copy | CommandId::Cut => {
+                if let Some(ws) = self.workspace() {
+                    self.clipboard = ws.selected_objects();
+                    self.paste_count = 0;
+                }
+                if id == CommandId::Cut
+                    && let Some(ws) = self.workspace_mut()
+                {
+                    ws.edit("Cut", now, false, |project, selection| {
+                        project.surface_mut().remove(selection);
+                        selection.clear();
+                    });
+                }
+            }
+            CommandId::Paste => {
+                let objects = self.clipboard.clone();
+                let offset = COPY_OFFSET * f64::from(self.paste_count);
+                self.paste_count += 1;
+                self.with_workspace(|ws| ws.paste(&objects, offset, now));
+            }
+            CommandId::Nudge(direction, big) => {
+                let (dx, dy) = direction.delta();
+                let step = if big { 10.0 } else { 1.0 };
+                self.with_workspace(|ws| ws.nudge(dx * step, dy * step, now));
+            }
+            CommandId::ZoomIn
+            | CommandId::ZoomOut
+            | CommandId::FitToScreen
+            | CommandId::ActualSize => {
+                self.with_workspace(|ws| {
+                    let (Some(canvas), Some(view)) = (ws.canvas_rect, ws.viewport.as_mut()) else {
+                        return;
+                    };
+                    match id {
+                        CommandId::ZoomIn => {
+                            let zoom = Viewport::step_zoom(view.zoom, 1);
+                            view.zoom_at(canvas, ppp, canvas.center(), zoom);
+                        }
+                        CommandId::ZoomOut => {
+                            let zoom = Viewport::step_zoom(view.zoom, -1);
+                            view.zoom_at(canvas, ppp, canvas.center(), zoom);
+                        }
+                        CommandId::ActualSize => view.set_zoom_centered(1.0),
+                        _ => *view = Viewport::fit(ws.project.surface().size, canvas, ppp),
+                    }
+                });
+            }
             // Not-yet-available commands never reach here (disabled).
             _ => {}
+        }
+    }
+
+    fn with_workspace(&mut self, f: impl FnOnce(&mut Workspace)) {
+        if let Some(ws) = self.workspace_mut() {
+            f(ws);
         }
     }
 
@@ -319,10 +378,11 @@ impl AppState {
 }
 
 /// Whether a command can run in the current state.
-pub fn is_enabled(id: CommandId, has_project: bool) -> bool {
+pub fn is_enabled(id: CommandId, edit: &EditContext) -> bool {
     match id.meta().availability {
         Availability::Always => true,
-        Availability::NeedsProject => has_project,
+        Availability::NeedsProject => edit.has_project,
+        Availability::When(check, _) => check(edit),
         Availability::NotYet(_) => false,
     }
 }
@@ -331,7 +391,8 @@ pub fn is_enabled(id: CommandId, has_project: bool) -> bool {
 pub fn disabled_reason(id: CommandId) -> Option<&'static str> {
     match id.meta().availability {
         Availability::NotYet(reason) => Some(reason),
+        Availability::When(_, reason) if !reason.is_empty() => Some(reason),
         Availability::NeedsProject => Some("Open or create a project first."),
-        Availability::Always => None,
+        Availability::Always | Availability::When(..) => None,
     }
 }
