@@ -310,6 +310,20 @@ impl Object {
         true
     }
 
+    /// Expresses a path in a frame rotated by `rotation_deg`, without moving
+    /// it in the document (the frame then fits the path in that rotation).
+    pub fn set_path_rotation(&mut self, rotation_deg: f64) {
+        let Some(path) = &mut self.path else {
+            return;
+        };
+        let delta = (rotation_deg - self.frame.rotation_deg).to_radians();
+        // Rotating the frame about its center by `delta` while rotating the
+        // local points by `-delta` keeps every document position.
+        Arc::make_mut(path).transform(Affine::rotate(-delta));
+        self.frame.rotation_deg = rotation_deg;
+        self.refit();
+    }
+
     /// Recenters a path's geometry on its exact bounds and makes the frame
     /// those bounds (in the frame's own rotation). No-op for other kinds.
     pub fn refit(&mut self) {
@@ -1116,5 +1130,31 @@ mod tests {
         };
         assert!(convex_polygons_overlap(&square(0.0), &square(5.0)));
         assert!(!convex_polygons_overlap(&square(0.0), &square(20.0)));
+    }
+
+    #[test]
+    fn set_path_rotation_keeps_document_geometry() {
+        let mut o = path_object(vec![polyline(
+            &[(0.0, 0.0), (300.0, 40.0), (120.0, 200.0)],
+            true,
+        )]);
+        let before: Vec<Point> = {
+            let a = o.frame.affine();
+            o.path_data().unwrap().subpaths[0]
+                .nodes
+                .iter()
+                .map(|n| a * n.point)
+                .collect()
+        };
+        o.set_path_rotation(-35.0);
+        assert_eq!(o.frame.rotation_deg, -35.0);
+        let a = o.frame.affine();
+        for (n, b) in o.path_data().unwrap().subpaths[0].nodes.iter().zip(&before) {
+            assert!((a * n.point).distance(*b) < 1e-9);
+        }
+        assert_eq!(
+            o.path_data().unwrap().bounds().unwrap().center(),
+            Point::ORIGIN
+        );
     }
 }

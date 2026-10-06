@@ -34,6 +34,7 @@ pub enum CommandId {
     Group,
     Ungroup,
     ConvertToPath,
+    CreateOutlines,
     Align(Edge),
     Distribute(DistributeAxis, DistributeMode),
     BringForward,
@@ -124,6 +125,8 @@ pub struct EditContext {
     pub has_guides: bool,
     /// Number of selected objects.
     pub selection_count: usize,
+    /// The selection holds a text (maybe in a group).
+    pub selection_has_text: bool,
     /// Align to: Key object (aligning needs two objects).
     pub align_to_key: bool,
 }
@@ -215,6 +218,7 @@ impl CommandId {
             Group,
             Ungroup,
             ConvertToPath,
+            CreateOutlines,
             BringForward,
             SendBackward,
             MirrorToOtherSide,
@@ -427,6 +431,16 @@ impl CommandId {
                 When(
                     |c| editable_selection(c) && c.selection_has_convertible,
                     "Select a rectangle, ellipse or polygon first.",
+                ),
+            ),
+            CreateOutlines => m(
+                "Create Outlines",
+                Some(icons::TEXT),
+                const { &[sc(CMD_SHIFT, Key::O)] },
+                Workspace,
+                When(
+                    |c| editable_selection(c) && c.selection_has_text,
+                    "Select a text first.",
                 ),
             ),
             Align(edge) => m(

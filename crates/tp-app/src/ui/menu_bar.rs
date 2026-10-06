@@ -119,6 +119,7 @@ fn menu_contents(
             item(ui, cmds, Ungroup);
             ui.separator();
             item(ui, cmds, ConvertToPath);
+            item(ui, cmds, CreateOutlines);
             ui.menu_button("Align", |ui| {
                 ui.set_min_width(260.0);
                 for edge in tp_core::document::Edge::ALL {

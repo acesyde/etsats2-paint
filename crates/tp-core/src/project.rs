@@ -272,6 +272,24 @@ impl Project {
         }
     }
 
+    /// Replaces the object `id` of the active surface, at the same place in
+    /// its parent, by a group that keeps `id`; the children get fresh ids.
+    /// Returns false (and changes nothing) when `id` does not exist.
+    pub fn replace_with_group(&mut self, id: ObjectId, mut group: Object) -> bool {
+        if self.surface().get(id).is_none() {
+            return false;
+        }
+        for child in &mut group.children {
+            let mut c = (**child).clone();
+            self.assign_fresh_ids(&mut c);
+            *child = Arc::new(c);
+        }
+        group.id = id;
+        group.refresh_group_frame();
+        self.surface_mut().replace(&[group]);
+        true
+    }
+
     /// Adds an object (fresh ids) on top of the active surface's top level.
     pub fn add(&mut self, object: Object) -> ObjectId {
         self.add_to(None, object)
@@ -811,5 +829,36 @@ mod tests {
         assert!(p.surface().guides.is_empty());
         p.restore(&before);
         assert!(p.surface().guides.is_empty());
+    }
+
+    #[test]
+    fn replace_with_group_keeps_place_and_id() {
+        let mut p = Project::new("P", TextureResolution::R2048);
+        let a = p.add(rect_at(100.0, 100.0));
+        let t = p.add(rect_at(300.0, 300.0));
+        let b = p.add(rect_at(900.0, 100.0));
+        let g = p.group(&[t, b]).unwrap();
+        let before = p.snapshot(&[t]);
+        let letters = vec![
+            Arc::new(rect_at(280.0, 300.0)),
+            Arc::new(rect_at(320.0, 300.0)),
+        ];
+        let group = Object::group(ObjectId(0), letters);
+        assert!(p.replace_with_group(t, group));
+        let parent = p.surface().get(g).unwrap();
+        assert_eq!(parent.children.len(), 2);
+        let replaced = &parent.children[0];
+        assert_eq!(replaced.id, t, "same id, same index in its parent");
+        assert!(replaced.is_group());
+        let ids: Vec<ObjectId> = replaced.children.iter().map(|c| c.id).collect();
+        for id in &ids {
+            assert!(![a, t, b, g].contains(id), "fresh ids");
+        }
+        assert_ne!(ids[0], ids[1]);
+        // The parent's bounds follow the new content.
+        assert!(parent.bounding_box().x0 <= 230.0);
+        p.restore(&before);
+        assert!(!p.surface().get(t).unwrap().is_group());
+        assert!(!p.replace_with_group(ObjectId(999), Object::group(ObjectId(0), vec![])));
     }
 }

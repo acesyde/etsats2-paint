@@ -7,4 +7,6 @@ pub mod mesh;
 
 pub use edit::{EditSession, Motion};
 pub use fonts::{BUNDLED_FAMILIES, FALLBACK_FAMILY, FontLibrary, bundled_font_data};
-pub use layout::{GlyphCache, LineLayout, PlacedGlyph, TextLayout, layout, layout_to_doc};
+pub use layout::{
+    GlyphCache, GlyphOutline, LineLayout, PlacedGlyph, TextLayout, layout, layout_to_doc,
+};

@@ -349,17 +349,51 @@ impl GlyphCache {
         path
     }
 
+    /// One glyph's outline, placed in layout coordinates.
+    fn placed(&mut self, fonts: &mut FontLibrary, g: &PlacedGlyph) -> BezPath {
+        let path = self.glyph(fonts, g);
+        let scale = f64::from(g.size / CACHE_SIZE);
+        let placed = Affine::translate(Vec2::new(g.x, g.y)) * Affine::scale(scale);
+        placed * (*path).clone()
+    }
+
     /// The whole text outline in layout coordinates.
     pub fn outline(&mut self, fonts: &mut FontLibrary, layout: &TextLayout) -> BezPath {
         let mut out = BezPath::new();
         for g in &layout.glyphs {
-            let path = self.glyph(fonts, g);
-            let scale = f64::from(g.size / CACHE_SIZE);
-            let placed = Affine::translate(Vec2::new(g.x, g.y)) * Affine::scale(scale);
-            out.extend((placed * (*path).clone()).elements().iter().copied());
+            out.extend(self.placed(fonts, g).elements().iter().copied());
         }
         out
     }
+
+    /// Each visible glyph's outline in layout coordinates, in reading
+    /// order, with the byte range of its characters. Glyphs without a shape
+    /// (spaces) are left out.
+    pub fn glyph_outlines(
+        &mut self,
+        fonts: &mut FontLibrary,
+        layout: &TextLayout,
+    ) -> Vec<GlyphOutline> {
+        layout
+            .glyphs
+            .iter()
+            .filter_map(|g| {
+                let path = self.placed(fonts, g);
+                (!path.elements().is_empty()).then_some(GlyphOutline {
+                    range: g.start..g.end,
+                    path,
+                })
+            })
+            .collect()
+    }
+}
+
+/// The outline of one glyph and the characters it draws.
+#[derive(Clone, Debug)]
+pub struct GlyphOutline {
+    /// Byte range in the text content.
+    pub range: std::ops::Range<usize>,
+    pub path: BezPath,
 }
 
 #[cfg(test)]
@@ -370,6 +404,35 @@ mod tests {
 
     fn style() -> CharStyle {
         CharStyle::default()
+    }
+
+    #[test]
+    fn glyph_outlines_skip_spaces_and_keep_counters() {
+        let mut fonts = FontLibrary::bundled();
+        let mut cache = GlyphCache::default();
+        let l = layout(&mut fonts, "A C", &style());
+        let glyphs = cache.glyph_outlines(&mut fonts, &l);
+        assert_eq!(glyphs.len(), 2);
+        assert_eq!(
+            (
+                &"A C"[glyphs[0].range.clone()],
+                &"A C"[glyphs[1].range.clone()]
+            ),
+            ("A", "C")
+        );
+        // Together they are the whole outline.
+        let whole = cache.outline(&mut fonts, &l);
+        let parts: usize = glyphs.iter().map(|g| g.path.elements().len()).sum();
+        assert_eq!(parts, whole.elements().len());
+        let o = layout(&mut fonts, "O", &style());
+        let o = cache.glyph_outlines(&mut fonts, &o);
+        let contours = o[0]
+            .path
+            .elements()
+            .iter()
+            .filter(|e| matches!(e, tp_core::kurbo::PathEl::MoveTo(_)))
+            .count();
+        assert_eq!(contours, 2, "outer contour and counter");
     }
 
     #[test]
