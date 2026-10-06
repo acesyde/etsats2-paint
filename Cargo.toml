@@ -1,0 +1,35 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+tp-core = { path = "crates/tp-core" }
+tp-ui = { path = "crates/tp-ui" }
+
+eframe = { version = "0.36.2", default-features = false, features = ["wgpu", "default_fonts", "accesskit", "persistence", "wayland", "x11"] }
+egui = "0.36.2"
+egui_kittest = { version = "0.36.2", features = ["wgpu", "snapshot"] }
+egui-phosphor = "0.14.0"
+directories = "6.0.0"
+ron = "0.12.2"
+serde = { version = "1.0", features = ["derive"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing-appender = "0.2.5"
+tempfile = "3"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.dev.package."*"]
+opt-level = 2

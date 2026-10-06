@@ -1,0 +1,10 @@
+//! Screens and UI pieces of the application.
+
+pub mod command_ui;
+pub mod dialogs;
+pub mod gallery;
+pub mod home;
+pub mod menu_bar;
+pub mod workspace;
+
+pub use command_ui::CommandUi;
