@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use kurbo::{Point, Rect};
 
-use super::object::{Object, ObjectId, convex_polygons_overlap};
+use super::object::{Object, ObjectId, ShapeKind, convex_polygons_overlap};
 
 /// Index path from the top-level list down to an object.
 pub type TreePath = Vec<usize>;
@@ -387,7 +387,10 @@ pub fn top_level_in_rect(list: &[Arc<Object>], rect: Rect) -> Vec<ObjectId> {
             && rect.x0 <= b.x1
             && b.y0 <= rect.y1
             && rect.y0 <= b.y1
-            && convex_polygons_overlap(&o.flattened(0.5), corners)
+            && match o.kind {
+                ShapeKind::Polygon { .. } | ShapeKind::Path => o.touches_rect(rect),
+                _ => convex_polygons_overlap(&o.flattened(0.5), corners),
+            }
     }
     let rect = rect.abs();
     let corners = [

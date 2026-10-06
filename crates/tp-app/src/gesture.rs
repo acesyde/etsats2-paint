@@ -1,11 +1,14 @@
 //! Canvas gestures (drags in progress) and press classification.
 
+use std::collections::BTreeSet;
+
 use egui::Pos2;
 use tp_core::Snapshot;
-use tp_core::document::{Frame, Handle, Object, ObjectId, ShapeKind};
+use tp_core::document::{Frame, Handle, HandleSide, Object, ObjectId, PointRef, ShapeKind};
 use tp_core::kurbo::Point;
 use tp_ui::tokens::canvas;
 
+use crate::path_edit::PointDrag;
 use crate::viewport::ScreenMap;
 
 /// A drag in progress on the canvas.
@@ -39,6 +42,22 @@ pub enum Gesture {
     },
     /// Selecting characters of the text being edited.
     TextSelect,
+    /// Dragging the handle of the point just added with the Pen tool.
+    PenHandle,
+    /// Direct Selection: moving the selected path points.
+    MovingPoints(PointDrag),
+    /// Direct Selection: moving one handle.
+    MovingHandle {
+        drag: PointDrag,
+        point: PointRef,
+        side: HandleSide,
+    },
+    /// Direct Selection: selecting points inside a rectangle.
+    PointMarquee {
+        start: Point,
+        base: BTreeSet<PointRef>,
+        base_objects: Vec<ObjectId>,
+    },
 }
 
 /// What every transform gesture remembers from its start.
@@ -58,7 +77,11 @@ impl Gesture {
     pub fn edits_document(&self) -> bool {
         matches!(
             self,
-            Self::Moving(_) | Self::Resizing { .. } | Self::Rotating { .. }
+            Self::Moving(_)
+                | Self::Resizing { .. }
+                | Self::Rotating { .. }
+                | Self::MovingPoints(_)
+                | Self::MovingHandle { .. }
         )
     }
 }
@@ -118,12 +141,22 @@ pub fn point_in_quad(quad: &[Pos2; 4], p: Pos2) -> bool {
 /// Frame of a shape being drawn from `start` to `current`.
 /// `square` constrains to equal sides, `from_center` uses `start` as center.
 pub fn drawing_frame(start: Point, current: Point, square: bool, from_center: bool) -> Frame {
+    drawing_frame_aspect(start, current, square.then_some(1.0), from_center)
+}
+
+/// Like [`drawing_frame`], constraining width / height to `aspect` when set.
+pub fn drawing_frame_aspect(
+    start: Point,
+    current: Point,
+    aspect: Option<f64>,
+    from_center: bool,
+) -> Frame {
     let mut dx = current.x - start.x;
     let mut dy = current.y - start.y;
-    if square {
-        let m = dx.abs().max(dy.abs());
-        dx = m.copysign(if dx == 0.0 { 1.0 } else { dx });
-        dy = m.copysign(if dy == 0.0 { 1.0 } else { dy });
+    if let Some(aspect) = aspect.filter(|a| *a > 0.0) {
+        let h = dy.abs().max(dx.abs() / aspect);
+        dx = (h * aspect).copysign(if dx == 0.0 { 1.0 } else { dx });
+        dy = h.copysign(if dy == 0.0 { 1.0 } else { dy });
     }
     let (center, w, h) = if from_center {
         (start, 2.0 * dx.abs(), 2.0 * dy.abs())

@@ -2,8 +2,8 @@
 
 use lyon_tessellation::path::Path;
 use lyon_tessellation::{
-    BuffersBuilder, FillOptions, FillRule, FillTessellator, FillVertex, LineJoin, StrokeOptions,
-    StrokeTessellator, StrokeVertex, VertexBuffers,
+    BuffersBuilder, FillOptions, FillRule, FillTessellator, FillVertex, LineCap, LineJoin,
+    StrokeOptions, StrokeTessellator, StrokeVertex, VertexBuffers,
 };
 use tp_core::kurbo::{BezPath, PathEl};
 
@@ -30,8 +30,9 @@ fn to_lyon(path: &BezPath) -> Path {
     for el in path.elements() {
         match *el {
             PathEl::MoveTo(p) => {
+                // A subpath without `ClosePath` stays open.
                 if open {
-                    builder.end(true);
+                    builder.end(false);
                 }
                 builder.begin(point(p));
                 open = true;
@@ -53,7 +54,7 @@ fn to_lyon(path: &BezPath) -> Path {
         }
     }
     if open {
-        builder.end(true);
+        builder.end(false);
     }
     builder.build()
 }
@@ -79,10 +80,21 @@ pub fn fill(path: &BezPath, tolerance: f64) -> Mesh {
 
 /// Strokes `path` with a centered line of `width`.
 pub fn stroke(path: &BezPath, width: f64, tolerance: f64) -> Mesh {
+    stroke_with_caps(path, width, tolerance, false)
+}
+
+/// Like [`stroke`], with round caps on open ends when `round_caps`.
+pub fn stroke_with_caps(path: &BezPath, width: f64, tolerance: f64, round_caps: bool) -> Mesh {
     let mut buffers: VertexBuffers<[f32; 2], u32> = VertexBuffers::new();
+    let cap = if round_caps {
+        LineCap::Round
+    } else {
+        LineCap::Butt
+    };
     let options = StrokeOptions::tolerance(tolerance.max(1e-3) as f32)
         .with_line_width(width as f32)
         .with_line_join(LineJoin::MiterClip)
+        .with_line_cap(cap)
         .with_miter_limit(4.0);
     let result = StrokeTessellator::new().tessellate_path(
         &to_lyon(path),
@@ -134,5 +146,20 @@ mod tests {
         let mesh = stroke(&circle, 10.0, 0.05);
         let expected = std::f64::consts::TAU * 100.0 * 10.0;
         assert!((area(&mesh) - expected).abs() / expected < 0.02);
+    }
+
+    #[test]
+    fn open_subpath_stroke_is_not_closed() {
+        let mut v = BezPath::new();
+        v.move_to((0.0, 0.0));
+        v.line_to((100.0, 0.0));
+        v.line_to((100.0, 100.0));
+        // Two 100 px segments, 10 px wide (no closing diagonal).
+        let butt = stroke(&v, 10.0, 0.05);
+        assert!((area(&butt) - 2000.0).abs() < 60.0, "{}", area(&butt));
+        // Round caps add a disc of radius 5 in total.
+        let round = stroke_with_caps(&v, 10.0, 0.05, true);
+        let caps = std::f64::consts::PI * 25.0;
+        assert!((area(&round) - area(&butt) - caps).abs() < 3.0);
     }
 }

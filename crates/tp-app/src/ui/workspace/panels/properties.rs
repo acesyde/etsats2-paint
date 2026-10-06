@@ -1,5 +1,5 @@
-//! Properties panel: selection summary, opacity, corner radius and
-//! fill/stroke swatches.
+//! Properties panel: selection summary, opacity, corner radius, polygon
+//! settings and fill/stroke swatches.
 
 use egui::{RichText, Slider, Ui, WidgetInfo, WidgetType};
 use tp_core::AssetKind;
@@ -17,6 +17,8 @@ pub fn kind_icon(kind: ShapeKind) -> &'static str {
     match kind {
         ShapeKind::Rectangle { .. } => icons::RECTANGLE,
         ShapeKind::Ellipse => icons::ELLIPSE,
+        ShapeKind::Polygon { .. } => icons::POLYGON,
+        ShapeKind::Path => icons::PEN,
         ShapeKind::Group => icons::GROUP,
         ShapeKind::Text => icons::TEXT,
         ShapeKind::Image { .. } => icons::IMAGE,
@@ -77,6 +79,72 @@ fn set_corner_radius(ws: &mut Workspace, radius: f64) {
     ws.live_edit("Change Corner Radius", |project, _| {
         project.surface_mut().replace(&objects)
     });
+}
+
+/// Applies `f` to every selected polygon's `(sides, star)` as a live edit;
+/// the result also becomes the setting for new polygons.
+fn edit_polygons(ws: &mut Workspace, label: &'static str, f: impl Fn(&mut u8, &mut Option<f64>)) {
+    let mut objects = ws.selected_objects();
+    for o in &mut objects {
+        if let ShapeKind::Polygon { sides, star } = &mut o.kind {
+            f(sides, star);
+            ws.polygon_style.sides = *sides;
+            ws.polygon_style.star = star.is_some();
+            if let Some(inner) = star {
+                ws.polygon_style.inner = *inner;
+            }
+        }
+    }
+    ws.live_edit(label, |project, _| project.surface_mut().replace(&objects));
+}
+
+fn set_sides(ws: &mut Workspace, value: f64) {
+    let sides = value.round().clamp(3.0, 12.0) as u8;
+    edit_polygons(ws, "Change Sides", |s, _| *s = sides);
+}
+
+fn set_inner_radius(ws: &mut Workspace, percent: f64) {
+    let inner = (percent / 100.0).clamp(0.1, 0.9);
+    edit_polygons(ws, "Change Inner Radius", |_, star| {
+        if star.is_some() {
+            *star = Some(inner);
+        }
+    });
+}
+
+/// Sides, Star and Inner radius of the selected polygons.
+fn polygon_settings(ui: &mut Ui, env: &mut PanelEnv<'_>, polygons: &[(u8, Option<f64>)]) {
+    let sides = common(polygons.iter().map(|(s, _)| *s)).map(f64::from);
+    let stars = common(polygons.iter().map(|(_, star)| star.is_some()));
+    ui.horizontal(|ui| {
+        let e = NumericField::new("Sides", "Sides", sides)
+            .range(3.0..=12.0)
+            .width(44.0)
+            .show(ui);
+        apply_field(env, e, set_sides);
+        ui.add_space(space::SM);
+        let mut checked = stars == Some(true);
+        let response =
+            ui.add(egui::Checkbox::new(&mut checked, "Star").indeterminate(stars.is_none()));
+        response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, true, checked, "Star"));
+        if response.changed() {
+            let inner = env.ws.polygon_style.inner;
+            edit_polygons(env.ws, "Change Star", |_, star| {
+                *star = checked.then_some(inner);
+            });
+            env.ws.commit_pending(env.now);
+        }
+    });
+    if stars == Some(true) {
+        let inner = common(polygons.iter().map(|(_, star)| star.unwrap_or(0.5)))
+            .map(|r| (r * 100.0).round());
+        let e = NumericField::new("Inner", "Inner radius", inner)
+            .suffix("%")
+            .range(10.0..=90.0)
+            .width(44.0)
+            .show(ui);
+        apply_field(env, e, set_inner_radius);
+    }
 }
 
 fn summary(ui: &mut Ui, objects: &[Object], ws: &Workspace) {
@@ -204,6 +272,18 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
             .range(0.0..=100_000.0)
             .show(ui);
         apply_field(env, e, set_corner_radius);
+    }
+
+    // Sides and star settings when every selected object is a polygon.
+    let polygons: Vec<(u8, Option<f64>)> = objects
+        .iter()
+        .filter_map(|o| match o.kind {
+            ShapeKind::Polygon { sides, star } => Some((sides, star)),
+            _ => None,
+        })
+        .collect();
+    if polygons.len() == objects.len() {
+        polygon_settings(ui, env, &polygons);
     }
 
     if let [single] = objects.as_slice()

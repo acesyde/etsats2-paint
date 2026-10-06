@@ -10,6 +10,7 @@ pub mod image_cache;
 pub mod import;
 pub mod layout;
 pub mod logging;
+pub mod path_edit;
 pub mod paths;
 pub mod placement;
 pub mod prefs;

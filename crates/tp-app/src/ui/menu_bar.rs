@@ -112,6 +112,8 @@ fn menu_contents(
             item(ui, cmds, Group);
             item(ui, cmds, Ungroup);
             ui.separator();
+            item(ui, cmds, ConvertToPath);
+            ui.separator();
             item(ui, cmds, BringForward);
             item(ui, cmds, SendBackward);
             ui.separator();

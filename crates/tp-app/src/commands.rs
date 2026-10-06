@@ -31,6 +31,7 @@ pub enum CommandId {
     EditText,
     Group,
     Ungroup,
+    ConvertToPath,
     BringForward,
     SendBackward,
     MirrorToOtherSide,
@@ -112,6 +113,8 @@ pub struct EditContext {
     pub single_text: bool,
     /// A text is being edited on the canvas.
     pub editing_text: bool,
+    /// The selection holds a rectangle, ellipse or polygon (maybe in a group).
+    pub selection_has_convertible: bool,
 }
 
 fn editable_selection(c: &EditContext) -> bool {
@@ -189,6 +192,7 @@ impl CommandId {
             EditText,
             Group,
             Ungroup,
+            ConvertToPath,
             BringForward,
             SendBackward,
             MirrorToOtherSide,
@@ -384,6 +388,16 @@ impl CommandId {
                 When(
                     |c| editable_selection(c) && c.selection_has_group,
                     "Select a group first.",
+                ),
+            ),
+            ConvertToPath => m(
+                "Convert to Path",
+                Some(icons::PEN),
+                &[],
+                Workspace,
+                When(
+                    |c| editable_selection(c) && c.selection_has_convertible,
+                    "Select a rectangle, ellipse or polygon first.",
                 ),
             ),
             BringForward => m(

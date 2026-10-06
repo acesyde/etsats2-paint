@@ -132,4 +132,11 @@ pub mod canvas {
     pub const HIT_TOLERANCE: f32 = 4.0;
     /// Pointer travel before a press becomes a drag, in points.
     pub const DRAG_THRESHOLD: f32 = 3.0;
+
+    /// Side of a path anchor point square, in points.
+    pub const POINT_SIZE: f32 = 7.0;
+    /// Diameter of a path handle end, in points.
+    pub const HANDLE_DOT: f32 = 5.0;
+    /// Distance at which a press grabs a path point or handle, in points.
+    pub const POINT_HIT_RADIUS: f32 = 6.0;
 }

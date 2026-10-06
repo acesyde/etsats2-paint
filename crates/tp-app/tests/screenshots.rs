@@ -653,3 +653,168 @@ fn render_export() {
     )
     .unwrap();
 }
+
+/// Stars, a polygon, a swoosh with a hole and open lines.
+fn vector_scene(
+    h: &mut egui_kittest::Harness<'static, tp_app::AppState>,
+) -> Vec<tp_core::document::ObjectId> {
+    use tp_core::document::{
+        Frame, Node, Object, ObjectId, PathData, Rgba, ShapeKind, StrokeStyle, Subpath,
+    };
+    use tp_core::kurbo::{Point, Size};
+    let ws = h.state_mut().workspace_mut().unwrap();
+    let mut ids = Vec::new();
+    let mut add = |o: Object| ids.push(ws.project.add(o));
+    let base = |kind, c: (f64, f64), s: (f64, f64), rot: f64, fill: Rgba| {
+        let mut o = Object::new(ObjectId(0), kind, Frame::new(c.into(), s.into(), rot));
+        o.fill = fill;
+        o
+    };
+    add(base(
+        ShapeKind::rectangle(),
+        (2048.0, 2048.0),
+        (4096.0, 4096.0),
+        0.0,
+        Rgba::rgb(0x1B, 0x2A, 0x41),
+    ));
+    let mut star = base(
+        ShapeKind::Polygon {
+            sides: 5,
+            star: Some(0.42),
+        },
+        (800.0, 900.0),
+        (900.0, 860.0),
+        -8.0,
+        Rgba::rgb(0xF0, 0xB4, 0x4C),
+    );
+    star.stroke = Some(StrokeStyle {
+        color: Rgba::rgb(255, 255, 255),
+        width: 24.0,
+    });
+    add(star);
+    add(base(
+        ShapeKind::Polygon {
+            sides: 6,
+            star: None,
+        },
+        (2000.0, 900.0),
+        (800.0, 700.0),
+        0.0,
+        Rgba::rgb(0xC0, 0x39, 0x2B),
+    ));
+    let corner = |x: f64, y: f64| Node::corner(Point::new(x, y));
+    let swoosh = Subpath::new(
+        vec![
+            Node::smooth(Point::new(300.0, 2600.0), Point::new(1200.0, 1700.0)),
+            Node::smooth(Point::new(3600.0, 2100.0), Point::new(3900.0, 2300.0)),
+            Node::smooth(Point::new(3500.0, 2600.0), Point::new(2400.0, 2300.0)),
+        ],
+        true,
+    );
+    let hole = Subpath::new(
+        vec![
+            corner(1600.0, 2250.0),
+            corner(1600.0, 2450.0),
+            corner(1900.0, 2450.0),
+            corner(1900.0, 2250.0),
+        ],
+        true,
+    );
+    let mut s = Object::from_path(ObjectId(0), PathData::new(vec![swoosh, hole]));
+    s.fill = Rgba::rgb(0x2E, 0x86, 0xDE);
+    s.name = "Swoosh".into();
+    add(s);
+    for (i, y) in [3200.0, 3400.0, 3600.0].into_iter().enumerate() {
+        let mut line = Object::from_path(
+            ObjectId(0),
+            PathData::new(vec![Subpath::new(
+                vec![
+                    corner(400.0, y),
+                    Node::smooth(Point::new(2000.0, y - 150.0), Point::new(2600.0, y - 150.0)),
+                    corner(3700.0, y),
+                ],
+                false,
+            )]),
+        );
+        line.stroke = Some(StrokeStyle {
+            color: Rgba::rgb(255, 255, 255),
+            width: 20.0 + 20.0 * i as f64,
+        });
+        line.name = "Line".into();
+        add(line);
+    }
+    let _ = Size::ZERO;
+    ids
+}
+
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_vector_tools() {
+    use tp_app::tool::Tool;
+    use tp_core::document::{Node, NodeRef, PointRef};
+    use tp_core::kurbo::Point;
+    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+        let prefs = Prefs {
+            ui_scale: scale,
+            ..Prefs::default()
+        };
+        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        common::create_project(&mut h);
+        let ids = vector_scene(&mut h);
+        save(&mut h, &format!("vector_canvas_{suffix}"));
+
+        // Direct Selection on the swoosh, its second point selected.
+        {
+            let ws = h.state_mut().workspace_mut().unwrap();
+            ws.tool = Tool::DirectSelect;
+            ws.selection = vec![ids[3]];
+            ws.points = [PointRef::new(ids[3], NodeRef::new(0, 1))].into();
+        }
+        save(&mut h, &format!("vector_direct_select_{suffix}"));
+
+        // A pen path being drawn, the next segment following the pointer.
+        {
+            let ws = h.state_mut().workspace_mut().unwrap();
+            ws.points.clear();
+            ws.selection.clear();
+            ws.tool = Tool::Pen;
+            ws.pen = Some(tp_app::path_edit::PenSession {
+                nodes: vec![
+                    Node::corner(Point::new(600.0, 1500.0)),
+                    Node::smooth(Point::new(1400.0, 1300.0), Point::new(1800.0, 1300.0)),
+                ],
+            });
+        }
+        let pointer = h
+            .state()
+            .workspace()
+            .unwrap()
+            .screen_map(1.0)
+            .unwrap()
+            .to_screen(Point::new(2400.0, 1700.0));
+        h.event(egui::Event::PointerMoved(pointer));
+        save(&mut h, &format!("vector_pen_{suffix}"));
+    }
+    // The exported texture, to compare with the canvas.
+    let mut h = common::wgpu_harness_with(Prefs::default(), Vec2::new(1440.0, 900.0));
+    common::create_project(&mut h);
+    vector_scene(&mut h);
+    let ws = h.state_mut().workspace_mut().unwrap();
+    let pixmap = tp_render::render(
+        &ws.project,
+        0,
+        tp_render::RenderOptions {
+            size: 1024,
+            background: None,
+        },
+        &mut ws.text.fonts,
+        &mut |_, _| true,
+    )
+    .unwrap();
+    std::fs::write(
+        out_dir().join("vector_export_1k.png"),
+        tp_render::encode_png(&pixmap).unwrap(),
+    )
+    .unwrap();
+}

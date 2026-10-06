@@ -7,14 +7,15 @@ use egui::{
     Ui, Vec2, WidgetInfo, WidgetType,
 };
 use tp_core::document::{
-    Handle, ObjectId, ResizeOptions, Rgba, ShapeKind, angle_around, resize, rotate,
+    Frame, Handle, ObjectId, ResizeOptions, Rgba, ShapeKind, angle_around, resize, rotate,
     selection_frame, translate,
 };
 use tp_core::kurbo;
 use tp_ui::tokens::canvas as tokens;
 
 use crate::commands::CommandId;
-use crate::gesture::{Gesture, OverlayTarget, Transforming, drawing_frame, overlay_target};
+use crate::gesture::{Gesture, OverlayTarget, Transforming, drawing_frame_aspect, overlay_target};
+use crate::path_edit::{PointTarget, line_points};
 use crate::tool::Tool;
 use crate::ui::CommandUi;
 use crate::viewport::{ScreenMap, Viewport};
@@ -178,6 +179,16 @@ fn text_under(ws: &Workspace, doc: kurbo::Point, map: &ScreenMap) -> Option<Obje
 }
 
 fn double_click(ws: &mut Workspace, map: &ScreenMap, pointer: Pos2, now: f64) {
+    if ws.tool == Tool::DirectSelect {
+        match ws.point_target(map.to_doc(pointer), point_radius(map)) {
+            Some(PointTarget::Point(r)) => ws.toggle_point(r, now),
+            Some(PointTarget::Segment(id, subpath, segment, t)) => {
+                ws.insert_point(id, subpath, segment, t, now);
+            }
+            _ => {}
+        }
+        return;
+    }
     if !matches!(ws.tool, Tool::Select | Tool::Move | Tool::Text) {
         return;
     }
@@ -215,8 +226,36 @@ fn transforming(ws: &Workspace, start: kurbo::Point) -> Transforming {
     }
 }
 
-fn unavailable_hint(tool: Tool) -> String {
-    format!("The {} tool is not available yet", tool.name())
+/// Radius (document units) within which a press hits a path point.
+fn point_radius(map: &ScreenMap) -> f64 {
+    map.doc_len(tokens::POINT_HIT_RADIUS)
+}
+
+/// Frame of a shape drawn from `start` to `doc` with the drawing modifiers:
+/// Shift keeps squares, circles and regular polygons.
+fn shape_frame(kind: ShapeKind, start: kurbo::Point, doc: kurbo::Point, m: Modifiers) -> Frame {
+    let aspect = match kind {
+        ShapeKind::Polygon { sides, star } => tp_core::document::path::regular_aspect(sides, star),
+        _ => 1.0,
+    };
+    drawing_frame_aspect(start, doc, m.shift.then_some(aspect), m.alt)
+}
+
+/// Press with the Pen tool: closes the path on its first point, otherwise
+/// adds a point (whose handle the drag then pulls).
+fn pen_press(
+    ws: &mut Workspace,
+    doc: kurbo::Point,
+    map: &ScreenMap,
+    shift: bool,
+    now: f64,
+) -> bool {
+    if ws.pen_over_first(doc, point_radius(map)) {
+        ws.finish_pen(true, now);
+        return false;
+    }
+    ws.pen_add(doc, shift);
+    true
 }
 
 fn start_gesture(
@@ -250,6 +289,21 @@ fn start_gesture(
             kind: ShapeKind::Ellipse,
             start: doc,
         },
+        Tool::Polygon => Gesture::Drawing {
+            kind: ws.polygon_style.kind(),
+            start: doc,
+        },
+        Tool::Line => Gesture::Drawing {
+            kind: ShapeKind::Path,
+            start: doc,
+        },
+        Tool::Pen => {
+            if pen_press(ws, doc, map, modifiers.shift, now) {
+                Gesture::PenHandle
+            } else {
+                Gesture::Idle
+            }
+        }
         Tool::Select | Tool::Move => {
             let bounds = selection_frame(&ws.selected_objects());
             match overlay_target(bounds.as_ref(), map, origin) {
@@ -288,12 +342,88 @@ fn start_gesture(
                 },
             }
         }
+        Tool::DirectSelect => direct_press(ws, doc, map, modifiers),
         Tool::Eyedropper | Tool::Text | Tool::Image => Gesture::Idle,
-        other => {
-            ws.show_hint(unavailable_hint(other), now);
-            Gesture::Idle
-        }
     };
+}
+
+/// Press with the Direct Selection tool: a handle, a point (moving the
+/// selected points), an object (moving it) or empty canvas (point marquee).
+fn direct_press(ws: &mut Workspace, doc: kurbo::Point, map: &ScreenMap, m: Modifiers) -> Gesture {
+    match ws.point_target(doc, point_radius(map)) {
+        Some(PointTarget::Handle(point, side)) => {
+            return Gesture::MovingHandle {
+                drag: ws.point_drag(doc),
+                point,
+                side,
+            };
+        }
+        Some(PointTarget::Point(r)) => {
+            if !ws.points.contains(&r) {
+                ws.click_point(r, m.shift);
+            }
+            return Gesture::MovingPoints(ws.point_drag(doc));
+        }
+        _ => {}
+    }
+    match click_target(ws, doc, map, true) {
+        Some(id) => {
+            if !ws.selection.contains(&id) {
+                if !m.shift {
+                    ws.selection.clear();
+                }
+                ws.selection.push(id);
+                ws.normalize_selection();
+            }
+            ws.points.clear();
+            Gesture::Moving(transforming(ws, doc))
+        }
+        None => Gesture::PointMarquee {
+            start: doc,
+            base: if m.shift {
+                ws.points.clone()
+            } else {
+                Default::default()
+            },
+            base_objects: if m.shift {
+                ws.selection.clone()
+            } else {
+                Vec::new()
+            },
+        },
+    }
+}
+
+/// Click with the Direct Selection tool.
+fn direct_click(ws: &mut Workspace, doc: kurbo::Point, map: &ScreenMap, m: Modifiers, now: f64) {
+    match ws.point_target(doc, point_radius(map)) {
+        Some(PointTarget::Point(r)) => ws.click_point(r, m.shift),
+        Some(PointTarget::Handle(..)) => {}
+        _ => match click_target(ws, doc, map, true) {
+            Some(id) => {
+                if m.shift {
+                    if let Some(i) = ws.selection.iter().position(|s| *s == id) {
+                        ws.selection.remove(i);
+                    } else {
+                        ws.selection.push(id);
+                        ws.normalize_selection();
+                    }
+                } else {
+                    ws.selection = vec![id];
+                    ws.points.clear();
+                }
+                let is_path = ws
+                    .project
+                    .surface()
+                    .get(id)
+                    .is_some_and(|o| o.kind == ShapeKind::Path || o.is_group());
+                if !is_path {
+                    ws.show_hint("Use Object › Convert to Path to edit its points", now);
+                }
+            }
+            None => ws.clear_points_or_selection(),
+        },
+    }
 }
 
 fn update_gesture(
@@ -347,6 +477,27 @@ fn update_gesture(
             ws.selection = selection;
         }
         Gesture::TextSelect => ws.text_click(doc, true, 0.0),
+        Gesture::PenHandle => ws.pen_drag_handle(doc, modifiers.shift),
+        Gesture::MovingPoints(drag) => {
+            let drag = drag.clone();
+            ws.drag_points(&drag, doc, modifiers.shift);
+        }
+        Gesture::MovingHandle { drag, point, side } => {
+            let (drag, point, side) = (drag.clone(), *point, *side);
+            ws.drag_handle(&drag, point, side, doc, modifiers.alt);
+        }
+        Gesture::PointMarquee {
+            start,
+            base,
+            base_objects,
+        } => {
+            let (rect, base, objects) = (
+                kurbo::Rect::from_points(*start, doc),
+                base.clone(),
+                base_objects.clone(),
+            );
+            ws.marquee_points(rect, &base, &objects);
+        }
         Gesture::Idle | Gesture::Drawing { .. } | Gesture::ZoomRect { .. } => {}
     }
 }
@@ -369,8 +520,12 @@ fn finish_gesture(
         Gesture::Rotating { base, .. } => ws.record("Rotate", base.before, now, false),
         Gesture::Drawing { kind, start } => {
             if map.to_screen(start).distance(pointer) >= 2.0 {
-                let frame = drawing_frame(start, doc, modifiers.shift, modifiers.alt);
-                ws.create_shape(kind, frame, now);
+                if kind == ShapeKind::Path {
+                    let (a, b) = line_points(start, doc, modifiers.shift, modifiers.alt);
+                    ws.create_line(a, b, now);
+                } else {
+                    ws.create_shape(kind, shape_frame(kind, start, doc, modifiers), now);
+                }
             }
         }
         Gesture::ZoomRect { start } => {
@@ -380,7 +535,15 @@ fn finish_gesture(
                 view.zoom_to_rect(area, ppp, kurbo::Rect::from_points(start, doc));
             }
         }
-        Gesture::Idle | Gesture::Panning | Gesture::Marquee { .. } | Gesture::TextSelect => {}
+        Gesture::Idle
+        | Gesture::Panning
+        | Gesture::Marquee { .. }
+        | Gesture::TextSelect
+        | Gesture::PenHandle
+        | Gesture::PointMarquee { .. } => {}
+        Gesture::MovingPoints(drag) | Gesture::MovingHandle { drag, .. } => {
+            ws.finish_point_drag(drag, now);
+        }
     }
 }
 
@@ -390,7 +553,22 @@ fn cancel_gesture(ws: &mut Workspace) {
         Gesture::Moving(base) | Gesture::Resizing { base, .. } | Gesture::Rotating { base, .. } => {
             ws.selection = ws.project.restore(&base.before);
         }
+        Gesture::MovingPoints(drag) | Gesture::MovingHandle { drag, .. } => {
+            ws.restore(&drag.before);
+        }
+        Gesture::PointMarquee {
+            base, base_objects, ..
+        } => {
+            ws.points = base;
+            ws.selection = base_objects;
+        }
         Gesture::Marquee { base, .. } => ws.selection = base,
+        // The point stays, without the handle being dragged.
+        Gesture::PenHandle => {
+            if let Some(node) = ws.pen.as_mut().and_then(|s| s.nodes.last_mut()) {
+                *node = tp_core::document::Node::corner(node.point);
+            }
+        }
         _ => {}
     }
 }
@@ -446,8 +624,11 @@ fn click(
             }
         }
         Tool::Eyedropper => eyedropper(ws, doc, map, now),
-        Tool::Rectangle | Tool::Ellipse | Tool::Hand => {}
-        other => ws.show_hint(unavailable_hint(other), now),
+        Tool::Pen => {
+            pen_press(ws, doc, map, modifiers.shift, now);
+        }
+        Tool::DirectSelect => direct_click(ws, doc, map, modifiers, now),
+        Tool::Rectangle | Tool::Ellipse | Tool::Polygon | Tool::Line | Tool::Hand => {}
     }
 }
 
@@ -530,6 +711,8 @@ pub type DrawnCursor = Option<(&'static str, Vec2)>;
 const ROTATE_CURSOR: (&str, Vec2) = (tp_ui::icons::ROTATE, Vec2::ZERO);
 /// The eyedropper tip is at the glyph's bottom-left.
 const EYEDROPPER_CURSOR: (&str, Vec2) = (tp_ui::icons::EYEDROPPER, Vec2::new(8.0, -8.0));
+/// The pen nib tip is at the glyph's bottom-left.
+const PEN_CURSOR: (&str, Vec2) = (tp_ui::icons::PEN, Vec2::new(8.0, -8.0));
 
 /// Sets the system cursor, or hides it and returns the cursor to draw.
 fn set_cursor(
@@ -549,6 +732,9 @@ fn set_cursor(
         Gesture::Marquee { .. } => Ok(CursorIcon::Default),
         Gesture::ZoomRect { .. } => Ok(CursorIcon::ZoomIn),
         Gesture::TextSelect => Ok(CursorIcon::Text),
+        Gesture::PenHandle => Err(PEN_CURSOR),
+        Gesture::MovingPoints(_) | Gesture::MovingHandle { .. } => Ok(CursorIcon::Move),
+        Gesture::PointMarquee { .. } => Ok(CursorIcon::Default),
         Gesture::Idle => {
             if !hovered {
                 return None;
@@ -558,7 +744,11 @@ fn set_cursor(
                 Tool::Zoom if modifiers.alt => Ok(CursorIcon::ZoomOut),
                 Tool::Zoom => Ok(CursorIcon::ZoomIn),
                 Tool::Eyedropper => Err(EYEDROPPER_CURSOR),
-                Tool::Rectangle | Tool::Ellipse | Tool::Image => Ok(CursorIcon::Crosshair),
+                Tool::Rectangle | Tool::Ellipse | Tool::Polygon | Tool::Line | Tool::Image => {
+                    Ok(CursorIcon::Crosshair)
+                }
+                Tool::Pen => Err(PEN_CURSOR),
+                Tool::DirectSelect => Ok(CursorIcon::Default),
                 Tool::Text => Ok(CursorIcon::Text),
                 Tool::Select | Tool::Move
                     if pointer.is_some_and(|p| in_edited_text(ws, map.to_doc(p), map)) =>
@@ -576,7 +766,6 @@ fn set_cursor(
                         None => Ok(CursorIcon::Default),
                     }
                 }
-                _ => Ok(CursorIcon::NotAllowed),
             }
         }
     };

@@ -308,6 +308,97 @@ fn corner_radius_is_clamped() {
     );
 }
 
+fn hexagon(h: &mut H) -> ObjectId {
+    add(
+        h,
+        ShapeKind::Polygon {
+            sides: 6,
+            star: None,
+        },
+        "Hex",
+        (800.0, 800.0),
+        (400.0, 300.0),
+        15.0,
+    )
+}
+
+#[test]
+fn make_a_five_point_star() {
+    let mut h = open();
+    let p = hexagon(&mut h);
+    let frame = obj(&h, p).frame;
+    select(&mut h, &[p]);
+    type_into(&mut h, "Sides", "5");
+    h.get_by_role_and_label(Role::CheckBox, "Star").click();
+    h.run();
+    let star = obj(&h, p);
+    assert_eq!(
+        star.kind,
+        ShapeKind::Polygon {
+            sides: 5,
+            star: Some(0.5)
+        }
+    );
+    assert_eq!(star.flattened(0.1).len(), 10);
+    assert_eq!(star.frame, frame, "bounds, center and rotation are kept");
+    assert_eq!(field_value(&h, "Inner radius"), "50");
+    // One step per change: Undo turns the star back into a pentagon.
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run();
+    assert_eq!(
+        obj(&h, p).kind,
+        ShapeKind::Polygon {
+            sides: 5,
+            star: None
+        }
+    );
+    // New polygons use the last values set.
+    assert_eq!(
+        ws(&h).polygon_style.kind(),
+        ShapeKind::Polygon {
+            sides: 5,
+            star: Some(0.5)
+        }
+    );
+}
+
+#[test]
+fn sides_are_clamped() {
+    let mut h = open();
+    let p = hexagon(&mut h);
+    select(&mut h, &[p]);
+    type_into(&mut h, "Sides", "40");
+    assert_eq!(
+        obj(&h, p).kind,
+        ShapeKind::Polygon {
+            sides: 12,
+            star: None
+        }
+    );
+}
+
+#[test]
+fn polygon_settings_show_mixed_and_hide_for_other_kinds() {
+    let mut h = open();
+    let a = hexagon(&mut h);
+    let b = add(
+        &mut h,
+        ShapeKind::Polygon {
+            sides: 3,
+            star: None,
+        },
+        "Tri",
+        (1500.0, 800.0),
+        (300.0, 300.0),
+        0.0,
+    );
+    select(&mut h, &[a, b]);
+    assert_eq!(field_value(&h, "Sides"), "");
+    let r = rect(&mut h, "R", (300.0, 200.0), (100.0, 100.0));
+    select(&mut h, &[a, r]);
+    assert!(h.query_by_label("Sides").is_none());
+}
+
 #[test]
 fn stroke_swatch_reveals_colors_panel() {
     let mut h = open();
