@@ -169,6 +169,24 @@ impl TextEngine {
     }
 
     /// Triangles of the text for a zoom bucket.
+    /// Each visible glyph of a text in document coordinates, in reading
+    /// order, with the byte range of its characters.
+    pub fn glyph_outlines(&mut self, object: &Object) -> Vec<tp_text::GlyphOutline> {
+        let Some(block) = &object.text else {
+            return Vec::new();
+        };
+        let layout = self.block_layout(block);
+        let to_doc = layout_to_doc(object);
+        self.glyphs
+            .glyph_outlines(&mut self.fonts, &layout)
+            .into_iter()
+            .map(|g| tp_text::GlyphOutline {
+                range: g.range,
+                path: to_doc * g.path,
+            })
+            .collect()
+    }
+
     pub fn mesh(&mut self, object: &Arc<Object>, bucket: i32, tolerance: f64) -> Arc<TextMesh> {
         let ptr = Arc::as_ptr(object) as usize;
         if let Some(e) = self.meshes.get_mut(&object.id)

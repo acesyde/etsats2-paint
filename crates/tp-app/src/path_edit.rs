@@ -136,14 +136,7 @@ impl Workspace {
             false,
         )]);
         let mut object = self.styled_path(data, "Line");
-        let angle = line_angle(a, b);
-        // Same document geometry, expressed in a frame rotated by `angle`.
-        let center = object.frame.center;
-        let to_local = Affine::rotate(-angle.to_radians());
-        object.edit_path(|p| p.transform(to_local));
-        object.frame.rotation_deg = angle;
-        object.frame.center = center;
-        object.refit();
+        object.set_path_rotation(line_angle(a, b));
         self.create_object(object, now)
     }
 }

@@ -178,6 +178,85 @@ impl PathData {
         }
     }
 
+    /// Converts a kurbo path (absolute coordinates kept): quadratic curves
+    /// become exact cubics, a closing point repeating the first node is
+    /// merged into it, and nodes with aligned handles are marked smooth.
+    pub fn from_bezpath(path: &BezPath) -> Self {
+        let mut subpaths: Vec<Subpath> = Vec::new();
+        let mut current: Option<Subpath> = None;
+        let finish = |sub: Subpath, out: &mut Vec<Subpath>| {
+            if !sub.nodes.is_empty() {
+                out.push(sub);
+            }
+        };
+        for el in path.elements() {
+            match *el {
+                kurbo::PathEl::MoveTo(p) => {
+                    if let Some(sub) = current.take() {
+                        finish(sub, &mut subpaths);
+                    }
+                    current = Some(Subpath::new(vec![Node::corner(p)], false));
+                }
+                kurbo::PathEl::LineTo(p) => {
+                    current
+                        .get_or_insert_with(Subpath::default)
+                        .nodes
+                        .push(Node::corner(p));
+                }
+                kurbo::PathEl::QuadTo(c, p) => {
+                    let sub = current.get_or_insert_with(Subpath::default);
+                    let p0 = sub.nodes.last().map_or(p, |n| n.point);
+                    let c1 = p0 + (c - p0) * (2.0 / 3.0);
+                    let c2 = p + (c - p) * (2.0 / 3.0);
+                    if let Some(last) = sub.nodes.last_mut() {
+                        last.handle_out = Some(c1);
+                    }
+                    sub.nodes.push(Node {
+                        handle_in: Some(c2),
+                        ..Node::corner(p)
+                    });
+                }
+                kurbo::PathEl::CurveTo(c1, c2, p) => {
+                    let sub = current.get_or_insert_with(Subpath::default);
+                    if let Some(last) = sub.nodes.last_mut() {
+                        last.handle_out = Some(c1);
+                    }
+                    sub.nodes.push(Node {
+                        handle_in: Some(c2),
+                        ..Node::corner(p)
+                    });
+                }
+                kurbo::PathEl::ClosePath => {
+                    if let Some(mut sub) = current.take() {
+                        sub.closed = true;
+                        // A final node repeating the first one: merge them.
+                        if sub.nodes.len() > 1 {
+                            let last = *sub.nodes.last().expect("non-empty");
+                            if last.point.distance(sub.nodes[0].point) < 1e-9 {
+                                sub.nodes.pop();
+                                sub.nodes[0].handle_in = last.handle_in;
+                            }
+                        }
+                        finish(sub, &mut subpaths);
+                    }
+                }
+            }
+        }
+        if let Some(sub) = current.take() {
+            finish(sub, &mut subpaths);
+        }
+        for sub in &mut subpaths {
+            for n in &mut sub.nodes {
+                if let (Some(a), Some(b)) = (n.handle_in, n.handle_out) {
+                    let (u, v) = (a - n.point, b - n.point);
+                    let len = u.hypot() * v.hypot();
+                    n.smooth = len > 1e-12 && u.cross(v).abs() <= 1e-6 * len && u.dot(v) < 0.0;
+                }
+            }
+        }
+        Self::new(subpaths)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.subpaths.iter().all(|s| s.nodes.is_empty())
     }
@@ -597,6 +676,69 @@ mod tests {
         let hit = p.nearest_segment((50.0, 103.0).into()).unwrap();
         assert_eq!((hit.subpath, hit.segment), (0, 2));
         assert!((hit.distance - 3.0).abs() < 1e-6);
+    }
+
+    fn flat_all(path: &BezPath) -> Vec<Point> {
+        let mut out = Vec::new();
+        kurbo::flatten(path, 0.01, |el| match el {
+            kurbo::PathEl::MoveTo(p) | kurbo::PathEl::LineTo(p) => out.push(p),
+            _ => {}
+        });
+        out
+    }
+
+    fn max_distance(points: &[Point], path: &BezPath) -> f64 {
+        points
+            .iter()
+            .map(|p| {
+                path.segments()
+                    .map(|s| s.nearest(*p, 1e-9).distance_sq.sqrt())
+                    .fold(f64::INFINITY, f64::min)
+            })
+            .fold(0.0, f64::max)
+    }
+
+    #[test]
+    fn from_bezpath_quads_are_exact() {
+        // A TrueType-like contour: quadratic curves, closed back on its start.
+        let mut src = BezPath::new();
+        src.move_to((0.0, 0.0));
+        src.quad_to((50.0, -40.0), (100.0, 0.0));
+        src.quad_to((140.0, 50.0), (100.0, 100.0));
+        src.line_to((0.0, 100.0));
+        src.line_to((0.0, 0.0));
+        src.close_path();
+        let p = PathData::from_bezpath(&src);
+        assert_eq!(p.subpaths.len(), 1);
+        assert!(p.subpaths[0].closed);
+        assert_eq!(p.subpaths[0].nodes.len(), 4, "closing point merged");
+        let out = p.outline();
+        assert!(max_distance(&flat_all(&src), &out) < 1e-6);
+        assert!(max_distance(&flat_all(&out), &src) < 1e-6);
+        // An open path stays open.
+        let open = {
+            let mut b = BezPath::new();
+            b.move_to((0.0, 0.0));
+            b.line_to((10.0, 0.0));
+            b
+        };
+        let o = PathData::from_bezpath(&open);
+        assert!(!o.subpaths[0].closed && o.subpaths[0].nodes.len() == 2);
+    }
+
+    #[test]
+    fn from_bezpath_square_and_smooth_join() {
+        let square = Rect::new(0.0, 0.0, 10.0, 10.0).to_path(0.1);
+        let p = PathData::from_bezpath(&square);
+        assert_eq!(p.subpaths[0].nodes.len(), 4);
+        assert!(p.subpaths[0].nodes.iter().all(|n| !n.smooth));
+        let mut s = BezPath::new();
+        s.move_to((0.0, 0.0));
+        s.curve_to((10.0, 0.0), (20.0, 10.0), (30.0, 10.0));
+        s.curve_to((40.0, 10.0), (50.0, 0.0), (60.0, 0.0));
+        let p = PathData::from_bezpath(&s);
+        assert!(p.subpaths[0].nodes[1].smooth, "aligned handles");
+        assert!(!p.subpaths[0].nodes[0].smooth);
     }
 
     #[test]
