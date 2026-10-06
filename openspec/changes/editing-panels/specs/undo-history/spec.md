@@ -1,0 +1,16 @@
+## MODIFIED Requirements
+
+### Requirement: Undo and redo every document change
+Every change to the document — creating, deleting, moving, resizing, rotating, pasting, duplicating and reordering objects; changing fill, stroke, opacity, corner radius or transform values from panels; renaming, hiding, showing, locking, unlocking, grouping and ungrouping; and adding or removing palette colors — SHALL be undoable with Undo (Cmd/Ctrl+Z) and redoable with Redo (Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y). Undo and redo SHALL also restore the selection that existed at that point. View changes (zoom, pan), selection-only changes, panel layout changes, the current style for new shapes and recent colors SHALL NOT create history entries.
+
+#### Scenario: Undo a creation
+- **WHEN** the user draws a rectangle and presses Cmd/Ctrl+Z
+- **THEN** the rectangle disappears; pressing Cmd/Ctrl+Shift+Z brings it back, selected
+
+#### Scenario: Zoom is not undone
+- **WHEN** the user moves an object, zooms in, and presses Cmd/Ctrl+Z
+- **THEN** the object returns to its previous position and the zoom is unchanged
+
+#### Scenario: Undo a color change
+- **WHEN** the user changes a rectangle's fill from blue to red with the picker in one drag and presses Cmd/Ctrl+Z
+- **THEN** the rectangle is blue again and the Edit menu offered "Undo Change Fill"

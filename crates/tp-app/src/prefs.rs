@@ -16,6 +16,8 @@ pub const PREFS_VERSION: u32 = 1;
 const FILE_NAME: &str = "prefs.ron";
 /// Maximum number of entries kept in the recent projects list.
 pub const MAX_RECENT: usize = 12;
+/// Maximum number of recent colors kept.
+pub const MAX_RECENT_COLORS: usize = 12;
 
 /// A previously opened project.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -34,6 +36,8 @@ pub struct Prefs {
     pub text_scale: f32,
     pub layout: WorkspaceLayout,
     pub recent: Vec<RecentProject>,
+    /// Recently applied colors as RGBA, most recent first.
+    pub recent_colors: Vec<[u8; 4]>,
 }
 
 impl Default for Prefs {
@@ -44,6 +48,7 @@ impl Default for Prefs {
             text_scale: 1.0,
             layout: WorkspaceLayout::default(),
             recent: Vec::new(),
+            recent_colors: Vec::new(),
         }
     }
 }
@@ -55,6 +60,13 @@ impl Prefs {
             text_scale: self.text_scale,
         }
         .clamped()
+    }
+
+    /// Moves `rgba` to the front of the recent colors (no duplicates, capped).
+    pub fn push_recent_color(&mut self, rgba: [u8; 4]) {
+        self.recent_colors.retain(|c| *c != rgba);
+        self.recent_colors.insert(0, rgba);
+        self.recent_colors.truncate(MAX_RECENT_COLORS);
     }
 
     /// Restores UI scale and text size to 100%.
@@ -70,6 +82,7 @@ impl Prefs {
         self.text_scale = theme.text_scale;
         self.layout = self.layout.sanitized();
         self.recent.truncate(MAX_RECENT);
+        self.recent_colors.truncate(MAX_RECENT_COLORS);
         self
     }
 }
@@ -223,6 +236,33 @@ mod tests {
         assert!(loaded.issue.is_none());
         assert_eq!(loaded.prefs, prefs);
         assert!(!dir.path().join("nested/prefs.ron.tmp").exists());
+    }
+
+    #[test]
+    fn recent_colors_are_deduplicated_capped_and_saved() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = PrefsStore::new(dir.path());
+        let mut prefs = Prefs::default();
+        for i in 0..20u8 {
+            prefs.push_recent_color([i, 0, 0, 255]);
+        }
+        prefs.push_recent_color([10, 0, 0, 255]);
+        assert_eq!(prefs.recent_colors.len(), MAX_RECENT_COLORS);
+        assert_eq!(prefs.recent_colors[0], [10, 0, 0, 255]);
+        assert_eq!(prefs.recent_colors.iter().filter(|c| c[0] == 10).count(), 1);
+        store.save(&prefs).unwrap();
+        assert_eq!(store.load().prefs.recent_colors, prefs.recent_colors);
+    }
+
+    #[test]
+    fn version_1_file_without_recent_colors_still_loads() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = PrefsStore::new(dir.path());
+        fs::write(store.path(), "(version: 1, ui_scale: 1.25)").unwrap();
+        let loaded = store.load();
+        assert!(loaded.issue.is_none());
+        assert_eq!(loaded.prefs.ui_scale, 1.25);
+        assert!(loaded.prefs.recent_colors.is_empty());
     }
 
     #[test]

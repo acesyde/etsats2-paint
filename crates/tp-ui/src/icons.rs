@@ -66,6 +66,16 @@ pub const STROKE: &str = ph::CIRCLE_HALF;
 pub const TRANSFORM: &str = ph::BOUNDING_BOX;
 pub const ASSETS: &str = ph::IMAGES;
 pub const VEHICLE: &str = ph::TRUCK;
+pub const GROUP: &str = ph::FOLDER_SIMPLE;
+pub const UNGROUP: &str = ph::FOLDER_SIMPLE_DASHED;
+pub const NEW_LAYER: &str = ph::STACK_PLUS;
+pub const VISIBLE: &str = ph::EYE;
+pub const HIDDEN: &str = ph::EYE_SLASH;
+pub const LOCKED: &str = ph::LOCK_SIMPLE;
+pub const UNLOCKED: &str = ph::LOCK_SIMPLE_OPEN;
+pub const LINKED: &str = ph::LINK_SIMPLE;
+pub const UNLINKED: &str = ph::LINK_BREAK;
+pub const ADD: &str = ph::PLUS;
 pub const PREVIEW_3D: &str = ph::CUBE;
 
 pub const VIEW_2D: &str = ph::SQUARE_HALF;

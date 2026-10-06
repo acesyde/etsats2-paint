@@ -366,7 +366,10 @@ fn typing_in_text_field_does_not_switch_tools() {
             // The theme's fonts are usable from the second frame on.
             if *frames > 0 {
                 egui::Window::new("Scratch").show(ui.ctx(), |ui| {
-                    ui.add(egui::TextEdit::singleline(text).hint_text("scratch field"));
+                    ui.add(egui::TextEdit::singleline(text).hint_text("scratch field"))
+                        .widget_info(|| {
+                            egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, "Scratch")
+                        });
                 });
             }
             *frames += 1;
@@ -383,11 +386,12 @@ fn typing_in_text_field_does_not_switch_tools() {
         tp_core::TextureResolution::R2048,
     ));
     h.run();
-    h.get_by_role(Role::TextInput).focus();
+    h.get_by_role_and_label(Role::TextInput, "Scratch").focus();
     h.run();
     // A real keyboard sends both the key event and the text event.
     h.key_press(Key::R);
-    h.get_by_role(Role::TextInput).type_text("R");
+    h.get_by_role_and_label(Role::TextInput, "Scratch")
+        .type_text("R");
     h.run();
     assert_eq!(h.state().1, "R");
     assert_eq!(h.state().0.workspace().unwrap().tool, Tool::Select);

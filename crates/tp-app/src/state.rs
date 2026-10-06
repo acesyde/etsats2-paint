@@ -12,7 +12,7 @@ use crate::prefs::{Prefs, PrefsStore, recent_exists};
 use crate::tool::Tool;
 use crate::ui;
 use crate::viewport::Viewport;
-pub use crate::workspace::{COPY_OFFSET, SaveState, Workspace};
+pub use crate::workspace::{COPY_OFFSET, ColorTarget, SaveState, Workspace};
 
 /// Delay after the last preference change before it is written to disk.
 const PREFS_SAVE_DELAY: f64 = 1.0;
@@ -58,6 +58,10 @@ pub struct AppState {
     pub clipboard: Vec<Object>,
     /// Pastes since the last copy, for the repeated-paste offset.
     pub paste_count: u32,
+    /// A text field had focus at the end of the previous frame. egui drops
+    /// focus at the start of the frame where Escape is pressed, so this keeps
+    /// that Escape for the field instead of canvas shortcuts.
+    text_focus_last_frame: bool,
     title: String,
 }
 
@@ -93,6 +97,7 @@ impl AppState {
             recent_available: Vec::new(),
             clipboard: Vec::new(),
             paste_count: 0,
+            text_focus_last_frame: false,
             title: String::new(),
         };
         state.refresh_recent_availability();
@@ -165,6 +170,8 @@ impl AppState {
         for id in std::mem::take(&mut self.queue) {
             self.dispatch(&ctx, id);
         }
+        self.flush_recent_color(&ctx);
+        self.text_focus_last_frame = ctx.text_edit_focused();
         self.sync_title(&ctx);
         let now = ctx.input(|i| i.time);
         self.persist_prefs(now, false);
@@ -196,6 +203,10 @@ impl AppState {
                 gesture_active: ws.gesture.is_active(),
                 undo_label: ws.history.undo_label(),
                 redo_label: ws.history.redo_label(),
+                selection_has_group: ws
+                    .selection
+                    .iter()
+                    .any(|id| ws.project.surface().get(*id).is_some_and(|o| o.is_group())),
             },
             None => EditContext::default(),
         }
@@ -214,7 +225,7 @@ impl AppState {
     }
 
     fn handle_keyboard(&mut self, ctx: &egui::Context) {
-        let typing = ctx.text_edit_focused() || self.modal.is_some();
+        let typing = ctx.text_edit_focused() || self.text_focus_last_frame || self.modal.is_some();
         let has_project = self.has_project();
         let edit = self.edit_context();
         let triggered = ctx.input_mut(|i| {
@@ -247,6 +258,10 @@ impl AppState {
         tracing::debug!(?id, "command");
         let now = ctx.input(|i| i.time);
         let ppp = ctx.pixels_per_point();
+        // A panel interaction in progress becomes one step before any command.
+        if let Some(ws) = self.workspace_mut() {
+            ws.commit_pending(now);
+        }
         match id {
             CommandId::NewProject => {
                 self.modal = Some(Modal::NewProject(NewProjectDraft::default()));
@@ -278,8 +293,23 @@ impl AppState {
             CommandId::Redo => self.with_workspace(Workspace::redo),
             CommandId::SelectAll => self.with_workspace(Workspace::select_all),
             CommandId::Deselect => self.with_workspace(Workspace::deselect),
-            CommandId::Delete => self.with_workspace(|ws| ws.delete_selection(now)),
-            CommandId::Duplicate => self.with_workspace(|ws| ws.duplicate_selection(now)),
+            CommandId::Delete | CommandId::DeleteLayer => {
+                self.with_workspace(|ws| ws.delete_selection(now));
+            }
+            CommandId::Duplicate | CommandId::DuplicateLayer => {
+                self.with_workspace(|ws| ws.duplicate_selection(now));
+            }
+            CommandId::Group => self.with_workspace(|ws| ws.group_selection(now)),
+            CommandId::Ungroup => self.with_workspace(|ws| ws.ungroup_selection(now)),
+            CommandId::NewLayer => self.with_workspace(|ws| ws.new_layer(now)),
+            CommandId::SwapColorTarget => self.with_workspace(|ws| {
+                ws.panels.color_target = match ws.panels.color_target {
+                    ColorTarget::Fill => ColorTarget::Stroke,
+                    ColorTarget::Stroke => ColorTarget::Fill,
+                };
+            }),
+            CommandId::SwapFillStroke => self.with_workspace(|ws| ws.swap_fill_stroke(now)),
+            CommandId::DefaultColors => self.with_workspace(|ws| ws.default_colors(now)),
             CommandId::BringForward => self.with_workspace(|ws| ws.bring_forward(now)),
             CommandId::SendBackward => self.with_workspace(|ws| ws.send_backward(now)),
             CommandId::Copy | CommandId::Cut => {
@@ -331,6 +361,21 @@ impl AppState {
             }
             // Not-yet-available commands never reach here (disabled).
             _ => {}
+        }
+    }
+
+    /// Adds the last applied color to recent colors once the user is no
+    /// longer dragging or typing (so a picker drag adds one color).
+    fn flush_recent_color(&mut self, ctx: &egui::Context) {
+        let busy = ctx.input(|i| i.pointer.any_down()) || ctx.text_edit_focused();
+        if busy {
+            return;
+        }
+        let Some(ws) = self.workspace_mut() else {
+            return;
+        };
+        if let Some(c) = ws.recent_candidate.take() {
+            self.prefs.push_recent_color([c.r, c.g, c.b, c.a]);
         }
     }
 
