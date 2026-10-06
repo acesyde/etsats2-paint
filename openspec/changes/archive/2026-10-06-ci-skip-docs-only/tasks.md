@@ -16,5 +16,5 @@
 
 ## 3. Validation
 
-- [ ] 3.1 Open the PR. It touches `.github/` and `scripts/`, so CI must run in full, and "CI result" must pass. Verify on GitHub; the user reports the result.
+- [x] 3.1 Open the PR. It touches `.github/` and `scripts/`, so CI must run in full, and "CI result" must pass. Verify on GitHub; the user reports the result.
 - [ ] 3.2 After the merge, check that the next docs-only PR (e.g. the archive PR of this change) skips the Rust jobs and that "CI result" passes. Verify on GitHub; the user reports the result.
