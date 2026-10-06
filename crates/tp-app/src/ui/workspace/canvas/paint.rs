@@ -4,13 +4,16 @@ use egui::{
     Align2, Color32, CornerRadius, FontId, Modifiers, Painter, Pos2, Rect, Shadow, Shape, Stroke,
     StrokeKind, Ui, Vec2,
 };
-use tp_core::document::{Frame, Object, Rgba, selection_frame};
+use std::sync::Arc;
+
+use tp_core::document::{Frame, Object, Rgba, ShapeKind, selection_frame};
 use tp_core::kurbo;
 use tp_ui::icons;
 use tp_ui::tokens::{canvas as tokens, color, radius, space};
 
-use crate::geometry_cache::zoom_bucket;
+use crate::geometry_cache::{tolerance, zoom_bucket};
 use crate::gesture::{Gesture, drawing_frame, screen_handles};
+use crate::text_engine::layout_to_doc;
 use crate::viewport::ScreenMap;
 use crate::workspace::Workspace;
 
@@ -72,9 +75,17 @@ pub fn paint(
         if !bounds.intersects(area) {
             continue;
         }
-        let outline = ws.geometry.outline(object, bucket);
-        let points: Vec<Pos2> = outline.iter().map(|p| map.to_screen(*p)).collect();
-        draw_object(&painter, object, *opacity, points, map.scale);
+        match object.kind {
+            ShapeKind::Text => draw_text(&painter, ws, object, *opacity, map, bucket),
+            ShapeKind::Image { asset } => {
+                draw_image(ui.ctx(), &painter, ws, object, asset, *opacity, map);
+            }
+            _ => {
+                let outline = ws.geometry.outline(object, bucket);
+                let points: Vec<Pos2> = outline.iter().map(|p| map.to_screen(*p)).collect();
+                draw_object(&painter, object, *opacity, points, map.scale);
+            }
+        }
     }
 
     painter.rect_stroke(
@@ -108,7 +119,11 @@ pub fn paint(
         );
     }
 
-    draw_selection(&painter, ws, map, bucket);
+    if ws.is_editing_text() {
+        draw_text_session(ui, &painter, ws, map, now);
+    } else {
+        draw_selection(&painter, ws, map, bucket);
+    }
     draw_gesture_feedback(ui, &painter, ws, map, pointer, modifiers);
 
     if let (Some((glyph, offset)), Some(p)) = (drawn_cursor, pointer) {
@@ -125,6 +140,146 @@ pub fn paint(
     }
 
     draw_hint(ui, &painter, ws, area, now);
+}
+
+fn mesh_to_screen(mesh: &tp_text::mesh::Mesh, map: &ScreenMap, color: Color32) -> egui::Mesh {
+    let mut out = egui::Mesh::default();
+    out.indices.clone_from(&mesh.indices);
+    out.vertices = mesh
+        .vertices
+        .iter()
+        .map(|[x, y]| egui::epaint::Vertex {
+            pos: Pos2::new(x * map.scale, y * map.scale) + map.offset,
+            uv: egui::epaint::WHITE_UV,
+            color,
+        })
+        .collect();
+    out
+}
+
+/// Draws a text from its glyph outlines (fill, then stroke on top).
+fn draw_text(
+    painter: &Painter,
+    ws: &mut Workspace,
+    object: &Arc<Object>,
+    opacity: f32,
+    map: &ScreenMap,
+    bucket: i32,
+) {
+    let mesh = ws.text.mesh(object, bucket, tolerance(bucket));
+    if object.fill.a > 0 {
+        let fill = color32(object.fill.with_opacity(opacity));
+        painter.add(Shape::mesh(mesh_to_screen(&mesh.fill, map, fill)));
+    }
+    if let (Some(stroke_mesh), Some(stroke)) = (&mesh.stroke, object.stroke) {
+        let color = color32(stroke.color.with_opacity(opacity));
+        painter.add(Shape::mesh(mesh_to_screen(stroke_mesh, map, color)));
+    }
+}
+
+/// Draws an image as a textured quad on its (possibly rotated) frame, or a
+/// placeholder while its texture is not ready.
+fn draw_image(
+    ctx: &egui::Context,
+    painter: &Painter,
+    ws: &mut Workspace,
+    object: &Object,
+    asset: tp_core::document::AssetId,
+    opacity: f32,
+    map: &ScreenMap,
+) {
+    let corners = object.frame.corners().map(|c| map.to_screen(c));
+    let texture = ws.project.assets.get(&asset).cloned().and_then(|a| {
+        let longest = object.frame.size.width.max(object.frame.size.height) as f32;
+        ws.images
+            .texture(ctx, &a, longest * map.scale * ctx.pixels_per_point())
+    });
+    match texture {
+        Some(texture) => {
+            let mut mesh = egui::Mesh::with_texture(texture.id());
+            let tint = Color32::WHITE.gamma_multiply(opacity);
+            let uvs = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
+            for (pos, (u, v)) in corners.iter().zip(uvs) {
+                mesh.vertices.push(egui::epaint::Vertex {
+                    pos: *pos,
+                    uv: Pos2::new(u, v),
+                    color: tint,
+                });
+            }
+            mesh.add_triangle(0, 1, 2);
+            mesh.add_triangle(0, 2, 3);
+            painter.add(Shape::mesh(mesh));
+        }
+        None => {
+            let failed = ws.images.failed(asset);
+            painter.add(Shape::convex_polygon(
+                corners.to_vec(),
+                tokens::IMAGE_PLACEHOLDER.gamma_multiply(opacity),
+                Stroke::new(1.0, color::BORDER_STRONG),
+            ));
+            let center = map.to_screen(object.frame.center);
+            let glyph = if failed { icons::WARNING } else { icons::IMAGE };
+            painter.text(
+                center,
+                Align2::CENTER_CENTER,
+                glyph,
+                icons::font(18.0),
+                color::SURFACE_3,
+            );
+            if !failed {
+                ctx.request_repaint_after(std::time::Duration::from_millis(100));
+            }
+        }
+    }
+}
+
+/// Caret blink period, in seconds (on for half of it).
+const CARET_BLINK: f64 = 1.0;
+
+/// Highlighted characters and blinking caret of the text being edited.
+fn draw_text_session(ui: &Ui, painter: &Painter, ws: &mut Workspace, map: &ScreenMap, now: f64) {
+    let Some((object, layout)) = ws.session_layout() else {
+        return;
+    };
+    let Some(session) = &ws.text_session else {
+        return;
+    };
+    let to_doc = layout_to_doc(&object);
+    let to_screen = |p: kurbo::Point| map.to_screen(to_doc * p);
+    // Thin frame so the edited text stays visible on any background.
+    painter.add(Shape::closed_line(
+        object.frame.corners().map(|c| map.to_screen(c)).to_vec(),
+        Stroke::new(tokens::LINE, tokens::SELECTION.gamma_multiply(0.5)),
+    ));
+    for r in session.edit.selection_rects(&layout) {
+        let quad = [
+            kurbo::Point::new(r.x0, r.y0),
+            kurbo::Point::new(r.x1, r.y0),
+            kurbo::Point::new(r.x1, r.y1),
+            kurbo::Point::new(r.x0, r.y1),
+        ]
+        .map(to_screen);
+        painter.add(Shape::convex_polygon(
+            quad.to_vec(),
+            tokens::TEXT_SELECTION,
+            Stroke::NONE,
+        ));
+    }
+    let elapsed = (now - session.caret_since).max(0.0);
+    let phase = elapsed % CARET_BLINK;
+    if !session.edit.has_selection() && phase < CARET_BLINK / 2.0 {
+        let c = session.edit.caret_rect(&layout);
+        let top = to_screen(kurbo::Point::new(c.x0, c.y0));
+        let bottom = to_screen(kurbo::Point::new(c.x0, c.y1));
+        painter.line_segment([top, bottom], Stroke::new(1.5, tokens::CARET));
+    }
+    let next = if phase < CARET_BLINK / 2.0 {
+        CARET_BLINK / 2.0 - phase
+    } else {
+        CARET_BLINK - phase
+    };
+    ui.ctx()
+        .request_repaint_after(std::time::Duration::from_secs_f64(next.max(0.01)));
 }
 
 /// Draws a shape; `opacity` already includes the object's and its groups'.
@@ -287,7 +442,7 @@ fn draw_gesture_feedback(
                 label_pill(ui, painter, pointer, text);
             }
         }
-        Gesture::Idle | Gesture::Panning => {}
+        Gesture::Idle | Gesture::Panning | Gesture::TextSelect => {}
     }
 }
 

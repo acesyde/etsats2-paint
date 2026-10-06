@@ -23,6 +23,9 @@ fn main() -> ExitCode {
             .with_min_inner_size([960.0, 600.0]),
         persist_window: true,
         persistence_path: dirs.as_ref().map(|d| d.config.join("window.ron")),
+        // Text glyphs and image edges are drawn as raw triangles (egui only
+        // smooths its own shapes): multisampling gives them smooth edges.
+        multisampling: 4,
         ..Default::default()
     };
 

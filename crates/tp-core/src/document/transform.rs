@@ -176,6 +176,7 @@ fn resize_one(o: &Object, transform: Affine, sx: f64, sy: f64, bounds_rotation: 
         rotation_deg: bounds_rotation + new_rel,
     }
     .sanitized();
+    o.sync_text_scale();
     for child in &mut o.children {
         *child = Arc::new(resize_one(child, transform, sx, sy, bounds_rotation));
     }

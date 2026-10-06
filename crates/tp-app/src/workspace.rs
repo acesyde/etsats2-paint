@@ -5,13 +5,17 @@ use std::collections::HashSet;
 use egui::Rect;
 use tp_core::document::tree::{self, Placement};
 use tp_core::document::{
-    DEFAULT_FILL, Frame, History, Object, ObjectId, Rgba, ShapeKind, StrokeStyle, translate,
+    CharStyle, DEFAULT_FILL, Frame, History, Object, ObjectId, Rgba, ShapeKind, StrokeStyle,
+    translate,
 };
 use tp_core::kurbo::Vec2;
 use tp_core::{Project, Snapshot};
 
 use crate::geometry_cache::GeometryCache;
 use crate::gesture::Gesture;
+use crate::image_cache::ImageCache;
+use crate::text_engine::TextEngine;
+use crate::text_session::TextSession;
 use crate::tool::Tool;
 use crate::viewport::Viewport;
 
@@ -96,6 +100,19 @@ pub struct PanelState {
     pub renaming: Option<(ObjectId, String)>,
     /// Rows being dragged in the Layers panel.
     pub layers_drag: Option<Vec<ObjectId>>,
+    /// Open font picker.
+    pub font_picker: Option<FontPicker>,
+    /// Asset being renamed in the Assets panel, with its edit buffer.
+    pub renaming_asset: Option<(tp_core::document::AssetId, String)>,
+}
+
+/// State of the font family picker popup.
+#[derive(Debug, Default)]
+pub struct FontPicker {
+    pub query: String,
+    /// Highlighted row among the filtered families.
+    pub highlighted: usize,
+    pub focus_requested: bool,
 }
 
 pub struct Workspace {
@@ -122,10 +139,25 @@ pub struct Workspace {
     /// Last color applied, waiting to be added to recent colors once the
     /// interaction ends.
     pub recent_candidate: Option<Rgba>,
+    /// Fonts, text layouts and glyph meshes.
+    pub text: TextEngine,
+    /// Character style for new texts.
+    pub text_style: CharStyle,
+    /// Text being edited on the canvas.
+    pub text_session: Option<TextSession>,
+    /// Display textures of image assets.
+    pub images: ImageCache,
+    /// The file dialog should open to place images, at a point or the view
+    /// center (Place command, Image tool).
+    pub place_request: Option<Option<tp_core::kurbo::Point>>,
 }
 
 impl Workspace {
     pub fn new(project: Project) -> Self {
+        Self::with_text_engine(project, TextEngine::default())
+    }
+
+    pub fn with_text_engine(project: Project, text: TextEngine) -> Self {
         Self {
             project,
             tool: Tool::default(),
@@ -142,6 +174,11 @@ impl Workspace {
             panels: PanelState::default(),
             pending: None,
             recent_candidate: None,
+            text,
+            text_style: CharStyle::default(),
+            text_session: None,
+            images: ImageCache::default(),
+            place_request: None,
         }
     }
 
@@ -279,6 +316,8 @@ impl Workspace {
             ShapeKind::Rectangle { .. } => "Create Rectangle",
             ShapeKind::Ellipse => "Create Ellipse",
             ShapeKind::Group => "Create Group",
+            ShapeKind::Text => "Create Text",
+            ShapeKind::Image { .. } => "Place",
         };
         let object = self.styled_shape(kind, frame);
         let layer = self.active_layer();

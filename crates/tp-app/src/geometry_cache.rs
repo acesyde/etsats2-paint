@@ -33,7 +33,7 @@ pub fn zoom_bucket(screen_points_per_texture_px: f64) -> i32 {
 
 /// Flattening tolerance (texture pixels) for a bucket: about a quarter of a
 /// screen point at the bucket's highest zoom.
-fn tolerance(bucket: i32) -> f64 {
+pub fn tolerance(bucket: i32) -> f64 {
     (0.25 / 2f64.powi(bucket + 1)).max(1e-3)
 }
 

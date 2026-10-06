@@ -22,6 +22,77 @@ pub enum ShapeKind {
     Ellipse,
     /// Holds `Object::children`; its frame is derived from them.
     Group,
+    /// Holds `Object::text`; its frame is the laid-out size × scale.
+    Text,
+    /// Draws a project asset in its frame.
+    Image {
+        asset: AssetId,
+    },
+}
+
+/// Identifier of a project asset (imported image or SVG).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct AssetId(pub u64);
+
+/// Horizontal text alignment around the text anchor.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum TextAlign {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
+/// One style for a whole text object.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CharStyle {
+    pub family: String,
+    /// 100..=900
+    pub weight: u16,
+    pub italic: bool,
+    /// Font size in texture pixels.
+    pub size: f64,
+    pub align: TextAlign,
+    /// Tracking in thousandths of an em.
+    pub letter_spacing: f64,
+    /// Line height in percent of the size.
+    pub line_height: f64,
+}
+
+impl Default for CharStyle {
+    fn default() -> Self {
+        Self {
+            family: "Inter".to_owned(),
+            weight: 700,
+            italic: false,
+            size: 200.0,
+            align: TextAlign::Left,
+            letter_spacing: 0.0,
+            line_height: 120.0,
+        }
+    }
+}
+
+/// Content and style of a text object.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TextBlock {
+    pub content: String,
+    pub style: CharStyle,
+    /// Laid-out size at scale 1, written by the text engine.
+    pub layout_size: Size,
+    /// Scale applied by resizing with handles.
+    pub scale: Vec2,
+}
+
+impl TextBlock {
+    pub fn new(content: impl Into<String>, style: CharStyle) -> Self {
+        Self {
+            content: content.into(),
+            style,
+            layout_size: Size::new(MIN_SIZE, MIN_SIZE),
+            scale: Vec2::new(1.0, 1.0),
+        }
+    }
 }
 
 impl ShapeKind {
@@ -35,6 +106,8 @@ impl ShapeKind {
             Self::Rectangle { .. } => "Rectangle",
             Self::Ellipse => "Ellipse",
             Self::Group => "Group",
+            Self::Text => "Text",
+            Self::Image { .. } => "Image",
         }
     }
 
@@ -142,6 +215,8 @@ pub struct Object {
     pub locked: bool,
     /// Children of a group, bottom to top. Empty for shapes.
     pub children: Vec<Arc<Object>>,
+    /// Content and style of a text object.
+    pub text: Option<TextBlock>,
 }
 
 impl Object {
@@ -158,6 +233,28 @@ impl Object {
             visible: true,
             locked: false,
             children: Vec::new(),
+            text: None,
+        }
+    }
+
+    /// A text object (size from `block.layout_size` × `block.scale`).
+    pub fn text(id: ObjectId, block: TextBlock, center: Point) -> Self {
+        let mut object = Self::new(id, ShapeKind::Text, Frame::new(center, Size::ZERO, 0.0));
+        object.frame.size = Size::new(
+            block.layout_size.width * block.scale.x,
+            block.layout_size.height * block.scale.y,
+        );
+        object.frame = object.frame.sanitized();
+        object.text = Some(block);
+        object
+    }
+
+    /// Updates a text's scale from its frame size (after a resize).
+    pub fn sync_text_scale(&mut self) {
+        if let Some(block) = &mut self.text {
+            let w = block.layout_size.width.max(MIN_SIZE);
+            let h = block.layout_size.height.max(MIN_SIZE);
+            block.scale = Vec2::new(self.frame.size.width / w, self.frame.size.height / h);
         }
     }
 
@@ -218,7 +315,9 @@ impl Object {
                     child.extent_points(out);
                 }
             }
-            ShapeKind::Rectangle { .. } => out.extend(self.frame.corners()),
+            ShapeKind::Rectangle { .. } | ShapeKind::Text | ShapeKind::Image { .. } => {
+                out.extend(self.frame.corners());
+            }
             ShapeKind::Ellipse => out.extend(self.flattened(0.5)),
         }
     }
@@ -256,7 +355,10 @@ impl Object {
                 let max = rect.width().min(rect.height()) / 2.0;
                 RoundedRect::from_rect(rect, (corner_radius + grow).min(max)).to_path(0.01)
             }
-            ShapeKind::Rectangle { .. } | ShapeKind::Group => rect.to_path(0.01),
+            ShapeKind::Rectangle { .. }
+            | ShapeKind::Group
+            | ShapeKind::Text
+            | ShapeKind::Image { .. } => rect.to_path(0.01),
             ShapeKind::Ellipse => Ellipse::from_rect(rect).to_path(0.01),
         }
     }
@@ -276,7 +378,9 @@ impl Object {
     pub fn bounding_box(&self) -> Rect {
         match self.kind {
             ShapeKind::Ellipse => self.path().bounding_box(),
-            ShapeKind::Rectangle { .. } => self.frame.bounding_box(),
+            ShapeKind::Rectangle { .. } | ShapeKind::Text | ShapeKind::Image { .. } => {
+                self.frame.bounding_box()
+            }
             ShapeKind::Group => {
                 let mut points = Vec::new();
                 self.extent_points(&mut points);
@@ -455,6 +559,34 @@ mod tests {
         g.refresh_group_frame();
         let diag = 100.0 * 2f64.sqrt();
         assert!((g.frame.size.width - diag).abs() < 1e-6);
+    }
+
+    #[test]
+    fn text_frame_is_layout_times_scale() {
+        let mut block = TextBlock::new("ACE", CharStyle::default());
+        block.layout_size = Size::new(400.0, 240.0);
+        block.scale = Vec2::new(2.0, 1.0);
+        let mut t = Object::text(ObjectId(5), block, Point::new(10.0, 20.0));
+        assert_eq!(t.name, "Text");
+        assert_eq!(t.frame.size, Size::new(800.0, 240.0));
+        // Clicking between letters hits the laid-out box.
+        assert!(t.contains(Point::new(10.0, 20.0), 0.0));
+        t.frame.size = Size::new(400.0, 480.0);
+        t.sync_text_scale();
+        assert_eq!(t.text.as_ref().unwrap().scale, Vec2::new(1.0, 2.0));
+    }
+
+    #[test]
+    fn image_hits_its_frame() {
+        let i = object(
+            ShapeKind::Image { asset: AssetId(1) },
+            (0.0, 0.0),
+            (100.0, 50.0),
+            0.0,
+        );
+        assert_eq!(i.name, "Image");
+        assert!(i.contains(Point::new(49.0, 24.0), 0.0));
+        assert!(!i.contains(Point::new(49.0, 26.0), 0.0));
     }
 
     #[test]
