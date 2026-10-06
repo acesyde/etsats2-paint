@@ -43,7 +43,11 @@ Clicking the first point of the path being drawn (within a few screen pixels) SH
 - **THEN** the whole path disappears
 
 ### Requirement: Line tool
-With the Line tool active, dragging on the canvas SHALL draw a straight line from the press point to the pointer, with a live preview; releasing SHALL create an open path with two corner points named "Line", selected, at the top of the active layer, and keep the tool active. Holding Shift SHALL constrain the angle to the nearest multiple of 45°, and holding Alt/Option SHALL use the press point as the middle of the line. A drag shorter than 2 screen pixels SHALL NOT create a line. Escape during the drag SHALL cancel it.
+With the Line tool active, dragging on the canvas SHALL draw a straight line from the press point to the pointer, with a live preview; releasing SHALL create an open path with two corner points named "Line", selected, at the top of the active layer, and keep the tool active. Holding Shift SHALL constrain the angle to the nearest multiple of 45°, and holding Alt/Option SHALL use the press point as the middle of the line. A drag shorter than 2 screen pixels SHALL NOT create a line. Escape during the drag SHALL cancel it. While dragging, the canvas SHALL show the line's length and angle. The created line's rotation SHALL be its own angle (folded into −90°..90°), so that its selection frame follows the line and the Transform panel shows that angle; setting the rotation to 0° SHALL make the line exactly horizontal.
+
+#### Scenario: Nearly horizontal line
+- **WHEN** the user drags a line from (500, 1000) to (3500, 1020)
+- **THEN** the line's rotation is about 0.38°, its frame is 3000 px long and follows the line, and setting the rotation to 0° in the Transform panel makes both end points have the same y
 
 #### Scenario: Horizontal line with Shift
 - **WHEN** the user drags from (100, 100) to (500, 120) with the Line tool while holding Shift

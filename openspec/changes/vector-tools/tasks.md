@@ -77,3 +77,8 @@
 - [x] 8.3 New open paths use the current fill and stroke (no forced stroke) and `Workspace::line_width`; add the Width field (accessible name "Line width") to Properties for paths with open subpaths. Verify the kittests "Default line", "Line uses the current stroke as an outline", "Thicker line" and "Next line uses the last width".
 - [x] 8.4 Run `mise run checks`, the full test suite and the stress run again. Verify everything passes.
 
+## 9. Line rotation follows the line (review feedback)
+
+- [x] 9.1 Create lines with their angle as rotation (folded into −90°..90°) and show length and angle while dragging. Verify the kittest "Nearly horizontal line" (rotation ≈ 0.38°, frame along the line, rotation 0 makes it horizontal) and that the existing line tests still pass.
+- [x] 9.2 Run `mise run checks`, the full test suite and the stress run. Verify everything passes.
+

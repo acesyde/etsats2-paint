@@ -129,12 +129,21 @@ impl Workspace {
     }
 
     /// Creates a line from `a` to `b` with the current style.
+    /// The line's rotation is its own angle, so its frame follows it.
     pub fn create_line(&mut self, a: Point, b: Point, now: f64) -> ObjectId {
         let data = PathData::new(vec![Subpath::new(
             vec![Node::corner(a), Node::corner(b)],
             false,
         )]);
-        let object = self.styled_path(data, "Line");
+        let mut object = self.styled_path(data, "Line");
+        let angle = line_angle(a, b);
+        // Same document geometry, expressed in a frame rotated by `angle`.
+        let center = object.frame.center;
+        let to_local = Affine::rotate(-angle.to_radians());
+        object.edit_path(|p| p.transform(to_local));
+        object.frame.rotation_deg = angle;
+        object.frame.center = center;
+        object.refit();
         self.create_object(object, now)
     }
 }
@@ -515,6 +524,18 @@ pub fn handle_pen_keys(ctx: &egui::Context, ws: &mut Workspace, now: f64) {
     }
 }
 
+/// Angle of the line from `a` to `b` in degrees, clockwise, folded into
+/// (−90°, 90°] so that a line drawn right to left is not upside down.
+pub fn line_angle(a: Point, b: Point) -> f64 {
+    let mut angle = (b - a).atan2().to_degrees();
+    if angle > 90.0 {
+        angle -= 180.0;
+    } else if angle <= -90.0 {
+        angle += 180.0;
+    }
+    if angle.abs() < 1e-9 { 0.0 } else { angle }
+}
+
 /// End points of a line dragged from `start` to `current`. Shift snaps the
 /// angle to 45°; Alt uses `start` as the middle.
 pub fn line_points(start: Point, current: Point, shift: bool, alt: bool) -> (Point, Point) {
@@ -585,6 +606,28 @@ mod tests {
         let id = ws.create_line(Point::new(0.0, 0.0), Point::new(10.0, 0.0), 2.0);
         let line = ws.project.surface().get(id).unwrap();
         assert_eq!(line.path_data().unwrap().line_width, 40.0);
+    }
+
+    #[test]
+    fn line_rotation_is_its_angle() {
+        let mut ws = ws();
+        let (a, b) = (Point::new(500.0, 1000.0), Point::new(3500.0, 1020.0));
+        let id = ws.create_line(a, b, 1.0);
+        let line = ws.project.surface().get(id).unwrap();
+        let expected = (20.0f64 / 3000.0).atan().to_degrees();
+        assert!((line.frame.rotation_deg - expected).abs() < 1e-9);
+        assert!((line.frame.size.width - a.distance(b)).abs() < 1e-6);
+        assert_eq!(line.frame.size.height, tp_core::document::MIN_SIZE);
+        // Same end points in the document.
+        let doc: Vec<Point> = line.path_data().unwrap().subpaths[0]
+            .nodes
+            .iter()
+            .map(|n| line.frame.affine() * n.point)
+            .collect();
+        assert!(doc[0].distance(a) < 1e-9 && doc[1].distance(b) < 1e-9);
+        // Drawn right to left: same angle, not upside down.
+        assert!((line_angle(b, a) - expected).abs() < 1e-9);
+        assert_eq!(line_angle(Point::ORIGIN, Point::new(0.0, 10.0)), 90.0);
     }
 
     #[test]

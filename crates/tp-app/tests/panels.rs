@@ -450,6 +450,36 @@ fn next_line_uses_the_last_width() {
 }
 
 #[test]
+fn nearly_horizontal_line() {
+    let mut h = open();
+    ws_mut(&mut h).tool = tp_app::tool::Tool::Line;
+    h.run();
+    let (a, b) = (screen(&h, 500.0, 1000.0), screen(&h, 3500.0, 1020.0));
+    drag(&mut h, a, b);
+    let id = ws(&h).selection[0];
+    let line = obj(&h, id);
+    let expected = (20.0f64 / 3000.0).atan().to_degrees();
+    assert!(
+        (line.frame.rotation_deg - expected).abs() < 0.05,
+        "{}",
+        line.frame.rotation_deg
+    );
+    assert!(
+        (line.frame.size.width - 3000.0).abs() < 2.0,
+        "the frame follows the line"
+    );
+    assert!(line.frame.size.height <= 1.0);
+    type_into(&mut h, "Rotation", "0");
+    let line = obj(&h, id);
+    let ends: Vec<Point> = line.path_data().unwrap().subpaths[0]
+        .nodes
+        .iter()
+        .map(|n| line.frame.affine() * n.point)
+        .collect();
+    assert!((ends[0].y - ends[1].y).abs() < 1e-6, "{ends:?}");
+}
+
+#[test]
 fn line_width_hidden_for_closed_shapes() {
     let mut h = open();
     let l = add_line(&mut h);

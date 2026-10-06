@@ -448,7 +448,14 @@ fn draw_gesture_feedback(
                 "Line",
             );
             draw_preview(painter, &line, map);
-            label_pill(ui, painter, pointer, format!("{:.0} px", a.distance(b)));
+            // Same value the Transform panel will show as the rotation.
+            let angle = crate::path_edit::line_angle(a, b);
+            label_pill(
+                ui,
+                painter,
+                pointer,
+                format!("{:.0} px · {angle:.1}°", a.distance(b)),
+            );
         }
         Gesture::Drawing { kind, start } => {
             let frame = super::shape_frame(*kind, *start, doc, modifiers);
