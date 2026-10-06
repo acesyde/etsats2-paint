@@ -4,8 +4,8 @@
 - [x] 1.2 Add a minimal `eframe` (wgpu backend) window in `tp-app` titled with the placeholder product name; verify `cargo run -p tp-app` opens a window on macOS
 - [x] 1.3 Add `tracing` logging to stderr and a rolling file in the per-OS data dir; verify a log file is created on startup
 - [x] 1.4 Show a clear error dialog/message and exit cleanly when no GPU adapter is available, and honor `WGPU_BACKEND`; verify by running with an invalid backend override
-- [ ] 1.5 Add mise tasks (`fmt`, `fmt:check`, `lint`, `test`, `build`, `run`, `screenshots`, `ci`) and `.github/workflows/ci.yml` with an ubuntu/windows/macos matrix that installs Rust via mise and runs those tasks (Linux system packages installed, rust-cache enabled, actions pinned by SHA); verify `mise run ci` passes locally and the workflow passes on all three runners
-- [ ] 1.6 Document build prerequisites per OS (Linux packages, `WGPU_BACKEND=gl` fallback) in `README.md`; verify instructions by following them on a clean checkout
+- [x] 1.5 Add mise tasks (`fmt`, `fmt:check`, `lint`, `test`, `build`, `run`, `screenshots`, `ci`) and `.github/workflows/ci.yml` with an ubuntu/windows/macos matrix that installs Rust via mise and runs those tasks (Linux system packages installed, rust-cache enabled, actions pinned by SHA); verify `mise run ci` passes locally and the workflow passes on all three runners
+- [x] 1.6 Document build prerequisites per OS (Linux packages, `WGPU_BACKEND=gl` fallback) in `README.md`; verify instructions by following them on a clean checkout
 
 ## 2. Design system (tp-ui)
 
@@ -28,7 +28,7 @@
 
 - [x] 4.1 Implement versioned `Prefs` (UI scale, text size, panel layout, 3D panel, view mode, recent projects) saved as RON in the per-OS config dir with atomic write and debounced saving; verify a unit test round-trips prefs through a temp dir
 - [x] 4.2 Handle missing/invalid/unknown-version prefs by falling back to defaults and keeping a timestamped backup; verify a unit test with a corrupted file
-- [ ] 4.3 Restore window size/position/maximized state and clamp to a connected monitor; verify manually by moving the window off-screen in the saved state and relaunching
+- [x] 4.3 Restore window size/position/maximized state and clamp to a connected monitor; verify manually by moving the window off-screen in the saved state and relaunching
 - [x] 4.4 Implement the Preferences dialog (Edit > Preferences, `⌘,`/`Ctrl+,`) with live UI scale/text size and "Reset to defaults"; verify a kittest that reset returns both values to 100%
 
 ## 5. Start screen
@@ -52,6 +52,6 @@
 
 ## 7. Integration & polish
 
-- [ ] 7.1 Keyboard navigation pass: focus rings visible, Tab order sensible in dialogs and Home screen; verify manually and with a kittest on the New Project dialog
-- [ ] 7.2 Visual QA pass on macOS, Windows and Linux (X11 and Wayland) at 100% and 200% scale; verify by attaching screenshots of Home, New Project and Workspace per platform to the PR
-- [ ] 7.3 Run `openspec validate app-shell --strict` and the full CI matrix; verify both pass
+- [x] 7.1 Keyboard navigation pass: focus rings visible, Tab order sensible in dialogs and Home screen; verify manually and with a kittest on the New Project dialog
+- [x] 7.2 Visual QA pass on macOS, Windows and Linux (X11 and Wayland) at 100% and 200% scale; verify by attaching screenshots of Home, New Project and Workspace per platform to the PR — accepted without a Windows/Linux visual check (no machine available); macOS checked at 100% and 200%
+- [x] 7.3 Run `openspec validate app-shell --strict` and the full CI matrix; verify both pass
