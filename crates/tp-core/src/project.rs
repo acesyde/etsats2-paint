@@ -43,14 +43,38 @@ impl TextureResolution {
     }
 }
 
+/// Orientation of a guide.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Axis {
+    /// A horizontal line at a given y.
+    Horizontal,
+    /// A vertical line at a given x.
+    Vertical,
+}
+
+/// A guide line across a surface, in texture pixels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Guide {
+    pub axis: Axis,
+    /// y for horizontal guides, x for vertical guides.
+    pub position: f64,
+}
+
+impl Guide {
+    pub fn new(axis: Axis, position: f64) -> Self {
+        Self { axis, position }
+    }
+}
+
 /// One texture of the vehicle: a square artboard holding ordered objects
-/// (later objects are drawn on top).
+/// (later objects are drawn on top) and its guides.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Surface {
     pub name: String,
     /// Side length in texture pixels.
     pub size: f64,
     pub objects: Vec<Arc<Object>>,
+    pub guides: Vec<Guide>,
 }
 
 impl Surface {
@@ -59,6 +83,7 @@ impl Surface {
             name: name.into(),
             size,
             objects: Vec::new(),
+            guides: Vec::new(),
         }
     }
 
@@ -398,10 +423,38 @@ impl Project {
         true
     }
 
+    /// Adds a guide to the active surface; returns its index.
+    pub fn add_guide(&mut self, guide: Guide) -> usize {
+        let guides = &mut self.surface_mut().guides;
+        guides.push(guide);
+        guides.len() - 1
+    }
+
+    /// Moves guide `index` of the active surface along its axis.
+    pub fn move_guide(&mut self, index: usize, position: f64) {
+        if let Some(g) = self.surface_mut().guides.get_mut(index) {
+            g.position = position;
+        }
+    }
+
+    /// Removes guide `index` of the active surface.
+    pub fn remove_guide(&mut self, index: usize) {
+        let guides = &mut self.surface_mut().guides;
+        if index < guides.len() {
+            guides.remove(index);
+        }
+    }
+
+    /// Removes every guide of the active surface.
+    pub fn clear_guides(&mut self) {
+        self.surface_mut().guides.clear();
+    }
+
     /// Captures the document state (cheap: objects are shared).
     pub fn snapshot(&self, selection: &[ObjectId]) -> Snapshot {
         Snapshot {
             surfaces: self.surfaces.iter().map(|s| s.objects.clone()).collect(),
+            guides: self.surfaces.iter().map(|s| s.guides.clone()).collect(),
             active_surface: self.active_surface,
             palette: self.palette.clone(),
             assets: self.assets.clone(),
@@ -416,6 +469,9 @@ impl Project {
         for (surface, objects) in self.surfaces.iter_mut().zip(&snapshot.surfaces) {
             surface.objects = objects.clone();
         }
+        for (surface, guides) in self.surfaces.iter_mut().zip(&snapshot.guides) {
+            surface.guides = guides.clone();
+        }
         self.active_surface = snapshot.active_surface.min(self.surfaces.len() - 1);
         self.palette = snapshot.palette.clone();
         self.assets = snapshot.assets.clone();
@@ -427,6 +483,7 @@ impl Project {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Snapshot {
     surfaces: Vec<Vec<Arc<Object>>>,
+    guides: Vec<Vec<Guide>>,
     active_surface: usize,
     palette: Vec<Rgba>,
     assets: BTreeMap<AssetId, Arc<Asset>>,
@@ -451,6 +508,7 @@ impl Snapshot {
     /// (objects and points). Unchanged objects share their `Arc`, so this is mostly pointer checks.
     pub fn same_document(&self, other: &Snapshot) -> bool {
         self.active_surface == other.active_surface
+            && self.guides == other.guides
             && self.palette == other.palette
             && self.assets.len() == other.assets.len()
             && self
@@ -729,5 +787,29 @@ mod tests {
         assert!(a.same_document(&b));
         assert_eq!(a.points(), &[point]);
         assert!(b.points().is_empty());
+    }
+
+    #[test]
+    fn guides_round_trip_through_snapshots() {
+        let mut p = Project::new("P", TextureResolution::R2048);
+        assert!(p.surface().guides.is_empty());
+        let before = p.snapshot(&[]);
+        let i = p.add_guide(Guide::new(Axis::Vertical, 500.0));
+        p.add_guide(Guide::new(Axis::Horizontal, 1024.0));
+        let added = p.snapshot(&[]);
+        assert!(!added.same_document(&before));
+        p.move_guide(i, 2048.0);
+        assert!(!p.snapshot(&[]).same_document(&added));
+        p.restore(&added);
+        assert_eq!(p.surface().guides[0], Guide::new(Axis::Vertical, 500.0));
+        p.remove_guide(0);
+        assert_eq!(
+            p.surface().guides,
+            vec![Guide::new(Axis::Horizontal, 1024.0)]
+        );
+        p.clear_guides();
+        assert!(p.surface().guides.is_empty());
+        p.restore(&before);
+        assert!(p.surface().guides.is_empty());
     }
 }

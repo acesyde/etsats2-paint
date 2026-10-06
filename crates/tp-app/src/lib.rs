@@ -17,6 +17,7 @@ pub mod prefs;
 pub mod project_io;
 pub mod recovery;
 pub mod saver;
+pub mod snap;
 pub mod state;
 pub mod text_engine;
 pub mod text_input;

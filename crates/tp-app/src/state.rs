@@ -217,6 +217,10 @@ impl AppState {
         }
         self.handle_close_request(&ctx);
         self.handle_keyboard(&ctx);
+        let aids = self.prefs.view_aids;
+        if let Some(ws) = self.workspace_mut() {
+            ws.aids = aids;
+        }
 
         match self.screen {
             Screen::Home => ui::home::show(ui, self),
@@ -271,6 +275,7 @@ impl AppState {
                 single_text: matches!(ws.selection.as_slice(), [id] if ws.can_edit_text(*id)),
                 editing_text: ws.is_editing_text(),
                 selection_has_convertible: ws.selection_has_convertible(),
+                has_guides: !ws.project.surface().guides.is_empty(),
             },
             None => EditContext::default(),
         }
@@ -429,6 +434,14 @@ impl AppState {
             }),
             CommandId::DeleteLayer => self.with_workspace(|ws| ws.delete_selection(now)),
             CommandId::ConvertToPath => self.with_workspace(|ws| ws.convert_selection_to_path(now)),
+            CommandId::ShowGrid => self.prefs.view_aids.grid = !self.prefs.view_aids.grid,
+            CommandId::ShowGuides => self.prefs.view_aids.guides = !self.prefs.view_aids.guides,
+            CommandId::Snapping => self.prefs.view_aids.snapping = !self.prefs.view_aids.snapping,
+            CommandId::ClearGuides => self.with_workspace(|ws| {
+                ws.edit("Clear Guides", now, false, |project, _| {
+                    project.clear_guides()
+                });
+            }),
             CommandId::Duplicate | CommandId::DuplicateLayer => {
                 self.with_workspace(|ws| ws.duplicate_selection(now));
             }
@@ -533,6 +546,9 @@ impl AppState {
         };
         ws.check_text_session(now);
         ws.prune_points();
+        if std::mem::take(&mut ws.request_show_guides) {
+            self.prefs.view_aids.guides = true;
+        }
         if self.system_fonts && !ws.text.fonts.system_requested() {
             let ctx = ctx.clone();
             ws.text

@@ -237,6 +237,8 @@ fn select_all_and_escape() {
 #[test]
 fn dragging_moves_the_whole_selection_in_one_undo_step() {
     let mut h = open();
+    // Exact positions: B's right edge would snap to the artboard center.
+    h.state_mut().prefs.view_aids.snapping = false;
     let a = add_rect(&mut h, 500.0, 500.0, 300.0, 300.0);
     let b = add_rect(&mut h, 1500.0, 500.0, 300.0, 300.0);
     ws_mut(&mut h).selection = vec![a, b];

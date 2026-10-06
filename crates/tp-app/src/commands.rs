@@ -50,6 +50,7 @@ pub enum CommandId {
     ResetWorkspace,
     ShowGrid,
     ShowGuides,
+    ClearGuides,
     Snapping,
     DesignGallery,
     // Vehicle
@@ -115,6 +116,8 @@ pub struct EditContext {
     pub editing_text: bool,
     /// The selection holds a rectangle, ellipse or polygon (maybe in a group).
     pub selection_has_convertible: bool,
+    /// The active surface has guides.
+    pub has_guides: bool,
 }
 
 fn editable_selection(c: &EditContext) -> bool {
@@ -163,7 +166,6 @@ const CMD_ALT: Modifiers = Modifiers::COMMAND.plus(Modifiers::ALT);
 const NONE: Modifiers = Modifiers::NONE;
 const SHIFT: Modifiers = Modifiers::SHIFT;
 
-const SOON_EDITING: &str = "Available in a future update.";
 const NEEDS_SELECTION: &str = "Select one or more objects first.";
 const SOON_VEHICLES: &str = "Vehicle templates are not available yet.";
 const SOON_EXPORT: &str = "Game mods need vehicle templates, which are not available yet.";
@@ -207,6 +209,7 @@ impl CommandId {
             ResetWorkspace,
             ShowGrid,
             ShowGuides,
+            ClearGuides,
             Snapping,
             DesignGallery,
             ChooseVehicle,
@@ -524,21 +527,31 @@ impl CommandId {
                 None,
                 const { &[sc(CMD, Key::Quote)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                NeedsProject,
             ),
             ShowGuides => m(
                 "Show Guides",
                 None,
                 const { &[sc(CMD, Key::Semicolon)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                NeedsProject,
+            ),
+            ClearGuides => m(
+                "Clear Guides",
+                None,
+                &[],
+                Workspace,
+                When(
+                    |c| c.has_project && c.has_guides && !c.gesture_active,
+                    "The texture has no guides.",
+                ),
             ),
             Snapping => m(
                 "Snapping",
                 None,
                 const { &[sc(CMD_SHIFT, Key::Semicolon)] },
                 Workspace,
-                NotYet(SOON_EDITING),
+                NeedsProject,
             ),
             DesignGallery => m("Design System Gallery", None, &[], App, Always),
 

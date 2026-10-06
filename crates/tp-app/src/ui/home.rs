@@ -24,7 +24,9 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
 
     Panel::top("home_menu_bar")
         .frame(bar_frame())
-        .show(ui, |ui| menu_bar::show(ui, &mut cmds, None));
+        .show(ui, |ui| {
+            menu_bar::show(ui, &mut cmds, None, Default::default())
+        });
 
     Panel::left("home_sidebar")
         .exact_size(SIDEBAR_WIDTH)

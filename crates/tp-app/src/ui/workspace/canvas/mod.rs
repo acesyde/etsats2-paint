@@ -1,5 +1,6 @@
 //! Interactive canvas: navigation, tools, selection and transforms.
 
+pub mod aids;
 mod paint;
 
 use egui::{
@@ -11,15 +12,19 @@ use tp_core::document::{
     selection_frame, translate,
 };
 use tp_core::kurbo;
+use tp_core::{Axis, Guide};
 use tp_ui::tokens::canvas as tokens;
 
 use crate::commands::CommandId;
 use crate::gesture::{Gesture, OverlayTarget, Transforming, drawing_frame_aspect, overlay_target};
 use crate::path_edit::{PointTarget, line_points};
+use crate::snap::Snapper;
 use crate::tool::Tool;
 use crate::ui::CommandUi;
 use crate::viewport::{ScreenMap, Viewport};
 use crate::workspace::{ColorTarget, Workspace};
+use tp_core::document::snap_direction;
+use tp_core::kurbo::Vec2 as Vec2Doc;
 
 /// Points one wheel "line" is worth.
 const POINTS_PER_LINE: f32 = 40.0;
@@ -28,9 +33,28 @@ const WHEEL_ZOOM_BASE: f64 = 1.0035;
 
 /// Draws the canvas and handles its input.
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
-    let area = ui.available_rect_before_wrap();
-    let response = ui.allocate_rect(area, Sense::click_and_drag());
+    let full = ui.available_rect_before_wrap();
+    ui.allocate_rect(full, Sense::hover());
+    let (top_ruler, left_ruler, area) = aids::split(full);
+    let response = ui.interact(area, ui.id().with("canvas"), Sense::click_and_drag());
     response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, "Canvas"));
+    let rulers = [
+        (
+            ui.interact(top_ruler, ui.id().with("ruler_top"), Sense::drag()),
+            Axis::Horizontal,
+        ),
+        (
+            ui.interact(left_ruler, ui.id().with("ruler_left"), Sense::drag()),
+            Axis::Vertical,
+        ),
+    ];
+    for (ruler, axis) in &rulers {
+        let label = match axis {
+            Axis::Horizontal => "Horizontal ruler",
+            Axis::Vertical => "Vertical ruler",
+        };
+        ruler.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, label));
+    }
     let ctx = ui.ctx().clone();
     let ppp = ctx.pixels_per_point();
     let now = ctx.input(|i| i.time);
@@ -47,6 +71,9 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
         handle_wheel(&ctx, ws, area, ppp);
     }
     handle_pointer(ui, &response, ws, area, ppp, now);
+    for (ruler, axis) in &rulers {
+        handle_ruler(ui, ruler, *axis, ws, area, ppp, now);
+    }
 
     if response.secondary_clicked() {
         select_under_pointer_for_menu(ws, &response, area, ppp);
@@ -58,6 +85,11 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     let modifiers = ctx.input(|i| i.modifiers);
     let drawn_cursor = set_cursor(&ctx, ws, &map, pointer, modifiers, response.hovered());
     paint::paint(ui, ws, area, &map, pointer, modifiers, now, drawn_cursor);
+    let painter = ui.painter();
+    let corner = Rect::from_min_max(full.min, area.min);
+    painter.rect_filled(corner, 0, tokens::RULER_BG);
+    aids::paint_ruler(painter, top_ruler, Axis::Horizontal, &map, pointer);
+    aids::paint_ruler(painter, left_ruler, Axis::Vertical, &map, pointer);
     ws.geometry.prune();
     ws.text.prune();
     ws.images.prune();
@@ -67,6 +99,214 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
         let at = ctx.pointer_interact_pos().map(|p| map.to_doc(p));
         ws.place_asset(*asset, at, now);
     }
+}
+
+/// Whether positions snap now: Snapping on and Cmd/Ctrl not held.
+fn snapping(ws: &Workspace, m: Modifiers) -> bool {
+    ws.aids.snapping && !m.command
+}
+
+/// Builds the snap targets of a gesture, leaving out `exclude`.
+fn prepare_snapper(ws: &mut Workspace, exclude: &[ObjectId], skip_guide: Option<usize>) {
+    ws.snapper = Some(Snapper::new(ws, exclude, skip_guide));
+    ws.snap_hits.clear();
+}
+
+/// Snaps a free point (records the hits). Uses the gesture's targets, or
+/// targets built now (clicks).
+fn snap_point(
+    ws: &mut Workspace,
+    map: &ScreenMap,
+    doc: kurbo::Point,
+    m: Modifiers,
+) -> kurbo::Point {
+    if !snapping(ws, m) {
+        ws.snap_hits.clear();
+        return doc;
+    }
+    if ws.snapper.is_none() {
+        prepare_snapper(ws, &[], None);
+    }
+    let tolerance = map.doc_len(tokens::SNAP_DISTANCE);
+    let (p, hits) = ws
+        .snapper
+        .as_ref()
+        .expect("built")
+        .snap_point(doc, tolerance);
+    ws.snap_hits = hits;
+    p
+}
+
+/// The pointer of a shape or line being drawn: snapped unless a Shift
+/// constraint couples the axes.
+fn drawing_point(
+    ws: &mut Workspace,
+    map: &ScreenMap,
+    doc: kurbo::Point,
+    m: Modifiers,
+) -> kurbo::Point {
+    if m.shift {
+        ws.snap_hits.clear();
+        doc
+    } else {
+        snap_point(ws, map, doc, m)
+    }
+}
+
+/// Snapped move delta: the selection bounds' edges and center snap on the
+/// axes the Shift constraint leaves free.
+fn snapped_move(
+    ws: &mut Workspace,
+    map: &ScreenMap,
+    originals: &[tp_core::document::Object],
+    delta: Vec2Doc,
+    m: Modifiers,
+) -> Vec2Doc {
+    let delta = if m.shift {
+        snap_direction(delta)
+    } else {
+        delta
+    };
+    ws.snap_hits.clear();
+    if !snapping(ws, m) {
+        return delta;
+    }
+    let (free_x, free_y) = if !m.shift {
+        (true, true)
+    } else {
+        (delta.y == 0.0, delta.x == 0.0)
+    };
+    let Some(bounds) = originals
+        .iter()
+        .map(|o| o.bounding_box())
+        .reduce(|a, b| a.union(b))
+    else {
+        return delta;
+    };
+    let b = bounds + delta;
+    let tolerance = map.doc_len(tokens::SNAP_DISTANCE);
+    let Some(snapper) = ws.snapper.as_ref() else {
+        return delta;
+    };
+    let mut out = delta;
+    let mut hits = Vec::new();
+    if free_x
+        && let Some((d, hit)) = snapper.snap_axis(
+            Axis::Vertical,
+            &[b.x0, b.center().x, b.x1],
+            (b.y0, b.y1),
+            tolerance,
+        )
+    {
+        out.x += d;
+        hits.push(hit);
+    }
+    if free_y
+        && let Some((d, hit)) = snapper.snap_axis(
+            Axis::Horizontal,
+            &[b.y0, b.center().y, b.y1],
+            (b.x0, b.x1),
+            tolerance,
+        )
+    {
+        out.y += d;
+        hits.push(hit);
+    }
+    ws.snap_hits = hits;
+    out
+}
+
+/// Coordinate of `doc` along the guide axis (y for horizontal guides).
+fn along(axis: Axis, doc: kurbo::Point) -> f64 {
+    match axis {
+        Axis::Horizontal => doc.y,
+        Axis::Vertical => doc.x,
+    }
+}
+
+/// Drags from a ruler create a guide, added when released over the canvas.
+fn handle_ruler(
+    ui: &Ui,
+    ruler: &Response,
+    axis: Axis,
+    ws: &mut Workspace,
+    area: Rect,
+    ppp: f32,
+    now: f64,
+) {
+    let ctx = ui.ctx();
+    let map = ws.viewport.expect("viewport set").map(area, ppp);
+    let Some(pointer) = ctx.pointer_latest_pos() else {
+        return;
+    };
+    let doc = map.to_doc(pointer);
+    if ruler.drag_started_by(PointerButton::Primary) {
+        ws.commit_pending(now);
+        if ws.is_editing_text() {
+            ws.end_text_session(now);
+        }
+        ws.gesture = Gesture::Guide {
+            axis,
+            index: None,
+            position: along(axis, doc),
+            before: ws.snapshot(),
+        };
+        prepare_snapper(ws, &[], None);
+    }
+    if ruler.dragged_by(PointerButton::Primary)
+        && matches!(ws.gesture, Gesture::Guide { index: None, axis: a, .. } if a == axis)
+    {
+        let modifiers = ctx.input(|i| i.modifiers);
+        let at = snap_guide(ws, &map, axis, along(axis, doc), modifiers);
+        if let Gesture::Guide { position, .. } = &mut ws.gesture {
+            *position = at;
+        }
+    }
+    if ruler.drag_stopped_by(PointerButton::Primary)
+        && let Gesture::Guide {
+            index: None,
+            position,
+            before,
+            ..
+        } = std::mem::take(&mut ws.gesture)
+        && area.contains(pointer)
+        && {
+            ws.snapper = None;
+            ws.snap_hits.clear();
+            true
+        }
+    {
+        ws.project.add_guide(Guide::new(axis, position));
+        ws.record("Add Guide", before, now, false);
+        if !ws.aids.guides {
+            ws.request_show_guides = true;
+        }
+    }
+}
+
+/// A press on a shown guide, unless it lands inside an object's filled
+/// shape (objects win there).
+fn guide_press(
+    ws: &Workspace,
+    map: &ScreenMap,
+    origin: Pos2,
+    doc: kurbo::Point,
+) -> Option<Gesture> {
+    if !ws.aids.guides {
+        return None;
+    }
+    let guides = &ws.project.surface().guides;
+    let index = aids::guide_at(guides, map, origin)?;
+    if ws.project.surface().hit_test(doc, 0.0).is_some() {
+        return None;
+    }
+    let guide = guides[index];
+    Some(Gesture::Guide {
+        axis: guide.axis,
+        index: Some(index),
+        position: guide.position,
+        before: ws.snapshot(),
+    })
 }
 
 fn handle_wheel(ctx: &egui::Context, ws: &mut Workspace, area: Rect, ppp: f32) {
@@ -150,6 +390,21 @@ fn handle_pointer(
     if response.drag_started_by(PointerButton::Primary) {
         let origin = ctx.input(|i| i.pointer.press_origin()).unwrap_or(pointer);
         start_gesture(ws, &map, origin, modifiers, now);
+        // Targets for gestures that edit existing things leave them out.
+        match &ws.gesture {
+            Gesture::Moving(_)
+            | Gesture::Resizing { .. }
+            | Gesture::MovingPoints(_)
+            | Gesture::MovingHandle { .. } => {
+                let exclude = ws.selection.clone();
+                prepare_snapper(ws, &exclude, None);
+            }
+            Gesture::Guide { index, .. } => {
+                let skip = *index;
+                prepare_snapper(ws, &[], skip);
+            }
+            _ => {}
+        }
     }
     if response.dragged_by(PointerButton::Primary) {
         update_gesture(ws, &map, pointer, response.drag_delta(), modifiers, ppp);
@@ -162,6 +417,11 @@ fn handle_pointer(
     }
     if response.double_clicked_by(PointerButton::Primary) {
         double_click(ws, &map, pointer, now);
+    }
+    // Targets only live for the gesture (objects may change afterwards).
+    if !ws.gesture.is_active() {
+        ws.snapper = None;
+        ws.snap_hits.clear();
     }
 }
 
@@ -278,24 +538,40 @@ fn start_gesture(
             ws.end_text_session(now);
         }
     }
+    // Drawing tools snap the press point (the Pen's Shift constraint
+    // decides its point itself).
+    let drawing = matches!(
+        ws.tool,
+        Tool::Rectangle | Tool::Ellipse | Tool::Polygon | Tool::Line | Tool::Pen
+    );
+    let doc = if drawing && !(ws.tool == Tool::Pen && modifiers.shift) {
+        prepare_snapper(ws, &[], None);
+        snap_point(ws, map, doc, modifiers)
+    } else {
+        doc
+    };
     ws.gesture = match ws.tool {
         Tool::Hand => Gesture::Panning,
         Tool::Zoom => Gesture::ZoomRect { start: doc },
         Tool::Rectangle => Gesture::Drawing {
             kind: ShapeKind::rectangle(),
             start: doc,
+            current: doc,
         },
         Tool::Ellipse => Gesture::Drawing {
             kind: ShapeKind::Ellipse,
             start: doc,
+            current: doc,
         },
         Tool::Polygon => Gesture::Drawing {
             kind: ws.polygon_style.kind(),
             start: doc,
+            current: doc,
         },
         Tool::Line => Gesture::Drawing {
             kind: ShapeKind::Path,
             start: doc,
+            current: doc,
         },
         Tool::Pen => {
             if pen_press(ws, doc, map, modifiers.shift, now) {
@@ -306,7 +582,14 @@ fn start_gesture(
         }
         Tool::Select | Tool::Move => {
             let bounds = selection_frame(&ws.selected_objects());
-            match overlay_target(bounds.as_ref(), map, origin) {
+            let overlay = overlay_target(bounds.as_ref(), map, origin);
+            if overlay.is_none()
+                && let Some(g) = guide_press(ws, map, origin, doc)
+            {
+                ws.gesture = g;
+                return;
+            }
+            match overlay {
                 Some(OverlayTarget::Handle(handle)) => Gesture::Resizing {
                     handle,
                     bounds: bounds.expect("handle implies selection"),
@@ -342,7 +625,15 @@ fn start_gesture(
                 },
             }
         }
-        Tool::DirectSelect => direct_press(ws, doc, map, modifiers),
+        Tool::DirectSelect => {
+            if ws.point_target(doc, point_radius(map)).is_none()
+                && let Some(g) = guide_press(ws, map, origin, doc)
+            {
+                g
+            } else {
+                direct_press(ws, doc, map, modifiers)
+            }
+        }
         Tool::Eyedropper | Tool::Text | Tool::Image => Gesture::Idle,
     };
 }
@@ -362,7 +653,13 @@ fn direct_press(ws: &mut Workspace, doc: kurbo::Point, map: &ScreenMap, m: Modif
             if !ws.points.contains(&r) {
                 ws.click_point(r, m.shift);
             }
-            return Gesture::MovingPoints(ws.point_drag(doc));
+            let mut drag = ws.point_drag(doc);
+            drag.grabbed = ws
+                .project
+                .surface()
+                .get(r.object)
+                .and_then(|o| Some(o.frame.affine() * o.path_data()?.node(r.node)?.point));
+            return Gesture::MovingPoints(drag);
         }
         _ => {}
     }
@@ -442,7 +739,9 @@ fn update_gesture(
             }
         }
         Gesture::Moving(base) => {
-            let moved = translate(&base.originals, doc - base.start, modifiers.shift);
+            let (originals, start) = (base.originals.clone(), base.start);
+            let delta = snapped_move(ws, map, &originals, doc - start, modifiers);
+            let moved = translate(&originals, delta, false);
             ws.project.surface_mut().replace(&moved);
         }
         Gesture::Resizing {
@@ -450,11 +749,19 @@ fn update_gesture(
             bounds,
             base,
         } => {
+            let (handle, bounds, originals) = (*handle, *bounds, base.originals.clone());
             let options = ResizeOptions {
                 proportional: modifiers.shift,
                 from_center: modifiers.alt,
             };
-            let resized = resize(&base.originals, *bounds, *handle, doc, options);
+            // Proportional resizing couples the axes: no snapping.
+            let pointer = if modifiers.shift {
+                ws.snap_hits.clear();
+                doc
+            } else {
+                snap_point(ws, map, doc, modifiers)
+            };
+            let resized = resize(&originals, bounds, handle, pointer, options);
             ws.project.surface_mut().replace(&resized);
         }
         Gesture::Rotating {
@@ -477,13 +784,45 @@ fn update_gesture(
             ws.selection = selection;
         }
         Gesture::TextSelect => ws.text_click(doc, true, 0.0),
-        Gesture::PenHandle => ws.pen_drag_handle(doc, modifiers.shift),
+        Gesture::PenHandle => {
+            let at = if modifiers.shift {
+                doc
+            } else {
+                snap_point(ws, map, doc, modifiers)
+            };
+            ws.pen_drag_handle(at, modifiers.shift);
+        }
+        Gesture::Drawing { .. } => {
+            let at = drawing_point(ws, map, doc, modifiers);
+            if let Gesture::Drawing { current, .. } = &mut ws.gesture {
+                *current = at;
+            }
+        }
+        Gesture::Guide { axis, index, .. } => {
+            let (axis, index) = (*axis, *index);
+            let at = snap_guide(ws, map, axis, along(axis, doc), modifiers);
+            if let Some(i) = index {
+                ws.project.move_guide(i, at);
+            }
+            if let Gesture::Guide { position, .. } = &mut ws.gesture {
+                *position = at;
+            }
+        }
         Gesture::MovingPoints(drag) => {
             let drag = drag.clone();
+            // The grabbed point snaps; the others follow it.
+            let doc = match drag.grabbed {
+                Some(grabbed) if !modifiers.shift => {
+                    let target = grabbed + (doc - drag.start);
+                    doc + (snap_point(ws, map, target, modifiers) - target)
+                }
+                _ => doc,
+            };
             ws.drag_points(&drag, doc, modifiers.shift);
         }
         Gesture::MovingHandle { drag, point, side } => {
             let (drag, point, side) = (drag.clone(), *point, *side);
+            let doc = snap_point(ws, map, doc, modifiers);
             ws.drag_handle(&drag, point, side, doc, modifiers.alt);
         }
         Gesture::PointMarquee {
@@ -498,7 +837,28 @@ fn update_gesture(
             );
             ws.marquee_points(rect, &base, &objects);
         }
-        Gesture::Idle | Gesture::Drawing { .. } | Gesture::ZoomRect { .. } => {}
+        Gesture::Idle | Gesture::ZoomRect { .. } => {}
+    }
+}
+
+/// Snaps a guide position along its axis (excluding the guide itself, left
+/// out of the gesture's targets).
+fn snap_guide(ws: &mut Workspace, map: &ScreenMap, axis: Axis, at: f64, m: Modifiers) -> f64 {
+    ws.snap_hits.clear();
+    if !snapping(ws, m) {
+        return at;
+    }
+    let tolerance = map.doc_len(tokens::SNAP_DISTANCE);
+    match ws
+        .snapper
+        .as_ref()
+        .and_then(|s| s.snap_axis(axis, &[at], (at, at), tolerance))
+    {
+        Some((d, hit)) => {
+            ws.snap_hits = vec![hit];
+            at + d
+        }
+        None => at,
     }
 }
 
@@ -512,13 +872,18 @@ fn finish_gesture(
     ppp: f32,
     now: f64,
 ) {
+    let mut doc = map.to_doc(pointer);
+    if matches!(ws.gesture, Gesture::Drawing { .. }) {
+        doc = drawing_point(ws, map, doc, modifiers);
+    }
     let gesture = std::mem::take(&mut ws.gesture);
-    let doc = map.to_doc(pointer);
+    ws.snapper = None;
+    ws.snap_hits.clear();
     match gesture {
         Gesture::Moving(base) => ws.record("Move", base.before, now, false),
         Gesture::Resizing { base, .. } => ws.record("Resize", base.before, now, false),
         Gesture::Rotating { base, .. } => ws.record("Rotate", base.before, now, false),
-        Gesture::Drawing { kind, start } => {
+        Gesture::Drawing { kind, start, .. } => {
             if map.to_screen(start).distance(pointer) >= 2.0 {
                 if kind == ShapeKind::Path {
                     let (a, b) = line_points(start, doc, modifiers.shift, modifiers.alt);
@@ -544,11 +909,27 @@ fn finish_gesture(
         Gesture::MovingPoints(drag) | Gesture::MovingHandle { drag, .. } => {
             ws.finish_point_drag(drag, now);
         }
+        Gesture::Guide {
+            index: Some(i),
+            before,
+            ..
+        } => {
+            if area.contains(pointer) {
+                ws.record("Move Guide", before, now, false);
+            } else {
+                // Dropped on a ruler or outside the canvas.
+                ws.project.remove_guide(i);
+                ws.record("Delete Guide", before, now, false);
+            }
+        }
+        Gesture::Guide { index: None, .. } => {}
     }
 }
 
 fn cancel_gesture(ws: &mut Workspace) {
     let gesture = std::mem::take(&mut ws.gesture);
+    ws.snapper = None;
+    ws.snap_hits.clear();
     match gesture {
         Gesture::Moving(base) | Gesture::Resizing { base, .. } | Gesture::Rotating { base, .. } => {
             ws.selection = ws.project.restore(&base.before);
@@ -556,6 +937,11 @@ fn cancel_gesture(ws: &mut Workspace) {
         Gesture::MovingPoints(drag) | Gesture::MovingHandle { drag, .. } => {
             ws.restore(&drag.before);
         }
+        Gesture::Guide {
+            index: Some(_),
+            before,
+            ..
+        } => ws.restore(&before),
         Gesture::PointMarquee {
             base, base_objects, ..
         } => {
@@ -625,7 +1011,12 @@ fn click(
         }
         Tool::Eyedropper => eyedropper(ws, doc, map, now),
         Tool::Pen => {
-            pen_press(ws, doc, map, modifiers.shift, now);
+            let at = if modifiers.shift {
+                doc
+            } else {
+                snap_point(ws, map, doc, modifiers)
+            };
+            pen_press(ws, at, map, modifiers.shift, now);
         }
         Tool::DirectSelect => direct_click(ws, doc, map, modifiers, now),
         Tool::Rectangle | Tool::Ellipse | Tool::Polygon | Tool::Line | Tool::Hand => {}
@@ -692,6 +1083,14 @@ fn context_menu(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
     cmds.menu_item(ui, ActualSize);
 }
 
+/// Cursor over a guide: moves across its line.
+fn guide_cursor(axis: Axis) -> CursorIcon {
+    match axis {
+        Axis::Horizontal => CursorIcon::ResizeVertical,
+        Axis::Vertical => CursorIcon::ResizeHorizontal,
+    }
+}
+
 /// Resize cursor matching a handle direction rotated by `rotation_deg`.
 pub fn resize_cursor(handle: Handle, rotation_deg: f64) -> CursorIcon {
     let base = f64::from(handle.y).atan2(f64::from(handle.x)).to_degrees();
@@ -734,6 +1133,7 @@ fn set_cursor(
         Gesture::TextSelect => Ok(CursorIcon::Text),
         Gesture::PenHandle => Err(PEN_CURSOR),
         Gesture::MovingPoints(_) | Gesture::MovingHandle { .. } => Ok(CursorIcon::Move),
+        Gesture::Guide { axis, .. } => Ok(guide_cursor(*axis)),
         Gesture::PointMarquee { .. } => Ok(CursorIcon::Default),
         Gesture::Idle => {
             if !hovered {
@@ -748,13 +1148,31 @@ fn set_cursor(
                     Ok(CursorIcon::Crosshair)
                 }
                 Tool::Pen => Err(PEN_CURSOR),
-                Tool::DirectSelect => Ok(CursorIcon::Default),
+
                 Tool::Text => Ok(CursorIcon::Text),
                 Tool::Select | Tool::Move
                     if pointer.is_some_and(|p| in_edited_text(ws, map.to_doc(p), map)) =>
                 {
                     Ok(CursorIcon::Text)
                 }
+                Tool::Select | Tool::Move | Tool::DirectSelect
+                    if pointer.is_some_and(|p| {
+                        guide_press(ws, map, p, map.to_doc(p)).is_some()
+                            && (ws.tool == Tool::DirectSelect
+                                || overlay_target(
+                                    selection_frame(&ws.selected_objects()).as_ref(),
+                                    map,
+                                    p,
+                                )
+                                .is_none())
+                    }) =>
+                {
+                    let p = pointer.expect("checked");
+                    let index =
+                        aids::guide_at(&ws.project.surface().guides, map, p).expect("checked");
+                    Ok(guide_cursor(ws.project.surface().guides[index].axis))
+                }
+                Tool::DirectSelect => Ok(CursorIcon::Default),
                 Tool::Select | Tool::Move => {
                     let bounds = selection_frame(&ws.selected_objects());
                     match pointer.and_then(|p| overlay_target(bounds.as_ref(), map, p)) {

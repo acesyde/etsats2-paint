@@ -139,4 +139,26 @@ pub mod canvas {
     pub const HANDLE_DOT: f32 = 5.0;
     /// Distance at which a press grabs a path point or handle, in points.
     pub const POINT_HIT_RADIUS: f32 = 6.0;
+
+    /// Thickness of the rulers along the canvas, in points.
+    pub const RULER_SIZE: f32 = 20.0;
+    pub const RULER_BG: Color32 = Color32::from_rgb(0x22, 0x23, 0x27);
+    pub const RULER_TICK: Color32 = Color32::from_rgb(0x6A, 0x6D, 0x75);
+    pub const RULER_TEXT: Color32 = Color32::from_rgb(0xA8, 0xAB, 0xB3);
+    /// Pointer position marker on the rulers.
+    pub const RULER_MARKER: Color32 = Color32::from_rgb(0x1F, 0x6F, 0xFF);
+    /// Minimum distance between labelled ruler graduations, in points.
+    pub const RULER_LABEL_GAP: f32 = 60.0;
+    /// Guide lines.
+    pub const GUIDE: Color32 = Color32::from_rgb(0x00, 0xC8, 0xE8);
+    /// Distance at which a press grabs a guide, in points.
+    pub const GUIDE_HIT: f32 = 4.0;
+    pub const GRID_MINOR: Color32 = Color32::from_rgba_premultiplied(40, 40, 48, 40);
+    pub const GRID_MAJOR: Color32 = Color32::from_rgba_premultiplied(30, 30, 40, 90);
+    /// Minimum distance between drawn grid lines, in points.
+    pub const GRID_MIN_GAP: f32 = 8.0;
+    /// Alignment lines and marks of snapping.
+    pub const SNAP: Color32 = Color32::from_rgb(0xFF, 0x2D, 0xA6);
+    /// Distance within which positions snap, in points.
+    pub const SNAP_DISTANCE: f32 = 6.0;
 }

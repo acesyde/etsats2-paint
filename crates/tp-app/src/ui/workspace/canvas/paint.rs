@@ -106,6 +106,7 @@ pub fn paint(
         Stroke::new(1.0, color::BORDER_STRONG),
         StrokeKind::Outside,
     );
+    draw_grid_and_guides(&painter, ws, map, area);
     let side = ws.project.surface().size;
     painter.text(
         artboard.left_top() - Vec2::new(0.0, space::SM),
@@ -138,6 +139,7 @@ pub fn paint(
     } else {
         draw_selection(&painter, ws, map, bucket);
     }
+    draw_snap_hits(&painter, ws, map, area);
     draw_gesture_feedback(ui, &painter, ws, map, pointer, modifiers);
     draw_pen_session(&painter, ws, map, pointer);
 
@@ -170,6 +172,78 @@ fn mesh_to_screen(mesh: &tp_text::mesh::Mesh, map: &ScreenMap, color: Color32) -
         })
         .collect();
     out
+}
+
+/// Alignment lines and crosses of what the gesture in progress snapped to.
+fn draw_snap_hits(painter: &Painter, ws: &Workspace, map: &ScreenMap, area: Rect) {
+    use crate::snap::SnapHit;
+    use tp_core::Axis;
+    let stroke = Stroke::new(1.0, tokens::SNAP);
+    for hit in &ws.snap_hits {
+        match *hit {
+            SnapHit::Line {
+                axis,
+                value,
+                extent,
+                ..
+            } => {
+                let at = value as f32 * map.scale;
+                match axis {
+                    Axis::Vertical => {
+                        let x = at + map.offset.x;
+                        let range = match extent {
+                            Some((a, b)) => {
+                                (a as f32 * map.scale + map.offset.y)
+                                    ..=(b as f32 * map.scale + map.offset.y)
+                            }
+                            None => area.y_range().into(),
+                        };
+                        painter.vline(x, range, stroke);
+                    }
+                    Axis::Horizontal => {
+                        let y = at + map.offset.y;
+                        let range = match extent {
+                            Some((a, b)) => {
+                                (a as f32 * map.scale + map.offset.x)
+                                    ..=(b as f32 * map.scale + map.offset.x)
+                            }
+                            None => area.x_range().into(),
+                        };
+                        painter.hline(range, y, stroke);
+                    }
+                }
+            }
+            SnapHit::Point(p) => {
+                let c = map.to_screen(p);
+                let r = 4.0;
+                painter.line_segment([c - Vec2::splat(r), c + Vec2::splat(r)], stroke);
+                painter.line_segment([c + Vec2::new(-r, r), c + Vec2::new(r, -r)], stroke);
+            }
+        }
+    }
+}
+
+/// The grid over the artboard, then the guides (and the one being created).
+fn draw_grid_and_guides(painter: &Painter, ws: &Workspace, map: &ScreenMap, area: Rect) {
+    if ws.aids.grid {
+        let side = ws.project.surface().size;
+        super::aids::paint_grid(painter, map, area, side, ws.aids.grid_spacing);
+    }
+    if ws.aids.guides {
+        for guide in &ws.project.surface().guides {
+            super::aids::paint_guide(painter, map, area, guide, tokens::GUIDE);
+        }
+    }
+    if let Gesture::Guide {
+        axis,
+        index: None,
+        position,
+        ..
+    } = &ws.gesture
+    {
+        let guide = tp_core::Guide::new(*axis, *position);
+        super::aids::paint_guide(painter, map, area, &guide, tokens::GUIDE);
+    }
 }
 
 /// Draws a path, polygon or star from its triangles (fill, then stroke).
@@ -433,13 +507,13 @@ fn draw_gesture_feedback(
     let Some(pointer) = pointer.or_else(|| ui.ctx().pointer_latest_pos()) else {
         return;
     };
-    let doc = map.to_doc(pointer);
     match &ws.gesture {
         Gesture::Drawing {
             kind: ShapeKind::Path,
             start,
+            current,
         } => {
-            let (a, b) = line_points(*start, doc, modifiers.shift, modifiers.alt);
+            let (a, b) = line_points(*start, *current, modifiers.shift, modifiers.alt);
             let line = ws.styled_path(
                 PathData::new(vec![Subpath::new(
                     vec![Node::corner(a), Node::corner(b)],
@@ -457,8 +531,12 @@ fn draw_gesture_feedback(
                 format!("{:.0} px · {angle:.1}°", a.distance(b)),
             );
         }
-        Gesture::Drawing { kind, start } => {
-            let frame = super::shape_frame(*kind, *start, doc, modifiers);
+        Gesture::Drawing {
+            kind,
+            start,
+            current,
+        } => {
+            let frame = super::shape_frame(*kind, *start, *current, modifiers);
             draw_preview(painter, &ws.styled_shape(*kind, frame), map);
             label_pill(ui, painter, pointer, size_text(&frame));
         }
@@ -506,6 +584,13 @@ fn draw_gesture_feedback(
             if !text.is_empty() {
                 label_pill(ui, painter, pointer, text);
             }
+        }
+        Gesture::Guide { axis, position, .. } => {
+            let text = match axis {
+                tp_core::Axis::Horizontal => format!("y {position:.0} px"),
+                tp_core::Axis::Vertical => format!("x {position:.0} px"),
+            };
+            label_pill(ui, painter, pointer, text);
         }
         Gesture::Idle
         | Gesture::Panning

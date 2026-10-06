@@ -176,6 +176,14 @@ pub struct Workspace {
     pub polygon_style: crate::path_edit::PolygonStyle,
     /// Line width for new open paths (lines).
     pub line_width: f64,
+    /// Grid, guides and snapping settings (copied from preferences).
+    pub aids: crate::prefs::ViewAids,
+    /// Guides should be shown (a guide was created while hidden).
+    pub request_show_guides: bool,
+    /// Snap targets of the gesture in progress.
+    pub snapper: Option<crate::snap::Snapper>,
+    /// What the gesture in progress snapped to (alignment lines).
+    pub snap_hits: Vec<crate::snap::SnapHit>,
     /// Selected path points (Direct Selection tool).
     pub points: std::collections::BTreeSet<tp_core::document::PointRef>,
 }
@@ -215,6 +223,10 @@ impl Workspace {
             pen: None,
             polygon_style: Default::default(),
             line_width: tp_core::document::DEFAULT_LINE_WIDTH,
+            aids: Default::default(),
+            request_show_guides: false,
+            snapper: None,
+            snap_hits: Vec::new(),
             points: Default::default(),
         }
     }

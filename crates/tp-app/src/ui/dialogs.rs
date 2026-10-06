@@ -367,6 +367,25 @@ fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
                 .small()
                 .color(color::TEXT_SECONDARY),
         );
+        ui.add_space(space::LG);
+        ui.label(RichText::new("Canvas").text_style(label_strong_style()));
+        ui.add_space(space::XS);
+        egui::Grid::new("prefs_canvas_grid")
+            .num_columns(2)
+            .spacing([space::LG, space::SM])
+            .show(ui, |ui| {
+                ui.label("Grid spacing");
+                let range = crate::prefs::GRID_SPACING_RANGE;
+                let r = ui.add(
+                    egui::DragValue::new(&mut prefs.view_aids.grid_spacing)
+                        .range(range)
+                        .speed(1.0)
+                        .max_decimals(0)
+                        .suffix(" px"),
+                );
+                r.widget_info(|| WidgetInfo::labeled(WidgetType::DragValue, true, "Grid spacing"));
+                ui.end_row();
+            });
         ui.add_space(space::XL);
         let mut close = false;
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {

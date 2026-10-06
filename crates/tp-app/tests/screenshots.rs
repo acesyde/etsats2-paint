@@ -823,3 +823,75 @@ fn render_vector_tools() {
     )
     .unwrap();
 }
+
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_precision_aids() {
+    use tp_core::document::{Frame, Object, ObjectId, Rgba, ShapeKind};
+    use tp_core::kurbo::{Point, Size};
+    use tp_core::{Axis, Guide};
+    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+        let mut prefs = Prefs {
+            ui_scale: scale,
+            ..Prefs::default()
+        };
+        prefs.view_aids.grid = true;
+        prefs.view_aids.grid_spacing = 128.0;
+        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        common::create_project(&mut h);
+        let moving = {
+            let ws = h.state_mut().workspace_mut().unwrap();
+            let mut a = Object::new(
+                ObjectId(0),
+                ShapeKind::rectangle(),
+                Frame::new(Point::new(900.0, 1200.0), Size::new(800.0, 400.0), 0.0),
+            );
+            a.fill = Rgba::rgb(0xC0, 0x39, 0x2B);
+            ws.project.add(a);
+            let mut b = Object::new(
+                ObjectId(0),
+                ShapeKind::Ellipse,
+                Frame::new(Point::new(2900.0, 2400.0), Size::new(600.0, 600.0), 0.0),
+            );
+            b.fill = Rgba::rgb(0x2E, 0x86, 0xDE);
+            let b = ws.project.add(b);
+            ws.project.add_guide(Guide::new(Axis::Horizontal, 3000.0));
+            ws.project.add_guide(Guide::new(Axis::Vertical, 2048.0));
+            ws.selection = vec![b];
+            b
+        };
+        let _ = moving;
+        h.run();
+        save(&mut h, &format!("precision_aids_{suffix}"));
+
+        // Mid-drag: the ellipse's top snaps to the rectangle's top edge.
+        let map = |h: &egui_kittest::Harness<'static, tp_app::AppState>, x: f64, y: f64| {
+            h.state()
+                .workspace()
+                .unwrap()
+                .screen_map(1.0)
+                .unwrap()
+                .to_screen(Point::new(x, y))
+        };
+        let (from, to) = (map(&h, 2900.0, 2400.0), map(&h, 2900.0, 1310.0));
+        h.event(egui::Event::PointerMoved(from));
+        h.event(egui::Event::PointerButton {
+            pos: from,
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: egui::Modifiers::NONE,
+        });
+        h.step();
+        for i in 1..=8 {
+            h.event(egui::Event::PointerMoved(
+                from + (to - from) * (i as f32 / 8.0),
+            ));
+            h.step();
+        }
+        let image = h.render().expect("render");
+        image
+            .save(out_dir().join(format!("precision_snapping_{suffix}.png")))
+            .unwrap();
+    }
+}
