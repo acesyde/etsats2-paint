@@ -40,4 +40,4 @@
 
 - [x] 7.1 Enable the Text and Image tools and the Place / Edit Text commands; update the unavailable-tool list; verify the shortcut-collision test and the "Unavailable tool" kittest still pass
 - [x] 7.2 Screenshot review of a livery with lettering and logos at 100% and 200% UI scale
-- [ ] 7.3 Run `openspec validate text-and-images --strict` and `mise run ci`; verify both pass locally and the CI matrix is green on the PR
+- [x] 7.3 Run `openspec validate text-and-images --strict` and `mise run ci`; verify both pass locally and the CI matrix is green on the PR
