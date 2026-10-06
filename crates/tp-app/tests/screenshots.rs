@@ -955,3 +955,67 @@ fn render_align() {
         save(&mut h, &format!("align_key_object_{suffix}"));
     }
 }
+
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_combine() {
+    use tp_app::layout::PanelKind;
+    use tp_core::document::{BooleanOp, Frame, Object, ObjectId, Rgba, ShapeKind};
+    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+        let mut prefs = Prefs {
+            ui_scale: scale,
+            ..Prefs::default()
+        };
+        for slot in &mut prefs.layout.panels {
+            match slot.kind {
+                PanelKind::Transform => {
+                    slot.open = true;
+                    slot.collapsed = false;
+                }
+                PanelKind::Colors | PanelKind::Layers => slot.collapsed = true,
+                _ => {}
+            }
+        }
+        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        common::create_project(&mut h);
+        {
+            let ws = h.state_mut().workspace_mut().unwrap();
+            let shape = |kind, c: (f64, f64), s: (f64, f64), fill| {
+                let mut o = Object::new(ObjectId(0), kind, Frame::new(c.into(), s.into(), 0.0));
+                o.fill = fill;
+                o
+            };
+            // A stripe with a round notch (Minus Front).
+            let stripe = ws.project.add(shape(
+                ShapeKind::rectangle(),
+                (1500.0, 1200.0),
+                (2600.0, 500.0),
+                Rgba::rgb(0x2E, 0x86, 0xDE),
+            ));
+            let disk = ws.project.add(shape(
+                ShapeKind::Ellipse,
+                (2800.0, 1200.0),
+                (700.0, 700.0),
+                Rgba::rgb(0xC0, 0x39, 0x2B),
+            ));
+            ws.selection = vec![stripe, disk];
+            ws.combine_selection(BooleanOp::MinusFront, 0.0);
+            // Two overlapping shapes selected, ready to combine.
+            let a = ws.project.add(shape(
+                ShapeKind::Ellipse,
+                (1200.0, 2700.0),
+                (900.0, 900.0),
+                Rgba::rgb(0xF0, 0xB4, 0x4C),
+            ));
+            let b = ws.project.add(shape(
+                ShapeKind::rectangle(),
+                (1800.0, 2700.0),
+                (900.0, 700.0),
+                Rgba::rgb(0x27, 0xAE, 0x60),
+            ));
+            ws.selection = vec![a, b];
+        }
+        save(&mut h, &format!("combine_{suffix}"));
+    }
+}

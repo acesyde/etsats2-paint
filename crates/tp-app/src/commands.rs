@@ -4,7 +4,7 @@
 use egui::{Key, KeyboardShortcut, Modifiers};
 use tp_ui::icons;
 
-use tp_core::document::{DistributeAxis, DistributeMode, Edge};
+use tp_core::document::{BooleanOp, DistributeAxis, DistributeMode, Edge};
 
 use crate::layout::{PanelKind, ViewMode};
 use crate::tool::Tool;
@@ -37,6 +37,7 @@ pub enum CommandId {
     CreateOutlines,
     Align(Edge),
     Distribute(DistributeAxis, DistributeMode),
+    Combine(BooleanOp),
     BringForward,
     SendBackward,
     MirrorToOtherSide,
@@ -127,6 +128,8 @@ pub struct EditContext {
     pub selection_count: usize,
     /// The selection holds a text (maybe in a group).
     pub selection_has_text: bool,
+    /// Why the selection cannot be combined (None: it can).
+    pub combine_block: Option<&'static str>,
     /// Align to: Key object (aligning needs two objects).
     pub align_to_key: bool,
 }
@@ -252,6 +255,7 @@ impl CommandId {
         }
         all.extend(Tool::ALL.map(SelectTool));
         all.extend(Edge::ALL.map(Align));
+        all.extend(BooleanOp::ALL.map(Combine));
         for axis in [DistributeAxis::Horizontal, DistributeAxis::Vertical] {
             for mode in [DistributeMode::Centers, DistributeMode::Spacing] {
                 all.push(Distribute(axis, mode));
@@ -441,6 +445,25 @@ impl CommandId {
                 When(
                     |c| editable_selection(c) && c.selection_has_text,
                     "Select a text first.",
+                ),
+            ),
+            Combine(op) => m(
+                crate::combine::combine_label(op),
+                Some(match op {
+                    BooleanOp::Unite => icons::UNITE,
+                    BooleanOp::MinusFront => icons::MINUS_FRONT,
+                    BooleanOp::Intersect => icons::INTERSECT,
+                    BooleanOp::Exclude => icons::EXCLUDE,
+                }),
+                match op {
+                    BooleanOp::Unite => const { &[sc(CMD_SHIFT, Key::U)] },
+                    BooleanOp::MinusFront => const { &[sc(CMD_SHIFT, Key::Minus)] },
+                    _ => &[],
+                },
+                Workspace,
+                When(
+                    |c| editable_selection(c) && !c.editing_text && c.combine_block.is_none(),
+                    "Select at least two shapes to combine.",
                 ),
             ),
             Align(edge) => m(

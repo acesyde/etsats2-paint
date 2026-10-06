@@ -5,7 +5,7 @@ use egui::{Response, Ui};
 use tp_ui::widgets::{IconButton, MenuRow, ToolButton};
 
 use crate::commands::{CommandId, EditContext, ShortcutFormatter};
-use crate::state::{disabled_reason, is_enabled};
+use crate::state::{disabled_reason_for, is_enabled};
 
 /// Per-frame helper bound to the command queue.
 pub struct CommandUi<'q> {
@@ -67,7 +67,7 @@ impl<'q> CommandUi<'q> {
                 .shortcut(shortcut.as_deref())
                 .checked(checked),
         );
-        if !enabled && let Some(reason) = disabled_reason(id) {
+        if !enabled && let Some(reason) = disabled_reason_for(id, &self.edit) {
             response = response.on_disabled_hover_text(reason);
         }
         if response.clicked() {
@@ -85,7 +85,7 @@ impl<'q> CommandUi<'q> {
         let mut button = IconButton::new(meta.icon.unwrap_or("?"), meta.label)
             .shortcut(shortcut.as_deref())
             .selected(selected);
-        if let Some(reason) = disabled_reason(id) {
+        if let Some(reason) = disabled_reason_for(id, &self.edit) {
             button = button.disabled_reason(reason);
         }
         let response = ui.add_enabled(enabled, button);
