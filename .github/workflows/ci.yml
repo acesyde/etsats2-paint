@@ -14,6 +14,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # `mise run` would otherwise install every tool in mise.toml (node, pnpm,
+  # openspec); CI only needs Rust, installed by mise-action below.
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
 
 jobs:
   check:
