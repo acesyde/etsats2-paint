@@ -87,7 +87,8 @@ Logs are written to stderr and to a daily file in the application data directory
 | `tp-vehicles` | Vehicle packages (`.tpv`): manifest, validation, templates.       |
 | `tp-pack`  | The `tpv` command: builds and checks vehicle packages.               |
 
-Planned changes are tracked with OpenSpec in `openspec/`.
+Planned changes are tracked with OpenSpec in `openspec/`; product decisions and the
+order of upcoming changes are in [docs/roadmap.md](docs/roadmap.md).
 
 ### Vehicle packages
 
