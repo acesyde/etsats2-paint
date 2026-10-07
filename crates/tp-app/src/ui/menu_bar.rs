@@ -180,6 +180,7 @@ fn menu_contents(
             item(ui, cmds, ClearGuides);
             cmds.menu_toggle(ui, Snapping, layout.is_some() && aids.snapping);
             ui.separator();
+            cmds.menu_toggle(ui, ToggleVehicles, layout.is_some_and(|l| l.vehicles_open));
             for kind in PanelKind::ALL {
                 cmds.menu_toggle(
                     ui,

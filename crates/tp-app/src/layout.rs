@@ -13,18 +13,21 @@ pub enum PanelKind {
     Stroke,
     Transform,
     Assets,
+    /// Former panel of the column, now the Vehicles sidebar on the left;
+    /// kept so preferences saved by earlier builds still load (it is
+    /// dropped from the column when they are read).
     Vehicle,
 }
 
 impl PanelKind {
-    pub const ALL: [Self; 7] = [
+    /// The panels of the right-hand column.
+    pub const ALL: [Self; 6] = [
         Self::Properties,
         Self::Layers,
         Self::Colors,
         Self::Stroke,
         Self::Transform,
         Self::Assets,
-        Self::Vehicle,
     ];
 
     pub fn title(self) -> &'static str {
@@ -101,6 +104,9 @@ pub struct PanelSlot {
 }
 
 pub const SPLIT_FRACTION_DEFAULT: f32 = 0.42;
+/// Width of the Vehicles sidebar.
+pub const VEHICLES_WIDTH_DEFAULT: f32 = 260.0;
+pub const VEHICLES_WIDTH_RANGE: std::ops::RangeInclusive<f32> = 200.0..=420.0;
 pub const SPLIT_FRACTION_RANGE: std::ops::RangeInclusive<f32> = 0.2..=0.8;
 
 /// Everything about the workspace arrangement that survives restarts.
@@ -113,6 +119,9 @@ pub struct WorkspaceLayout {
     pub view_mode: ViewMode,
     /// Width of the 3D preview in split view, as a fraction of the central area.
     pub split_fraction: f32,
+    /// The Vehicles sidebar on the left: shown, or reduced to a strip.
+    pub vehicles_open: bool,
+    pub vehicles_width: f32,
     /// Bumped on reset so egui forgets remembered panel sizes.
     #[serde(skip)]
     pub generation: u32,
@@ -136,6 +145,8 @@ impl Default for WorkspaceLayout {
             column_width: size::PANEL_COLUMN_DEFAULT,
             view_mode: ViewMode::default(),
             split_fraction: SPLIT_FRACTION_DEFAULT,
+            vehicles_open: true,
+            vehicles_width: VEHICLES_WIDTH_DEFAULT,
             generation: 0,
         }
     }
@@ -146,7 +157,7 @@ impl WorkspaceLayout {
     pub fn sanitized(mut self) -> Self {
         let mut seen = Vec::new();
         self.panels.retain(|slot| {
-            let fresh = !seen.contains(&slot.kind);
+            let fresh = !seen.contains(&slot.kind) && PanelKind::ALL.contains(&slot.kind);
             seen.push(slot.kind);
             fresh
         });
@@ -165,6 +176,9 @@ impl WorkspaceLayout {
         self.split_fraction = self
             .split_fraction
             .clamp(*SPLIT_FRACTION_RANGE.start(), *SPLIT_FRACTION_RANGE.end());
+        self.vehicles_width = self
+            .vehicles_width
+            .clamp(*VEHICLES_WIDTH_RANGE.start(), *VEHICLES_WIDTH_RANGE.end());
         self
     }
 
@@ -253,13 +267,23 @@ mod tests {
                     open: true,
                     collapsed: true,
                 },
+                // The former Vehicle panel of earlier builds.
+                PanelSlot {
+                    kind: PanelKind::Vehicle,
+                    open: true,
+                    collapsed: false,
+                },
             ],
             column_width: 10_000.0,
             split_fraction: -1.0,
+            vehicles_width: 5.0,
             ..WorkspaceLayout::default()
         }
         .sanitized();
         assert_eq!(layout.panels.len(), PanelKind::ALL.len());
+        assert!(layout.panels.iter().all(|s| s.kind != PanelKind::Vehicle));
+        assert_eq!(layout.vehicles_width, *VEHICLES_WIDTH_RANGE.start());
+        assert!(layout.vehicles_open);
         assert!(!layout.is_open(PanelKind::Layers));
         assert_eq!(layout.column_width, size::PANEL_COLUMN_MAX);
         assert_eq!(layout.split_fraction, *SPLIT_FRACTION_RANGE.start());
@@ -270,9 +294,13 @@ mod tests {
         let mut layout = WorkspaceLayout::default();
         layout.toggle_open(PanelKind::Assets);
         layout.column_width = 400.0;
+        layout.vehicles_open = false;
+        layout.vehicles_width = 400.0;
         layout.reset();
         assert!(layout.panels.iter().all(|s| s.open && !s.collapsed));
         assert_eq!(layout.column_width, size::PANEL_COLUMN_DEFAULT);
+        assert!(layout.vehicles_open);
+        assert_eq!(layout.vehicles_width, VEHICLES_WIDTH_DEFAULT);
         assert_eq!(layout.generation, 1);
     }
 }

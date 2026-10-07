@@ -55,6 +55,8 @@ pub const MORE: &str = ph::DOTS_THREE_VERTICAL;
 
 pub const EXPANDED: &str = ph::CARET_DOWN;
 pub const COLLAPSED: &str = ph::CARET_RIGHT;
+/// Reduces a sidebar to its strip.
+pub const HIDE_SIDEBAR: &str = ph::CARET_DOUBLE_LEFT;
 
 pub const SAVED: &str = ph::CHECK_CIRCLE;
 pub const CHECK: &str = ph::CHECK;

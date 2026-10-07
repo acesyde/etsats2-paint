@@ -297,7 +297,7 @@ fn render_editing_panels() {
             slot.collapsed = false;
             slot.open = !matches!(
                 slot.kind,
-                PanelKind::Assets | PanelKind::Vehicle | PanelKind::Colors | PanelKind::Stroke
+                PanelKind::Assets | PanelKind::Colors | PanelKind::Stroke
             );
         }
         prefs.layout.column_width = 300.0;
@@ -1413,7 +1413,7 @@ fn render_vehicle_screens() {
         let mut prefs = Prefs::default();
         prefs.set_language(Some(language));
         for slot in &mut prefs.layout.panels {
-            slot.collapsed = !matches!(slot.kind, PanelKind::Vehicle | PanelKind::Layers);
+            slot.collapsed = !matches!(slot.kind, PanelKind::Layers);
         }
         let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
         h.state_mut().vehicles =
@@ -1502,14 +1502,13 @@ fn render_sample_vehicle() {
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_fleet_screens() {
-    use tp_app::layout::PanelKind;
     use tp_app::state::Modal;
     use tp_app::ui::vehicle_dialogs::{AddVehicleDialog, VariantsDialog, VehicleChoice};
     for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
         let mut prefs = Prefs::default();
         prefs.set_language(Some(language));
         for slot in &mut prefs.layout.panels {
-            slot.collapsed = !matches!(slot.kind, PanelKind::Vehicle);
+            slot.collapsed = true;
         }
         let code = language.code();
         let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));

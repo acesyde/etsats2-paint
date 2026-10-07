@@ -58,6 +58,16 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         )
         .show(ui, |ui| toolbar::show(ui, &mut cmds, ws.tool));
 
+    vehicles_sidebar(
+        ui,
+        &mut cmds,
+        layout,
+        ws,
+        vehicles,
+        vehicle_request,
+        generation,
+    );
+
     let column = Panel::right(egui::Id::new(("panel_column", generation)))
         .resizable(true)
         .default_size(layout.column_width)
@@ -103,6 +113,85 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
                     .show(ui, |ui| canvas_with_tabs(ui, &mut cmds, ws));
             }
         });
+}
+
+/// The Vehicles sidebar: the fleet tree on the left of the canvas, or a
+/// strip with a button to show it again.
+fn vehicles_sidebar(
+    ui: &mut Ui,
+    cmds: &mut CommandUi<'_>,
+    layout: &mut crate::layout::WorkspaceLayout,
+    ws: &mut crate::workspace::Workspace,
+    vehicles: &crate::vehicles::VehicleLibrary,
+    vehicle_request: &mut Option<crate::state::VehicleRequest>,
+    generation: u32,
+) {
+    use egui::{RichText, ScrollArea};
+    use tp_i18n::tr;
+    use tp_ui::theme::label_strong_style;
+    use tp_ui::widgets::IconButton;
+
+    let frame = Frame::new()
+        .fill(color::SURFACE_1)
+        .inner_margin(Margin::symmetric(space::SM as i8, space::SM as i8));
+    if !layout.vehicles_open {
+        Panel::left("vehicles_strip")
+            .exact_size(36.0)
+            .resizable(false)
+            .frame(frame)
+            .show(ui, |ui| {
+                let show = tr("vehicles-sidebar-show");
+                if ui
+                    .add(IconButton::new(tp_ui::icons::VEHICLE, &show))
+                    .on_hover_text(&show)
+                    .clicked()
+                {
+                    cmds.push(crate::commands::CommandId::ToggleVehicles);
+                }
+            });
+        return;
+    }
+    let range = crate::layout::VEHICLES_WIDTH_RANGE;
+    let sidebar = Panel::left(egui::Id::new(("vehicles_sidebar", generation)))
+        .resizable(true)
+        .default_size(layout.vehicles_width)
+        .size_range(range.clone())
+        .frame(frame)
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(tp_ui::icons::rich(tp_ui::icons::VEHICLE).color(color::TEXT_SECONDARY));
+                ui.label(RichText::new(tr("panel-vehicle")).text_style(label_strong_style()));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let hide = tr("vehicles-sidebar-hide");
+                    if ui
+                        .add(IconButton::new(tp_ui::icons::HIDE_SIDEBAR, &hide))
+                        .on_hover_text(&hide)
+                        .clicked()
+                    {
+                        cmds.push(crate::commands::CommandId::ToggleVehicles);
+                    }
+                });
+            });
+            ui.separator();
+            ScrollArea::vertical()
+                .id_salt("vehicles_sidebar_scroll")
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    ui.spacing_mut().item_spacing.y = space::XS + 2.0;
+                    let mut env = panels::PanelEnv {
+                        ws,
+                        recent_colors: &[],
+                        vehicles,
+                        vehicle_request,
+                        now: ui.input(|i| i.time),
+                    };
+                    panels::vehicle::show(ui, cmds, &mut env);
+                });
+        });
+    let width = sidebar.response.rect.width().round();
+    if (width - layout.vehicles_width).abs() >= 1.0 {
+        layout.vehicles_width = width.clamp(*range.start(), *range.end());
+    }
 }
 
 /// The canvas, with tabs to switch between the textures of the active

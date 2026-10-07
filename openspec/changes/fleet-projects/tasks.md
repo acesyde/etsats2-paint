@@ -65,6 +65,12 @@
 - [x] 5.4 Scope the tabs to the active variant and show the `vehicle › variant › texture` breadcrumb in the status bar (D7). Verify with the kittest "Tabs follow the active variant".
 - [x] 5.5 Name exports "<project> - <vehicle> - <variant> - <texture>" with `file_stem_safe` (D9). Verify with a unit test of the helper (`/`, `:`, trailing dots) and the kittest "Exporting a smaller texture".
 
+## 5b. Workspace follow-ups (review feedback)
+
+- [x] 5.6 Move the fleet tree to a Vehicles sidebar on the left (D6b): collapsible to a strip, View › Vehicles (F5), Vehicle Information opens it, width and state remembered, `PanelKind::Vehicle` removed from the column, older preferences still loading. Verify with the kittest `the_vehicles_sidebar_hides_and_comes_back`, the layout sanitizing unit test, and the fleet screenshots.
+- [x] 5.7 Open projects in a view showing the canvas (D6c). Verify with the kittest `projects_open_showing_the_canvas`.
+- [x] 5.8 Stop the "No match for 'sans-serif' font-family" warnings: the package reader sizes SVG templates with a font resolver that looks for no font. Verify with `tp-vehicles/tests/svg_logs.rs` (91 warnings for one read of the sample before, none after).
+
 ## 6. Messages, docs and checks
 
 - [x] 6.1 Add and update messages in en, fr, es and de:

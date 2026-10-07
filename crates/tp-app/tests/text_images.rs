@@ -13,7 +13,6 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use tp_app::AppState;
 use tp_app::import::{read_bytes, solid_png};
-use tp_app::layout::PanelKind;
 use tp_app::prefs::Prefs;
 use tp_app::tool::Tool;
 use tp_app::workspace::Workspace;
@@ -35,7 +34,7 @@ fn settle(h: &mut H) {
 fn open() -> H {
     let mut prefs = Prefs::default();
     for slot in &mut prefs.layout.panels {
-        slot.open = slot.kind != PanelKind::Vehicle;
+        slot.open = true;
         slot.collapsed = false;
     }
     let mut h = Harness::builder()

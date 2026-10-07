@@ -226,6 +226,11 @@ impl AppState {
             .unwrap_or_else(tp_text::FontLibrary::bundled);
         let ws = Workspace::with_text_engine(project, TextEngine::new(fonts));
         self.screen = Screen::Workspace(Box::new(ws));
+        // A project always opens showing its canvas: the 3D view alone
+        // (remembered from an earlier session) would hide it.
+        if self.prefs.layout.view_mode == crate::layout::ViewMode::ThreeD {
+            self.prefs.layout.view_mode = crate::layout::ViewMode::TwoD;
+        }
     }
 
     pub fn close_project(&mut self) {
@@ -593,11 +598,9 @@ impl AppState {
                     ws.settings_changed = true;
                 }
             }),
-            CommandId::VehicleInfo => {
-                crate::ui::workspace::panels::reveal(
-                    &mut self.prefs.layout,
-                    crate::layout::PanelKind::Vehicle,
-                );
+            CommandId::VehicleInfo => self.prefs.layout.vehicles_open = true,
+            CommandId::ToggleVehicles => {
+                self.prefs.layout.vehicles_open = !self.prefs.layout.vehicles_open;
             }
             CommandId::VehicleLibrary => {
                 self.modal = Some(Modal::VehicleLibrary(Default::default()));
@@ -863,6 +866,7 @@ fn keeps_text_session(id: CommandId) -> bool {
             | CommandId::SetViewMode(_)
             | CommandId::TogglePreview
             | CommandId::TogglePanel(_)
+            | CommandId::ToggleVehicles
             | CommandId::ResetWorkspace
             | CommandId::DesignGallery
             | CommandId::KeyboardShortcuts

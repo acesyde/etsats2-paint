@@ -22,12 +22,13 @@ Today a project holds at most one vehicle and one variant, and New Project still
 
   These are all single undo steps.
 - **Navigation:**
-  - **Vehicles panel:** the Vehicle panel becomes a **Vehicles** panel holding a tree, Vehicle › Variant › Texture. Clicking a texture makes it active.
+  - **Vehicles sidebar:** the Vehicle panel leaves the right column and becomes a **Vehicles** sidebar on the left of the canvas, holding a tree, Vehicle › Variant › Texture. Clicking a texture makes it active. The sidebar collapses to a strip (View › Vehicles, F5) and remembers its state and width.
   - **Texture tabs:** they now show only the textures of the active variant.
   - **Status bar:** names the active texture as "Vehicle › Variant › Texture".
 - **Update Template:**
   - It works **per vehicle**: the Vehicles panel shows the update notice on the vehicle concerned.
   - It covers every chosen variant of that vehicle. Textures of a variant missing from the new version are kept and marked "Not in this version".
+- **View mode:** opening or creating a project shows its canvas. When the remembered view mode is 3D, which is still a placeholder, the project opens in 2D.
 - **Export:** the proposed file name includes the vehicle and variant, "<project> - <vehicle> - <variant> - <texture>", so two cabins can't collide.
 - **Templates travel with the project:** variant names are stored too, so the panel reads the same without the package installed.
 
@@ -49,7 +50,7 @@ Today a project holds at most one vehicle and one variant, and New Project still
 - `document-model`: every surface belongs to a vehicle's variant texture. There is no blank surface or "Main texture".
 - `project-files`: files store the list of vehicles with their variants, and each template's vehicle and variant. Files without a vehicle are refused.
 - `texture-export`: the proposed file name includes the vehicle and variant.
-- `workspace-layout`: the Vehicle panel is renamed Vehicles in the panel stack.
+- `workspace-layout`: the Vehicles sidebar on the left (new requirement), the Vehicle panel leaving the right column, and projects opening in a view that shows the canvas.
 
 ## Impact
 

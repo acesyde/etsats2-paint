@@ -132,6 +132,20 @@ The dialogs go through `state.modal`, like the library and update dialogs:
   - unchecking variants that hold artwork switches to an inline confirmation naming them, as with Remove in the library.
 - **`Modal::RemoveVehicle { package_id }`:** a confirmation when the vehicle holds artwork, otherwise immediate.
 
+### D6b. The Vehicles sidebar on the left
+Navigation goes on the left and the selection's properties on the right, as in Figma.
+
+**Layout:** a resizable `Panel::left` between the tool bar and the canvas, 200–420 px wide, open by default. When hidden, it becomes a 36 px strip with a Show Vehicles button.
+
+**Remembered state:** `WorkspaceLayout` gains `vehicles_open` and `vehicles_width`, both defaulted by serde, so older preferences load.
+
+**Command:** `ToggleVehicles`, listed under View before the panels, with shortcut F5 (F6–F8 already toggle right-hand panels). Vehicle Information now opens the sidebar.
+
+**`PanelKind::Vehicle`:** it leaves `PanelKind::ALL`, the right column. The variant is kept only so preferences saved by earlier builds still deserialize, and `sanitized` drops its slot.
+
+### D6c. Opening shows the canvas
+The view mode is a remembered preference, and the 3D view is still a placeholder: a project opened after a 3D session showed no canvas. `AppState::open_project` turns `ThreeD` into `TwoD` and keeps `TwoD` and `Split`.
+
 ### D7. Tabs and status bar
 **Tabs:** `canvas_with_tabs` shows only `variant_range(active)`. The segment indices map back to project indices, and the tabs are hidden when that range holds one surface.
 

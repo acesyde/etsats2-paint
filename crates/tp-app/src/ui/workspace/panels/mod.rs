@@ -8,7 +8,7 @@ pub mod line_style;
 mod properties;
 mod stroke;
 mod transform;
-mod vehicle;
+pub mod vehicle;
 
 use egui::{Frame, Margin, ScrollArea, Ui};
 use tp_i18n::tr;
@@ -145,6 +145,7 @@ fn body(
         PanelKind::Stroke => stroke::show(ui, env),
         PanelKind::Layers => layers::show(ui, cmds, env),
         PanelKind::Assets => assets::show(ui, cmds, env),
-        PanelKind::Vehicle => vehicle::show(ui, cmds, env),
+        // Shown in the Vehicles sidebar, never in the column.
+        PanelKind::Vehicle => {}
     }
 }

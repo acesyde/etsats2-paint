@@ -26,7 +26,7 @@ fn open() -> H {
 fn open_with_step(step_dt: f32) -> H {
     let mut prefs = Prefs::default();
     for slot in &mut prefs.layout.panels {
-        slot.open = !matches!(slot.kind, PanelKind::Assets | PanelKind::Vehicle);
+        slot.open = !matches!(slot.kind, PanelKind::Assets);
         slot.collapsed = false;
     }
     let mut h = Harness::builder()

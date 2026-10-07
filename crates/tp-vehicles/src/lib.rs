@@ -333,6 +333,19 @@ fn validate(m: &Manifest) -> Result<(), PackageError> {
     Ok(())
 }
 
+/// Options to check an SVG and read its size: texts are left out without
+/// looking for fonts (the default resolver would warn for every `<text>`;
+/// the application renders templates with its own fonts).
+fn size_only_options() -> resvg::usvg::Options<'static> {
+    resvg::usvg::Options {
+        font_resolver: resvg::usvg::FontResolver {
+            select_font: Box::new(|_, _| None),
+            select_fallback: Box::new(|_, _, _| None),
+        },
+        ..resvg::usvg::Options::default()
+    }
+}
+
 fn read_template(zip: &mut Zip<'_>, t: &Texture) -> Result<TemplateImage, PackageError> {
     let bytes = read_entry(zip, &t.template).ok_or_else(|| PackageError::MissingTemplate {
         texture: t.name.clone(),
@@ -353,8 +366,7 @@ fn read_template(zip: &mut Zip<'_>, t: &Texture) -> Result<TemplateImage, Packag
         }
         (ImageKind::Png, f64::from(w), f64::from(h))
     } else if lower.ends_with(".svg") {
-        let tree = resvg::usvg::Tree::from_data(&bytes, &resvg::usvg::Options::default())
-            .map_err(|_| bad())?;
+        let tree = resvg::usvg::Tree::from_data(&bytes, &size_only_options()).map_err(|_| bad())?;
         let s = tree.size();
         (ImageKind::Svg, f64::from(s.width()), f64::from(s.height()))
     } else {

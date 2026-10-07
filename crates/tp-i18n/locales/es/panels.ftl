@@ -245,3 +245,8 @@ vehicles-variants = Variantes…
 vehicles-variants-named = Variantes de { $name }
 vehicles-remove-from-project = Quitar del proyecto
 vehicles-remove-named = Quitar { $name } del proyecto
+
+## Vehicles sidebar
+
+vehicles-sidebar-show = Mostrar vehículos
+vehicles-sidebar-hide = Ocultar vehículos

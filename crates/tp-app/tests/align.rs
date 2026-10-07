@@ -163,10 +163,7 @@ fn not_enough_objects_and_nothing_selected() {
 fn open_with_panels() -> H {
     let mut prefs = tp_app::prefs::Prefs::default();
     for slot in &mut prefs.layout.panels {
-        slot.open = !matches!(
-            slot.kind,
-            tp_app::layout::PanelKind::Assets | tp_app::layout::PanelKind::Vehicle
-        );
+        slot.open = slot.kind != tp_app::layout::PanelKind::Assets;
         slot.collapsed = false;
     }
     let mut h = Harness::builder()

@@ -25,7 +25,7 @@ const BLUE: Rgba = Rgba::rgb(0, 0, 255);
 fn open() -> H {
     let mut prefs = Prefs::default();
     for slot in &mut prefs.layout.panels {
-        slot.open = !matches!(slot.kind, PanelKind::Assets | PanelKind::Vehicle);
+        slot.open = !matches!(slot.kind, PanelKind::Assets);
         slot.collapsed = false;
     }
     let mut h = Harness::builder()

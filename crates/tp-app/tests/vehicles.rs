@@ -51,10 +51,7 @@ fn app(dir: &Path) -> H {
     let mut prefs = Prefs::default();
     for slot in &mut prefs.layout.panels {
         slot.open = true;
-        slot.collapsed = !matches!(
-            slot.kind,
-            PanelKind::Vehicle | PanelKind::Layers | PanelKind::Properties
-        );
+        slot.collapsed = !matches!(slot.kind, PanelKind::Layers | PanelKind::Properties);
     }
     let mut state = AppState::with_prefs(prefs, None);
     state.vehicles = VehicleLibrary::open(&dir.join("library"));
@@ -739,4 +736,54 @@ fn only_the_vehicle_with_a_newer_version_offers_an_update() {
     assert_eq!(p.vehicles[0].version, "1.1.0");
     assert_eq!(p.vehicles[1].version, "1.0.0");
     assert_eq!(p.surfaces.len(), 5);
+}
+
+#[test]
+fn the_vehicles_sidebar_hides_and_comes_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    create_sample_project(&mut h, &["Standard cab"]);
+    let tree_row = "Texture TruckPaint Sample Truck › Standard cab › Chassis";
+    assert!(h.query_by_label(tree_row).is_some(), "open by default");
+    h.get_by_label("Hide Vehicles").click();
+    h.run();
+    assert!(h.query_by_label(tree_row).is_none());
+    assert!(!h.state().prefs.layout.vehicles_open, "remembered");
+    h.get_by_label("Show Vehicles").click();
+    h.run();
+    assert!(h.query_by_label(tree_row).is_some());
+    // F5 toggles it; Vehicle › Vehicle Information shows it.
+    h.key_press(Key::F5);
+    h.run();
+    assert!(h.query_by_label(tree_row).is_none());
+    h.state_mut()
+        .queue
+        .push(tp_app::commands::CommandId::VehicleInfo);
+    // The queued command runs at the end of a frame, the sidebar shows on
+    // the next one.
+    h.step();
+    h.run();
+    assert!(h.state().prefs.layout.vehicles_open);
+    assert!(h.query_by_label(tree_row).is_some());
+}
+
+#[test]
+fn projects_open_showing_the_canvas() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    h.state_mut().prefs.layout.view_mode = tp_app::layout::ViewMode::ThreeD;
+    create_sample_project(&mut h, &["Standard cab"]);
+    assert_eq!(
+        h.state().prefs.layout.view_mode,
+        tp_app::layout::ViewMode::TwoD
+    );
+    // Split shows the canvas: kept.
+    h.state_mut().close_project();
+    h.state_mut().prefs.layout.view_mode = tp_app::layout::ViewMode::Split;
+    h.run();
+    create_sample_project(&mut h, &["Standard cab"]);
+    assert_eq!(
+        h.state().prefs.layout.view_mode,
+        tp_app::layout::ViewMode::Split
+    );
 }

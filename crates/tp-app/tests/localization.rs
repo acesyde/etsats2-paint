@@ -9,7 +9,6 @@ use egui::{Key, Modifiers, Vec2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{By, NodeT, Queryable};
 use tp_app::AppState;
-use tp_app::layout::PanelKind;
 use tp_app::prefs::{Prefs, PrefsStore};
 use tp_app::state::Modal;
 use tp_app::workspace::{ColorTarget, Workspace};
@@ -23,7 +22,7 @@ type H = Harness<'static, AppState>;
 fn open() -> H {
     let mut prefs = Prefs::default();
     for slot in &mut prefs.layout.panels {
-        slot.open = !matches!(slot.kind, PanelKind::Vehicle);
+        slot.open = true;
         slot.collapsed = false;
     }
     let mut h = Harness::builder()

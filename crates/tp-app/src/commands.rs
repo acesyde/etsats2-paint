@@ -53,6 +53,7 @@ pub enum CommandId {
     ActualSize,
     SetViewMode(ViewMode),
     TogglePreview,
+    ToggleVehicles,
     TogglePanel(PanelKind),
     ResetWorkspace,
     ShowGrid,
@@ -259,6 +260,7 @@ impl CommandId {
             About,
         ];
         all.extend([ViewMode::TwoD, ViewMode::ThreeD, ViewMode::Split].map(SetViewMode));
+        all.push(ToggleVehicles);
         all.extend(PanelKind::ALL.map(TogglePanel));
         all.extend([SwapColorTarget, SwapFillStroke, DefaultColors, Deselect]);
         for direction in Direction::ALL {
@@ -624,6 +626,13 @@ impl CommandId {
                 "cmd-show-3d-preview",
                 Some(icons::PREVIEW_3D),
                 &[],
+                Workspace,
+                NeedsProject,
+            ),
+            ToggleVehicles => m(
+                "panel-vehicle",
+                Some(icons::VEHICLE),
+                const { &[sc(NONE, Key::F5)] },
                 Workspace,
                 NeedsProject,
             ),
