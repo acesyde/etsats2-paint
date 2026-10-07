@@ -106,7 +106,7 @@ fn demo_scene(
                 rot,
             ),
         );
-        o.fill = fill;
+        o.fill = fill.into();
         o.stroke = stroke;
         o.opacity = opacity;
         ids.push(ws.project.add(o));
@@ -129,7 +129,7 @@ fn demo_scene(
         -12.0,
         Rgba::rgb(0xF2, 0xF2, 0xF2),
         Some(StrokeStyle {
-            color: Rgba::rgb(0x20, 0x20, 0x20),
+            paint: Rgba::rgb(0x20, 0x20, 0x20).into(),
             width: 24.0,
             ..Default::default()
         }),
@@ -213,7 +213,7 @@ fn livery_tree(
             Frame::new(Point::new(c.0, c.1), Size::new(s.0, s.1), 0.0),
         );
         o.name = name.into();
-        o.fill = fill;
+        o.fill = fill.into();
         o
     };
     let bg = ws.project.add(shape(
@@ -253,7 +253,7 @@ fn livery_tree(
         Rgba::rgb(0xF0, 0xB4, 0x4C),
     );
     logo.stroke = Some(StrokeStyle {
-        color: Rgba::rgb(0x20, 0x20, 0x20),
+        paint: Rgba::rgb(0x20, 0x20, 0x20).into(),
         width: 24.0,
         ..Default::default()
     });
@@ -327,7 +327,7 @@ fn add_text(
     use tp_core::document::{Object, ObjectId, TextBlock};
     let anchor = tp_core::kurbo::Point::new(anchor.0, anchor.1);
     let mut o = Object::text(ObjectId(0), TextBlock::new(content, style), anchor);
-    o.fill = fill;
+    o.fill = fill.into();
     o.stroke = stroke;
     ws.text.place_at(&mut o, anchor);
     ws.project.add(o)
@@ -346,7 +346,7 @@ fn lettering_scene(
         ShapeKind::rectangle(),
         Frame::new(Point::new(2048.0, 1700.0), Size::new(4096.0, 1800.0), 0.0),
     );
-    base.fill = Rgba::rgb(0x7A, 0x1F, 0x2B);
+    base.fill = Rgba::rgb(0x7A, 0x1F, 0x2B).into();
     ws.project.add(base);
     let white = Rgba::rgb(255, 255, 255);
     let black = Rgba::rgb(0x15, 0x15, 0x18);
@@ -363,7 +363,7 @@ fn lettering_scene(
         (300.0, 1500.0),
         white,
         Some(StrokeStyle {
-            color: black,
+            paint: black.into(),
             width: 14.0,
             ..Default::default()
         }),
@@ -670,7 +670,7 @@ fn vector_scene(
     let mut add = |o: Object| ids.push(ws.project.add(o));
     let base = |kind, c: (f64, f64), s: (f64, f64), rot: f64, fill: Rgba| {
         let mut o = Object::new(ObjectId(0), kind, Frame::new(c.into(), s.into(), rot));
-        o.fill = fill;
+        o.fill = fill.into();
         o
     };
     add(base(
@@ -691,7 +691,7 @@ fn vector_scene(
         Rgba::rgb(0xF0, 0xB4, 0x4C),
     );
     star.stroke = Some(StrokeStyle {
-        color: Rgba::rgb(255, 255, 255),
+        paint: Rgba::rgb(255, 255, 255).into(),
         width: 24.0,
         ..Default::default()
     });
@@ -725,7 +725,7 @@ fn vector_scene(
         true,
     );
     let mut s = Object::from_path(ObjectId(0), PathData::new(vec![swoosh, hole]));
-    s.fill = Rgba::rgb(0x2E, 0x86, 0xDE);
+    s.fill = Rgba::rgb(0x2E, 0x86, 0xDE).into();
     s.name = "Swoosh".into();
     add(s);
     for (i, y) in [3200.0, 3400.0, 3600.0].into_iter().enumerate() {
@@ -740,12 +740,12 @@ fn vector_scene(
                 false,
             )]),
         );
-        line.fill = Rgba::rgb(255, 255, 255);
+        line.fill = Rgba::rgb(255, 255, 255).into();
         line.edit_path(|p| p.line_width = 20.0 + 20.0 * i as f64);
         if i == 2 {
             // The thickest line outlined in black.
             line.stroke = Some(StrokeStyle {
-                color: Rgba::rgb(0, 0, 0),
+                paint: Rgba::rgb(0, 0, 0).into(),
                 width: 12.0,
                 ..Default::default()
             });
@@ -852,14 +852,14 @@ fn render_precision_aids() {
                 ShapeKind::rectangle(),
                 Frame::new(Point::new(900.0, 1200.0), Size::new(800.0, 400.0), 0.0),
             );
-            a.fill = Rgba::rgb(0xC0, 0x39, 0x2B);
+            a.fill = Rgba::rgb(0xC0, 0x39, 0x2B).into();
             ws.project.add(a);
             let mut b = Object::new(
                 ObjectId(0),
                 ShapeKind::Ellipse,
                 Frame::new(Point::new(2900.0, 2400.0), Size::new(600.0, 600.0), 0.0),
             );
-            b.fill = Rgba::rgb(0x2E, 0x86, 0xDE);
+            b.fill = Rgba::rgb(0x2E, 0x86, 0xDE).into();
             let b = ws.project.add(b);
             ws.project.add_guide(Guide::new(Axis::Horizontal, 3000.0));
             ws.project.add_guide(Guide::new(Axis::Vertical, 2048.0));
@@ -951,7 +951,7 @@ fn render_align() {
                         0.0,
                     ),
                 );
-                o.fill = colors[i];
+                o.fill = colors[i].into();
                 ids.push(ws.project.add(o));
             }
             ws.selection = ids;
@@ -988,7 +988,7 @@ fn render_combine() {
             let ws = h.state_mut().workspace_mut().unwrap();
             let shape = |kind, c: (f64, f64), s: (f64, f64), fill| {
                 let mut o = Object::new(ObjectId(0), kind, Frame::new(c.into(), s.into(), 0.0));
-                o.fill = fill;
+                o.fill = tp_core::document::Paint::Solid(fill);
                 o
             };
             // A stripe with a round notch (Minus Front).
@@ -1062,9 +1062,9 @@ fn render_stroke_options() {
                 ShapeKind::rectangle(),
                 Frame::new(Point::new(2048.0, 2048.0), (3400.0, 2200.0).into(), 0.0),
             );
-            base.fill = Rgba::rgb(0x7A, 0x1F, 0x2B);
+            base.fill = Rgba::rgb(0x7A, 0x1F, 0x2B).into();
             base.stroke = Some(StrokeStyle {
-                color: Rgba::rgb(0xF0, 0xB4, 0x4C),
+                paint: Rgba::rgb(0xF0, 0xB4, 0x4C).into(),
                 width: 40.0,
                 align: StrokeAlign::Inside,
                 line: LineStyle {
@@ -1086,7 +1086,7 @@ fn render_stroke_options() {
                 (900.0, 1300.0),
                 Rgba::rgb(255, 255, 255),
                 Some(StrokeStyle {
-                    color: Rgba::rgb(0x11, 0x11, 0x11),
+                    paint: Rgba::rgb(0x11, 0x11, 0x11).into(),
                     width: 30.0,
                     align: StrokeAlign::Outside,
                     line: LineStyle {
@@ -1112,7 +1112,7 @@ fn render_stroke_options() {
                 };
                 let mut o = Object::from_path(ObjectId(0), data);
                 o.name = "Pinstripe".into();
-                o.fill = Rgba::rgb(0xF0, 0xB4, 0x4C);
+                o.fill = Rgba::rgb(0xF0, 0xB4, 0x4C).into();
                 ws.project.add(o)
             };
             let line = stripe(
@@ -1141,4 +1141,198 @@ fn render_stroke_options() {
         h.state_mut().workspace_mut().unwrap().selection = vec![line];
         save(&mut h, &format!("stroke_options_line_{suffix}"));
     }
+}
+
+/// A gradient livery: a linear cab fade, a radial glow behind gradient
+/// lettering with an Outside stroke, and a gradient dashed line. Returns the
+/// lettering and the line.
+fn gradient_scene(
+    h: &mut egui_kittest::Harness<'static, tp_app::AppState>,
+) -> (tp_core::document::ObjectId, tp_core::document::ObjectId) {
+    use tp_core::document::{
+        Cap, CharStyle, ColorStop, Dash, Frame, Gradient, GradientKind, Join, LineStyle, Node,
+        Object, ObjectId, Paint, PathData, Rgba, ShapeKind, StrokeAlign, StrokeStyle, Subpath,
+    };
+    use tp_core::kurbo::Point;
+    let ws = h.state_mut().workspace_mut().unwrap();
+    let stops = |a: Rgba, b: Rgba| [ColorStop::new(0.0, a), ColorStop::new(1.0, b)];
+    // Cab side fading from burgundy to near black, left to right.
+    let mut base = Object::new(
+        ObjectId(0),
+        ShapeKind::rectangle(),
+        Frame::new(Point::new(2048.0, 2048.0), (3600.0, 2400.0).into(), 0.0),
+    );
+    base.name = "Fade".into();
+    base.fill = Paint::Gradient(Gradient::new(
+        GradientKind::Linear,
+        &stops(Rgba::rgb(0x9B, 0x22, 0x35), Rgba::rgb(0x1A, 0x08, 0x0C)),
+    ));
+    ws.project.add(base);
+    // A gold glow behind the lettering.
+    let mut glow = Object::new(
+        ObjectId(0),
+        ShapeKind::Ellipse,
+        Frame::new(Point::new(2048.0, 1500.0), (2600.0, 1200.0).into(), 0.0),
+    );
+    glow.name = "Glow".into();
+    glow.fill = Paint::Gradient(Gradient::new(
+        GradientKind::Radial,
+        &stops(
+            Rgba::with_alpha(0xF0, 0xB4, 0x4C, 200),
+            Rgba::with_alpha(0xF0, 0xB4, 0x4C, 0),
+        ),
+    ));
+    ws.project.add(glow);
+    // Gold-to-bronze lettering with a black Outside outline.
+    let text = add_text(
+        ws,
+        "ACE",
+        CharStyle {
+            family: "Barlow Condensed".into(),
+            weight: 700,
+            size: 900.0,
+            ..CharStyle::default()
+        },
+        (1300.0, 1050.0),
+        Rgba::rgb(255, 255, 255),
+        Some(StrokeStyle {
+            paint: Rgba::rgb(0x11, 0x11, 0x11).into(),
+            width: 30.0,
+            align: StrokeAlign::Outside,
+            line: LineStyle {
+                join: Join::Round,
+                ..LineStyle::default()
+            },
+        }),
+    );
+    let mut lettering = (**ws.project.surface().get(text).unwrap()).clone();
+    let mut gold = Gradient::new(
+        GradientKind::Linear,
+        &stops(Rgba::rgb(0xFF, 0xE0, 0x8A), Rgba::rgb(0xA8, 0x6A, 0x1E)),
+    );
+    gold.set_angle(&lettering.frame, 90.0);
+    lettering.fill = Paint::Gradient(gold);
+    ws.project.surface_mut().replace(&[lettering]);
+    // A dashed line going from yellow to red.
+    let mut data = PathData::new(vec![Subpath::new(
+        vec![
+            Node::corner(Point::new(500.0, 2900.0)),
+            Node::corner(Point::new(3600.0, 2900.0)),
+        ],
+        false,
+    )]);
+    data.line_width = 40.0;
+    data.line_style = LineStyle {
+        dash: Some(Dash {
+            dash: 160.0,
+            gap: 60.0,
+        }),
+        cap: Cap::Butt,
+        ..LineStyle::default()
+    };
+    let mut line = Object::from_path(ObjectId(0), data);
+    line.name = "Stripe".into();
+    line.fill = Paint::Gradient(Gradient::new(
+        GradientKind::Linear,
+        &stops(Rgba::rgb(0xFF, 0xD0, 0x20), Rgba::rgb(0xE0, 0x20, 0x20)),
+    ));
+    let line = ws.project.add(line);
+    (text, line)
+}
+
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_gradients() {
+    use tp_app::layout::PanelKind;
+    use tp_app::tool::Tool;
+    use tp_app::workspace::ColorTarget;
+    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+        let mut prefs = Prefs {
+            ui_scale: scale,
+            ..Prefs::default()
+        };
+        for slot in &mut prefs.layout.panels {
+            match slot.kind {
+                PanelKind::Colors => {
+                    slot.open = true;
+                    slot.collapsed = false;
+                }
+                PanelKind::Stroke | PanelKind::Layers | PanelKind::Transform => {
+                    slot.collapsed = true;
+                }
+                _ => {}
+            }
+        }
+        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        common::create_project(&mut h);
+        let (text, line) = gradient_scene(&mut h);
+        {
+            let ws = h.state_mut().workspace_mut().unwrap();
+            ws.selection = vec![text];
+            ws.panels.color_target = ColorTarget::Fill;
+        }
+        save(&mut h, &format!("gradients_text_{suffix}"));
+        {
+            let ws = h.state_mut().workspace_mut().unwrap();
+            ws.selection = vec![line];
+            ws.tool = Tool::Gradient;
+        }
+        save(&mut h, &format!("gradients_tool_{suffix}"));
+    }
+}
+
+/// The canvas and the export agree on gradient colors (interior pixels).
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn canvas_matches_export_for_gradients() {
+    use tp_core::document::Rgba;
+    use tp_core::kurbo::Point;
+    let mut h = common::wgpu_harness_with(Prefs::default(), Vec2::new(1440.0, 900.0));
+    common::create_project(&mut h);
+    gradient_scene(&mut h);
+    h.state_mut().workspace_mut().unwrap().selection.clear();
+    h.run();
+    let canvas = h.render().expect("render");
+    let ws = h.state_mut().workspace_mut().unwrap();
+    let map = ws.screen_map(1.0).expect("canvas");
+    let side = 2048u32;
+    let export = tp_render::to_rgba(
+        &tp_render::render(
+            &ws.project,
+            0,
+            tp_render::RenderOptions {
+                size: side,
+                background: Some(Rgba::rgb(255, 255, 255)),
+            },
+            &mut ws.text.fonts,
+            &mut |_, _| true,
+        )
+        .unwrap(),
+    );
+    let surface = ws.project.surface().size;
+    // Inside the cab fade (away from the glow, text and line) and on dashes.
+    let samples = [
+        Point::new(500.0, 2300.0),
+        Point::new(1200.0, 2400.0),
+        Point::new(2600.0, 2500.0),
+        Point::new(3500.0, 2300.0),
+        Point::new(700.0, 2900.0),
+        Point::new(2050.0, 2900.0),
+    ];
+    let mut worst = 0u8;
+    for p in samples {
+        let s = map.to_screen(p);
+        let c = canvas.get_pixel(s.x.round() as u32, s.y.round() as u32).0;
+        let e = export
+            .get_pixel(
+                (p.x / surface * f64::from(side)) as u32,
+                (p.y / surface * f64::from(side)) as u32,
+            )
+            .0;
+        let d = (0..3).map(|i| c[i].abs_diff(e[i])).max().unwrap();
+        worst = worst.max(d);
+        eprintln!("{p:?}: canvas {c:?} export {e:?}");
+    }
+    assert!(worst <= 2, "canvas and export differ by {worst} levels");
 }

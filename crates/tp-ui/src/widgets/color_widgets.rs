@@ -17,6 +17,96 @@ pub enum SwatchColor {
     None,
     /// Differing values in a multi-selection.
     Mixed,
+    Gradient(GradientPreview),
+}
+
+/// Most stops a [`GradientPreview`] holds.
+pub const PREVIEW_STOPS: usize = 16;
+
+/// A gradient as previewed in swatches and the gradient bar: its stops
+/// (location 0..=1, straight color) and whether it is radial.
+#[derive(Clone, Copy, Debug)]
+pub struct GradientPreview {
+    pub radial: bool,
+    stops: [(f32, Color32); PREVIEW_STOPS],
+    len: u8,
+}
+
+impl PartialEq for GradientPreview {
+    fn eq(&self, other: &Self) -> bool {
+        self.radial == other.radial && self.stops() == other.stops()
+    }
+}
+
+impl GradientPreview {
+    /// `stops` sorted by location, at most [`PREVIEW_STOPS`] kept. Colors
+    /// are straight (unmultiplied) RGBA as `[r, g, b, a]`.
+    pub fn new(radial: bool, stops: &[(f32, [u8; 4])]) -> Self {
+        let mut out = [(0.0, Color32::TRANSPARENT); PREVIEW_STOPS];
+        let n = stops.len().min(PREVIEW_STOPS);
+        for (o, (t, [r, g, b, a])) in out.iter_mut().zip(stops) {
+            *o = (*t, Color32::from_rgba_unmultiplied(*r, *g, *b, *a));
+        }
+        Self {
+            radial,
+            stops: out,
+            len: n as u8,
+        }
+    }
+
+    pub fn stops(&self) -> &[(f32, Color32)] {
+        &self.stops[..usize::from(self.len)]
+    }
+
+    /// Paints the gradient over `rect`: left to right, or from the center
+    /// outwards (to the nearest edge) for radial gradients.
+    pub fn paint(&self, painter: &Painter, rect: Rect) {
+        let stops = self.stops();
+        let Some(first) = stops.first() else {
+            return;
+        };
+        // Interpolation points: each stop, plus both ends.
+        let mut points: Vec<(f32, Color32)> = vec![(0.0, first.1)];
+        points.extend(stops.iter().map(|(t, c)| (t.clamp(0.0, 1.0), *c)));
+        points.push((1.0, stops[stops.len() - 1].1));
+        let mut mesh = Mesh::default();
+        if self.radial {
+            let center = rect.center();
+            let radius = rect.width().min(rect.height()) / 2.0;
+            const SEGMENTS: usize = 48;
+            // Rings at each point; the area beyond the last ring takes the
+            // last color.
+            painter.rect_filled(rect, 0, points[points.len() - 1].1);
+            for (ring, (t, c)) in points.iter().enumerate() {
+                for k in 0..SEGMENTS {
+                    let a = k as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
+                    let p = center + Vec2::angled(a) * radius * *t;
+                    mesh.colored_vertex(p, *c);
+                    if ring > 0 {
+                        let (i, j) = (
+                            (ring * SEGMENTS + k) as u32,
+                            (ring * SEGMENTS + (k + 1) % SEGMENTS) as u32,
+                        );
+                        let (pi, pj) = (i - SEGMENTS as u32, j - SEGMENTS as u32);
+                        mesh.add_triangle(pi, pj, i);
+                        mesh.add_triangle(pj, j, i);
+                    }
+                }
+            }
+        } else {
+            for (i, (t, c)) in points.iter().enumerate() {
+                let x = rect.left() + rect.width() * t;
+                mesh.colored_vertex(Pos2::new(x, rect.top()), *c);
+                mesh.colored_vertex(Pos2::new(x, rect.bottom()), *c);
+                if i > 0 {
+                    let k = (2 * i) as u32;
+                    mesh.add_triangle(k - 2, k - 1, k);
+                    mesh.add_triangle(k - 1, k + 1, k);
+                }
+            }
+        }
+        painter.add(Shape::mesh(mesh));
+    }
 }
 
 /// Paints a checkerboard (for transparency) inside `rect`.
@@ -49,6 +139,10 @@ fn paint_swatch(painter: &Painter, rect: Rect, swatch: SwatchColor) {
                 [rect.left_bottom(), rect.right_top()],
                 Stroke::new(2.0, Color32::from_rgb(0xE0, 0x30, 0x30)),
             );
+        }
+        SwatchColor::Gradient(g) => {
+            paint_checkerboard(painter, rect, 4.0);
+            g.paint(painter, rect);
         }
         SwatchColor::Mixed => {
             painter.rect_filled(rect, 0, color::SURFACE_3);

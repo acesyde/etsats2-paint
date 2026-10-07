@@ -149,6 +149,7 @@ pub fn resize(
 /// Applies a resize (global `transform` plus the scale factors in the bounds'
 /// axes) to one object and, recursively, to its children.
 fn resize_one(o: &Object, transform: Affine, sx: f64, sy: f64, bounds_rotation: f64) -> Object {
+    let (from, fill, stroke) = (o.frame, o.fill, o.stroke.map(|s| s.paint));
     let mut o = o.clone();
     // Full document transform of the object's local space.
     let full = transform * o.frame.affine();
@@ -197,6 +198,13 @@ fn resize_one(o: &Object, transform: Affine, sx: f64, sy: f64, bounds_rotation: 
         _ => {}
     }
     o.sync_text_scale();
+    // Gradients take the exact transform (mirror and skew included), like
+    // paths, whatever the frame became (path refits moved them meanwhile).
+    o.fill = fill;
+    if let (Some(s), Some(paint)) = (&mut o.stroke, stroke) {
+        s.paint = paint;
+    }
+    o.remap_paints(&from, transform);
     for child in &mut o.children {
         *child = Arc::new(resize_one(child, transform, sx, sy, bounds_rotation));
     }
@@ -462,6 +470,57 @@ mod tests {
             .iter()
             .map(|n| a * n.point)
             .collect()
+    }
+
+    fn linear_red_blue() -> crate::document::Paint {
+        use crate::document::{ColorStop, Gradient, GradientKind, Paint, Rgba};
+        Paint::Gradient(Gradient::new(
+            GradientKind::Linear,
+            &[
+                ColorStop::new(0.0, Rgba::rgb(255, 0, 0)),
+                ColorStop::new(1.0, Rgba::rgb(0, 0, 255)),
+            ],
+        ))
+    }
+
+    #[test]
+    fn gradients_stay_in_place_when_path_points_move() {
+        let mut a = arrow();
+        a.fill = linear_red_blue();
+        let before = a.fill.gradient().unwrap().document_points(&a.frame);
+        // Move the tip far right: the bounds (and frame) grow.
+        a.edit_path(|p| p.subpaths[0].nodes[3].point.x += 300.0);
+        let after = a.fill.gradient().unwrap().document_points(&a.frame);
+        assert!(close(before.0.x, after.0.x) && close(before.0.y, after.0.y));
+        assert!(close(before.1.x, after.1.x) && close(before.1.y, after.1.y));
+        // Changing the path's rotation keeps them in place too.
+        a.set_path_rotation(30.0);
+        let turned = a.fill.gradient().unwrap().document_points(&a.frame);
+        assert!(close(before.1.x, turned.1.x) && close(before.1.y, turned.1.y));
+    }
+
+    #[test]
+    fn flipping_mirrors_gradients() {
+        for mut a in [
+            arrow(),
+            Object::new(ObjectId(2), ShapeKind::rectangle(), arrow().frame),
+        ] {
+            a.fill = linear_red_blue();
+            let bounds = a.frame;
+            let (s, e, _) = a.fill.gradient().unwrap().document_points(&a.frame);
+            let out = resize(
+                &[a],
+                bounds,
+                Handle { x: 1, y: 0 },
+                Point::new(-200.0, 50.0),
+                ResizeOptions::default(),
+            );
+            let o = &out[0];
+            let (s2, e2, _) = o.fill.gradient().unwrap().document_points(&o.frame);
+            // Mirrored about x = 0: red now on the right, blue on the left.
+            assert!(close(s2.x, -s.x) && close(e2.x, -e.x), "{s2:?} {e2:?}");
+            assert!(close(s2.y, s.y) && close(e2.y, e.y));
+        }
     }
 
     #[test]

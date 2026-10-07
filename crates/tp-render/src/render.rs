@@ -4,11 +4,14 @@ use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
 use resvg::tiny_skia::{
-    self, Color, FillRule, FilterQuality, LineCap, LineJoin, Paint, PathBuilder, Pixmap,
-    PixmapPaint, Stroke, Transform,
+    self, Color, FillRule, FilterQuality, GradientStop, LineCap, LineJoin, LinearGradient, Paint,
+    PathBuilder, Pixmap, PixmapPaint, RadialGradient, Shader, SpreadMode, Stroke, Transform,
 };
 use resvg::usvg;
-use tp_core::document::{AssetId, LineStyle, Object, Rgba, ShapeKind, stroke_region, tree};
+use tp_core::document::{
+    self as doc, AssetId, Frame, GradientKind, LineStyle, Object, Rgba, ShapeKind, stroke_region,
+    tree,
+};
 use tp_core::kurbo::{Affine, BezPath, PathEl, Rect, Shape, Vec2};
 use tp_core::{Asset, AssetKind, Project};
 use tp_text::{FontLibrary, GlyphCache, layout_to_doc};
@@ -97,25 +100,48 @@ impl Outline {
 /// Flattening tolerance of stroke regions, in output pixels.
 const REGION_TOLERANCE: f64 = 0.05;
 
-fn paint(c: Color) -> Paint<'static> {
-    let mut paint = Paint {
-        anti_alias: true,
-        ..Paint::default()
+/// The tiny-skia paint of `p` on an object with `frame` at `opacity`,
+/// `scale` mapping the document to pixels. A degenerate gradient paints its
+/// last stop's color.
+fn skia_paint(p: &doc::Paint, frame: &Frame, opacity: f32, scale: f64) -> Paint<'static> {
+    let shader = match p {
+        doc::Paint::Solid(c) => Shader::SolidColor(color(*c, opacity)),
+        doc::Paint::Gradient(g) => {
+            let stops: Vec<GradientStop> = g
+                .stops()
+                .iter()
+                .map(|s| GradientStop::new(s.offset, color(s.color, opacity)))
+                .collect();
+            let shader = g.to_document(frame).and_then(|to_doc| {
+                let t = skia_transform(Affine::scale(scale) * to_doc);
+                let origin = tiny_skia::Point::from_xy(0.0, 0.0);
+                match g.kind {
+                    GradientKind::Linear => LinearGradient::new(
+                        origin,
+                        tiny_skia::Point::from_xy(1.0, 0.0),
+                        stops,
+                        SpreadMode::Pad,
+                        t,
+                    ),
+                    GradientKind::Radial => {
+                        RadialGradient::new(origin, 0.0, origin, 1.0, stops, SpreadMode::Pad, t)
+                    }
+                }
+            });
+            shader.unwrap_or_else(|| Shader::SolidColor(color(g.last_color(), opacity)))
+        }
     };
-    paint.set_color(c);
-    paint
+    Paint {
+        anti_alias: true,
+        shader,
+        ..Paint::default()
+    }
 }
 
 /// Fills `path` (document space, `scale` mapping to pixels), non-zero.
-fn fill_with(pixmap: &mut Pixmap, path: &BezPath, c: Color, scale: f64) {
+fn fill_with(pixmap: &mut Pixmap, path: &BezPath, paint: &Paint, scale: f64) {
     if let Some(path) = to_skia(&(Affine::scale(scale) * path.clone())) {
-        pixmap.fill_path(
-            &path,
-            &paint(c),
-            FillRule::Winding,
-            Transform::identity(),
-            None,
-        );
+        pixmap.fill_path(&path, paint, FillRule::Winding, Transform::identity(), None);
     }
 }
 
@@ -124,14 +150,14 @@ fn fill_with(pixmap: &mut Pixmap, path: &BezPath, c: Color, scale: f64) {
 fn stroke_with(
     pixmap: &mut Pixmap,
     path: &BezPath,
-    c: Color,
+    paint: &Paint,
     width: f64,
     line: &LineStyle,
     scale: f64,
 ) {
     if !line.is_default() {
         let region = stroke_region::expand(path, width, line, REGION_TOLERANCE / scale);
-        fill_with(pixmap, &region, c, scale);
+        fill_with(pixmap, &region, paint, scale);
         return;
     }
     let Some(path) = to_skia(&(Affine::scale(scale) * path.clone())) else {
@@ -144,15 +170,22 @@ fn stroke_with(
         miter_limit: 4.0,
         ..Stroke::default()
     };
-    pixmap.stroke_path(&path, &paint(c), &stroke, Transform::identity(), None);
+    pixmap.stroke_path(&path, paint, &stroke, Transform::identity(), None);
 }
 
 /// Draws a shape, `scale` mapping to pixels: the fill, then the lines of
 /// open subpaths (fill color, outlined by the stroke), then the stroke.
 fn draw_path(pixmap: &mut Pixmap, outline: &Outline, object: &Object, opacity: f32, scale: f64) {
-    let stroke = object.stroke.filter(|s| s.width > 0.0 && s.color.a > 0);
-    if object.fill.a > 0 {
-        fill_with(pixmap, &outline.fill, color(object.fill, opacity), scale);
+    let stroke = object
+        .stroke
+        .filter(|s| s.width > 0.0 && s.paint.is_visible());
+    let fill = object
+        .fill
+        .is_visible()
+        .then(|| skia_paint(&object.fill, &object.frame, opacity, scale));
+    let stroke_paint = stroke.map(|s| skia_paint(&s.paint, &object.frame, opacity, scale));
+    if let Some(fill) = &fill {
+        fill_with(pixmap, &outline.fill, fill, scale);
     }
     // Lines: a casing in the stroke color, then the line body in the fill
     // color, their widths set by the stroke's alignment; both follow the
@@ -163,29 +196,21 @@ fn draw_path(pixmap: &mut Pixmap, outline: &Outline, object: &Object, opacity: f
             .as_ref()
             .map(|p| p.line_style)
             .unwrap_or_default();
-        let body = match stroke {
-            Some(s) => {
+        let body = match (stroke, &stroke_paint) {
+            (Some(s), Some(paint)) => {
                 let (casing, body) = stroke_region::line_widths(*width, s.width, s.align);
                 if casing > 0.0 {
-                    stroke_with(pixmap, lines, color(s.color, opacity), casing, &line, scale);
+                    stroke_with(pixmap, lines, paint, casing, &line, scale);
                 }
                 body
             }
-            None => *width,
+            _ => *width,
         };
-        if body > 0.0 && object.fill.a > 0 {
-            stroke_with(
-                pixmap,
-                lines,
-                color(object.fill, opacity),
-                body,
-                &line,
-                scale,
-            );
+        if let Some(fill) = fill.as_ref().filter(|_| body > 0.0) {
+            stroke_with(pixmap, lines, fill, body, &line, scale);
         }
     }
-    if let Some(s) = stroke {
-        let c = color(s.color, opacity);
+    if let (Some(s), Some(c)) = (stroke, &stroke_paint) {
         match stroke_region(
             &outline.stroke,
             Some(&outline.fill),

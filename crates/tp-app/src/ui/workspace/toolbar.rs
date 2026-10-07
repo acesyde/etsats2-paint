@@ -18,7 +18,7 @@ const GROUPS: [&[Tool]; 5] = [
         Tool::Line,
     ],
     &[Tool::Text, Tool::Image],
-    &[Tool::Eyedropper],
+    &[Tool::Eyedropper, Tool::Gradient],
     &[Tool::Zoom, Tool::Hand],
 ];
 

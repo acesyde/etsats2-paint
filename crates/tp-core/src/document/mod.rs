@@ -5,6 +5,7 @@ pub mod boolean;
 mod color;
 mod history;
 mod object;
+pub mod paint;
 pub mod path;
 pub mod stroke_region;
 mod transform;
@@ -18,6 +19,9 @@ pub use object::{
     AssetId, Cap, CharStyle, DEFAULT_MITER_LIMIT, Dash, Frame, Join, LineStyle, MIN_SIZE, Object,
     ObjectId, ShapeKind, StrokeAlign, StrokeStyle, TextAlign, TextBlock, convex_polygons_overlap,
     flatten_closed, flatten_subpaths, normalize_degrees, segments_intersect,
+};
+pub use paint::{
+    ColorStop, Gradient, GradientKind, MAX_STOPS, MIN_STOPS, Paint, PaintKind, unit_to_document,
 };
 pub use path::{
     DEFAULT_LINE_WIDTH, HandleSide, Node, NodeRef, PathData, PointRef, SegmentHit, Subpath,

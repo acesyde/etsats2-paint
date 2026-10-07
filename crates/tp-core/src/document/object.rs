@@ -5,6 +5,7 @@ use std::sync::Arc;
 use kurbo::{Affine, BezPath, Ellipse, PathEl, Point, Rect, RoundedRect, Shape, Size, Vec2};
 
 use super::color::{DEFAULT_FILL, Rgba};
+use super::paint::Paint;
 use super::path::{Node, PathData, Subpath, polygon_points};
 
 /// Smallest width or height an object may have, in texture pixels.
@@ -214,7 +215,7 @@ pub fn normalize_degrees(deg: f64) -> f64 {
 /// Outline stroke.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct StrokeStyle {
-    pub color: Rgba,
+    pub paint: Paint,
     /// Width in texture pixels.
     pub width: f64,
     /// Where the stroke sits relative to the edge.
@@ -226,7 +227,7 @@ pub struct StrokeStyle {
 impl Default for StrokeStyle {
     fn default() -> Self {
         Self {
-            color: Rgba::rgb(0, 0, 0),
+            paint: Paint::Solid(Rgba::rgb(0, 0, 0)),
             width: 1.0,
             align: StrokeAlign::Center,
             line: LineStyle::default(),
@@ -308,7 +309,7 @@ pub struct Object {
     pub kind: ShapeKind,
     pub name: String,
     pub frame: Frame,
-    pub fill: Rgba,
+    pub fill: Paint,
     pub stroke: Option<StrokeStyle>,
     /// 0.0..=1.0; for groups, multiplied into the children.
     pub opacity: f32,
@@ -330,7 +331,7 @@ impl Object {
             kind,
             name: kind.name().to_owned(),
             frame: frame.sanitized(),
-            fill: DEFAULT_FILL,
+            fill: Paint::Solid(DEFAULT_FILL),
             stroke: None,
             opacity: 1.0,
             visible: true,
@@ -402,13 +403,32 @@ impl Object {
         // Rotating the frame about its center by `delta` while rotating the
         // local points by `-delta` keeps every document position.
         Arc::make_mut(path).transform(Affine::rotate(-delta));
+        let from = self.frame;
         self.frame.rotation_deg = rotation_deg;
-        self.refit();
+        self.refit_frame();
+        self.remap_paints(&from, Affine::IDENTITY);
     }
 
     /// Recenters a path's geometry on its exact bounds and makes the frame
     /// those bounds (in the frame's own rotation). No-op for other kinds.
     pub fn refit(&mut self) {
+        let from = self.frame;
+        self.refit_frame();
+        self.remap_paints(&from, Affine::IDENTITY);
+    }
+
+    /// Places the fill and stroke gradients so that they stay where they
+    /// were in the document (moved by `transform`) when the frame was
+    /// `from` and is now the current one.
+    pub fn remap_paints(&mut self, from: &Frame, transform: Affine) {
+        let to = self.frame;
+        self.fill = self.fill.remapped(from, transform, &to);
+        if let Some(stroke) = &mut self.stroke {
+            stroke.paint = stroke.paint.remapped(from, transform, &to);
+        }
+    }
+
+    fn refit_frame(&mut self) {
         let Some(path) = &mut self.path else {
             return;
         };
@@ -1101,7 +1121,7 @@ mod tests {
         );
         // A stroke outlines the line: it widens what is hit.
         v.stroke = Some(StrokeStyle {
-            color: Rgba::rgb(0, 0, 0),
+            paint: Paint::Solid(Rgba::rgb(0, 0, 0)),
             width: 20.0,
             ..Default::default()
         });
@@ -1174,7 +1194,7 @@ mod tests {
             star(),
         ];
         shapes[1].name = "Badge".into();
-        shapes[1].fill = Rgba::rgb(1, 2, 3);
+        shapes[1].fill = Paint::Solid(Rgba::rgb(1, 2, 3));
         for original in shapes {
             let mut converted = original.clone();
             assert!(converted.convert_to_path());

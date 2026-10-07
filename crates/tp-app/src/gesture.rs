@@ -61,12 +61,35 @@ pub enum Gesture {
         position: f64,
         before: Snapshot,
     },
+    /// Gradient tool: moving a gradient handle, or drawing a new vector.
+    Gradient(GradientDrag),
     /// Direct Selection: selecting points inside a rectangle.
     PointMarquee {
         start: Point,
         base: BTreeSet<PointRef>,
         base_objects: Vec<ObjectId>,
     },
+}
+
+/// A handle of a gradient on the canvas.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GradientPoint {
+    /// Linear start, or radial center.
+    Start,
+    /// Linear end, or radial radius point.
+    End,
+    /// Radial aspect handle.
+    Minor,
+}
+
+/// What a Gradient tool drag remembers from its start.
+#[derive(Clone, Debug)]
+pub struct GradientDrag {
+    /// The handle dragged, or `None` for a new vector from `start`.
+    pub point: Option<GradientPoint>,
+    pub start: Point,
+    pub originals: Vec<Object>,
+    pub before: Snapshot,
 }
 
 /// What every transform gesture remembers from its start.
@@ -92,6 +115,7 @@ impl Gesture {
                 | Self::MovingPoints(_)
                 | Self::MovingHandle { .. }
                 | Self::Guide { index: Some(_), .. }
+                | Self::Gradient(_)
         )
     }
 }

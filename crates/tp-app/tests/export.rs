@@ -28,7 +28,7 @@ fn open() -> H {
             ShapeKind::Ellipse,
             Frame::new(Point::new(2048.0, 2048.0), Size::new(2000.0, 1000.0), 0.0),
         );
-        o.fill = Rgba::rgb(200, 30, 40);
+        o.fill = Rgba::rgb(200, 30, 40).into();
         ws.project.add(o);
     }
     h.run();

@@ -524,7 +524,10 @@ fn color_with_nothing_selected_applies_to_new_shapes() {
     let (a, b) = (screen(&h, 100.0, 100.0), screen(&h, 900.0, 600.0));
     drag(&mut h, a, b);
     let id = ws(&h).selection[0];
-    assert_eq!(obj(&h, id).fill, Rgba::rgb(255, 0, 0));
+    assert_eq!(
+        obj(&h, id).fill,
+        tp_core::document::Paint::from(Rgba::rgb(255, 0, 0))
+    );
 }
 
 #[test]
@@ -535,7 +538,10 @@ fn rgb_fields_update_color() {
     type_into(&mut h, "Red", "255");
     type_into(&mut h, "Green", "0");
     type_into(&mut h, "Blue", "0");
-    assert_eq!(obj(&h, a).fill, Rgba::rgb(255, 0, 0));
+    assert_eq!(
+        obj(&h, a).fill,
+        tp_core::document::Paint::from(Rgba::rgb(255, 0, 0))
+    );
     assert_eq!(field_value(&h, "Hex color"), "#FF0000");
 }
 
@@ -545,9 +551,15 @@ fn short_and_invalid_hex() {
     let a = rect(&mut h, "A", (300.0, 200.0), (400.0, 200.0));
     select(&mut h, &[a]);
     type_into(&mut h, "Hex color", "#f80");
-    assert_eq!(obj(&h, a).fill, Rgba::rgb(0xFF, 0x88, 0x00));
+    assert_eq!(
+        obj(&h, a).fill,
+        tp_core::document::Paint::from(Rgba::rgb(0xFF, 0x88, 0x00))
+    );
     type_into(&mut h, "Hex color", "zz12");
-    assert_eq!(obj(&h, a).fill, Rgba::rgb(0xFF, 0x88, 0x00));
+    assert_eq!(
+        obj(&h, a).fill,
+        tp_core::document::Paint::from(Rgba::rgb(0xFF, 0x88, 0x00))
+    );
 }
 
 #[test]
@@ -556,7 +568,7 @@ fn none_removes_stroke() {
     let a = rect(&mut h, "A", (300.0, 200.0), (400.0, 200.0));
     let mut o = obj(&h, a);
     o.stroke = Some(StrokeStyle {
-        color: Rgba::rgb(0, 0, 0),
+        paint: Rgba::rgb(0, 0, 0).into(),
         width: 8.0,
         ..Default::default()
     });
@@ -582,7 +594,10 @@ fn palette_add_and_apply() {
     select(&mut h, &[b]);
     h.get_by_label("Palette color #123456").click();
     h.run();
-    assert_eq!(obj(&h, b).fill, Rgba::rgb(0x12, 0x34, 0x56));
+    assert_eq!(
+        obj(&h, b).fill,
+        tp_core::document::Paint::from(Rgba::rgb(0x12, 0x34, 0x56))
+    );
 }
 
 #[test]
@@ -848,7 +863,7 @@ fn drawing_goes_into_selected_group_with_current_style() {
     let mut h = open();
     let ids = livery(&mut h);
     select(&mut h, &[ids[5]]);
-    ws_mut(&mut h).style.fill = Rgba::rgb(255, 255, 255);
+    ws_mut(&mut h).style.fill = Rgba::rgb(255, 255, 255).into();
     ws_mut(&mut h).style.stroke_enabled = true;
     ws_mut(&mut h).style.stroke.width = 8.0;
     ws_mut(&mut h).tool = Tool::Ellipse;
@@ -859,7 +874,10 @@ fn drawing_goes_into_selected_group_with_current_style() {
     let group = obj(&h, ids[5]);
     assert_eq!(group.children.last().unwrap().id, new);
     let o = obj(&h, new);
-    assert_eq!(o.fill, Rgba::rgb(255, 255, 255));
+    assert_eq!(
+        o.fill,
+        tp_core::document::Paint::from(Rgba::rgb(255, 255, 255))
+    );
     assert_eq!(o.stroke.unwrap().width, 8.0);
 }
 
@@ -876,13 +894,16 @@ fn eyedropper_picks_fill_into_selection() {
         0.0,
     );
     let mut o = obj(&h, red);
-    o.fill = Rgba::rgb(220, 20, 20);
+    o.fill = Rgba::rgb(220, 20, 20).into();
     ws_mut(&mut h).project.surface_mut().replace(&[o]);
     select(&mut h, &[a]);
     ws_mut(&mut h).tool = Tool::Eyedropper;
     h.run();
     let p = screen(&h, 2000.0, 2000.0);
     click_at(&mut h, p, Modifiers::NONE);
-    assert_eq!(obj(&h, a).fill, Rgba::rgb(220, 20, 20));
+    assert_eq!(
+        obj(&h, a).fill,
+        tp_core::document::Paint::from(Rgba::rgb(220, 20, 20))
+    );
     assert_eq!(ws(&h).selection, vec![a]);
 }

@@ -197,7 +197,7 @@ fn rich_file(path: &Path) -> Workspace {
             },
             Frame::new(Point::new(800.0, 600.0), Size::new(400.0, 200.0), 15.0),
         );
-        a.fill = Rgba::rgb(0x7A, 0x1F, 0x2B);
+        a.fill = Rgba::rgb(0x7A, 0x1F, 0x2B).into();
         let a = ws.project.add(a);
         let b = ws.project.add(Object::new(
             ObjectId(0),
@@ -261,6 +261,16 @@ fn add_vector_objects(ws: &mut Workspace) {
         ]),
     );
     swoosh.frame.rotation_deg = 5.0;
+    // Gradients round-trip too: a radial fill and a gradient outline.
+    let stops = [
+        tp_core::document::ColorStop::new(0.0, Rgba::rgb(0xF0, 0xB4, 0x4C)),
+        tp_core::document::ColorStop::new(0.6, Rgba::with_alpha(0x7A, 0x1F, 0x2B, 180)),
+        tp_core::document::ColorStop::new(1.0, Rgba::with_alpha(0x7A, 0x1F, 0x2B, 0)),
+    ];
+    let mut glow =
+        tp_core::document::Gradient::new(tp_core::document::GradientKind::Radial, &stops);
+    glow.minor = Point::new(0.5, 0.8);
+    swoosh.fill = tp_core::document::Paint::Gradient(glow);
     ws.project.add(swoosh);
     let mut line = Object::from_path(
         ObjectId(0),
@@ -270,10 +280,13 @@ fn add_vector_objects(ws: &mut Workspace) {
         )]),
     );
     line.name = "Line".into();
-    line.fill = Rgba::rgb(255, 255, 255);
+    line.fill = Rgba::rgb(255, 255, 255).into();
     line.edit_path(|p| p.line_width = 30.0);
     line.stroke = Some(StrokeStyle {
-        color: Rgba::rgb(0, 0, 0),
+        paint: tp_core::document::Paint::Gradient(tp_core::document::Gradient::new(
+            tp_core::document::GradientKind::Linear,
+            &stops,
+        )),
         width: 4.0,
         ..Default::default()
     });
@@ -294,6 +307,15 @@ fn round_trip() {
     assert_eq!(opened.palette, original.project.palette);
     assert_eq!(opened.assets, original.project.assets);
     assert_eq!(opened.surfaces, original.project.surfaces);
+    let gradients = opened
+        .surface()
+        .objects
+        .iter()
+        .filter(|o| {
+            o.fill.gradient().is_some() || o.stroke.is_some_and(|s| s.paint.gradient().is_some())
+        })
+        .count();
+    assert_eq!(gradients, 2, "the radial fill and the gradient outline");
     assert_eq!(status(&h), SaveState::Saved);
     assert!(ws(&h).selection.is_empty());
     assert!(!ws(&h).history.can_undo());

@@ -110,12 +110,14 @@ impl Geometry {
 }
 
 /// Whether an object is drawn from meshes rather than as a convex polygon:
-/// paths, polygons, and shapes whose stroke is not a plain centered line.
+/// paths, polygons, shapes whose stroke is not a plain centered line, and
+/// shapes painted with a gradient.
 pub fn uses_mesh(object: &Object) -> bool {
     matches!(object.kind, ShapeKind::Path | ShapeKind::Polygon { .. })
-        || object
-            .stroke
-            .is_some_and(|s| s.align != StrokeAlign::Center || !s.line.is_default())
+        || object.fill.gradient().is_some()
+        || object.stroke.is_some_and(|s| {
+            s.align != StrokeAlign::Center || !s.line.is_default() || s.paint.gradient().is_some()
+        })
 }
 
 /// What the cached geometry was computed from.
@@ -289,8 +291,8 @@ mod tests {
         assert!(cache.geometry(&o, 0).mesh.is_none(), "plain outline");
         // Same allocation, edited in place: a color change keeps the
         // geometry, an alignment change rebuilds it.
-        Arc::make_mut(&mut o).stroke.as_mut().unwrap().color =
-            tp_core::document::Rgba::rgb(255, 0, 0);
+        Arc::make_mut(&mut o).stroke.as_mut().unwrap().paint =
+            tp_core::document::Rgba::rgb(255, 0, 0).into();
         cache.geometry(&o, 0);
         assert_eq!(cache.misses, 1);
         let s = Arc::make_mut(&mut o).stroke.as_mut().unwrap();
@@ -313,5 +315,26 @@ mod tests {
     #[test]
     fn finer_tolerance_at_higher_zoom() {
         assert!(tolerance(zoom_bucket(8.0)) < tolerance(zoom_bucket(0.1)));
+    }
+
+    #[test]
+    fn gradients_are_drawn_from_meshes() {
+        use tp_core::document::{Gradient, GradientKind, Paint, Rgba};
+        let mut o = (*ellipse()).clone();
+        assert!(!uses_mesh(&o), "solid ellipse: a convex polygon");
+        let g = Paint::Gradient(Gradient::from_color(
+            GradientKind::Linear,
+            Rgba::rgb(1, 2, 3),
+        ));
+        o.fill = g;
+        assert!(uses_mesh(&o));
+        o.fill = Rgba::rgb(1, 2, 3).into();
+        o.stroke = Some(tp_core::document::StrokeStyle {
+            paint: g,
+            ..Default::default()
+        });
+        assert!(uses_mesh(&o));
+        let mesh = compute(&Arc::new(o), 0).mesh.expect("meshes");
+        assert!(mesh.fill.is_some() && mesh.stroke.is_some());
     }
 }

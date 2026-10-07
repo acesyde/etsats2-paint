@@ -798,6 +798,7 @@ fn tool_shortcut(tool: Tool) -> &'static [KeyboardShortcut] {
         Tool::Text => const { &[sc(NONE, Key::T)] },
         Tool::Image => const { &[sc(SHIFT, Key::I)] },
         Tool::Eyedropper => const { &[sc(NONE, Key::I)] },
+        Tool::Gradient => const { &[sc(NONE, Key::G)] },
         Tool::Zoom => const { &[sc(NONE, Key::Z)] },
         Tool::Hand => const { &[sc(NONE, Key::H)] },
     }

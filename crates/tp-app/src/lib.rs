@@ -8,6 +8,7 @@ pub mod export;
 pub mod file_dialogs;
 pub mod geometry_cache;
 pub mod gesture;
+pub mod gradient_textures;
 pub mod image_cache;
 pub mod import;
 pub mod layout;

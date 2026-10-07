@@ -15,6 +15,7 @@ use tp_ui::tokens::{canvas as tokens, color, radius, space};
 
 use crate::geometry_cache::{ShapeMesh, shape_mesh, tolerance, uses_mesh, zoom_bucket};
 use crate::gesture::{Gesture, screen_handles};
+use crate::gradient_textures::MeshPaint;
 use crate::path_edit::line_points;
 use crate::text_engine::layout_to_doc;
 use crate::viewport::ScreenMap;
@@ -86,7 +87,7 @@ pub fn paint(
             _ => {
                 let geometry = ws.geometry.geometry(object, bucket);
                 match &geometry.mesh {
-                    Some(mesh) => draw_mesh_object(&painter, object, *opacity, mesh, map),
+                    Some(mesh) => draw_mesh_object(&painter, ws, object, *opacity, mesh, map),
                     None => {
                         let points: Vec<Pos2> = geometry
                             .outline()
@@ -159,19 +160,35 @@ pub fn paint(
     draw_hint(ui, &painter, ws, area, now);
 }
 
-fn mesh_to_screen(mesh: &tp_text::mesh::Mesh, map: &ScreenMap, color: Color32) -> egui::Mesh {
-    let mut out = egui::Mesh::default();
+/// A document-space mesh on screen, colored by `paint` (a solid color, or
+/// a gradient ramp whose texture coordinates follow the document).
+fn mesh_to_screen(mesh: &tp_text::mesh::Mesh, map: &ScreenMap, paint: &MeshPaint) -> egui::Mesh {
+    let mut out = egui::Mesh::with_texture(paint.texture_id());
     out.indices.clone_from(&mesh.indices);
     out.vertices = mesh
         .vertices
         .iter()
-        .map(|[x, y]| egui::epaint::Vertex {
-            pos: Pos2::new(x * map.scale, y * map.scale) + map.offset,
-            uv: egui::epaint::WHITE_UV,
-            color,
+        .map(|[x, y]| {
+            let (color, uv) = paint.vertex(kurbo::Point::new(f64::from(*x), f64::from(*y)));
+            egui::epaint::Vertex {
+                pos: Pos2::new(x * map.scale, y * map.scale) + map.offset,
+                uv,
+                color,
+            }
         })
         .collect();
     out
+}
+
+/// How to color meshes painted with `paint` on `object`.
+fn mesh_paint(
+    ctx: &egui::Context,
+    ws: &Workspace,
+    paint: &tp_core::document::Paint,
+    object: &Object,
+    opacity: f32,
+) -> MeshPaint {
+    ws.gradients.mesh_paint(ctx, paint, &object.frame, opacity)
 }
 
 /// Alignment lines and crosses of what the gesture in progress snapped to.
@@ -246,29 +263,31 @@ fn draw_grid_and_guides(painter: &Painter, ws: &Workspace, map: &ScreenMap, area
     }
 }
 
-/// Draws a path, polygon or star from its triangles (fill, then stroke).
+/// Draws a shape from its triangles (fill, then stroke).
 fn draw_mesh_object(
     painter: &Painter,
+    ws: &Workspace,
     object: &Object,
     opacity: f32,
     mesh: &ShapeMesh,
     map: &ScreenMap,
 ) {
-    let fill = color32(object.fill.with_opacity(opacity));
+    let ctx = painter.ctx().clone();
+    let fill = mesh_paint(&ctx, ws, &object.fill, object, opacity);
     let stroke = object
         .stroke
-        .map(|s| color32(s.color.with_opacity(opacity)));
+        .map(|s| mesh_paint(&ctx, ws, &s.paint, object, opacity));
     let layers = [
         (&mesh.fill, Some(fill)),
         (&mesh.casing, stroke),
         (&mesh.line, Some(fill)),
         (&mesh.stroke, stroke),
     ];
-    for (part, color) in layers {
-        if let (Some(part), Some(color)) = (part, color)
-            && color.a() > 0
+    for (part, paint) in layers {
+        if let (Some(part), Some(paint)) = (part, paint)
+            && !paint.is_invisible()
         {
-            painter.add(Shape::mesh(mesh_to_screen(part, map, color)));
+            painter.add(Shape::mesh(mesh_to_screen(part, map, &paint)));
         }
     }
 }
@@ -283,13 +302,14 @@ fn draw_text(
     bucket: i32,
 ) {
     let mesh = ws.text.mesh(object, bucket, tolerance(bucket));
-    if object.fill.a > 0 {
-        let fill = color32(object.fill.with_opacity(opacity));
-        painter.add(Shape::mesh(mesh_to_screen(&mesh.fill, map, fill)));
+    let ctx = painter.ctx().clone();
+    if object.fill.is_visible() {
+        let fill = mesh_paint(&ctx, ws, &object.fill, object, opacity);
+        painter.add(Shape::mesh(mesh_to_screen(&mesh.fill, map, &fill)));
     }
     if let (Some(stroke_mesh), Some(stroke)) = (&mesh.stroke, object.stroke) {
-        let color = color32(stroke.color.with_opacity(opacity));
-        painter.add(Shape::mesh(mesh_to_screen(stroke_mesh, map, color)));
+        let paint = mesh_paint(&ctx, ws, &stroke.paint, object, opacity);
+        painter.add(Shape::mesh(mesh_to_screen(stroke_mesh, map, &paint)));
     }
 }
 
@@ -398,16 +418,17 @@ fn draw_text_session(ui: &Ui, painter: &Painter, ws: &mut Workspace, map: &Scree
         .request_repaint_after(std::time::Duration::from_secs_f64(next.max(0.01)));
 }
 
-/// Draws a shape; `opacity` already includes the object's and its groups'.
+/// Draws a solid-painted shape (gradients go through meshes); `opacity`
+/// already includes the object's and its groups'.
 fn draw_object(painter: &Painter, object: &Object, opacity: f32, points: Vec<Pos2>, scale: f32) {
     if points.len() < 3 {
         return;
     }
-    let fill = color32(object.fill.with_opacity(opacity));
+    let fill = color32(object.fill.first_color().with_opacity(opacity));
     let stroke = object.stroke.map(|s| {
         Stroke::new(
             (s.width as f32 * scale).max(0.5),
-            color32(s.color.with_opacity(opacity)),
+            color32(s.paint.first_color().with_opacity(opacity)),
         )
     });
     match stroke {
@@ -462,6 +483,16 @@ fn draw_selection(painter: &Painter, ws: &mut Workspace, map: &ScreenMap, bucket
     }
     if ws.tool == crate::tool::Tool::DirectSelect {
         draw_points(painter, ws, map);
+        return;
+    }
+    if ws.tool == crate::tool::Tool::Gradient {
+        // Bounds without transform handles, then the gradient's handles.
+        halo_polyline(
+            painter,
+            bounds.corners().map(|c| map.to_screen(c)).to_vec(),
+            true,
+        );
+        super::gradient_tool::draw(painter, ws, map);
         return;
     }
     if ws.gesture.edits_document() && !matches!(ws.gesture, Gesture::Moving(_)) {
@@ -536,7 +567,7 @@ fn draw_gesture_feedback(
                 )]),
                 "Line",
             );
-            draw_preview(painter, &line, map);
+            draw_preview(painter, ws, &line, map);
             // Same value the Transform panel will show as the rotation.
             let angle = crate::path_edit::line_angle(a, b);
             label_pill(
@@ -552,7 +583,7 @@ fn draw_gesture_feedback(
             current,
         } => {
             let frame = super::shape_frame(*kind, *start, *current, modifiers);
-            draw_preview(painter, &ws.styled_shape(*kind, frame), map);
+            draw_preview(painter, ws, &ws.styled_shape(*kind, frame), map);
             label_pill(ui, painter, pointer, size_text(&frame));
         }
         Gesture::Marquee { start, .. }
@@ -612,16 +643,17 @@ fn draw_gesture_feedback(
         | Gesture::TextSelect
         | Gesture::PenHandle
         | Gesture::MovingPoints(_)
-        | Gesture::MovingHandle { .. } => {}
+        | Gesture::MovingHandle { .. }
+        | Gesture::Gradient(_) => {}
     }
 }
 
 /// Draws a shape being created, translucent, with its outline.
-fn draw_preview(painter: &Painter, object: &Object, map: &ScreenMap) {
+fn draw_preview(painter: &Painter, ws: &Workspace, object: &Object, map: &ScreenMap) {
     let tol = map.doc_len(0.25);
     let opacity = 0.6;
     if uses_mesh(object) {
-        draw_mesh_object(painter, object, opacity, &shape_mesh(object, tol), map);
+        draw_mesh_object(painter, ws, object, opacity, &shape_mesh(object, tol), map);
     } else {
         let points = object
             .flattened(tol)
@@ -717,7 +749,7 @@ fn draw_pen_session(painter: &Painter, ws: &Workspace, map: &ScreenMap, pointer:
     }
     if nodes.len() >= 2 {
         let preview = ws.styled_path(PathData::new(vec![Subpath::new(nodes, false)]), "Path");
-        draw_preview(painter, &preview, map);
+        draw_preview(painter, ws, &preview, map);
     }
     let to_screen = |p: kurbo::Point| map.to_screen(p);
     if let Some(last) = session.nodes.last() {

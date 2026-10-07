@@ -1,6 +1,7 @@
 //! Object › Combine: Unite, Minus Front, Intersect and Exclude.
 
 use tp_core::document::{BooleanError, BooleanOp, Object, combine, operand_problem, tree};
+use tp_core::kurbo::Affine;
 
 use crate::workspace::Workspace;
 
@@ -63,6 +64,8 @@ impl Workspace {
         result.name.clone_from(&style.name);
         result.fill = style.fill;
         result.stroke = style.stroke;
+        // Gradients stay where they were on the style's object.
+        result.remap_paints(&style.frame, Affine::IDENTITY);
         result.opacity = style.opacity;
         result.visible = style.visible;
         result.locked = style.locked;
@@ -103,7 +106,7 @@ mod tests {
             ShapeKind::rectangle(),
             Frame::new(Point::new(x0 + w / 2.0, y0 + h / 2.0), Size::new(w, h), 0.0),
         );
-        o.fill = fill;
+        o.fill = fill.into();
         o.name = name.into();
         ws.project.add(o)
     }
@@ -139,7 +142,10 @@ mod tests {
         let result = &objects[0];
         assert_eq!(result.id, cut, "the topmost object's place");
         assert_eq!(result.kind, ShapeKind::Path);
-        assert_eq!((result.fill, result.name.as_str()), (blue, "Stripe"));
+        assert_eq!(
+            (result.fill, result.name.as_str()),
+            (tp_core::document::Paint::Solid(blue), "Stripe")
+        );
         assert_eq!(objects[1].id, above);
         assert_eq!(ws.selection, vec![cut]);
         assert_eq!(ws.history.undo_label(), Some("Minus Front"));
@@ -195,5 +201,35 @@ mod tests {
         let t = ws.project.add(t);
         ws.selection = vec![a, t];
         assert!(ws.combine_block().unwrap().contains("Create Outlines"));
+    }
+
+    #[test]
+    fn unite_keeps_the_topmost_gradient_in_place() {
+        use tp_core::document::{ColorStop, Gradient, GradientKind, Paint};
+        let mut ws = ws();
+        let a = rect(&mut ws, 0.0, 0.0, 400.0, 100.0, Rgba::rgb(1, 1, 1), "A");
+        let b = rect(&mut ws, 300.0, 0.0, 400.0, 300.0, Rgba::rgb(1, 1, 1), "B");
+        let g = Gradient::new(
+            GradientKind::Linear,
+            &[
+                ColorStop::new(0.0, Rgba::rgb(255, 0, 0)),
+                ColorStop::new(1.0, Rgba::rgb(0, 0, 255)),
+            ],
+        );
+        ws.selection = vec![b];
+        ws.apply_paint(crate::workspace::ColorTarget::Fill, Paint::Gradient(g), "x");
+        ws.commit_pending(1.0);
+        let top = ws.project.surface().get(b).unwrap().clone();
+        let before = top.fill.gradient().unwrap().document_points(&top.frame);
+        ws.selection = vec![a, b];
+        ws.combine_selection(BooleanOp::Unite, 2.0);
+        let result = ws.project.surface().get(b).unwrap();
+        assert_ne!(result.frame, top.frame, "the union is larger");
+        let after = result
+            .fill
+            .gradient()
+            .unwrap()
+            .document_points(&result.frame);
+        assert!((before.0 - after.0).hypot() < 1e-6 && (before.1 - after.1).hypot() < 1e-6);
     }
 }
