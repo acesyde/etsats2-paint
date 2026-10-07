@@ -217,6 +217,88 @@ pub struct StrokeStyle {
     pub color: Rgba,
     /// Width in texture pixels.
     pub width: f64,
+    /// Where the stroke sits relative to the edge.
+    pub align: StrokeAlign,
+    /// Dashes, caps and joins (for lines, the line's own style is used).
+    pub line: LineStyle,
+}
+
+impl Default for StrokeStyle {
+    fn default() -> Self {
+        Self {
+            color: Rgba::rgb(0, 0, 0),
+            width: 1.0,
+            align: StrokeAlign::Center,
+            line: LineStyle::default(),
+        }
+    }
+}
+
+/// Where a stroke sits relative to the edge it follows.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum StrokeAlign {
+    /// Straddles the edge.
+    #[default]
+    Center,
+    /// Within the filled area.
+    Inside,
+    /// Outside the filled area.
+    Outside,
+}
+
+/// Ends of open lines and dashes.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Cap {
+    Butt,
+    #[default]
+    Round,
+    Square,
+}
+
+/// Corners.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Join {
+    #[default]
+    Miter,
+    Round,
+    Bevel,
+}
+
+/// A dash pattern: dash length then gap length, in texture pixels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Dash {
+    pub dash: f64,
+    pub gap: f64,
+}
+
+/// Default miter limit (ratio of miter length to stroke width).
+pub const DEFAULT_MITER_LIMIT: f64 = 4.0;
+
+/// How a line (a stroke or a line's body) is dashed, ended and joined.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LineStyle {
+    pub dash: Option<Dash>,
+    pub cap: Cap,
+    pub join: Join,
+    pub miter_limit: f64,
+}
+
+impl Default for LineStyle {
+    fn default() -> Self {
+        Self {
+            dash: None,
+            cap: Cap::Round,
+            join: Join::Miter,
+            miter_limit: DEFAULT_MITER_LIMIT,
+        }
+    }
+}
+
+impl LineStyle {
+    /// Whether this is the style every stroke had before stroke options.
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 /// A vector object on a surface.
@@ -1021,6 +1103,7 @@ mod tests {
         v.stroke = Some(StrokeStyle {
             color: Rgba::rgb(0, 0, 0),
             width: 20.0,
+            ..Default::default()
         });
         assert!(v.contains(Point::new(65.0, 100.0), 0.0));
         assert!(v.has_open_path());

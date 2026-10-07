@@ -4,8 +4,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use tp_core::document::{Frame, Object, ObjectId, PathData, ShapeKind, flatten_subpaths};
-use tp_core::kurbo::Point;
+use tp_core::document::{
+    Frame, LineStyle, Object, ObjectId, PathData, ShapeKind, StrokeAlign, StrokeStyle,
+    flatten_subpaths, stroke_region,
+};
+use tp_core::kurbo::{BezPath, Point};
 use tp_text::mesh::{self, Mesh};
 
 /// Triangles of a shape that cannot be drawn as a convex polygon (paths,
@@ -21,20 +24,61 @@ pub struct ShapeMesh {
     pub stroke: Option<Mesh>,
 }
 
+/// A line `width` wide along `path`: round caps for the default style,
+/// the filled expanded outline otherwise.
+fn line_mesh(path: &BezPath, width: f64, line: &LineStyle, tolerance: f64) -> Mesh {
+    if line.is_default() {
+        mesh::stroke_with_caps(path, width, tolerance, true)
+    } else {
+        mesh::fill(
+            &stroke_region::expand(path, width, line, tolerance),
+            tolerance,
+        )
+    }
+}
+
+/// The stroke of the outline `stroke_path` around the filled area
+/// `fill_path`: a centered stroke for the default style, the stroke region
+/// otherwise (falling back to the centered stroke when degenerate).
+pub fn stroke_mesh(
+    stroke_path: &BezPath,
+    fill_path: &BezPath,
+    style: &StrokeStyle,
+    tolerance: f64,
+) -> Mesh {
+    match stroke_region(
+        stroke_path,
+        Some(fill_path),
+        style.width,
+        style.align,
+        &style.line,
+        tolerance,
+    ) {
+        Some(region) if !region.elements().is_empty() => mesh::fill(&region, tolerance),
+        _ => mesh::stroke(stroke_path, style.width, tolerance),
+    }
+}
+
 /// Meshes of a path or polygon at `tolerance`, drawn in field order: fill,
-/// casing, line, stroke (the stroke ends up centered on every edge, as in
-/// the export).
+/// casing, line, stroke (the stroke ends up where the export draws it).
 pub fn shape_mesh(object: &Object, tolerance: f64) -> ShapeMesh {
-    let non_empty = |p: &tp_core::kurbo::BezPath| !p.elements().is_empty();
+    let non_empty = |p: &BezPath| !p.elements().is_empty();
     let fill_path = object.fill_path();
-    let stroke_width = object.stroke.map(|s| s.width).filter(|w| *w > 0.0);
+    let stroke = object.stroke.filter(|s| s.width > 0.0);
     let (casing, line) = match object.line_path() {
         Some((lines, width)) => {
-            let casing =
-                stroke_width.map(|s| mesh::stroke_with_caps(&lines, width + s, tolerance, true));
-            let inner = width - stroke_width.unwrap_or(0.0);
-            let line =
-                (inner > 0.0).then(|| mesh::stroke_with_caps(&lines, inner, tolerance, true));
+            let style = object
+                .path
+                .as_ref()
+                .map(|p| p.line_style)
+                .unwrap_or_default();
+            let (casing, body) = match stroke {
+                Some(s) => stroke_region::line_widths(width, s.width, s.align),
+                None => (0.0, width),
+            };
+            let casing = (stroke.is_some() && casing > 0.0)
+                .then(|| line_mesh(&lines, casing, &style, tolerance));
+            let line = (body > 0.0).then(|| line_mesh(&lines, body, &style, tolerance));
             (casing, line)
         }
         None => (None, None),
@@ -44,9 +88,9 @@ pub fn shape_mesh(object: &Object, tolerance: f64) -> ShapeMesh {
         fill: non_empty(&fill_path).then(|| mesh::fill(&fill_path, tolerance)),
         casing,
         line,
-        stroke: stroke_width
+        stroke: stroke
             .filter(|_| non_empty(&stroke_path))
-            .map(|s| mesh::stroke(&stroke_path, s, tolerance)),
+            .map(|s| stroke_mesh(&stroke_path, &fill_path, &s, tolerance)),
     }
 }
 
@@ -65,9 +109,13 @@ impl Geometry {
     }
 }
 
-/// Whether a kind is drawn from meshes rather than as a convex polygon.
-pub fn uses_mesh(kind: ShapeKind) -> bool {
-    matches!(kind, ShapeKind::Path | ShapeKind::Polygon { .. })
+/// Whether an object is drawn from meshes rather than as a convex polygon:
+/// paths, polygons, and shapes whose stroke is not a plain centered line.
+pub fn uses_mesh(object: &Object) -> bool {
+    matches!(object.kind, ShapeKind::Path | ShapeKind::Polygon { .. })
+        || object
+            .stroke
+            .is_some_and(|s| s.align != StrokeAlign::Center || !s.line.is_default())
 }
 
 /// What the cached geometry was computed from.
@@ -75,7 +123,8 @@ pub fn uses_mesh(kind: ShapeKind) -> bool {
 struct Key {
     frame: Frame,
     kind: ShapeKind,
-    stroke_width: Option<f64>,
+    /// Stroke width, alignment and line style (not the color).
+    stroke: Option<(f64, StrokeAlign, LineStyle)>,
     path: Option<Arc<PathData>>,
     bucket: i32,
 }
@@ -112,7 +161,7 @@ pub fn tolerance(bucket: i32) -> f64 {
 fn compute(object: &Object, bucket: i32) -> Geometry {
     let tol = tolerance(bucket);
     let lines = flatten_subpaths(object.path(), tol);
-    let mesh = uses_mesh(object.kind).then(|| shape_mesh(object, tol));
+    let mesh = uses_mesh(object).then(|| shape_mesh(object, tol));
     Geometry { lines, mesh }
 }
 
@@ -123,7 +172,7 @@ impl GeometryCache {
         let key = Key {
             frame: object.frame,
             kind: object.kind,
-            stroke_width: object.stroke.map(|s| s.width),
+            stroke: object.stroke.map(|s| (s.width, s.align, s.line)),
             path: object.path.clone(),
             bucket,
         };
@@ -230,6 +279,35 @@ mod tests {
         Arc::make_mut(&mut o).edit_path(|p| p.subpaths[0].nodes[2].point.y = 120.0);
         cache.geometry(&o, 0);
         assert_eq!(cache.misses, 2);
+    }
+
+    #[test]
+    fn stroke_alignment_rebuilds_the_mesh() {
+        let mut cache = GeometryCache::default();
+        let mut o = ellipse();
+        Arc::make_mut(&mut o).stroke = Some(StrokeStyle::default());
+        assert!(cache.geometry(&o, 0).mesh.is_none(), "plain outline");
+        // Same allocation, edited in place: a color change keeps the
+        // geometry, an alignment change rebuilds it.
+        Arc::make_mut(&mut o).stroke.as_mut().unwrap().color =
+            tp_core::document::Rgba::rgb(255, 0, 0);
+        cache.geometry(&o, 0);
+        assert_eq!(cache.misses, 1);
+        let s = Arc::make_mut(&mut o).stroke.as_mut().unwrap();
+        s.align = StrokeAlign::Outside;
+        s.width = 10.0;
+        let outside = cache.geometry(&o, 0);
+        assert_eq!(cache.misses, 2);
+        let stroke = outside.mesh.as_ref().unwrap().stroke.as_ref().unwrap();
+        // Every stroke vertex lies outside the ellipse (up to tolerance).
+        let inside = stroke.vertices.iter().filter(|v| {
+            let (x, y) = (
+                (f64::from(v[0]) - 100.0) / 100.0,
+                (f64::from(v[1]) - 100.0) / 50.0,
+            );
+            x * x + y * y < 0.99
+        });
+        assert_eq!(inside.count(), 0);
     }
 
     #[test]

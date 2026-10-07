@@ -275,6 +275,7 @@ fn add_vector_objects(ws: &mut Workspace) {
     line.stroke = Some(StrokeStyle {
         color: Rgba::rgb(0, 0, 0),
         width: 4.0,
+        ..Default::default()
     });
     ws.project.add(line);
 }

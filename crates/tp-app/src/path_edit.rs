@@ -59,9 +59,10 @@ impl Workspace {
     }
 
     /// A path object with the current style; its open subpaths use the
-    /// line width last set.
+    /// line width and line style last set.
     pub fn styled_path(&self, mut data: PathData, name: &str) -> Object {
         data.line_width = self.line_width;
+        data.line_style = self.line_style;
         let mut object = Object::from_path(ObjectId(0), data);
         object.name = name.to_owned();
         object.fill = self.style.fill;

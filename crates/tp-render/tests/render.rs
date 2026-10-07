@@ -186,6 +186,7 @@ fn text_counter_is_empty_and_stroke_covers_outline() {
     stroked.stroke = Some(StrokeStyle {
         color: RED,
         width: 10.0,
+        ..Default::default()
     });
     p.surface_mut().replace(&[stroked]);
     let img = draw(&p, 2048, Some(WHITE));
@@ -337,6 +338,7 @@ fn outlined_line() {
     v.stroke = Some(StrokeStyle {
         color: BLACK,
         width: 8.0,
+        ..Default::default()
     });
     p.add(v);
     let img = draw(&p, 2048, Some(WHITE));
@@ -438,4 +440,177 @@ fn mirrored_path_renders_mirrored() {
         "bottom-right is filled"
     );
     assert_eq!(px(&img, 210, 120), [255; 4], "top-left is empty");
+}
+
+// Stroke options.
+
+use tp_core::document::{Cap, Dash, LineStyle, StrokeAlign};
+
+fn black_stroke(width: f64, align: StrokeAlign) -> Option<StrokeStyle> {
+    Some(StrokeStyle {
+        color: BLACK,
+        width,
+        align,
+        ..Default::default()
+    })
+}
+
+#[test]
+fn inside_border_stays_within_the_shape() {
+    let mut p = project(TextureResolution::R2048);
+    let mut r = shape(
+        ShapeKind::rectangle(),
+        (500.0, 500.0),
+        (400.0, 400.0),
+        0.0,
+        RED,
+    );
+    r.stroke = black_stroke(30.0, StrokeAlign::Inside);
+    p.add(r);
+    let img = draw(&p, 2048, Some(WHITE));
+    assert_eq!(px(&img, 300 + 2, 500), [0, 0, 0, 255], "at the edge");
+    assert_eq!(px(&img, 300 + 28, 500), [0, 0, 0, 255], "30 px deep");
+    assert_eq!(px(&img, 300 + 32, 500), [255, 0, 0, 255], "then the fill");
+    assert_eq!(px(&img, 300 - 2, 500), [255; 4], "nothing outside");
+    assert_eq!(px(&img, 302, 302), [0, 0, 0, 255], "sharp inner corner");
+}
+
+#[test]
+fn outside_outline_never_covers_the_letters() {
+    let mut fonts = FontLibrary::bundled();
+    let mut block = TextBlock::new("OA", CharStyle::default());
+    let layout = tp_text::layout(&mut fonts, "OA", &block.style);
+    block.layout_size = layout.size;
+    let mut text = Object::text(ObjectId(0), block, Point::new(1000.0, 1000.0));
+    text.fill = RED;
+    let mut p = project(TextureResolution::R2048);
+    let id = p.add(text);
+    let plain = draw(&p, 2048, Some(WHITE));
+    let mut stroked = (**p.surface().get(id).unwrap()).clone();
+    stroked.stroke = black_stroke(12.0, StrokeAlign::Outside);
+    p.surface_mut().replace(&[stroked]);
+    let outlined = draw(&p, 2048, Some(WHITE));
+    let red = |x: u32, y: u32| px(&plain, x, y) == [255, 0, 0, 255];
+    let (mut letters, mut black) = (0, 0);
+    for (x, y, b) in outlined.enumerate_pixels() {
+        // Inside the letters: red with red neighbours (edge pixels mix
+        // the fill and the outline by anti-aliasing).
+        let interior = (1..2047).contains(&x)
+            && (1..2047).contains(&y)
+            && red(x, y)
+            && red(x - 1, y)
+            && red(x + 1, y)
+            && red(x, y - 1)
+            && red(x, y + 1);
+        if interior {
+            letters += 1;
+            assert_eq!(b.0, [255, 0, 0, 255], "letter pixel ({x}, {y})");
+        }
+        if b.0 == [0, 0, 0, 255] {
+            black += 1;
+        }
+    }
+    assert!(letters > 1000 && black > 1000, "{letters} {black}");
+}
+
+fn horizontal_line(width: f64, line_style: LineStyle) -> Object {
+    let mut l = Object::from_path(
+        ObjectId(0),
+        PathData::new(vec![polyline(&[(100.0, 500.0), (300.0, 500.0)], false)]),
+    );
+    l.fill = RED;
+    l.edit_path(|p| {
+        p.line_width = width;
+        p.line_style = line_style;
+    });
+    l
+}
+
+#[test]
+fn dashed_pinstripe_without_stroke() {
+    let mut p = project(TextureResolution::R2048);
+    p.add(horizontal_line(
+        10.0,
+        LineStyle {
+            dash: Some(Dash {
+                dash: 20.0,
+                gap: 20.0,
+            }),
+            cap: Cap::Butt,
+            ..Default::default()
+        },
+    ));
+    let img = draw(&p, 2048, Some(WHITE));
+    assert_eq!(px(&img, 110, 500), [255, 0, 0, 255], "first dash");
+    assert_eq!(px(&img, 130, 500), [255; 4], "first gap");
+    assert_eq!(px(&img, 150, 500), [255, 0, 0, 255], "second dash");
+    assert_eq!(px(&img, 110, 507), [255; 4], "10 px wide");
+}
+
+#[test]
+fn dotted_line_gives_round_dots() {
+    let mut p = project(TextureResolution::R2048);
+    p.add(horizontal_line(
+        10.0,
+        LineStyle {
+            dash: Some(Dash {
+                dash: 0.0,
+                gap: 20.0,
+            }),
+            cap: Cap::Round,
+            ..Default::default()
+        },
+    ));
+    let img = draw(&p, 2048, Some(WHITE));
+    for x in [100, 120, 140, 280] {
+        assert_eq!(px(&img, x, 500), [255, 0, 0, 255], "dot at {x}");
+    }
+    assert_eq!(px(&img, 110, 500), [255; 4], "gap between dots");
+    assert_eq!(px(&img, 124, 504), [255; 4], "round, not square");
+}
+
+#[test]
+fn square_caps_extend_the_line() {
+    let draw_cap = |cap| {
+        let mut p = project(TextureResolution::R2048);
+        p.add(horizontal_line(
+            20.0,
+            LineStyle {
+                cap,
+                ..Default::default()
+            },
+        ));
+        draw(&p, 2048, Some(WHITE))
+    };
+    let square = draw_cap(Cap::Square);
+    assert_eq!(px(&square, 308, 508), [255, 0, 0, 255], "square corner");
+    let butt = draw_cap(Cap::Butt);
+    assert_eq!(px(&butt, 302, 500), [255; 4], "butt stops at the end");
+    assert_eq!(px(&butt, 298, 500), [255, 0, 0, 255]);
+}
+
+#[test]
+fn line_outline_alignment_sets_the_widths() {
+    // A 20 px line with a 4 px outline, sampled across its width.
+    let column = |align| {
+        let mut p = project(TextureResolution::R2048);
+        let mut l = horizontal_line(20.0, LineStyle::default());
+        l.stroke = black_stroke(4.0, align);
+        p.add(l);
+        let img = draw(&p, 2048, Some(WHITE));
+        (0..16)
+            .map(move |d| px(&img, 200, 500 + d))
+            .collect::<Vec<_>>()
+    };
+    let black = [0, 0, 0, 255];
+    let red = [255, 0, 0, 255];
+    // Center: outline 8..12 around the 10 px edge.
+    let c = column(StrokeAlign::Center);
+    assert_eq!((c[7], c[9], c[11], c[13]), (red, black, black, [255; 4]));
+    // Outside: the line keeps its 10 px half-width, outline 10..14.
+    let o = column(StrokeAlign::Outside);
+    assert_eq!((o[9], o[11], o[13], o[15]), (red, black, black, [255; 4]));
+    // Inside: outline 6..10, nothing past 10.
+    let i = column(StrokeAlign::Inside);
+    assert_eq!((i[5], i[7], i[9], i[11]), (red, black, black, [255; 4]));
 }

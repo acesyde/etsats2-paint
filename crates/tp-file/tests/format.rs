@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tp_core::document::{
-    CharStyle, Frame, Node, Object, ObjectId, PathData, Rgba, ShapeKind, StrokeStyle, Subpath,
-    TextAlign, TextBlock,
+    Cap, CharStyle, Dash, Frame, Join, LineStyle, Node, Object, ObjectId, PathData, Rgba,
+    ShapeKind, StrokeAlign, StrokeStyle, Subpath, TextAlign, TextBlock,
 };
 use tp_core::kurbo::{Point, Size, Vec2};
 use tp_core::{AssetKind, Project, TextureResolution};
@@ -36,6 +36,16 @@ fn rich_project() -> Project {
     base.stroke = Some(StrokeStyle {
         color: Rgba::rgb(0, 0, 0),
         width: 6.0,
+        align: StrokeAlign::Outside,
+        line: LineStyle {
+            dash: Some(Dash {
+                dash: 12.0,
+                gap: 6.0,
+            }),
+            cap: Cap::Butt,
+            join: Join::Round,
+            miter_limit: 4.0,
+        },
     });
     let base = p.add(base);
     let mut stripe = shape(ShapeKind::Ellipse, 1500.0);
@@ -137,7 +147,13 @@ fn vector_objects() -> Vec<Object> {
     );
     line.name = "Line".into();
     line.fill = Rgba::rgb(255, 255, 255);
-    line.edit_path(|p| p.line_width = 30.0);
+    line.edit_path(|p| {
+        p.line_width = 30.0;
+        p.line_style.dash = Some(Dash {
+            dash: 0.0,
+            gap: 45.0,
+        });
+    });
     vec![star, swoosh, line]
 }
 
@@ -310,6 +326,14 @@ fn v2_fixture_opens() {
     assert_eq!(line.name, "Line");
     assert!(line.has_open_path());
     assert_eq!(line.path_data().unwrap().line_width, 30.0);
+    assert_eq!(
+        line.path_data().unwrap().line_style.dash,
+        Some(Dash {
+            dash: 0.0,
+            gap: 45.0
+        }),
+        "a dotted line"
+    );
     // The fixture holds exactly what the test project builds.
     let expected = vector_objects();
     for (got, want) in objects[4..].iter().zip(&expected) {
@@ -326,6 +350,79 @@ fn v2_document_without_guides_opens() {
     let opened = tp_file::from_bytes(&zip_with(doc)).unwrap();
     assert!(opened.project.surface().guides.is_empty());
     assert!(!opened.migrated);
+}
+
+#[test]
+fn every_stroke_option_round_trips() {
+    let mut p = Project::new("x", TextureResolution::R2048);
+    let caps = [Cap::Butt, Cap::Round, Cap::Square];
+    let joins = [Join::Miter, Join::Round, Join::Bevel];
+    let aligns = [
+        StrokeAlign::Center,
+        StrokeAlign::Inside,
+        StrokeAlign::Outside,
+    ];
+    for i in 0..3 {
+        let line = LineStyle {
+            dash: (i > 0).then_some(Dash {
+                dash: 4.0 * i as f64,
+                gap: 2.5,
+            }),
+            cap: caps[i],
+            join: joins[i],
+            miter_limit: 2.0 + i as f64,
+        };
+        let mut o = Object::new(
+            ObjectId(0),
+            ShapeKind::rectangle(),
+            Frame::new(Point::new(100.0, 100.0), Size::new(50.0, 50.0), 0.0),
+        );
+        o.stroke = Some(StrokeStyle {
+            color: Rgba::rgb(1, 2, 3),
+            width: 5.0,
+            align: aligns[i],
+            line,
+        });
+        p.add(o);
+        let mut l = Object::from_path(
+            ObjectId(0),
+            PathData::new(vec![Subpath::new(
+                vec![
+                    Node::corner(Point::new(0.0, 0.0)),
+                    Node::corner(Point::new(10.0, 0.0)),
+                ],
+                false,
+            )]),
+        );
+        l.edit_path(|d| d.line_style = line);
+        p.add(l);
+    }
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap()).unwrap();
+    assert_eq!(opened.project.surfaces, p.surfaces);
+}
+
+#[test]
+fn v2_document_without_stroke_options_opens_with_defaults() {
+    let doc = r#"(format: 2, name: "x", resolution: 2048, active_surface: 0,
+        surfaces: [(name: "Main texture", size: 2048.0, objects: [
+            (id: 1, name: "Box", kind: Rectangle(corner_radius: 0.0), center: (100.0, 100.0),
+             size: (50.0, 50.0), rotation: 0.0, fill: (255, 0, 0, 255),
+             stroke: Some((color: (0, 0, 0, 255), width: 6.0)),
+             opacity: 1.0, visible: true, locked: false),
+            (id: 2, name: "Line", kind: Path, center: (0.0, 0.0), size: (10.0, 0.0),
+             rotation: 0.0, fill: (255, 255, 255, 255), stroke: None,
+             opacity: 1.0, visible: true, locked: false,
+             path: Some([(closed: false, nodes: [(p: (-5.0, 0.0)), (p: (5.0, 0.0))])]),
+             line_width: Some(30.0)),
+        ])])"#;
+    let opened = tp_file::from_bytes(&zip_with(doc)).unwrap();
+    let objects = &opened.project.surface().objects;
+    let stroke = objects[0].stroke.unwrap();
+    assert_eq!((stroke.width, stroke.align), (6.0, StrokeAlign::Center));
+    assert_eq!(stroke.line, LineStyle::default());
+    let line = objects[1].path_data().unwrap();
+    assert_eq!(line.line_width, 30.0);
+    assert_eq!(line.line_style, LineStyle::default());
 }
 
 #[test]

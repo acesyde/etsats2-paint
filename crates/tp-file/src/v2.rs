@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tp_core::document::{
-    AssetId, CharStyle, Frame, Node, Object, ObjectId, PathData, Rgba, ShapeKind, StrokeStyle,
-    Subpath, TextAlign, TextBlock,
+    AssetId, Cap, CharStyle, DEFAULT_MITER_LIMIT, Dash, Frame, Join, LineStyle, Node, Object,
+    ObjectId, PathData, Rgba, ShapeKind, StrokeAlign, StrokeStyle, Subpath, TextAlign, TextBlock,
 };
 use tp_core::kurbo::{Point, Size, Vec2};
 use tp_core::{Asset, AssetKind, Axis, Guide, Project, Surface, TextureResolution};
@@ -86,6 +86,101 @@ pub struct FileSubpath {
 pub struct FileStroke {
     pub color: [u8; 4],
     pub width: f64,
+    #[serde(default)]
+    pub align: FileStrokeAlign,
+    /// Dash pattern, caps and joins of the outline.
+    #[serde(default)]
+    pub line: FileLineStyle,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FileStrokeAlign {
+    #[default]
+    Center,
+    Inside,
+    Outside,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FileCap {
+    Butt,
+    #[default]
+    Round,
+    Square,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FileJoin {
+    #[default]
+    Miter,
+    Round,
+    Bevel,
+}
+
+fn default_miter_limit() -> f64 {
+    DEFAULT_MITER_LIMIT
+}
+
+/// Dash pattern (`[dash, gap]`), caps, joins and miter limit.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileLineStyle {
+    #[serde(default)]
+    pub dash: Option<[f64; 2]>,
+    #[serde(default)]
+    pub cap: FileCap,
+    #[serde(default)]
+    pub join: FileJoin,
+    #[serde(default = "default_miter_limit")]
+    pub miter_limit: f64,
+}
+
+impl Default for FileLineStyle {
+    fn default() -> Self {
+        line_style_to_file(&LineStyle::default())
+    }
+}
+
+fn line_style_to_file(l: &LineStyle) -> FileLineStyle {
+    FileLineStyle {
+        dash: l.dash.map(|d| [d.dash, d.gap]),
+        cap: match l.cap {
+            Cap::Butt => FileCap::Butt,
+            Cap::Round => FileCap::Round,
+            Cap::Square => FileCap::Square,
+        },
+        join: match l.join {
+            Join::Miter => FileJoin::Miter,
+            Join::Round => FileJoin::Round,
+            Join::Bevel => FileJoin::Bevel,
+        },
+        miter_limit: l.miter_limit,
+    }
+}
+
+/// The line style of `f`; out-of-range values fall back to the defaults.
+fn line_style_from_file(f: &FileLineStyle) -> LineStyle {
+    let valid = |v: f64| v.is_finite() && v >= 0.0;
+    LineStyle {
+        dash: f
+            .dash
+            .filter(|[dash, gap]| valid(*dash) && valid(*gap) && *gap > 0.0)
+            .map(|[dash, gap]| Dash { dash, gap }),
+        cap: match f.cap {
+            FileCap::Butt => Cap::Butt,
+            FileCap::Round => Cap::Round,
+            FileCap::Square => Cap::Square,
+        },
+        join: match f.join {
+            FileJoin::Miter => Join::Miter,
+            FileJoin::Round => Join::Round,
+            FileJoin::Bevel => Join::Bevel,
+        },
+        miter_limit: if f.miter_limit.is_finite() && f.miter_limit >= 1.0 {
+            f.miter_limit
+        } else {
+            DEFAULT_MITER_LIMIT
+        },
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -132,6 +227,9 @@ pub struct FileObject {
     /// Width of the lines of a path's open subpaths.
     #[serde(default)]
     pub line_width: Option<f64>,
+    /// Dash pattern, caps and joins of those lines.
+    #[serde(default)]
+    pub line_style: Option<FileLineStyle>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -188,6 +286,12 @@ fn object_to_file(o: &Object) -> FileObject {
         stroke: o.stroke.map(|s| FileStroke {
             color: color(s.color),
             width: s.width,
+            align: match s.align {
+                StrokeAlign::Center => FileStrokeAlign::Center,
+                StrokeAlign::Inside => FileStrokeAlign::Inside,
+                StrokeAlign::Outside => FileStrokeAlign::Outside,
+            },
+            line: line_style_to_file(&s.line),
         }),
         opacity: o.opacity,
         visible: o.visible,
@@ -229,6 +333,7 @@ fn object_to_file(o: &Object) -> FileObject {
                 .collect()
         }),
         line_width: o.path_data().map(|p| p.line_width),
+        line_style: o.path_data().map(|p| line_style_to_file(&p.line_style)),
     }
 }
 
@@ -308,6 +413,12 @@ fn object_from_file(
     o.stroke = f.stroke.as_ref().map(|s| StrokeStyle {
         color: rgba(s.color),
         width: s.width,
+        align: match s.align {
+            FileStrokeAlign::Center => StrokeAlign::Center,
+            FileStrokeAlign::Inside => StrokeAlign::Inside,
+            FileStrokeAlign::Outside => StrokeAlign::Outside,
+        },
+        line: line_style_from_file(&s.line),
     });
     o.opacity = f.opacity.clamp(0.0, 1.0);
     o.visible = f.visible;
@@ -363,6 +474,9 @@ fn object_from_file(
         let mut data = PathData::new(subpaths);
         if let Some(width) = f.line_width.filter(|w| w.is_finite() && *w > 0.0) {
             data.line_width = width;
+        }
+        if let Some(style) = &f.line_style {
+            data.line_style = line_style_from_file(style);
         }
         o.path = Some(Arc::new(data));
     }
@@ -457,6 +571,8 @@ pub fn from_v1(old: super::v1::FileProject) -> FileProject {
             stroke: o.stroke.map(|s| FileStroke {
                 color: s.color,
                 width: s.width,
+                align: FileStrokeAlign::Center,
+                line: FileLineStyle::default(),
             }),
             opacity: o.opacity,
             visible: o.visible,
@@ -480,6 +596,7 @@ pub fn from_v1(old: super::v1::FileProject) -> FileProject {
             }),
             path: None,
             line_width: None,
+            line_style: None,
         }
     }
     FileProject {
