@@ -97,3 +97,61 @@ export-background = Arrière-plan
 export-transparent = Transparent
 export-background-color = Couleur d’arrière-plan
 prefs-language = Langue
+file-dev-format = { $file } utilise un format de développement que cette version ne peut pas ouvrir.
+
+## Vehicle packages
+
+pkg-install-failed = { $file } n’a pas pu être installé : { $reason }
+pkg-no-library = aucun dossier de bibliothèque de véhicules n’est disponible.
+pkg-io = il n’a pas pu être lu ou écrit ({ $reason }).
+pkg-not-a-zip = ce n’est pas un paquet de véhicule.
+pkg-no-manifest = il ne contient pas de manifeste vehicle.json.
+pkg-bad-manifest = son manifeste est invalide ({ $reason }).
+pkg-newer-format = il a été créé pour une version plus récente de TruckPaint.
+pkg-bad-id = son identifiant « { $id } » est invalide.
+pkg-no-variant = il ne décrit aucune variante.
+pkg-empty-variant = la variante « { $variant } » n’a aucune texture.
+pkg-duplicate-variant = la variante « { $variant } » est définie deux fois.
+pkg-duplicate-texture = la texture « { $texture } » est définie deux fois.
+pkg-bad-size = la texture « { $texture } » a une taille invalide ({ $size }).
+pkg-unsafe-path = il contient un chemin non sûr ({ $path }).
+pkg-too-large = il est trop volumineux.
+pkg-missing-template = le gabarit de « { $texture } » est manquant.
+pkg-bad-template = le gabarit de « { $texture } » n’est pas une image PNG ou SVG lisible.
+pkg-template-too-large = le gabarit de « { $texture } » est trop grand.
+
+## Vehicle library and updates
+
+filter-packages = Paquets de véhicules
+vehicles-search = Rechercher un véhicule
+vehicles-all-games = Tous les jeux
+vehicles-game-filter = Jeu
+vehicles-all-kinds = Camions et remorques
+vehicles-kind-filter = Type
+vehicles-truck = Camion
+vehicles-trailer = Remorque
+vehicles-installed = { $name } { $version } installé
+vehicles-empty = Aucun véhicule installé
+vehicles-empty-hint = Les paquets de véhicules (.tpv) contiennent les gabarits d’un camion ou d’une remorque. Installez-en un pour y peindre une livrée.
+vehicles-details = Versions du jeu { $versions } · { $variants }
+vehicles-version = Version { $version }
+vehicles-remove-version = Supprimer { $name } { $version }
+vehicles-remove-confirm = Supprimer { $name } de la bibliothèque ? Les projets conservent leurs gabarits.
+vehicles-remove = Supprimer
+vehicles-install = Installer…
+update-versions = { $name } : version { $from } → { $to }
+update-replaced = { $name } : gabarit remplacé
+update-layout-changed = { $name } : disposition modifiée, vérifiez le motif
+update-resized = { $name } : taille { $old } → { $new } px, motif mis à l’échelle
+update-added = { $name } : nouvelle texture
+update-removed = { $name } : absente de cette version, motif conservé
+update-artwork-kept = Votre motif est conservé. Vous pouvez annuler la mise à jour.
+update-apply = Mettre à jour
+
+## New Project wizard
+
+new-project-step-vehicle = Véhicule
+new-project-blank = Texture vierge
+new-project-textures = Textures
+button-next = Suivant
+button-back = Retour

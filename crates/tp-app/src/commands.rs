@@ -61,8 +61,10 @@ pub enum CommandId {
     Snapping,
     DesignGallery,
     // Vehicle
-    ChooseVehicle,
+    VehicleLibrary,
     VehicleInfo,
+    UpdateTemplate,
+    ShowTemplate,
     // Export
     ExportTexture,
     ExportMod,
@@ -133,6 +135,11 @@ pub struct EditContext {
     pub combine_block: Option<&'static str>,
     /// Align to: Key object (aligning needs two objects).
     pub align_to_key: bool,
+    /// The active surface has a template, and whether it is shown.
+    pub has_template: bool,
+    pub template_visible: bool,
+    /// A newer installed version of the project's vehicle can be applied.
+    pub update_available: bool,
 }
 
 fn can_align(c: &EditContext) -> bool {
@@ -240,8 +247,10 @@ impl CommandId {
             ClearGuides,
             Snapping,
             DesignGallery,
-            ChooseVehicle,
+            VehicleLibrary,
             VehicleInfo,
+            UpdateTemplate,
+            ShowTemplate,
             ExportTexture,
             ExportMod,
             KeyboardShortcuts,
@@ -668,19 +677,36 @@ impl CommandId {
             ),
             DesignGallery => m("cmd-design-system-gallery", None, &[], App, Always),
 
-            ChooseVehicle => m(
-                "cmd-choose-vehicle",
+            VehicleLibrary => m(
+                "cmd-vehicle-library",
                 Some(icons::VEHICLE),
                 &[],
-                Workspace,
-                NotYet(SOON_VEHICLES),
+                App,
+                Always,
             ),
             VehicleInfo => m(
                 "cmd-vehicle-information",
                 None,
                 &[],
                 Workspace,
-                NotYet(SOON_VEHICLES),
+                NeedsProject,
+            ),
+            UpdateTemplate => m(
+                "cmd-update-template",
+                None,
+                &[],
+                Workspace,
+                When(
+                    |c| c.update_available && !c.gesture_active,
+                    "reason-no-update",
+                ),
+            ),
+            ShowTemplate => m(
+                "cmd-show-template",
+                None,
+                const { &[sc(SHIFT, Key::T)] },
+                Workspace,
+                When(|c| c.has_template, "reason-no-template"),
             ),
 
             ExportTexture => m(

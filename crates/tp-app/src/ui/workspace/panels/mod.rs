@@ -8,6 +8,7 @@ pub mod line_style;
 mod properties;
 mod stroke;
 mod transform;
+mod vehicle;
 
 use egui::{Frame, Margin, ScrollArea, Ui};
 use tp_i18n::tr;
@@ -25,6 +26,8 @@ pub struct PanelEnv<'a> {
     pub ws: &'a mut Workspace,
     /// Preferences' recent colors (RGBA), most recent first.
     pub recent_colors: &'a [[u8; 4]],
+    /// Installed vehicle packages.
+    pub vehicles: &'a crate::vehicles::VehicleLibrary,
     pub now: f64,
 }
 
@@ -140,9 +143,6 @@ fn body(
         PanelKind::Stroke => stroke::show(ui, env),
         PanelKind::Layers => layers::show(ui, cmds, env),
         PanelKind::Assets => assets::show(ui, cmds, env),
-        PanelKind::Vehicle => {
-            let (title, message) = kind.empty_state();
-            EmptyState::new(kind.icon(), &tr(title), &tr(message)).show(ui);
-        }
+        PanelKind::Vehicle => vehicle::show(ui, cmds, env),
     }
 }

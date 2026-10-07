@@ -28,6 +28,8 @@ pub mod text_input;
 pub mod text_session;
 pub mod tool;
 pub mod ui;
+pub mod vehicle_project;
+pub mod vehicles;
 pub mod viewport;
 pub mod workspace;
 

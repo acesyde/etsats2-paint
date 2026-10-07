@@ -41,7 +41,6 @@ cmd-show-guides = Mostrar guías
 cmd-clear-guides = Borrar guías
 cmd-snapping = Ajuste
 cmd-design-system-gallery = Galería del sistema de diseño
-cmd-choose-vehicle = Elegir vehículo…
 cmd-vehicle-information = Información del vehículo
 cmd-export-texture = Exportar textura…
 cmd-export-mod = Exportar mod…
@@ -137,3 +136,11 @@ tool-hand = Mano
 reason-combine-open-line = Las líneas abiertas no tienen área que combinar.
 reason-combine-text = Los textos no se pueden combinar: use antes Crear contornos.
 reason-combine-image = Las imágenes no se pueden combinar.
+
+## Vehicles
+
+cmd-vehicle-library = Biblioteca de vehículos…
+cmd-update-template = Actualizar plantilla…
+cmd-show-template = Mostrar plantilla
+reason-no-update = No hay instalada ninguna versión más reciente de este vehículo.
+reason-no-template = Esta textura no tiene plantilla.

@@ -34,6 +34,8 @@ pub fn create_project(harness: &mut Harness<'static, AppState>) {
     use egui_kittest::kittest::Queryable;
     harness.get_by_label("New Project").click();
     harness.run();
+    harness.get_by_label("Next").click();
+    harness.run();
     harness.get_by_label("Create").click();
     harness.run();
     assert!(harness.state().has_project(), "project should be open");

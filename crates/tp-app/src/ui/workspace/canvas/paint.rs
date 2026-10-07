@@ -101,6 +101,7 @@ pub fn paint(
         }
     }
 
+    draw_template(ui.ctx(), &painter, ws, map);
     painter.rect_stroke(
         artboard,
         0,
@@ -315,6 +316,35 @@ fn draw_text(
 
 /// Draws an image as a textured quad on its (possibly rotated) frame, or a
 /// placeholder while its texture is not ready.
+/// Draws the active surface's template over the artwork, stretched to the
+/// artboard (it is never an object: no selection, export or eyedropper).
+fn draw_template(ctx: &egui::Context, painter: &Painter, ws: &mut Workspace, map: &ScreenMap) {
+    let surface = ws.project.surface();
+    let Some(template) = surface.template.clone().filter(|t| t.is_drawn()) else {
+        return;
+    };
+    let side = surface.size;
+    let Some(asset) = ws.project.assets.get(&template.asset).cloned() else {
+        return;
+    };
+    let Some(texture) = ws.images.texture(
+        ctx,
+        &asset,
+        side as f32 * map.scale * ctx.pixels_per_point(),
+    ) else {
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        return;
+    };
+    let rect = screen_rect(map, kurbo::Rect::new(0.0, 0.0, side, side));
+    let tint = Color32::WHITE.gamma_multiply(template.opacity.clamp(0.0, 1.0));
+    painter.image(
+        texture.id(),
+        rect,
+        Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
+        tint,
+    );
+}
+
 fn draw_image(
     ctx: &egui::Context,
     painter: &Painter,

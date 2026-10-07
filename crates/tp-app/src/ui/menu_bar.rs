@@ -175,6 +175,8 @@ fn menu_contents(
             ui.separator();
             cmds.menu_toggle(ui, ShowGrid, layout.is_some() && aids.grid);
             cmds.menu_toggle(ui, ShowGuides, layout.is_some() && aids.guides);
+            let template_shown = cmds.edit.template_visible;
+            cmds.menu_toggle(ui, ShowTemplate, template_shown);
             item(ui, cmds, ClearGuides);
             cmds.menu_toggle(ui, Snapping, layout.is_some() && aids.snapping);
             ui.separator();
@@ -193,8 +195,9 @@ fn menu_contents(
             }
         }
         "menu-vehicle" => {
-            item(ui, cmds, ChooseVehicle);
+            item(ui, cmds, VehicleLibrary);
             item(ui, cmds, VehicleInfo);
+            item(ui, cmds, UpdateTemplate);
         }
         "menu-export" => {
             item(ui, cmds, ExportTexture);

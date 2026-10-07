@@ -42,7 +42,6 @@ cmd-show-guides = Show Guides
 cmd-clear-guides = Clear Guides
 cmd-snapping = Snapping
 cmd-design-system-gallery = Design System Gallery
-cmd-choose-vehicle = Choose Vehicle…
 cmd-vehicle-information = Vehicle Information
 cmd-export-texture = Export Texture…
 cmd-export-mod = Export Mod…
@@ -138,3 +137,11 @@ tool-hand = Hand
 reason-combine-open-line = Open lines have no area to combine.
 reason-combine-text = Texts cannot be combined: use Create Outlines first.
 reason-combine-image = Images cannot be combined.
+
+## Vehicles
+
+cmd-vehicle-library = Vehicle Library…
+cmd-update-template = Update Template…
+cmd-show-template = Show Template
+reason-no-update = No newer version of this vehicle is installed.
+reason-no-template = This texture has no template.

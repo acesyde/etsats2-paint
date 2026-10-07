@@ -66,3 +66,8 @@ undo-resize = Größe ändern
 undo-rotate = Drehen
 hint-convert-to-edit = Verwenden Sie Objekt › In Pfad umwandeln, um die Punkte zu bearbeiten
 undo-place = Platzieren
+
+## Vehicle projects
+
+undo-update-template = Vorlage aktualisieren
+undo-dismiss-layout = Layoutänderung verwerfen

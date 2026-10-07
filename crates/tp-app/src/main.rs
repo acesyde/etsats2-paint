@@ -31,10 +31,18 @@ fn main() -> ExitCode {
 
     let store = dirs.as_ref().map(|d| PrefsStore::new(&d.config));
     let recovery_dir = dirs.as_ref().map(|d| d.recovery());
+    let vehicles_dir = dirs.as_ref().map(|d| d.vehicles());
     let result = eframe::run_native(
         APP_NAME,
         options,
-        Box::new(move |cc| Ok(Box::new(TruckPaintApp::new(cc, store, recovery_dir)))),
+        Box::new(move |cc| {
+            Ok(Box::new(TruckPaintApp::new(
+                cc,
+                store,
+                recovery_dir,
+                vehicles_dir,
+            )))
+        }),
     );
 
     match result {

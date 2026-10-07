@@ -66,3 +66,8 @@ undo-resize = Cambiar tamaño
 undo-rotate = Rotar
 hint-convert-to-edit = Use Objeto › Convertir en trazado para editar sus puntos
 undo-place = Colocar
+
+## Vehicle projects
+
+undo-update-template = Actualizar plantilla
+undo-dismiss-layout = Descartar cambio de disposición

@@ -100,7 +100,61 @@ fn rich_project() -> Project {
     }
     p.add_guide(tp_core::Guide::new(tp_core::Axis::Vertical, 2048.0));
     p.add_guide(tp_core::Guide::new(tp_core::Axis::Horizontal, 1200.5));
+    add_vehicle(&mut p);
     p
+}
+
+/// Makes `p` a three-texture vehicle project: Cabin (the main surface),
+/// Chassis and Accessories, each with a template.
+fn add_vehicle(p: &mut Project) {
+    use tp_core::{Surface, SurfaceTemplate, TemplateStatus, VehicleRef};
+    let template = |p: &mut Project, texture: &str, layout, opacity, visible, status| {
+        let (asset, _) = p.add_asset(
+            &format!("{texture} template"),
+            AssetKind::Raster,
+            Arc::from(PNG),
+            Size::new(64.0, 64.0),
+        );
+        SurfaceTemplate {
+            texture_id: texture.into(),
+            asset,
+            layout_version: layout,
+            opacity,
+            visible,
+            status,
+        }
+    };
+    p.surfaces[0].name = "Cabin".into();
+    p.surfaces[0].template = Some(template(p, "cabin", 2, 0.6, true, TemplateStatus::Current));
+    let mut chassis = Surface::new("Chassis", 2048.0);
+    chassis.template = Some(template(
+        p,
+        "chassis",
+        1,
+        0.35,
+        false,
+        TemplateStatus::Current,
+    ));
+    let mut accessories = Surface::new("Accessories", 1024.0);
+    accessories.template = Some(template(
+        p,
+        "accessories",
+        3,
+        0.6,
+        true,
+        TemplateStatus::LayoutChanged,
+    ));
+    p.surfaces.push(chassis);
+    p.surfaces.push(accessories);
+    p.vehicle = Some(VehicleRef {
+        package_id: "scs.volvo.fh16_2012".into(),
+        version: "1.3.0".into(),
+        variant_id: "globetrotter_xl".into(),
+        name: "Volvo FH16 2012".into(),
+        brand: "Volvo".into(),
+        kind: "truck".into(),
+        game: "ets2".into(),
+    });
 }
 
 /// A star, a curved path with a hole and an open line (format 2).
@@ -341,68 +395,6 @@ fn write_current_fixture() {
 }
 
 #[test]
-fn v2_fixture_opens() {
-    let opened = tp_file::read(&fixture(2)).unwrap();
-    assert_eq!(opened.migrated, FORMAT_VERSION != 2);
-    let objects = &opened.project.surface().objects;
-    assert_eq!(objects.len(), 7);
-    assert_eq!(
-        objects[4].kind,
-        ShapeKind::Polygon {
-            sides: 5,
-            star: Some(0.45)
-        }
-    );
-    let swoosh = objects[5].path_data().unwrap();
-    assert_eq!(swoosh.subpaths.len(), 2);
-    assert!(swoosh.subpaths.iter().all(|s| s.closed));
-    assert!(swoosh.subpaths[0].nodes[0].smooth);
-    assert_eq!(objects[5].frame.rotation_deg, -20.0);
-    assert_eq!(
-        opened.project.surface().guides,
-        vec![
-            tp_core::Guide::new(tp_core::Axis::Vertical, 2048.0),
-            tp_core::Guide::new(tp_core::Axis::Horizontal, 1200.5),
-        ]
-    );
-    let line = &objects[6];
-    assert_eq!(line.name, "Line");
-    assert!(line.has_open_path());
-    assert_eq!(line.path_data().unwrap().line_width, 30.0);
-    assert_eq!(
-        line.path_data().unwrap().line_style.dash,
-        Some(Dash {
-            dash: 0.0,
-            gap: 45.0
-        }),
-        "a dotted line"
-    );
-    // Colors became solid paints.
-    assert_eq!(objects[5].fill, Paint::Solid(Rgba::rgb(0x10, 0x60, 0xA0)));
-    let graphics = &objects[0];
-    assert_eq!(
-        graphics.children[0].stroke.unwrap().paint,
-        Paint::Solid(Rgba::rgb(0, 0, 0))
-    );
-    // The fixture holds exactly what the test project builds.
-    let expected = vector_objects();
-    for (got, want) in objects[4..].iter().zip(&expected) {
-        assert_eq!(got.kind, want.kind);
-        assert_eq!(got.frame, want.frame);
-        assert_eq!(got.path, want.path);
-    }
-}
-
-#[test]
-fn v2_document_without_guides_opens() {
-    let doc = r#"(format: 2, name: "x", resolution: 2048, active_surface: 0,
-        surfaces: [(name: "Main texture", size: 2048.0)])"#;
-    let opened = tp_file::from_bytes(&zip_with(doc)).unwrap();
-    assert!(opened.project.surface().guides.is_empty());
-    assert!(opened.migrated);
-}
-
-#[test]
 fn every_stroke_option_round_trips() {
     let mut p = Project::new("x", TextureResolution::R2048);
     let caps = [Cap::Butt, Cap::Round, Cap::Square];
@@ -452,85 +444,43 @@ fn every_stroke_option_round_trips() {
 }
 
 #[test]
-fn v2_document_without_stroke_options_opens_with_defaults() {
-    let doc = r#"(format: 2, name: "x", resolution: 2048, active_surface: 0,
-        surfaces: [(name: "Main texture", size: 2048.0, objects: [
-            (id: 1, name: "Box", kind: Rectangle(corner_radius: 0.0), center: (100.0, 100.0),
-             size: (50.0, 50.0), rotation: 0.0, fill: (255, 0, 0, 255),
-             stroke: Some((color: (0, 0, 0, 255), width: 6.0)),
-             opacity: 1.0, visible: true, locked: false),
-            (id: 2, name: "Line", kind: Path, center: (0.0, 0.0), size: (10.0, 0.0),
-             rotation: 0.0, fill: (255, 255, 255, 255), stroke: None,
-             opacity: 1.0, visible: true, locked: false,
-             path: Some([(closed: false, nodes: [(p: (-5.0, 0.0)), (p: (5.0, 0.0))])]),
-             line_width: Some(30.0)),
-        ])])"#;
-    let opened = tp_file::from_bytes(&zip_with(doc)).unwrap();
-    let objects = &opened.project.surface().objects;
-    let stroke = objects[0].stroke.unwrap();
-    assert_eq!((stroke.width, stroke.align), (6.0, StrokeAlign::Center));
-    assert_eq!(stroke.line, LineStyle::default());
-    let line = objects[1].path_data().unwrap();
-    assert_eq!(line.line_width, 30.0);
-    assert_eq!(line.line_style, LineStyle::default());
-}
-
-#[test]
-fn format_4_is_newer() {
+fn newer_and_development_formats() {
     let err = tp_file::from_bytes(&zip_with("(format: 4, name: \"x\")")).unwrap_err();
     assert!(
         matches!(
             err,
             Error::NewerVersion {
                 found: 4,
-                supported: 3
+                supported: 1
             }
         ),
         "{err:?}"
     );
+    for dev in [2, 3] {
+        let doc = format!("(format: {dev}, name: \"x\")");
+        let err = tp_file::from_bytes(&zip_with(&doc)).unwrap_err();
+        assert!(
+            matches!(err, Error::Unsupported { found } if found == dev),
+            "{err:?}"
+        );
+        assert!(err.message("a.truckpaint").contains("development format"));
+    }
 }
 
-/// Files of every released format version keep opening.
 #[test]
 fn v1_fixture_opens() {
     let opened = tp_file::read(&fixture(1)).unwrap();
-    assert_eq!(opened.migrated, FORMAT_VERSION != 1);
-    let p = opened.project;
-    assert_eq!(p.name, "ACE Logistics");
-    assert_eq!(p.resolution, TextureResolution::R4096);
-    assert_eq!(p.palette, vec![Rgba::rgb(0xF0, 0xB4, 0x4C)]);
-    let objects = &p.surface().objects;
-    assert_eq!(objects.len(), 4);
-    let graphics = &objects[0];
+    let p = &opened.project;
+    let names: Vec<&str> = p.surfaces.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(names, ["Cabin", "Chassis", "Accessories"]);
+    assert_eq!(p.surfaces[2].size, 1024.0);
+    let chassis = p.surfaces[1].template.as_ref().unwrap();
+    assert_eq!((chassis.opacity, chassis.visible), (0.35, false));
     assert_eq!(
-        (graphics.name.as_str(), graphics.locked),
-        ("Graphics", true)
+        p.surfaces[2].template.as_ref().unwrap().status,
+        tp_core::TemplateStatus::LayoutChanged
     );
-    assert_eq!(graphics.children.len(), 2);
-    assert_eq!(
-        graphics.children[0].kind,
-        ShapeKind::Rectangle {
-            corner_radius: 24.0
-        }
-    );
-    assert!(!graphics.children[1].visible);
-    let text = objects[1].text.as_ref().unwrap();
-    assert_eq!(text.content, "ACE\nLOGISTICS");
-    assert_eq!(text.style.family, "Barlow Condensed");
-    assert_eq!(text.scale, Vec2::new(1.5, 1.0));
-    assert_eq!(objects[2].name, "logo");
-    assert_eq!(p.assets.len(), 2);
-    let svg = p
-        .assets
-        .values()
-        .find(|a| a.kind == AssetKind::Svg)
-        .unwrap();
-    assert_eq!(&*svg.bytes, SVG);
-}
-
-#[test]
-fn v3_fixture_opens() {
-    let opened = tp_file::read(&fixture(3)).unwrap();
+    assert_eq!(p.vehicle.as_ref().unwrap().version, "1.3.0");
     assert!(!opened.migrated);
     assert_same_document(&opened.project, &rich_project());
     let objects = &opened.project.surface().objects;
@@ -558,7 +508,7 @@ fn gradients_round_trip() {
 
 #[test]
 fn gradient_with_one_stop_is_damaged() {
-    let doc = r#"(format: 3, name: "x", resolution: 2048, active_surface: 0,
+    let doc = r#"(format: 1, name: "x", resolution: 2048, active_surface: 0,
         surfaces: [(name: "Main texture", size: 2048.0, objects: [
             (id: 1, name: "Box", kind: Rectangle(corner_radius: 0.0), center: (100.0, 100.0),
              size: (50.0, 50.0), rotation: 0.0,

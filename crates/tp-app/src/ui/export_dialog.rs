@@ -80,8 +80,14 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
     let Some(ws) = state.workspace_mut() else {
         return false;
     };
-    let side = ws.project.resolution.side();
-    let name = ws.project.name.clone();
+    // The active surface's own size; vehicle exports are named after the
+    // texture ("<project> - <texture>").
+    let side = ws.project.surface().size.round() as u32;
+    let name = if ws.project.vehicle.is_some() {
+        format!("{} - {}", ws.project.name, ws.project.surface().name)
+    } else {
+        ws.project.name.clone()
+    };
 
     // Preview: pick up a finished render, start one when settings changed.
     if let Some(job) = &dialog.preview_job

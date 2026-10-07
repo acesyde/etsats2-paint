@@ -226,3 +226,19 @@ undo-change-alignment = Ausrichtung ändern
 undo-change-letter-spacing = Zeichenabstand ändern
 undo-change-line-height = Zeilenhöhe ändern
 undo-change-font = Schrift ändern
+
+## Vehicle panel
+
+vehicle-panel-none = Kein Fahrzeug
+vehicle-panel-none-hint = Dieses Projekt ist eine leere Textur. Erstellen Sie ein Projekt aus einem Fahrzeug, um auf seinen Vorlagen zu malen.
+vehicle-panel-package = Paket { $version } · Spielversionen { $games }
+vehicle-panel-package-missing = Paket { $version } (nicht installiert)
+vehicle-panel-update = Version { $version } ist verfügbar
+vehicle-panel-textures = Texturen
+vehicle-panel-texture = Textur { $name }
+vehicle-panel-layout-changed = Layout geändert
+vehicle-panel-dismiss = Verwerfen
+vehicle-panel-dismiss-named = Layoutänderung von { $name } verwerfen
+vehicle-panel-removed = Nicht in dieser Version
+vehicle-panel-opacity = Vorlage
+vehicle-panel-opacity-name = Deckkraft der Vorlage

@@ -97,3 +97,61 @@ export-background = Fondo
 export-transparent = Transparente
 export-background-color = Color de fondo
 prefs-language = Idioma
+file-dev-format = { $file } usa un formato de desarrollo que esta versión no puede abrir.
+
+## Vehicle packages
+
+pkg-install-failed = No se pudo instalar { $file }: { $reason }
+pkg-no-library = no hay carpeta de biblioteca de vehículos.
+pkg-io = no se pudo leer ni escribir ({ $reason }).
+pkg-not-a-zip = no es un paquete de vehículo.
+pkg-no-manifest = no contiene el manifiesto vehicle.json.
+pkg-bad-manifest = su manifiesto no es válido ({ $reason }).
+pkg-newer-format = se creó para una versión más reciente de TruckPaint.
+pkg-bad-id = su identificador «{ $id }» no es válido.
+pkg-no-variant = no describe ninguna variante.
+pkg-empty-variant = la variante «{ $variant }» no tiene texturas.
+pkg-duplicate-variant = la variante «{ $variant }» está definida dos veces.
+pkg-duplicate-texture = la textura «{ $texture }» está definida dos veces.
+pkg-bad-size = la textura «{ $texture }» tiene un tamaño no válido ({ $size }).
+pkg-unsafe-path = contiene una ruta no segura ({ $path }).
+pkg-too-large = es demasiado grande.
+pkg-missing-template = falta la plantilla de «{ $texture }».
+pkg-bad-template = la plantilla de «{ $texture }» no es una imagen PNG o SVG legible.
+pkg-template-too-large = la plantilla de «{ $texture }» es demasiado grande.
+
+## Vehicle library and updates
+
+filter-packages = Paquetes de vehículos
+vehicles-search = Buscar vehículos
+vehicles-all-games = Todos los juegos
+vehicles-game-filter = Juego
+vehicles-all-kinds = Camiones y remolques
+vehicles-kind-filter = Tipo
+vehicles-truck = Camión
+vehicles-trailer = Remolque
+vehicles-installed = { $name } { $version } instalado
+vehicles-empty = Ningún vehículo instalado
+vehicles-empty-hint = Los paquetes de vehículos (.tpv) contienen las plantillas de un camión o remolque. Instale uno para pintar una librea.
+vehicles-details = Versiones del juego { $versions } · { $variants }
+vehicles-version = Versión { $version }
+vehicles-remove-version = Eliminar { $name } { $version }
+vehicles-remove-confirm = ¿Eliminar { $name } de la biblioteca? Los proyectos conservan sus plantillas.
+vehicles-remove = Eliminar
+vehicles-install = Instalar…
+update-versions = { $name }: versión { $from } → { $to }
+update-replaced = { $name }: plantilla reemplazada
+update-layout-changed = { $name }: disposición cambiada, revise el diseño
+update-resized = { $name }: tamaño { $old } → { $new } px, diseño escalado
+update-added = { $name }: textura nueva
+update-removed = { $name }: ya no está en esta versión, diseño conservado
+update-artwork-kept = Su diseño se conserva. Puede deshacer la actualización.
+update-apply = Actualizar
+
+## New Project wizard
+
+new-project-step-vehicle = Vehículo
+new-project-blank = Textura en blanco
+new-project-textures = Texturas
+button-next = Siguiente
+button-back = Atrás

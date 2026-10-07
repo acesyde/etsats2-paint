@@ -130,7 +130,7 @@ fn run_export(
         reason,
     };
     let options = RenderOptions {
-        size: settings.size(project.resolution.side()),
+        size: settings.size(project.surface().size.round() as u32),
         background: settings.background,
     };
     let rendered = tp_render::render(
@@ -261,7 +261,9 @@ impl PreviewJob {
             .name("export-preview".into())
             .spawn(move || {
                 let mut fonts = fonts;
-                let size = settings.size(project.resolution.side()).min(PREVIEW_SIDE);
+                let size = settings
+                    .size(project.surface().size.round() as u32)
+                    .min(PREVIEW_SIDE);
                 let options = RenderOptions {
                     size,
                     background: settings.background,

@@ -67,3 +67,8 @@ undo-resize = Resize
 undo-rotate = Rotate
 hint-convert-to-edit = Use Object › Convert to Path to edit its points
 undo-place = Place
+
+## Vehicle projects
+
+undo-update-template = Update Template
+undo-dismiss-layout = Dismiss Layout Change

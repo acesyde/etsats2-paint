@@ -1,0 +1,19 @@
+[package]
+name = "tp-vehicles"
+description = "Vehicle packages: manifest, validation and templates, read from bytes."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+semver.workspace = true
+zip.workspace = true
+image.workspace = true
+resvg.workspace = true
+
+[lints]
+workspace = true

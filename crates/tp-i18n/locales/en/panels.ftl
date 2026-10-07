@@ -224,3 +224,19 @@ undo-change-alignment = Change Alignment
 undo-change-letter-spacing = Change Letter Spacing
 undo-change-line-height = Change Line Height
 undo-change-font = Change Font
+
+## Vehicle panel
+
+vehicle-panel-none = No vehicle
+vehicle-panel-none-hint = This project is a blank texture. Create a project from a vehicle to paint on its templates.
+vehicle-panel-package = Package { $version } · game versions { $games }
+vehicle-panel-package-missing = Package { $version } (not installed)
+vehicle-panel-update = Version { $version } is available
+vehicle-panel-textures = Textures
+vehicle-panel-texture = Texture { $name }
+vehicle-panel-layout-changed = Layout changed
+vehicle-panel-dismiss = Dismiss
+vehicle-panel-dismiss-named = Dismiss layout change of { $name }
+vehicle-panel-removed = Not in this version
+vehicle-panel-opacity = Template
+vehicle-panel-opacity-name = Template opacity

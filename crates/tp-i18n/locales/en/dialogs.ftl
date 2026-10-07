@@ -98,3 +98,61 @@ export-background = Background
 export-transparent = Transparent
 export-background-color = Background color
 prefs-language = Language
+file-dev-format = { $file } uses a development format that this version cannot open.
+
+## Vehicle packages
+
+pkg-install-failed = { $file } could not be installed: { $reason }
+pkg-no-library = there is no vehicle library folder.
+pkg-io = it could not be read or written ({ $reason }).
+pkg-not-a-zip = it is not a vehicle package.
+pkg-no-manifest = it has no vehicle.json manifest.
+pkg-bad-manifest = its manifest is invalid ({ $reason }).
+pkg-newer-format = it was made for a newer version of TruckPaint.
+pkg-bad-id = its id “{ $id }” is invalid.
+pkg-no-variant = it describes no variant.
+pkg-empty-variant = the variant “{ $variant }” has no texture.
+pkg-duplicate-variant = the variant “{ $variant }” is defined twice.
+pkg-duplicate-texture = the texture “{ $texture }” is defined twice.
+pkg-bad-size = the texture “{ $texture }” has an invalid size ({ $size }).
+pkg-unsafe-path = it contains an unsafe path ({ $path }).
+pkg-too-large = it is too large.
+pkg-missing-template = the template of “{ $texture }” is missing.
+pkg-bad-template = the template of “{ $texture }” is not a readable PNG or SVG image.
+pkg-template-too-large = the template of “{ $texture }” is too large.
+
+## Vehicle library and updates
+
+filter-packages = Vehicle packages
+vehicles-search = Search vehicles
+vehicles-all-games = All games
+vehicles-game-filter = Game
+vehicles-all-kinds = Trucks and trailers
+vehicles-kind-filter = Kind
+vehicles-truck = Truck
+vehicles-trailer = Trailer
+vehicles-installed = Installed { $name } { $version }
+vehicles-empty = No vehicle installed
+vehicles-empty-hint = Vehicle packages (.tpv) hold the templates of a truck or trailer. Install one to start a livery on it.
+vehicles-details = Game versions { $versions } · { $variants }
+vehicles-version = Version { $version }
+vehicles-remove-version = Remove { $name } { $version }
+vehicles-remove-confirm = Remove { $name } from the library? Projects keep their templates.
+vehicles-remove = Remove
+vehicles-install = Install…
+update-versions = { $name }: version { $from } → { $to }
+update-replaced = { $name }: template replaced
+update-layout-changed = { $name }: layout changed, check the artwork
+update-resized = { $name }: size { $old } → { $new } px, artwork scaled
+update-added = { $name }: new texture
+update-removed = { $name }: no longer in this version, artwork kept
+update-artwork-kept = Your artwork is kept. You can undo the update.
+update-apply = Update
+
+## New Project wizard
+
+new-project-step-vehicle = Vehicle
+new-project-blank = Blank texture
+new-project-textures = Textures
+button-next = Next
+button-back = Back

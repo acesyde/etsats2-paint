@@ -69,3 +69,8 @@ undo-resize = Redimensionner
 undo-rotate = Faire pivoter
 hint-convert-to-edit = Utilisez Objet › Convertir en tracé pour modifier ses points
 undo-place = Importer
+
+## Vehicle projects
+
+undo-update-template = Mettre à jour le gabarit
+undo-dismiss-layout = Ignorer le changement de disposition
