@@ -9,8 +9,9 @@ Lets users keep their liveries: save a project to a single `.truckpaint` file, r
 ### Requirement: Self-contained project file
 A project SHALL be saved as one `.truckpaint` file containing everything needed to reopen it identically. The file SHALL contain:
 
-- the project's name, texture resolution and surfaces, with each surface's name and size;
-- for a vehicle project, the vehicle's package id, version, variant id and name, and each surface's template image, opacity, visibility, layout version and status;
+- the project's name and surfaces, with each surface's name and size;
+- the project's vehicles, each with its package id, version, name, brand, kind and game, and its chosen variants (id and name);
+- each surface's template: the vehicle, variant and texture it belongs to, its image, opacity, visibility, layout version and status;
 - the full object tree, with every object's identity, name, kind, geometry (including polygon settings, the points and handles of every path subpath with its open or closed state, and the path's line width), fill, stroke, opacity, visibility and lock flags;
 - each text's content and character style;
 - image references;
@@ -29,8 +30,8 @@ Font families SHALL be stored by name only; font files SHALL NOT be embedded. Ed
 - **THEN** it opens, the text is drawn with Inter and the font control shows the "Font not found" warning with the original family name
 
 #### Scenario: Vehicle project round trip
-- **WHEN** the user saves a vehicle project with three textures, one template hidden and one flagged "Layout changed", closes it and opens the file again
-- **THEN** the three surfaces, their templates, opacities, visibilities and flags, and the recorded package version are restored
+- **WHEN** the user saves a project with two vehicles, one of them with two variants, one template hidden and one flagged "Layout changed", closes it and opens the file again
+- **THEN** the vehicles, their variants and recorded versions, the surfaces, their templates, opacities, visibilities and flags are restored
 
 ### Requirement: Versioned format
 Every project file SHALL record the version of the file format it was written with. The application SHALL open files of every format version it has ever written, converting them to the current format when opening; such a file SHALL open marked as having unsaved changes and SHALL be written in the current format at the next save (the original file is only replaced when the user saves). Files written with a newer format version than the application supports SHALL be refused (see Invalid files).
@@ -69,7 +70,9 @@ File › Open… (Cmd/Ctrl+O) SHALL show a native dialog filtered to `.truckpain
 - **THEN** the editor shows that project, the window title shows its name and the status bar shows "Saved"
 
 ### Requirement: Invalid files
-Files that are not TruckPaint projects, are damaged, or were written by a newer version of TruckPaint, or use a format from unreleased development builds SHALL NOT be opened; the user SHALL see a message naming the file and the reason (for example "ace.truckpaint was created with a newer version of TruckPaint"). The currently open project, if any, SHALL stay open and unchanged.
+Files that are not TruckPaint projects, are damaged, were written by a newer version of TruckPaint, or use a format from unreleased development builds SHALL NOT be opened. The user SHALL see a message naming the file and the reason (for example "ace.truckpaint was created with a newer version of TruckPaint"). The currently open project, if any, SHALL stay open and unchanged.
+
+Project files without a vehicle, written by development builds before every project needed one, SHALL be refused as a development format. Files of development builds that record a single vehicle and variant SHALL open as a project with that vehicle and variant. Files mixing games SHALL be refused as damaged.
 
 #### Scenario: Damaged file
 - **WHEN** the user opens a truncated `.truckpaint` file
@@ -81,6 +84,10 @@ Files that are not TruckPaint projects, are damaged, or were written by a newer 
 
 #### Scenario: Development build file
 - **WHEN** the user opens a file saved by an unreleased development build with format 3
+- **THEN** a message says the file uses a development format that this version cannot open, and nothing else changes
+
+#### Scenario: Blank-texture file from a development build
+- **WHEN** the user opens a file saved by a development build for a blank texture, with no vehicle
 - **THEN** a message says the file uses a development format that this version cannot open, and nothing else changes
 
 ### Requirement: Unsaved changes prompt
