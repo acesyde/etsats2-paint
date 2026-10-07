@@ -13,8 +13,11 @@ context: |
   - Texture layouts (UVs) differ per vehicle. Sharing across vehicles is by
     elements (palette, symbols with per-texture instances, styles), never by
     copying a placement; only variants of the same truck may copy positions.
-  - Open, not decided: textures shared between variants in the package
-    format.
+  - A paint job follows the game: a truck has cabins (a main texture each, or
+    one shared main texture) and a trailer one main texture; both have
+    accessory textures shared by the whole vehicle. Trailers have no
+    variants. Packages record what the mod export needs (game path, cabin
+    internal names, accessory ids, alt_uv, colour_picker).
 
 # Project context (optional)
 # This is shown to AI when creating artifacts.
