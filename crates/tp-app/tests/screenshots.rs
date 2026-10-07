@@ -1457,3 +1457,38 @@ fn render_vehicle_screens() {
         save(&mut h, &format!("vehicle_project_{code}"));
     }
 }
+
+/// The empty New Project vehicle step and Vehicle Library with the sample
+/// button, then projects on the sample's templates, in English and French.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_sample_vehicle() {
+    use tp_app::state::Modal;
+    for language in [tp_i18n::Language::English, tp_i18n::Language::French] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut prefs = Prefs::default();
+        prefs.set_language(Some(language));
+        let code = language.code();
+        let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
+        h.state_mut().vehicles =
+            tp_app::vehicles::VehicleLibrary::open(&dir.path().join("library"));
+        h.state_mut().modal = Some(Modal::NewProject(Default::default()));
+        save(&mut h, &format!("sample_wizard_empty_{code}"));
+        h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+        save(&mut h, &format!("sample_library_empty_{code}"));
+        h.state_mut().modal = None;
+        h.state_mut().vehicles.install_sample().unwrap();
+        let package = h
+            .state()
+            .vehicles
+            .load(tp_app::vehicles::SAMPLE_ID, &"1.1.0".parse().unwrap())
+            .unwrap();
+        for variant in ["standard", "high_roof"] {
+            let project =
+                tp_app::vehicle_project::vehicle_project("Sample", &package, variant).unwrap();
+            h.state_mut().open_project(project);
+            h.run();
+            save(&mut h, &format!("sample_{variant}_{code}"));
+        }
+    }
+}

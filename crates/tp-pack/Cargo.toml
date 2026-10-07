@@ -1,0 +1,26 @@
+[package]
+name = "tp-pack"
+description = "Builds and checks vehicle packages (.tpv) from folders; the `tpv` command."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "tpv"
+path = "src/bin/tpv.rs"
+
+[dependencies]
+tp-vehicles.workspace = true
+serde_json.workspace = true
+semver.workspace = true
+zip.workspace = true
+image.workspace = true
+texpresso.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

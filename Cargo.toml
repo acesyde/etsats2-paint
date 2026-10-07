@@ -17,6 +17,7 @@ tp-file = { path = "crates/tp-file" }
 tp-render = { path = "crates/tp-render" }
 tp-i18n = { path = "crates/tp-i18n" }
 tp-vehicles = { path = "crates/tp-vehicles" }
+tp-pack = { path = "crates/tp-pack" }
 
 eframe = { version = "0.36.2", default-features = false, features = ["wgpu", "default_fonts", "accesskit", "persistence", "wayland", "x11"] }
 egui = "0.36.2"

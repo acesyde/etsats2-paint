@@ -139,6 +139,7 @@ vehicles-remove-version = { $name } { $version } entfernen
 vehicles-remove-confirm = { $name } aus der Bibliothek entfernen? Projekte behalten ihre Vorlagen.
 vehicles-remove = Entfernen
 vehicles-install = Installieren…
+vehicles-install-sample = Beispielfahrzeug installieren
 update-versions = { $name }: Version { $from } → { $to }
 update-replaced = { $name }: Vorlage ersetzt
 update-layout-changed = { $name }: Layout geändert, Grafik prüfen
@@ -152,6 +153,7 @@ update-apply = Aktualisieren
 
 new-project-step-vehicle = Fahrzeug
 new-project-blank = Leere Textur
+new-project-no-vehicles-hint = Noch kein Fahrzeug? Probieren Sie den Beispiel-Lkw aus oder installieren Sie ein Paket.
 new-project-textures = Texturen
 button-next = Weiter
 button-back = Zurück

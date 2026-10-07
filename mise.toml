@@ -46,6 +46,21 @@ run = "cargo build --workspace --release --locked"
 description = "Render key screens to target/screenshots (needs a GPU)"
 run = "cargo test -p tp-app --test screenshots -- --ignored"
 
+[tasks.pack]
+description = "Pack a vehicle folder into a .tpv: mise run pack <folder> [-o file.tpv]"
+dir = "{{cwd}}"
+run = "cargo run -q --manifest-path {{config_root}}/Cargo.toml -p tp-pack --bin tpv -- pack"
+
+[tasks.sample-vehicles]
+description = "Rebuild the committed sample vehicle packages from examples/vehicles/sample-truck"
+run = """
+set -e
+for src in examples/vehicles/sample-truck/*/; do
+  version=$(basename "$src")
+  cargo run -q -p tp-pack --bin tpv -- pack "$src" -o "examples/vehicles/community.truckpaint.sample_truck-$version.tpv"
+done
+"""
+
 [tasks."ci:changes"]
 description = "Print code=true|false: whether BASE..HEAD changes more than docs (CI gating)"
 run = "bash scripts/ci-changes.sh {{arg(name='base', default='')}} {{arg(name='head', default='HEAD')}}"

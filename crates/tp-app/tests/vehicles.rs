@@ -399,3 +399,66 @@ fn vehicle_screens_show_no_raw_message_id() {
         assert_no_raw_ids(&h, "update dialog");
     }
 }
+
+#[test]
+fn install_the_sample_vehicle_from_new_project() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    h.get_by_label("New Project").click();
+    h.run();
+    h.get_by_label("Install the sample vehicle").click();
+    h.run();
+    assert!(
+        h.query_by_label_contains("Installed TruckPaint Sample Truck 1.1.0")
+            .is_some()
+    );
+    // Installed, selected, and the button is gone.
+    assert!(h.query_by_label("Install the sample vehicle").is_none());
+    let row = h.get_by_role_and_label(Role::RadioButton, "TruckPaint Sample Truck");
+    assert_eq!(
+        row.accesskit_node().toggled(),
+        Some(egui::accesskit::Toggled::True),
+        "the sample is selected"
+    );
+    h.get_by_label("Next").click();
+    h.run();
+    h.get_by_label("Create").click();
+    h.run();
+    let project = &ws(&h).project;
+    assert_eq!(project.name, "TruckPaint Sample Truck");
+    let names: Vec<&str> = project.surfaces.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(names, ["Cabin", "Chassis", "Accessories", "Side skirts"]);
+}
+
+#[test]
+fn install_the_sample_vehicle_from_the_library() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+    h.run();
+    h.get_by_label("Install the sample vehicle").click();
+    h.run();
+    assert!(
+        h.state()
+            .vehicles
+            .get(tp_app::vehicles::SAMPLE_ID)
+            .is_some()
+    );
+    assert!(h.query_by_label("No vehicle installed").is_none());
+    assert!(h.query_by_label("Install the sample vehicle").is_none());
+}
+
+#[test]
+fn no_sample_button_once_a_vehicle_is_installed() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    install_v120(&mut h, dir.path());
+    h.get_by_label("New Project").click();
+    h.run();
+    assert!(h.query_by_label("Install the sample vehicle").is_none());
+    h.key_press(Key::Escape);
+    h.run();
+    h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+    h.run();
+    assert!(h.query_by_label("Install the sample vehicle").is_none());
+}

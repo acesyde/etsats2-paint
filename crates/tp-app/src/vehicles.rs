@@ -7,6 +7,14 @@ use tp_core::VehicleRef;
 use tp_i18n::tr;
 use tp_vehicles::{Manifest, Package, PackageError};
 
+/// Id of the built-in sample vehicle.
+pub const SAMPLE_ID: &str = "community.truckpaint.sample_truck";
+/// File name of the built-in sample vehicle (its newest version).
+pub const SAMPLE_FILE: &str = "community.truckpaint.sample_truck-1.1.0.tpv";
+/// The built-in sample vehicle, offered while the library is empty.
+pub const SAMPLE: &[u8] =
+    include_bytes!("../../../examples/vehicles/community.truckpaint.sample_truck-1.1.0.tpv");
+
 /// One installed version of a vehicle.
 #[derive(Clone, Debug)]
 pub struct InstalledVersion {
@@ -171,6 +179,11 @@ impl VehicleLibrary {
         Ok(m)
     }
 
+    /// Installs the built-in sample vehicle.
+    pub fn install_sample(&mut self) -> Result<Manifest, InstallError> {
+        self.install_bytes(SAMPLE)
+    }
+
     pub fn install_file(&mut self, path: &Path) -> Result<Manifest, InstallError> {
         let bytes = std::fs::read(path)?;
         self.install_bytes(&bytes)
@@ -264,6 +277,30 @@ mod tests {
             .unwrap();
         assert!(lib.vehicles().is_empty());
         assert!(!dir.path().join("scs.sample.truck").exists());
+    }
+
+    fn example(version: &str) -> Vec<u8> {
+        let path = format!(
+            "{}/../../examples/vehicles/community.truckpaint.sample_truck-{version}.tpv",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        std::fs::read(path).unwrap()
+    }
+
+    #[test]
+    fn sample_vehicle_installs() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut lib = VehicleLibrary::open(dir.path());
+        let m = lib.install_sample().unwrap();
+        assert_eq!(
+            (m.id.as_str(), m.version.to_string().as_str()),
+            ("community.truckpaint.sample_truck", "1.1.0")
+        );
+        assert_eq!(SAMPLE, example("1.1.0").as_slice());
+        lib.install_bytes(&example("1.0.0")).unwrap();
+        let v = lib.get("community.truckpaint.sample_truck").unwrap();
+        assert_eq!(v.versions.len(), 2);
+        assert_eq!(v.newest().manifest.name, "TruckPaint Sample Truck");
     }
 
     #[test]
