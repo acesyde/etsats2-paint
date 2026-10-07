@@ -1,4 +1,5 @@
 use egui::{RichText, Stroke, Ui, Vec2, WidgetInfo, WidgetType};
+use tp_i18n::tr;
 
 use crate::tokens::{color, space};
 
@@ -20,7 +21,12 @@ impl<'a> StepIndicator<'a> {
     pub fn show(self, ui: &mut Ui) {
         let total = self.titles.len();
         let title = self.titles.get(self.current).copied().unwrap_or_default();
-        let text = format!("Step {} of {total} — {title}", self.current + 1);
+        let text = tr!(
+            "step-of",
+            step = self.current + 1,
+            total = total,
+            title = title
+        );
         ui.horizontal(|ui| {
             for index in 0..total {
                 let radius = if index == self.current { 5.0 } else { 3.5 };

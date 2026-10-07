@@ -125,7 +125,7 @@ fn make_a_fill_linear_and_undo() {
     assert_eq!(g.stops()[0].color, RED);
     assert_eq!(g.stops()[1].color, Rgba::with_alpha(255, 0, 0, 0));
     assert!(selected(&h, "Linear gradient"));
-    assert_eq!(ws(&h).history.undo_label(), Some("Change Fill Type"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-change-fill-type"));
     undo(&mut h);
     assert_eq!(obj(&h, id).fill, Paint::Solid(RED));
 }
@@ -147,7 +147,10 @@ fn add_a_middle_stop() {
         "{c:?}"
     );
     assert_eq!(ws(&h).panels.gradient_stop, 1, "the new stop is selected");
-    assert_eq!(ws(&h).history.undo_label(), Some("Change Fill Gradient"));
+    assert_eq!(
+        ws(&h).history.undo_label(),
+        Some("undo-change-fill-gradient")
+    );
 }
 
 #[test]
@@ -272,7 +275,7 @@ fn mixed_kinds_and_editing_applies_the_first_gradient() {
 fn stroke_gradient_from_the_panel() {
     let mut h = open();
     let id = add_rect(&mut h, (500.0, 500.0), RED.into());
-    ws_mut(&mut h).map_selected_shapes("x", |o| {
+    ws_mut(&mut h).map_selected_shapes("undo-add-stroke", |o| {
         o.stroke = Some(StrokeStyle {
             width: 8.0,
             ..Default::default()
@@ -359,7 +362,10 @@ fn drag_a_gradient_across_a_rectangle() {
         close(s, top, tol * 2.0) && close(e, bottom, tol * 2.0),
         "{s:?} {e:?}"
     );
-    assert_eq!(ws(&h).history.undo_label(), Some("Change Fill Gradient"));
+    assert_eq!(
+        ws(&h).history.undo_label(),
+        Some("undo-change-fill-gradient")
+    );
     undo(&mut h);
     assert_eq!(obj(&h, id).fill, Paint::Solid(blue));
 }

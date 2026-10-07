@@ -10,6 +10,7 @@ mod stroke;
 mod transform;
 
 use egui::{Frame, Margin, ScrollArea, Ui};
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::space;
 use tp_ui::widgets::{EmptyState, FieldEvent, PanelHeader};
@@ -62,12 +63,12 @@ pub fn show(
     if open.is_empty() {
         EmptyState::new(
             icons::LAYERS,
-            "All panels are closed",
-            "Reopen panels from the View menu, or reset the workspace.",
+            &tr("panels-all-closed"),
+            &tr("panels-all-closed-hint"),
         )
         .show(ui);
         ui.vertical_centered(|ui| {
-            if ui.button("Reset Workspace").clicked() {
+            if ui.button(tr("cmd-reset-workspace")).clicked() {
                 cmds.push(CommandId::ResetWorkspace);
             }
         });
@@ -80,7 +81,8 @@ pub fn show(
             ui.spacing_mut().item_spacing.y = 0.0;
             for slot in open {
                 let header =
-                    PanelHeader::new(slot.kind.icon(), slot.kind.title(), slot.collapsed).show(ui);
+                    PanelHeader::new(slot.kind.icon(), &tr(slot.kind.title()), slot.collapsed)
+                        .show(ui);
                 if header.toggle {
                     layout.toggle_collapsed(slot.kind);
                 }
@@ -88,16 +90,20 @@ pub fn show(
                     cmds.push(CommandId::TogglePanel(slot.kind));
                 }
                 header.response.context_menu(|ui| {
-                    let collapse_label = if slot.collapsed { "Expand" } else { "Collapse" };
+                    let collapse_label = tr(if slot.collapsed {
+                        "panel-expand"
+                    } else {
+                        "panel-collapse"
+                    });
                     if ui
-                        .add(tp_ui::widgets::MenuRow::new(collapse_label))
+                        .add(tp_ui::widgets::MenuRow::new(&collapse_label))
                         .clicked()
                     {
                         layout.toggle_collapsed(slot.kind);
                         ui.close();
                     }
                     if ui
-                        .add(tp_ui::widgets::MenuRow::new("Close Panel"))
+                        .add(tp_ui::widgets::MenuRow::new(&tr("panel-close")))
                         .clicked()
                     {
                         cmds.push(CommandId::TogglePanel(slot.kind));
@@ -136,7 +142,7 @@ fn body(
         PanelKind::Assets => assets::show(ui, cmds, env),
         PanelKind::Vehicle => {
             let (title, message) = kind.empty_state();
-            EmptyState::new(kind.icon(), title, message).show(ui);
+            EmptyState::new(kind.icon(), &tr(title), &tr(message)).show(ui);
         }
     }
 }

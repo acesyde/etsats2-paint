@@ -3,6 +3,7 @@
 
 use egui::{Checkbox, Ui, WidgetInfo, WidgetType};
 use tp_core::document::{LineStyle, Object, StrokeAlign, StrokeStyle};
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::widgets::{NumericField, SegmentedControl};
 
@@ -26,7 +27,7 @@ fn edit_strokes(ws: &mut Workspace, label: &'static str, f: impl Fn(&mut StrokeS
 }
 
 fn set_width(ws: &mut Workspace, width: f64) {
-    edit_strokes(ws, "Change Stroke Width", |s| s.width = width);
+    edit_strokes(ws, "undo-change-stroke-width", |s| s.width = width);
 }
 
 /// Whether the object's stroke follows an outline (shapes, texts, closed
@@ -49,9 +50,9 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         }
     };
     let mut checked = enabled;
-    let response = ui.add(Checkbox::new(&mut checked, "Stroke").indeterminate(mixed));
+    let response = ui.add(Checkbox::new(&mut checked, tr("panel-stroke")).indeterminate(mixed));
     response.widget_info(|| {
-        WidgetInfo::selected(WidgetType::Checkbox, true, enabled, "Stroke enabled")
+        WidgetInfo::selected(WidgetType::Checkbox, true, enabled, tr("stroke-enabled"))
     });
     if response.clicked() {
         let enable = mixed || !enabled;
@@ -60,9 +61,9 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         } else {
             let style = env.ws.style.stroke;
             let label = if enable {
-                "Add Stroke"
+                "undo-add-stroke"
             } else {
-                "Remove Stroke"
+                "undo-remove-stroke"
             };
             env.ws.map_selected_shapes(label, |o| {
                 o.stroke = if enable {
@@ -84,7 +85,7 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
             .collect()
     };
     let width = common(strokes.iter().map(|(s, _)| s.width));
-    let e = NumericField::new("Width", "Stroke width", width)
+    let e = NumericField::new(&tr("field-width"), &tr("stroke-width"), width)
         .suffix("px")
         .decimals(1)
         .speed(0.5)
@@ -102,26 +103,26 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
                 .named_segment(
                     Some(StrokeAlign::Center),
                     icons::STROKE_CENTER,
-                    "Center",
-                    "Center stroke",
+                    &tr("stroke-center"),
+                    &tr("stroke-center-name"),
                 )
                 .named_segment(
                     Some(StrokeAlign::Inside),
                     icons::STROKE_INSIDE,
-                    "Inside",
-                    "Inside stroke",
+                    &tr("stroke-inside"),
+                    &tr("stroke-inside-name"),
                 )
                 .named_segment(
                     Some(StrokeAlign::Outside),
                     icons::STROKE_OUTSIDE,
-                    "Outside",
-                    "Outside stroke",
+                    &tr("stroke-outside"),
+                    &tr("stroke-outside-name"),
                 )
                 .show(ui, align)
         })
         .inner;
     if let Some(Some(align)) = picked {
-        edit_strokes(env.ws, "Change Stroke Alignment", |s| s.align = align);
+        edit_strokes(env.ws, "undo-change-stroke-alignment", |s| s.align = align);
         env.ws.commit_pending(env.now);
     }
 

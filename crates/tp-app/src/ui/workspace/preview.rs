@@ -2,6 +2,7 @@
 //! it shows an explicit placeholder.
 
 use egui::{Align, Frame, Layout, Margin, RichText, Ui};
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, size, space};
@@ -19,11 +20,11 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, closable: bool) {
             ui.set_height(size::PANEL_HEADER_HEIGHT);
             ui.horizontal_centered(|ui| {
                 ui.label(icons::rich(icons::PREVIEW_3D).color(color::TEXT_SECONDARY));
-                ui.label(RichText::new("3D Preview").text_style(label_strong_style()));
+                ui.label(RichText::new(tr("cmd-3d-preview")).text_style(label_strong_style()));
                 if closable {
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         let hide =
-                            ui.add(IconButton::new(icons::CLOSE, "Hide 3D Preview").shortcut(
+                            ui.add(IconButton::new(icons::CLOSE, &tr("preview-hide")).shortcut(
                                 cmds.shortcuts.command(CommandId::TogglePreview).as_deref(),
                             ));
                         if hide.clicked() {
@@ -41,8 +42,8 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, closable: bool) {
         ui.set_max_width(320.0);
         EmptyState::new(
             icons::PREVIEW_3D,
-            "3D preview coming soon",
-            "Your livery will be shown on the vehicle model here once vehicle models are available.",
+            &tr("preview-soon"),
+            &tr("preview-soon-hint"),
         )
         .show(ui);
     });

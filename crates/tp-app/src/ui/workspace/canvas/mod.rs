@@ -14,6 +14,7 @@ use tp_core::document::{
 };
 use tp_core::kurbo;
 use tp_core::{Axis, Guide};
+use tp_i18n::tr;
 use tp_ui::tokens::canvas as tokens;
 
 use crate::commands::CommandId;
@@ -38,7 +39,7 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     ui.allocate_rect(full, Sense::hover());
     let (top_ruler, left_ruler, area) = aids::split(full);
     let response = ui.interact(area, ui.id().with("canvas"), Sense::click_and_drag());
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, "Canvas"));
+    response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, tr("canvas")));
     let rulers = [
         (
             ui.interact(top_ruler, ui.id().with("ruler_top"), Sense::drag()),
@@ -51,10 +52,10 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     ];
     for (ruler, axis) in &rulers {
         let label = match axis {
-            Axis::Horizontal => "Horizontal ruler",
-            Axis::Vertical => "Vertical ruler",
+            Axis::Horizontal => "canvas-ruler-horizontal",
+            Axis::Vertical => "canvas-ruler-vertical",
         };
-        ruler.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, label));
+        ruler.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, tr(label)));
     }
     let ctx = ui.ctx().clone();
     let ppp = ctx.pixels_per_point();
@@ -279,7 +280,7 @@ fn handle_ruler(
         }
     {
         ws.project.add_guide(Guide::new(axis, position));
-        ws.record("Add Guide", before, now, false);
+        ws.record("undo-add-guide", before, now, false);
         if !ws.aids.guides {
             ws.request_show_guides = true;
         }
@@ -718,7 +719,7 @@ fn direct_click(ws: &mut Workspace, doc: kurbo::Point, map: &ScreenMap, m: Modif
                     .get(id)
                     .is_some_and(|o| o.kind == ShapeKind::Path || o.is_group());
                 if !is_path {
-                    ws.show_hint("Use Object › Convert to Path to edit its points", now);
+                    ws.show_hint(tr("hint-convert-to-edit"), now);
                 }
             }
             None => ws.clear_points_or_selection(),
@@ -887,13 +888,13 @@ fn finish_gesture(
     ws.snapper = None;
     ws.snap_hits.clear();
     match gesture {
-        Gesture::Moving(base) => ws.record("Move", base.before, now, false),
+        Gesture::Moving(base) => ws.record("tool-move", base.before, now, false),
         Gesture::Gradient(drag) => {
             let label = gradient_tool::label(ws.panels.color_target);
             ws.record(label, drag.before, now, false);
         }
-        Gesture::Resizing { base, .. } => ws.record("Resize", base.before, now, false),
-        Gesture::Rotating { base, .. } => ws.record("Rotate", base.before, now, false),
+        Gesture::Resizing { base, .. } => ws.record("undo-resize", base.before, now, false),
+        Gesture::Rotating { base, .. } => ws.record("undo-rotate", base.before, now, false),
         Gesture::Drawing { kind, start, .. } => {
             if map.to_screen(start).distance(pointer) >= 2.0 {
                 if kind == ShapeKind::Path {
@@ -926,11 +927,11 @@ fn finish_gesture(
             ..
         } => {
             if area.contains(pointer) {
-                ws.record("Move Guide", before, now, false);
+                ws.record("undo-move-guide", before, now, false);
             } else {
                 // Dropped on a ruler or outside the canvas.
                 ws.project.remove_guide(i);
-                ws.record("Delete Guide", before, now, false);
+                ws.record("undo-delete-guide", before, now, false);
             }
         }
         Gesture::Guide { index: None, .. } => {}
@@ -1070,8 +1071,8 @@ fn eyedropper(ws: &mut Workspace, doc: kurbo::Point, map: &ScreenMap, now: f64) 
         ws.recent_candidate = Some(c);
     }
     let label = match target {
-        ColorTarget::Fill => "Change Fill",
-        ColorTarget::Stroke => "Change Stroke",
+        ColorTarget::Fill => "undo-change-fill",
+        ColorTarget::Stroke => "undo-change-stroke",
     };
     ws.apply_paint(target, paint, label);
     ws.commit_pending(now);

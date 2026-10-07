@@ -5,6 +5,7 @@ use egui::{
     Color32, CornerRadius, Key, Mesh, Painter, Pos2, Rect, Response, Sense, Shape, Stroke,
     StrokeKind, Ui, Vec2, WidgetInfo, WidgetType,
 };
+use tp_i18n::tr;
 
 use super::paint_focus_ring;
 use crate::tokens::{color, radius, stroke};
@@ -246,10 +247,15 @@ impl FillStrokeSwatches {
         let stroke_resp = ui.interact(stroke_rect, ui.id().with("stroke_swatch"), Sense::click());
         let fill_active = self.active == FillOrStroke::Fill;
         fill_resp.widget_info(|| {
-            WidgetInfo::selected(WidgetType::RadioButton, true, fill_active, "Fill")
+            WidgetInfo::selected(WidgetType::RadioButton, true, fill_active, tr("props-fill"))
         });
         stroke_resp.widget_info(|| {
-            WidgetInfo::selected(WidgetType::RadioButton, true, !fill_active, "Stroke")
+            WidgetInfo::selected(
+                WidgetType::RadioButton,
+                true,
+                !fill_active,
+                tr("panel-stroke"),
+            )
         });
 
         let painter = ui.painter();
@@ -290,8 +296,8 @@ impl FillStrokeSwatches {
             draw_fill(painter, false);
             draw_stroke(painter, true);
         }
-        let fill_clicked = fill_resp.on_hover_text("Fill (X to switch)").clicked();
-        let stroke_clicked = stroke_resp.on_hover_text("Stroke (X to switch)").clicked();
+        let fill_clicked = fill_resp.on_hover_text(tr("swatch-fill-tip")).clicked();
+        let stroke_clicked = stroke_resp.on_hover_text(tr("swatch-stroke-tip")).clicked();
         // The front swatch wins where they overlap.
         match (fill_clicked, stroke_clicked) {
             (true, true) => Some(self.active),
@@ -379,7 +385,9 @@ pub fn sv_square(ui: &mut Ui, hsva: &mut Hsv, height: f32) -> Response {
     let width = ui.available_width();
     let (rect, mut response) =
         ui.allocate_exact_size(Vec2::new(width, height), Sense::click_and_drag());
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, "Saturation and value"));
+    response.widget_info(|| {
+        WidgetInfo::labeled(WidgetType::Slider, true, tr("picker-saturation-value"))
+    });
     let painter = ui.painter_at(rect.expand(8.0));
 
     // White → hue horizontally, then transparent → black vertically.
@@ -478,7 +486,7 @@ fn strip_handle(painter: &Painter, rect: Rect, t: f32) {
 
 /// Hue slider (0..1 maps to 0..360°).
 pub fn hue_slider(ui: &mut Ui, hsva: &mut Hsv) -> Response {
-    let (rect, mut response) = slider_strip(ui, "Hue");
+    let (rect, mut response) = slider_strip(ui, &tr("colors-hue"));
     let painter = ui.painter();
     let mut mesh = Mesh::default();
     const STEPS: u32 = 6;
@@ -503,7 +511,7 @@ pub fn hue_slider(ui: &mut Ui, hsva: &mut Hsv) -> Response {
 
 /// Alpha slider over a checkerboard.
 pub fn alpha_slider(ui: &mut Ui, hsva: &mut Hsv) -> Response {
-    let (rect, mut response) = slider_strip(ui, "Opacity of color");
+    let (rect, mut response) = slider_strip(ui, &tr("picker-opacity"));
     let painter = ui.painter();
     paint_checkerboard(painter, rect, 7.0);
     let opaque_color = opaque(*hsva).to_color32();

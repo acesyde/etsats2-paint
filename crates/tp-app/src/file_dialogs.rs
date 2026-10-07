@@ -2,6 +2,7 @@
 
 use std::collections::VecDeque;
 use std::path::PathBuf;
+use tp_i18n::tr;
 
 pub trait FileDialogs {
     /// A `.truckpaint` file to open.
@@ -24,23 +25,23 @@ pub struct NativeDialogs;
 impl FileDialogs for NativeDialogs {
     fn open_project(&mut self) -> Option<PathBuf> {
         rfd::FileDialog::new()
-            .set_title("Open Project")
-            .add_filter("TruckPaint project", &[tp_file::EXTENSION])
+            .set_title(tr("dialog-open-project"))
+            .add_filter(tr("filter-project"), &[tp_file::EXTENSION])
             .pick_file()
     }
 
     fn save_project(&mut self, suggested: &str) -> Option<PathBuf> {
         rfd::FileDialog::new()
-            .set_title("Save Project")
-            .add_filter("TruckPaint project", &[tp_file::EXTENSION])
+            .set_title(tr("dialog-save-project"))
+            .add_filter(tr("filter-project"), &[tp_file::EXTENSION])
             .set_file_name(suggested)
             .save_file()
     }
 
     fn pick_images(&mut self) -> Vec<PathBuf> {
         rfd::FileDialog::new()
-            .set_title("Place")
-            .add_filter("Images", &["png", "jpg", "jpeg", "svg"])
+            .set_title(tr("cmd-place"))
+            .add_filter(tr("filter-images"), &["png", "jpg", "jpeg", "svg"])
             .pick_files()
             .unwrap_or_default()
     }
@@ -51,7 +52,7 @@ impl FileDialogs for NativeDialogs {
             .map(|e| e.to_string_lossy().into_owned())
             .unwrap_or_default();
         rfd::FileDialog::new()
-            .set_title("Export Texture")
+            .set_title(tr("dialog-export-texture"))
             .add_filter(ext.to_uppercase(), &[ext.as_str()])
             .set_file_name(suggested)
             .save_file()

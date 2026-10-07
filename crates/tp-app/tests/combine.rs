@@ -219,7 +219,7 @@ fn text_in_the_selection_disables_with_a_reason() {
         tp_app::commands::CommandId::Combine(tp_core::document::BooleanOp::Unite),
         &h.state().edit_context(),
     );
-    assert!(reason.unwrap().contains("Create Outlines"));
+    assert!(tp_i18n::tr(reason.unwrap()).contains("Create Outlines"));
 }
 
 #[test]
@@ -281,5 +281,5 @@ fn unite_from_the_panel() {
     h.run();
     let r = only_object(&h);
     assert_eq!(r.kind, ShapeKind::Path);
-    assert_eq!(ws(&h).history.undo_label(), Some("Unite"));
+    assert_eq!(ws(&h).history.undo_label(), Some("op-unite"));
 }

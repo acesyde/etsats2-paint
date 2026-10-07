@@ -574,7 +574,11 @@ fn draw_gesture_feedback(
                 ui,
                 painter,
                 pointer,
-                format!("{:.0} px · {angle:.1}°", a.distance(b)),
+                format!(
+                    "{:.0} px · {}°",
+                    a.distance(b),
+                    tp_i18n::localize_number(&format!("{angle:.1}"))
+                ),
             );
         }
         Gesture::Drawing {

@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
+use tp_i18n::tr;
 
 use tp_core::Project;
 use tp_core::document::Rgba;
@@ -78,16 +79,19 @@ impl ExportSettings {
 pub fn size_text(bytes: u64, exact: bool) -> String {
     let mb = bytes as f64 / (1024.0 * 1024.0);
     let value = if mb >= 10.0 {
-        format!("{mb:.0} MB")
+        tr!("size-mb", value = format!("{mb:.0}"))
     } else if mb >= 0.1 {
-        format!("{mb:.1} MB")
+        tr!(
+            "size-mb",
+            value = tp_i18n::localize_number(&format!("{mb:.1}")).into_owned()
+        )
     } else {
-        format!("{:.0} KB", bytes as f64 / 1024.0)
+        tr!("size-kb", value = format!("{:.0}", bytes as f64 / 1024.0))
     };
     if exact {
         value
     } else {
-        format!("about {value}")
+        tr!("size-about", value = value)
     }
 }
 
@@ -222,7 +226,7 @@ impl ExportJob {
             Err(mpsc::TryRecvError::Empty) => None,
             Err(mpsc::TryRecvError::Disconnected) => Some(ExportOutcome::Failed {
                 path: self.path.clone(),
-                reason: "the export stopped unexpectedly".into(),
+                reason: tr("export-stopped"),
             }),
         }
     }
@@ -231,7 +235,7 @@ impl ExportJob {
     pub fn wait(&self) -> ExportOutcome {
         self.done.recv().unwrap_or(ExportOutcome::Failed {
             path: self.path.clone(),
-            reason: "the export stopped unexpectedly".into(),
+            reason: tr("export-stopped"),
         })
     }
 }

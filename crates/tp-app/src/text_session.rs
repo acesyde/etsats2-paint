@@ -15,7 +15,7 @@ pub struct TextSession {
     pub edit: EditSession,
     /// Document before the session (one undo step on commit).
     pub before: Snapshot,
-    /// The text was created by this session ("Create Text").
+    /// The text was created by this session ("undo-create-text").
     pub created: bool,
     /// Time of the last caret change, so the caret is solid while typing.
     pub caret_since: f64,
@@ -118,7 +118,7 @@ impl Workspace {
     }
 
     /// Ends the session: an emptied text is removed; the session becomes one
-    /// "Create Text" or "Edit Text" step.
+    /// "undo-create-text" or "cmd-edit-text" step.
     pub fn end_text_session(&mut self, now: f64) {
         let Some(session) = self.text_session.take() else {
             return;
@@ -129,9 +129,9 @@ impl Workspace {
             self.selection.retain(|id| *id != session.id);
         }
         let label = if session.created {
-            "Create Text"
+            "undo-create-text"
         } else {
-            "Edit Text"
+            "cmd-edit-text"
         };
         self.record(label, session.before, now, false);
     }
@@ -325,7 +325,7 @@ mod tests {
         ws.end_text_session(1.0);
         assert_eq!(content(&ws, id), "ACE Logistics");
         assert_eq!(ws.history.len(), 1);
-        assert_eq!(ws.history.undo_label(), Some("Create Text"));
+        assert_eq!(ws.history.undo_label(), Some("undo-create-text"));
         assert_eq!(ws.selection, vec![id]);
     }
 
@@ -350,7 +350,7 @@ mod tests {
         assert_eq!(content(&ws, id), "ACE");
         type_text(&mut ws, " Logistics", 2.3);
         ws.end_text_session(3.0);
-        assert_eq!(ws.history.undo_label(), Some("Edit Text"));
+        assert_eq!(ws.history.undo_label(), Some("cmd-edit-text"));
         ws.undo();
         assert_eq!(content(&ws, id), "ACE");
     }
@@ -366,9 +366,9 @@ mod tests {
         ws.end_text_session(1.5);
         ws.selection = vec![a, b];
         let width = ws.project.surface().get(a).unwrap().frame.size.width;
-        ws.set_char_style("Change Text Size", |s| s.size = 300.0);
+        ws.set_char_style("undo-change-text-size", |s| s.size = 300.0);
         ws.commit_pending(2.0);
-        assert_eq!(ws.history.undo_label(), Some("Change Text Size"));
+        assert_eq!(ws.history.undo_label(), Some("undo-change-text-size"));
         for id in [a, b] {
             let o = ws.project.surface().get(id).unwrap();
             assert_eq!(o.text.as_ref().unwrap().style.size, 300.0);
@@ -388,7 +388,7 @@ mod tests {
             200.0
         );
         ws.selection.clear();
-        ws.set_char_style("Change Font", |s| s.family = "Oswald".into());
+        ws.set_char_style("undo-change-font", |s| s.family = "Oswald".into());
         assert_eq!(ws.text_style.family, "Oswald");
     }
 

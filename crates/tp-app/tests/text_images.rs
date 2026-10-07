@@ -217,7 +217,7 @@ fn escape_leaves_edit_mode() {
     let id = create_text(&mut h, 800.0, 900.0, "ACE");
     assert!(!ws(&h).is_editing_text());
     assert_eq!(ws(&h).selection, vec![id]);
-    assert_eq!(ws(&h).history.undo_label(), Some("Create Text"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-create-text"));
 }
 
 #[test]
@@ -290,7 +290,7 @@ fn undo_an_editing_session() {
     h.key_press(Key::Escape);
     settle(&mut h);
     assert_eq!(content(&h, id), "ACE Logistics");
-    assert_eq!(ws(&h).history.undo_label(), Some("Edit Text"));
+    assert_eq!(ws(&h).history.undo_label(), Some("cmd-edit-text"));
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
     settle(&mut h);
     assert_eq!(content(&h, id), "ACE");
@@ -376,7 +376,7 @@ fn centered_multi_line_text() {
         .block_layout(object.text.as_ref().unwrap());
     let centers: Vec<f64> = layout.lines.iter().map(|l| l.x + l.width / 2.0).collect();
     assert!((centers[0] - centers[1]).abs() < 0.5, "{centers:?}");
-    assert_eq!(ws(&h).history.undo_label(), Some("Change Alignment"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-change-alignment"));
 }
 
 #[test]
@@ -454,7 +454,7 @@ fn place_a_png() {
     assert!(matches!(image.kind, ShapeKind::Image { .. }));
     assert_eq!(image.frame.size, Size::new(800.0, 400.0));
     assert_eq!(image.frame.center, ws(&h).view_center());
-    assert_eq!(ws(&h).history.undo_label(), Some("Place"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-place"));
 }
 
 #[test]
@@ -749,10 +749,30 @@ fn pan_with_50_texts(align: tp_core::document::StrokeAlign) {
     pan_with_50_texts_with(align, false);
 }
 
+/// The same in French (translated labels every frame).
+#[test]
+#[ignore = "performance check; run with --release -- --ignored"]
+fn pan_with_50_texts_in_french_stays_fast() {
+    pan_with_50_texts_in(
+        tp_core::document::StrokeAlign::Center,
+        false,
+        tp_i18n::Language::French,
+    );
+}
+
 fn pan_with_50_texts_with(align: tp_core::document::StrokeAlign, gradients: bool) {
+    pan_with_50_texts_in(align, gradients, tp_i18n::Language::English);
+}
+
+fn pan_with_50_texts_in(
+    align: tp_core::document::StrokeAlign,
+    gradients: bool,
+    language: tp_i18n::Language,
+) {
     use tp_core::document::{CharStyle, TextBlock};
     use tp_core::document::{ColorStop, Gradient, GradientKind, Paint};
     let mut h = open();
+    h.state_mut().prefs.set_language(Some(language));
     {
         let ws = ws_mut(&mut h);
         for i in 0..50 {
@@ -788,7 +808,7 @@ fn pan_with_50_texts_with(align: tp_core::document::StrokeAlign, gradients: bool
             ws.project.add(o);
         }
     }
-    let align = (align, gradients);
+    let align = (align, gradients, language);
     let first = std::time::Instant::now();
     h.step();
     println!(

@@ -15,6 +15,7 @@ tp-ui = { path = "crates/tp-ui" }
 tp-text = { path = "crates/tp-text" }
 tp-file = { path = "crates/tp-file" }
 tp-render = { path = "crates/tp-render" }
+tp-i18n = { path = "crates/tp-i18n" }
 
 eframe = { version = "0.36.2", default-features = false, features = ["wgpu", "default_fonts", "accesskit", "persistence", "wayland", "x11"] }
 egui = "0.36.2"
@@ -38,6 +39,10 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-appender = "0.2.5"
 tempfile = "3"
+fluent-bundle = "0.16.0"
+fluent-syntax = "0.12.0"
+unic-langid = { version = "0.9.6", features = ["macros"] }
+sys-locale = "0.3.2"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

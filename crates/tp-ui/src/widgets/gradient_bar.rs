@@ -5,6 +5,7 @@ use egui::{
     Color32, CornerRadius, Id, Key, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
     WidgetInfo, WidgetType,
 };
+use tp_i18n::tr;
 
 use super::color_widgets::{GradientPreview, paint_checkerboard};
 use crate::tokens::{color, size, stroke};
@@ -90,7 +91,8 @@ impl<'a> GradientBar<'a> {
             Stroke::new(stroke::HAIRLINE, color::BORDER_STRONG),
             StrokeKind::Outside,
         );
-        bar_response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, "Gradient bar"));
+        bar_response
+            .widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, tr("gradient-bar")));
 
         let mut event = None;
         let dragging_off = Id::new((self.id, "off"));
@@ -102,7 +104,11 @@ impl<'a> GradientBar<'a> {
                 rect.expand2(Vec2::new(0.0, (size::HIT_MIN - MARKER.y) / 2.0).max(Vec2::ZERO));
             let response = ui.interact(hit, self.id.with(i), Sense::click_and_drag());
             let selected = i == self.selected;
-            let name = format!("Stop {} at {:.0}%", i + 1, offset * 100.0);
+            let name = tr!(
+                "gradient-stop",
+                index = i + 1,
+                location = (offset * 100.0).round()
+            );
             response
                 .widget_info(|| WidgetInfo::selected(WidgetType::Button, true, selected, &name));
             if response.clicked() || response.drag_started() {

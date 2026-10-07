@@ -44,14 +44,24 @@ pub enum BooleanError {
     Failed,
 }
 
+/// Why an object cannot be combined.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OperandProblem {
+    /// Open lines have no area.
+    OpenLine,
+    /// Texts must be outlined first.
+    Text,
+    Image,
+}
+
 /// Why an object cannot take part in a combination, if it cannot.
-pub fn operand_problem(o: &Object) -> Option<&'static str> {
+pub fn operand_problem(o: &Object) -> Option<OperandProblem> {
     match o.kind {
         ShapeKind::Rectangle { .. } | ShapeKind::Ellipse | ShapeKind::Polygon { .. } => None,
         ShapeKind::Path if o.path_data().is_some_and(PathData::has_closed) => None,
-        ShapeKind::Path => Some("Open lines have no area to combine."),
-        ShapeKind::Text => Some("Texts cannot be combined: use Create Outlines first."),
-        ShapeKind::Image { .. } => Some("Images cannot be combined."),
+        ShapeKind::Path => Some(OperandProblem::OpenLine),
+        ShapeKind::Text => Some(OperandProblem::Text),
+        ShapeKind::Image { .. } => Some(OperandProblem::Image),
         ShapeKind::Group => o
             .children
             .iter()
@@ -560,7 +570,7 @@ mod tests {
     fn operand_problems() {
         let mut t = rect(0.0, 0.0, 1.0, 1.0);
         t.kind = ShapeKind::Text;
-        assert!(operand_problem(&t).unwrap().contains("Create Outlines"));
+        assert_eq!(operand_problem(&t), Some(OperandProblem::Text));
         let line = Object::from_path(
             ObjectId(4),
             PathData::new(vec![Subpath::new(

@@ -7,6 +7,7 @@ use egui::{
 use tp_core::document::{
     ColorStop, Frame, Gradient, GradientKind, Hsla, Hsva, MAX_STOPS, Paint, PaintKind, Rgba,
 };
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, space};
 use tp_ui::widgets::{
@@ -101,7 +102,7 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         }
         if target == ColorTarget::Stroke {
             ui.add_space(space::SM);
-            if ColorSwatch::new(SwatchColor::None, "No stroke")
+            if ColorSwatch::new(SwatchColor::None, &tr("colors-no-stroke"))
                 .show(ui)
                 .clicked()
             {
@@ -168,20 +169,20 @@ fn paint_kind(ui: &mut Ui, env: &mut PanelEnv<'_>) {
                 .named_segment(
                     Some(PaintKind::Solid),
                     icons::PAINT_SOLID,
-                    "Solid",
-                    "Solid paint",
+                    &tr("colors-solid"),
+                    &tr("colors-solid-paint"),
                 )
                 .named_segment(
                     Some(PaintKind::Linear),
                     icons::PAINT_LINEAR,
-                    "Linear",
-                    "Linear gradient",
+                    &tr("colors-linear"),
+                    &tr("colors-linear-gradient"),
                 )
                 .named_segment(
                     Some(PaintKind::Radial),
                     icons::PAINT_RADIAL,
-                    "Radial",
-                    "Radial gradient",
+                    &tr("colors-radial"),
+                    &tr("colors-radial-gradient"),
                 )
                 .show(ui, kind)
         })
@@ -195,8 +196,8 @@ fn paint_kind(ui: &mut Ui, env: &mut PanelEnv<'_>) {
 
 fn gradient_label(target: ColorTarget) -> &'static str {
     match target {
-        ColorTarget::Fill => "Change Fill Gradient",
-        ColorTarget::Stroke => "Change Stroke Gradient",
+        ColorTarget::Fill => "undo-change-fill-gradient",
+        ColorTarget::Stroke => "undo-change-stroke-gradient",
     }
 }
 
@@ -287,12 +288,16 @@ fn gradient_editor(ui: &mut Ui, env: &mut PanelEnv<'_>, g: &Gradient) {
     let selected = selected_stop(env.ws, &g);
     ui.horizontal(|ui| {
         let location = f64::from(g.stops()[selected].offset) * 100.0;
-        let e = NumericField::new("Location", "Stop location", Some(location))
-            .suffix("%")
-            .decimals(0)
-            .range(0.0..=100.0)
-            .width(40.0)
-            .show(ui);
+        let e = NumericField::new(
+            &tr("colors-location"),
+            &tr("colors-stop-location"),
+            Some(location),
+        )
+        .suffix("%")
+        .decimals(0)
+        .range(0.0..=100.0)
+        .width(40.0)
+        .show(ui);
         let at = |v: f64| (v / 100.0) as f32;
         match e {
             FieldEvent::Live(v) | FieldEvent::Commit(v) => {
@@ -304,12 +309,16 @@ fn gradient_editor(ui: &mut Ui, env: &mut PanelEnv<'_>, g: &Gradient) {
             FieldEvent::Revert => env.ws.cancel_pending(),
             FieldEvent::None => {}
         }
-        let e = NumericField::new("Angle", "Gradient angle", Some(g.angle(&frame)))
-            .suffix("°")
-            .decimals(0)
-            .range(-180.0..=180.0)
-            .width(40.0)
-            .show(ui);
+        let e = NumericField::new(
+            &tr("colors-angle"),
+            &tr("colors-gradient-angle"),
+            Some(g.angle(&frame)),
+        )
+        .suffix("°")
+        .decimals(0)
+        .range(-180.0..=180.0)
+        .width(40.0)
+        .show(ui);
         match e {
             FieldEvent::Live(v) | FieldEvent::Commit(v) => {
                 let commit = matches!(e, FieldEvent::Commit(_));
@@ -319,7 +328,7 @@ fn gradient_editor(ui: &mut Ui, env: &mut PanelEnv<'_>, g: &Gradient) {
             FieldEvent::None => {}
         }
         if ui
-            .add(IconButton::new(icons::REVERSE, "Reverse gradient"))
+            .add(IconButton::new(icons::REVERSE, &tr("colors-reverse")))
             .clicked()
         {
             edit_gradient(env, &g, true, |out, _| out.reverse());
@@ -327,8 +336,8 @@ fn gradient_editor(ui: &mut Ui, env: &mut PanelEnv<'_>, g: &Gradient) {
     });
     if g.kind == GradientKind::Radial {
         let e = NumericField::new(
-            "Aspect",
-            "Gradient aspect ratio",
+            &tr("colors-aspect"),
+            &tr("colors-aspect-ratio"),
             Some(g.aspect(&frame) * 100.0),
         )
         .suffix("%")
@@ -355,7 +364,7 @@ fn remove_stroke(env: &mut PanelEnv<'_>) {
         return;
     }
     env.ws
-        .map_selected_shapes("Remove Stroke", |o| o.stroke = None);
+        .map_selected_shapes("undo-remove-stroke", |o| o.stroke = None);
     env.ws.commit_pending(env.now);
 }
 
@@ -370,11 +379,11 @@ fn channel_fields(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>, ba
         .show(ui, |ui| match model {
             ColorModel::Rgb => {
                 for (label, name, value, set) in [
-                    ("R", "Red", current.map(|c| f64::from(c.r)), 0usize),
-                    ("G", "Green", current.map(|c| f64::from(c.g)), 1),
-                    ("B", "Blue", current.map(|c| f64::from(c.b)), 2),
+                    ("R", "colors-red", current.map(|c| f64::from(c.r)), 0usize),
+                    ("G", "colors-green", current.map(|c| f64::from(c.g)), 1),
+                    ("B", "colors-blue", current.map(|c| f64::from(c.b)), 2),
                 ] {
-                    let e = NumericField::new(label, name, value)
+                    let e = NumericField::new(label, &tr(name), value)
                         .range(0.0..=255.0)
                         .width(36.0)
                         .show(ui);
@@ -397,17 +406,23 @@ fn channel_fields(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>, ba
             ColorModel::Hsv => {
                 let h = current.map(Hsva::from);
                 for (label, name, value, set, max) in [
-                    ("H", "Hue", h.map(|h| f64::from(h.h)), 0usize, 360.0),
+                    ("H", "colors-hue", h.map(|h| f64::from(h.h)), 0usize, 360.0),
                     (
                         "S",
-                        "Saturation",
+                        "colors-saturation",
                         h.map(|h| f64::from(h.s) * 100.0),
                         1,
                         100.0,
                     ),
-                    ("V", "Value", h.map(|h| f64::from(h.v) * 100.0), 2, 100.0),
+                    (
+                        "V",
+                        "colors-value",
+                        h.map(|h| f64::from(h.v) * 100.0),
+                        2,
+                        100.0,
+                    ),
                 ] {
-                    let e = NumericField::new(label, name, value)
+                    let e = NumericField::new(label, &tr(name), value)
                         .range(0.0..=max)
                         .width(36.0)
                         .show(ui);
@@ -429,23 +444,23 @@ fn channel_fields(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>, ba
             ColorModel::Hsl => {
                 let h = current.map(Hsla::from);
                 for (label, name, value, set, max) in [
-                    ("H", "Hue", h.map(|h| f64::from(h.h)), 0usize, 360.0),
+                    ("H", "colors-hue", h.map(|h| f64::from(h.h)), 0usize, 360.0),
                     (
                         "S",
-                        "Saturation",
+                        "colors-saturation",
                         h.map(|h| f64::from(h.s) * 100.0),
                         1,
                         100.0,
                     ),
                     (
                         "L",
-                        "Lightness",
+                        "colors-lightness",
                         h.map(|h| f64::from(h.l) * 100.0),
                         2,
                         100.0,
                     ),
                 ] {
-                    let e = NumericField::new(label, name, value)
+                    let e = NumericField::new(label, &tr(name), value)
                         .range(0.0..=max)
                         .width(36.0)
                         .show(ui);
@@ -481,7 +496,7 @@ fn channel_fields(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>, ba
 type ChannelChange = (FieldEvent, Box<dyn Fn(f64) -> Rgba>);
 
 fn alpha_field(ui: &mut Ui, changes: &mut Vec<ChannelChange>, alpha: Option<f64>, base: Rgba) {
-    let e = NumericField::new("A", "Alpha", alpha)
+    let e = NumericField::new("A", &tr("colors-alpha"), alpha)
         .suffix("%")
         .range(0.0..=100.0)
         .width(36.0)
@@ -505,16 +520,26 @@ fn hex_field(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
         .unwrap_or_else(|| current.map(Rgba::to_hex).unwrap_or_default());
     let mut error = ui.data(|d| d.get_temp::<bool>(error_id)).unwrap_or(false);
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Hex").small().color(color::TEXT_SECONDARY));
+        ui.label(
+            RichText::new(tr("colors-hex"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        );
         tp_ui::widgets::remember_escape(ui, id.with("edit"));
         let response = ui.add(
             TextEdit::singleline(&mut buffer)
                 .id(id.with("edit"))
                 .desired_width(96.0)
                 .margin(Margin::symmetric(6, 3))
-                .hint_text(if current.is_none() { "Mixed" } else { "" }),
+                .hint_text(if current.is_none() {
+                    tr("mixed")
+                } else {
+                    String::new()
+                }),
         );
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, "Hex color"));
+        response.widget_info(|| {
+            WidgetInfo::labeled(WidgetType::TextEdit, true, tr("colors-hex-color"))
+        });
         if response.changed() {
             error = false;
         }
@@ -541,7 +566,7 @@ fn hex_field(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
                 StrokeKind::Outside,
             );
             ui.label(icons::rich(icons::WARNING).color(color::ERROR))
-                .on_hover_text("Invalid hex color. Use #RGB, #RRGGBB or #RRGGBBAA.");
+                .on_hover_text(tr("colors-hex-invalid"));
         }
     });
     ui.data_mut(|d| d.insert_temp(error_id, error));
@@ -551,7 +576,11 @@ fn recent_colors(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     if env.recent_colors.is_empty() {
         return;
     }
-    ui.label(RichText::new("Recent").small().color(color::TEXT_SECONDARY));
+    ui.label(
+        RichText::new(tr("colors-recent"))
+            .small()
+            .color(color::TEXT_SECONDARY),
+    );
     let recent: Vec<Rgba> = env
         .recent_colors
         .iter()
@@ -560,7 +589,7 @@ fn recent_colors(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = space::XXS;
         for c in recent {
-            let name = format!("Recent color {}", label_for(c));
+            let name = tr!("colors-recent-item", color = label_for(c));
             let swatch = SwatchColor::Solid(Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a));
             if ColorSwatch::new(swatch, &name)
                 .size(18.0)
@@ -576,27 +605,28 @@ fn recent_colors(ui: &mut Ui, env: &mut PanelEnv<'_>) {
 fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
     ui.horizontal(|ui| {
         ui.label(
-            RichText::new("Palette")
+            RichText::new(tr("colors-palette"))
                 .small()
                 .color(color::TEXT_SECONDARY),
         );
         let add = ui.add_enabled(
             current.is_some(),
-            IconButton::new(icons::ADD, "Add to Palette")
-                .disabled_reason("Colors differ in the selection."),
+            IconButton::new(icons::ADD, &tr("colors-add-to-palette"))
+                .disabled_reason(&tr("colors-differ")),
         );
         if add.clicked()
             && let Some(c) = current
         {
-            env.ws.edit("Add to Palette", env.now, false, |project, _| {
-                project.add_to_palette(c);
-            });
+            env.ws
+                .edit("colors-add-to-palette", env.now, false, |project, _| {
+                    project.add_to_palette(c);
+                });
         }
     });
     let palette = env.ws.project.palette.clone();
     if palette.is_empty() {
         ui.label(
-            RichText::new("Save colors you reuse with +.")
+            RichText::new(tr("colors-palette-empty"))
                 .small()
                 .color(color::TEXT_DISABLED),
         );
@@ -605,7 +635,7 @@ fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = space::XXS;
         for c in palette {
-            let name = format!("Palette color {}", label_for(c));
+            let name = tr!("colors-palette-item", color = label_for(c));
             let swatch = SwatchColor::Solid(Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a));
             let response = ColorSwatch::new(swatch, &name).size(18.0).show(ui);
             if response.clicked() {
@@ -613,13 +643,19 @@ fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
             }
             response.context_menu(|ui| {
                 if ui
-                    .add(tp_ui::widgets::MenuRow::new("Remove from Palette"))
+                    .add(tp_ui::widgets::MenuRow::new(&tr(
+                        "colors-remove-from-palette",
+                    )))
                     .clicked()
                 {
-                    env.ws
-                        .edit("Remove from Palette", env.now, false, |project, _| {
+                    env.ws.edit(
+                        "colors-remove-from-palette",
+                        env.now,
+                        false,
+                        |project, _| {
                             project.palette.retain(|p| *p != c);
-                        });
+                        },
+                    );
                     ui.close();
                 }
             });

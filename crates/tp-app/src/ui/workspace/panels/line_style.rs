@@ -3,6 +3,7 @@
 
 use egui::{Checkbox, Ui, WidgetInfo, WidgetType};
 use tp_core::document::{Cap, Dash, Join, LineStyle};
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::color;
 use tp_ui::widgets::{FieldEvent, MenuRow, NumericField, SegmentedControl};
@@ -31,9 +32,9 @@ impl Preset {
 
     pub fn label(self) -> &'static str {
         match self {
-            Preset::Dashed => "Dashed 20/10",
-            Preset::Dotted => "Dotted 0/12",
-            Preset::LongDash => "Long dash 60/20",
+            Preset::Dashed => "line-preset-dashed",
+            Preset::Dotted => "line-preset-dotted",
+            Preset::LongDash => "line-preset-long-dash",
         }
     }
 }
@@ -55,12 +56,12 @@ impl LineEdit {
     /// Undo label for a change of `what` ("Stroke" or "Line").
     pub fn label(self, line: bool) -> &'static str {
         match (self, line) {
-            (LineEdit::Cap(_), false) => "Change Stroke Caps",
-            (LineEdit::Join(_) | LineEdit::MiterLimit(_), false) => "Change Stroke Joins",
-            (_, false) => "Change Stroke Dashes",
-            (LineEdit::Cap(_), true) => "Change Line Caps",
-            (LineEdit::Join(_) | LineEdit::MiterLimit(_), true) => "Change Line Joins",
-            (_, true) => "Change Line Dashes",
+            (LineEdit::Cap(_), false) => "undo-change-stroke-caps",
+            (LineEdit::Join(_) | LineEdit::MiterLimit(_), false) => "undo-change-stroke-joins",
+            (_, false) => "undo-change-stroke-dashes",
+            (LineEdit::Cap(_), true) => "undo-change-line-caps",
+            (LineEdit::Join(_) | LineEdit::MiterLimit(_), true) => "undo-change-line-joins",
+            (_, true) => "undo-change-line-dashes",
         }
     }
 
@@ -148,8 +149,10 @@ pub fn controls(ui: &mut Ui, styles: &[LineStyle], last: Dash) -> Option<Change>
         let on = dashed == Some(true);
         let mut checked = on;
         let response =
-            ui.add(Checkbox::new(&mut checked, "Dashed").indeterminate(dashed.is_none()));
-        response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, true, on, "Dashed"));
+            ui.add(Checkbox::new(&mut checked, tr("line-dashed")).indeterminate(dashed.is_none()));
+        response.widget_info(|| {
+            WidgetInfo::selected(WidgetType::Checkbox, true, on, tr("line-dashed"))
+        });
         if response.clicked() {
             // Mixed or off: turn on; on: turn off.
             let last = common(dashes.iter().copied()).unwrap_or(last);
@@ -158,9 +161,9 @@ pub fn controls(ui: &mut Ui, styles: &[LineStyle], last: Dash) -> Option<Change>
                 commit: true,
             }));
         }
-        let presets = ui.menu_button("Presets", |ui| {
+        let presets = ui.menu_button(tr("line-presets"), |ui| {
             for preset in Preset::ALL {
-                if ui.add(MenuRow::new(preset.label())).clicked() {
+                if ui.add(MenuRow::new(&tr(preset.label()))).clicked() {
                     set(Some(Change::Apply {
                         edit: LineEdit::Preset(preset),
                         commit: true,
@@ -171,12 +174,12 @@ pub fn controls(ui: &mut Ui, styles: &[LineStyle], last: Dash) -> Option<Change>
         });
         presets
             .response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, "Dash presets"));
+            .widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, tr("line-dash-presets")));
     });
     if !dashes.is_empty() {
         ui.horizontal(|ui| {
             let dash = common(dashes.iter().map(|d| d.dash));
-            let e = NumericField::new("Dash", "Dash length", dash)
+            let e = NumericField::new(&tr("line-dash"), &tr("line-dash-length"), dash)
                 .suffix("px")
                 .decimals(1)
                 .range(0.0..=2000.0)
@@ -184,7 +187,7 @@ pub fn controls(ui: &mut Ui, styles: &[LineStyle], last: Dash) -> Option<Change>
                 .show(ui);
             set(field_change(e, LineEdit::Dash));
             let gap = common(dashes.iter().map(|d| d.gap));
-            let e = NumericField::new("Gap", "Gap length", gap)
+            let e = NumericField::new(&tr("line-gap"), &tr("line-gap-length"), gap)
                 .suffix("px")
                 .decimals(1)
                 .range(0.5..=2000.0)
@@ -194,14 +197,29 @@ pub fn controls(ui: &mut Ui, styles: &[LineStyle], last: Dash) -> Option<Change>
         });
     }
     ui.horizontal(|ui| {
-        row_label(ui, "Cap");
+        row_label(ui, &tr("line-cap"));
         let cap = common(styles.iter().map(|s| s.cap));
         let picked = ui
             .push_id("cap", |ui| {
                 SegmentedControl::new()
-                    .named_segment(Some(Cap::Butt), icons::CAP_BUTT, "Butt", "Butt cap")
-                    .named_segment(Some(Cap::Round), icons::CAP_ROUND, "Round", "Round cap")
-                    .named_segment(Some(Cap::Square), icons::CAP_SQUARE, "Square", "Square cap")
+                    .named_segment(
+                        Some(Cap::Butt),
+                        icons::CAP_BUTT,
+                        &tr("line-butt"),
+                        &tr("line-butt-cap"),
+                    )
+                    .named_segment(
+                        Some(Cap::Round),
+                        icons::CAP_ROUND,
+                        &tr("line-round"),
+                        &tr("line-round-cap"),
+                    )
+                    .named_segment(
+                        Some(Cap::Square),
+                        icons::CAP_SQUARE,
+                        &tr("line-square"),
+                        &tr("line-square-cap"),
+                    )
                     .show(ui, cap)
             })
             .inner;
@@ -214,13 +232,28 @@ pub fn controls(ui: &mut Ui, styles: &[LineStyle], last: Dash) -> Option<Change>
     });
     let join = common(styles.iter().map(|s| s.join));
     ui.horizontal(|ui| {
-        row_label(ui, "Join");
+        row_label(ui, &tr("line-join"));
         let picked = ui
             .push_id("join", |ui| {
                 SegmentedControl::new()
-                    .named_segment(Some(Join::Miter), icons::JOIN_MITER, "Miter", "Miter join")
-                    .named_segment(Some(Join::Round), icons::JOIN_ROUND, "Round", "Round join")
-                    .named_segment(Some(Join::Bevel), icons::JOIN_BEVEL, "Bevel", "Bevel join")
+                    .named_segment(
+                        Some(Join::Miter),
+                        icons::JOIN_MITER,
+                        &tr("line-miter"),
+                        &tr("line-miter-join"),
+                    )
+                    .named_segment(
+                        Some(Join::Round),
+                        icons::JOIN_ROUND,
+                        &tr("line-round"),
+                        &tr("line-round-join"),
+                    )
+                    .named_segment(
+                        Some(Join::Bevel),
+                        icons::JOIN_BEVEL,
+                        &tr("line-bevel"),
+                        &tr("line-bevel-join"),
+                    )
                     .show(ui, join)
             })
             .inner;
@@ -233,7 +266,7 @@ pub fn controls(ui: &mut Ui, styles: &[LineStyle], last: Dash) -> Option<Change>
     });
     if join == Some(Join::Miter) {
         let limit = common(styles.iter().map(|s| s.miter_limit));
-        let e = NumericField::new("Limit", "Miter limit", limit)
+        let e = NumericField::new(&tr("line-limit"), &tr("line-miter-limit"), limit)
             .decimals(1)
             .speed(0.1)
             .range(1.0..=20.0)

@@ -141,8 +141,8 @@ pub fn update(ws: &mut Workspace, drag: &GradientDrag, pointer: Point, shift: bo
 /// Undo label of a gradient drag.
 pub fn label(target: ColorTarget) -> &'static str {
     match target {
-        ColorTarget::Fill => "Change Fill Gradient",
-        ColorTarget::Stroke => "Change Stroke Gradient",
+        ColorTarget::Fill => "undo-change-fill-gradient",
+        ColorTarget::Stroke => "undo-change-stroke-gradient",
     }
 }
 

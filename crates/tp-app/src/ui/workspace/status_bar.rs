@@ -1,6 +1,7 @@
 //! Status bar: zoom, pointer position, active surface, save state.
 
 use egui::{Align, Layout, RichText, Ui};
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, space};
 
@@ -24,7 +25,7 @@ fn divider(ui: &mut Ui) {
 /// Formats a zoom percentage compactly (`12.5%`, `67%`).
 pub fn format_zoom(percent: f32) -> String {
     if percent < 10.0 {
-        format!("{percent:.1}%")
+        format!("{}%", tp_i18n::localize_number(&format!("{percent:.1}")))
     } else {
         format!("{percent:.0}%")
     }
@@ -36,7 +37,7 @@ pub fn show(ui: &mut Ui, ws: &Workspace, view_mode: ViewMode) {
             (true, Some(view)) => format_zoom((view.zoom * 100.0) as f32),
             _ => "—".to_owned(),
         };
-        item(ui, format!("Zoom {zoom}"));
+        item(ui, tr!("status-zoom", zoom = zoom));
         divider(ui);
 
         let ppp = ui.ctx().pixels_per_point();
@@ -62,9 +63,9 @@ pub fn show(ui: &mut Ui, ws: &Workspace, view_mode: ViewMode) {
 
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let (icon, text, tint) = match ws.save_state() {
-                SaveState::Saved => (icons::SAVED, "Saved", color::SUCCESS),
-                SaveState::Unsaved => (icons::UNSAVED, "Unsaved changes", color::WARNING),
-                SaveState::Saving => (icons::SAVE, "Saving…", color::TEXT_SECONDARY),
+                SaveState::Saved => (icons::SAVED, tr("status-saved"), color::SUCCESS),
+                SaveState::Unsaved => (icons::UNSAVED, tr("status-unsaved"), color::WARNING),
+                SaveState::Saving => (icons::SAVE, tr("status-saving"), color::TEXT_SECONDARY),
             };
             ui.label(RichText::new(text).small().color(color::TEXT_PRIMARY));
             ui.label(icons::rich(icon).color(tint));

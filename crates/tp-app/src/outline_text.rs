@@ -1,6 +1,7 @@
 //! Object › Create Outlines: texts become groups of letter paths.
 
 use std::sync::Arc;
+use tp_i18n::tr;
 
 use tp_core::document::{Object, ObjectId, PathData, ShapeKind};
 use tp_core::kurbo::Affine;
@@ -18,7 +19,7 @@ pub fn group_name(content: &str) -> String {
         name.push('…');
     }
     if name.is_empty() {
-        "Text".to_owned()
+        tr("object-text")
     } else {
         name
     }
@@ -92,7 +93,7 @@ impl Workspace {
         if groups.is_empty() {
             return;
         }
-        self.edit("Create Outlines", now, false, |project, _| {
+        self.edit("cmd-create-outlines", now, false, |project, _| {
             for (id, group) in groups {
                 project.replace_with_group(id, group);
             }
@@ -133,7 +134,7 @@ mod tests {
         assert_eq!(names, ["A", "C", "E"]);
         assert!(group.children.iter().all(|c| c.kind == ShapeKind::Path));
         assert_eq!(ws.selection, vec![id], "the group (same id) stays selected");
-        assert_eq!(ws.history.undo_label(), Some("Create Outlines"));
+        assert_eq!(ws.history.undo_label(), Some("cmd-create-outlines"));
         ws.undo();
         assert_eq!(ws.project.surface().get(id).unwrap().kind, ShapeKind::Text);
     }

@@ -29,13 +29,13 @@ impl PanelKind {
 
     pub fn title(self) -> &'static str {
         match self {
-            Self::Properties => "Properties",
-            Self::Layers => "Layers",
-            Self::Colors => "Colors",
-            Self::Stroke => "Stroke",
-            Self::Transform => "Transform",
-            Self::Assets => "Assets",
-            Self::Vehicle => "Vehicle",
+            Self::Properties => "panel-properties",
+            Self::Layers => "panel-layers",
+            Self::Colors => "panel-colors",
+            Self::Stroke => "panel-stroke",
+            Self::Transform => "panel-transform",
+            Self::Assets => "panel-assets",
+            Self::Vehicle => "panel-vehicle",
         }
     }
 
@@ -54,31 +54,13 @@ impl PanelKind {
     /// Empty-state text shown until the panel's feature exists.
     pub fn empty_state(self) -> (&'static str, &'static str) {
         match self {
-            Self::Properties => (
-                "Nothing selected",
-                "Select an object on the canvas to edit its properties.",
-            ),
-            Self::Layers => (
-                "No layers yet",
-                "Shapes, text and images you add will appear here.",
-            ),
-            Self::Colors => (
-                "No color selected",
-                "Pick a fill or stroke to edit its color.",
-            ),
-            Self::Stroke => ("No stroke", "Select an object to edit its outline."),
-            Self::Transform => (
-                "Nothing to transform",
-                "Select an object to edit position, size and rotation.",
-            ),
-            Self::Assets => (
-                "No assets",
-                "Imported logos and images will be listed here.",
-            ),
-            Self::Vehicle => (
-                "No vehicle",
-                "Vehicle templates will be available in a future update.",
-            ),
+            Self::Properties => ("empty-properties", "empty-properties-hint"),
+            Self::Layers => ("empty-layers", "empty-layers-hint"),
+            Self::Colors => ("empty-colors", "empty-colors-hint"),
+            Self::Stroke => ("empty-stroke", "empty-stroke-hint"),
+            Self::Transform => ("empty-transform", "empty-transform-hint"),
+            Self::Assets => ("empty-assets", "empty-assets-hint"),
+            Self::Vehicle => ("empty-vehicle", "empty-vehicle-hint"),
         }
     }
 }
@@ -95,9 +77,9 @@ pub enum ViewMode {
 impl ViewMode {
     pub fn label(self) -> &'static str {
         match self {
-            Self::TwoD => "2D",
-            Self::ThreeD => "3D",
-            Self::Split => "Split",
+            Self::TwoD => "view-2d",
+            Self::ThreeD => "view-3d",
+            Self::Split => "view-split",
         }
     }
 

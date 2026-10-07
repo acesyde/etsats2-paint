@@ -4,6 +4,7 @@
 use egui::{RichText, Slider, Ui, WidgetInfo, WidgetType};
 use tp_core::AssetKind;
 use tp_core::document::{GradientKind, LineStyle, Object, Paint, ShapeKind};
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, space};
@@ -77,7 +78,7 @@ fn set_opacity(ws: &mut Workspace, percent: f64) {
     for o in &mut objects {
         o.opacity = (percent / 100.0).clamp(0.0, 1.0) as f32;
     }
-    ws.live_edit("Change Opacity", |project, _| {
+    ws.live_edit("undo-change-opacity", |project, _| {
         project.surface_mut().replace(&objects)
     });
 }
@@ -90,7 +91,7 @@ fn set_corner_radius(ws: &mut Workspace, radius: f64) {
             *corner_radius = radius.clamp(0.0, max);
         }
     }
-    ws.live_edit("Change Corner Radius", |project, _| {
+    ws.live_edit("undo-change-corner-radius", |project, _| {
         project.surface_mut().replace(&objects)
     });
 }
@@ -114,12 +115,12 @@ fn edit_polygons(ws: &mut Workspace, label: &'static str, f: impl Fn(&mut u8, &m
 
 fn set_sides(ws: &mut Workspace, value: f64) {
     let sides = value.round().clamp(3.0, 12.0) as u8;
-    edit_polygons(ws, "Change Sides", |s, _| *s = sides);
+    edit_polygons(ws, "undo-change-sides", |s, _| *s = sides);
 }
 
 fn set_inner_radius(ws: &mut Workspace, percent: f64) {
     let inner = (percent / 100.0).clamp(0.1, 0.9);
-    edit_polygons(ws, "Change Inner Radius", |_, star| {
+    edit_polygons(ws, "undo-change-inner-radius", |_, star| {
         if star.is_some() {
             *star = Some(inner);
         }
@@ -135,7 +136,7 @@ fn set_line_width(ws: &mut Workspace, width: f64) {
         }
     }
     ws.line_width = width;
-    ws.live_edit("Change Line Width", |project, _| {
+    ws.live_edit("undo-change-line-width", |project, _| {
         project.surface_mut().replace(&objects)
     });
 }
@@ -160,19 +161,22 @@ fn polygon_settings(ui: &mut Ui, env: &mut PanelEnv<'_>, polygons: &[(u8, Option
     let sides = common(polygons.iter().map(|(s, _)| *s)).map(f64::from);
     let stars = common(polygons.iter().map(|(_, star)| star.is_some()));
     ui.horizontal(|ui| {
-        let e = NumericField::new("Sides", "Sides", sides)
+        let e = NumericField::new(&tr("props-sides"), &tr("props-sides"), sides)
             .range(3.0..=12.0)
             .width(44.0)
             .show(ui);
         apply_field(env, e, set_sides);
         ui.add_space(space::SM);
         let mut checked = stars == Some(true);
-        let response =
-            ui.add(egui::Checkbox::new(&mut checked, "Star").indeterminate(stars.is_none()));
-        response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, true, checked, "Star"));
+        let response = ui.add(
+            egui::Checkbox::new(&mut checked, tr("props-star")).indeterminate(stars.is_none()),
+        );
+        response.widget_info(|| {
+            WidgetInfo::selected(WidgetType::Checkbox, true, checked, tr("props-star"))
+        });
         if response.changed() {
             let inner = env.ws.polygon_style.inner;
-            edit_polygons(env.ws, "Change Star", |_, star| {
+            edit_polygons(env.ws, "undo-change-star", |_, star| {
                 *star = checked.then_some(inner);
             });
             env.ws.commit_pending(env.now);
@@ -181,7 +185,7 @@ fn polygon_settings(ui: &mut Ui, env: &mut PanelEnv<'_>, polygons: &[(u8, Option
     if stars == Some(true) {
         let inner = common(polygons.iter().map(|(_, star)| star.unwrap_or(0.5)))
             .map(|r| (r * 100.0).round());
-        let e = NumericField::new("Inner", "Inner radius", inner)
+        let e = NumericField::new(&tr("props-inner"), &tr("props-inner-radius"), inner)
             .suffix("%")
             .range(10.0..=90.0)
             .width(44.0)
@@ -197,18 +201,18 @@ fn summary(ui: &mut Ui, objects: &[Object], ws: &Workspace) {
             (
                 icons::VEHICLE,
                 surface.name.clone(),
-                format!("{0} × {0} px · Select an object to edit it", surface.size),
+                tr!("props-surface-summary", size = surface.size),
             )
         }
         [single] => (
             kind_icon(single.kind),
             single.name.clone(),
-            single.kind.name().to_owned(),
+            crate::workspace::object_name(single.kind),
         ),
         many => (
             icons::LAYERS,
-            format!("{} objects", many.len()),
-            "Multiple selection".to_owned(),
+            tr!("props-objects", count = many.len()),
+            tr("props-multiple"),
         ),
     };
     ui.horizontal(|ui| {
@@ -249,18 +253,23 @@ fn image_info(ui: &mut Ui, env: &mut PanelEnv<'_>, object: &Object) {
         return;
     };
     let source = match asset.kind {
-        AssetKind::Svg => "SVG · Vector".to_owned(),
-        AssetKind::Raster => format!(
-            "Image · {:.0} × {:.0} px",
-            asset.size.width, asset.size.height
+        AssetKind::Svg => tr("props-source-svg"),
+        AssetKind::Raster => tr!(
+            "props-source-image",
+            width = asset.size.width.round(),
+            height = asset.size.height.round()
         ),
     };
     ui.label(
-        RichText::new(format!("Source: {} · {source}", asset.name))
-            .small()
-            .color(color::TEXT_SECONDARY),
+        RichText::new(tr!(
+            "props-source",
+            name = asset.name.as_str(),
+            source = source
+        ))
+        .small()
+        .color(color::TEXT_SECONDARY),
     );
-    if ui.add(secondary_button("Reset Size")).clicked() {
+    if ui.add(secondary_button(&tr("undo-reset-size"))).clicked() {
         env.ws.reset_image_size(env.now);
     }
 }
@@ -284,7 +293,7 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
     // Opacity: field + slider.
     let opacity = common(objects.iter().map(|o| o.opacity)).map(|o| f64::from(o) * 100.0);
     ui.horizontal(|ui| {
-        let e = NumericField::new("Opacity", "Opacity", opacity)
+        let e = NumericField::new(&tr("props-opacity"), &tr("props-opacity"), opacity)
             .suffix("%")
             .range(0.0..=100.0)
             .width(44.0)
@@ -292,7 +301,9 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
         apply_field(env, e, set_opacity);
         let mut value = opacity.unwrap_or(100.0);
         let slider = ui.add(Slider::new(&mut value, 0.0..=100.0).show_value(false));
-        slider.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, "Opacity slider"));
+        slider.widget_info(|| {
+            WidgetInfo::labeled(WidgetType::Slider, true, tr("props-opacity-slider"))
+        });
         if slider.changed() {
             set_opacity(env.ws, value);
         }
@@ -310,10 +321,14 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
         })
         .collect();
     if radii.len() == objects.len() {
-        let e = NumericField::new("Radius", "Corner radius", common(radii.iter().copied()))
-            .suffix("px")
-            .range(0.0..=100_000.0)
-            .show(ui);
+        let e = NumericField::new(
+            &tr("props-radius"),
+            &tr("props-corner-radius"),
+            common(radii.iter().copied()),
+        )
+        .suffix("px")
+        .range(0.0..=100_000.0)
+        .show(ui);
         apply_field(env, e, set_corner_radius);
     }
 
@@ -336,10 +351,14 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
         .filter_map(|o| o.path_data().map(|p| p.line_width))
         .collect();
     if widths.len() == objects.len() {
-        let e = NumericField::new("Width", "Line width", common(widths.iter().copied()))
-            .suffix("px")
-            .range(0.5..=1000.0)
-            .show(ui);
+        let e = NumericField::new(
+            &tr("field-width"),
+            &tr("props-line-width"),
+            common(widths.iter().copied()),
+        )
+        .suffix("px")
+        .range(0.5..=1000.0)
+        .show(ui);
         apply_field(env, e, set_line_width);
         let styles: Vec<LineStyle> = objects
             .iter()
@@ -375,8 +394,12 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
     let (fill, stroke) = selection_swatches(env.ws);
     let target = env.ws.panels.color_target;
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Fill").small().color(color::TEXT_SECONDARY));
-        if ColorSwatch::new(fill, "Fill color")
+        ui.label(
+            RichText::new(tr("props-fill"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        );
+        if ColorSwatch::new(fill, &tr("props-fill-color"))
             .selected(target == ColorTarget::Fill)
             .show(ui)
             .clicked()
@@ -385,8 +408,12 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
             reveal(layout, PanelKind::Colors);
         }
         ui.add_space(space::SM);
-        ui.label(RichText::new("Stroke").small().color(color::TEXT_SECONDARY));
-        if ColorSwatch::new(stroke, "Stroke color")
+        ui.label(
+            RichText::new(tr("panel-stroke"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        );
+        if ColorSwatch::new(stroke, &tr("props-stroke-color"))
             .selected(target == ColorTarget::Stroke)
             .show(ui)
             .clicked()

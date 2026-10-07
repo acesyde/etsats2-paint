@@ -208,7 +208,7 @@ fn horizontal_line_with_shift() {
     let nodes = doc_nodes(&o);
     assert!(near(nodes[0], Point::new(100.0, 100.0)), "{nodes:?}");
     assert!(near(nodes[1], Point::new(500.0, 100.0)), "{nodes:?}");
-    assert_eq!(ws(&h).history.undo_label(), Some("Create Line"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-create-line"));
 }
 
 #[test]
@@ -696,7 +696,7 @@ fn insert_keeps_the_shape() {
             .fold(f64::INFINITY, f64::min);
         assert!(d < 0.2, "{d}");
     }
-    assert_eq!(ws(&h).history.undo_label(), Some("Add Point"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-add-point"));
 }
 
 #[test]
@@ -771,7 +771,7 @@ fn convert_a_rounded_rectangle() {
     let o = path_of(&h, id);
     assert_eq!(o.kind, ShapeKind::Path);
     assert_eq!(o.path_data().unwrap().subpaths[0].nodes.len(), 8);
-    assert_eq!(ws(&h).history.undo_label(), Some("Convert to Path"));
+    assert_eq!(ws(&h).history.undo_label(), Some("cmd-convert-to-path"));
     set_tool(&mut h, Tool::DirectSelect);
     assert_eq!(ws(&h).selected_paths().len(), 1);
 }

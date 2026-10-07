@@ -4,7 +4,8 @@ use egui::{
     Align, Align2, CornerRadius, Frame, Key, Layout, Margin, RichText, Sense, Stroke, StrokeKind,
     TextEdit, Ui, Vec2, WidgetInfo, WidgetType,
 };
-use tp_core::{DEFAULT_PROJECT_NAME, Project, TextureResolution};
+use tp_core::{Project, TextureResolution};
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::{TEXT_SCALE_RANGE, UI_SCALE_RANGE, label_strong_style, title_style};
 use tp_ui::tokens::{color, radius, space, stroke};
@@ -15,7 +16,7 @@ use crate::state::{AppState, Modal, NewProjectDraft};
 
 /// Titles of the New Project wizard steps. Vehicle steps will be inserted
 /// before "Name & resolution".
-pub const NEW_PROJECT_STEPS: [&str; 1] = ["Name & resolution"];
+pub const NEW_PROJECT_STEPS: [&str; 1] = ["new-project-step-name"];
 
 fn dialog_frame() -> Frame {
     Frame::new()
@@ -107,26 +108,23 @@ fn unsaved_changes(ctx: &egui::Context, name: &str) -> PromptAnswer {
         ui.horizontal(|ui| {
             ui.label(icons::rich(icons::WARNING).size(22.0).color(color::WARNING));
             ui.label(
-                RichText::new(format!("Save changes to “{name}” before closing?"))
+                RichText::new(tr!("unsaved-title", name = name))
                     .text_style(label_strong_style())
                     .color(color::TEXT_PRIMARY),
             );
         });
         ui.add_space(space::XS);
-        ui.label(
-            RichText::new("Your changes will be lost if you don't save them.")
-                .color(color::TEXT_SECONDARY),
-        );
+        ui.label(RichText::new(tr("unsaved-hint")).color(color::TEXT_SECONDARY));
         ui.add_space(space::XL);
         ui.horizontal(|ui| {
-            if ui.add(secondary_button("Don't Save")).clicked() {
+            if ui.add(secondary_button(&tr("button-dont-save"))).clicked() {
                 answer = PromptAnswer::DontSave;
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.add(primary_button("Save")).clicked() {
+                if ui.add(primary_button(&tr("cmd-save"))).clicked() {
                     answer = PromptAnswer::Save;
                 }
-                if ui.add(secondary_button("Cancel")).clicked() {
+                if ui.add(secondary_button(&tr("button-cancel"))).clicked() {
                     answer = PromptAnswer::Cancel;
                 }
             });
@@ -162,7 +160,7 @@ fn message(ctx: &egui::Context, title: &str, text: &str) -> bool {
         label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
         ui.add_space(space::LG);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            close |= ui.add(primary_button("OK")).clicked();
+            close |= ui.add(primary_button(&tr("button-ok"))).clicked();
         });
     });
     close
@@ -183,29 +181,33 @@ fn new_project(ctx: &egui::Context, draft: &mut NewProjectDraft) -> WizardOutcom
     let response = modal("new_project_modal").show(ctx, |ui| {
         ui.set_width(520.0);
         ui.label(
-            RichText::new("New Project")
+            RichText::new(tr("home-new-project"))
                 .text_style(title_style())
                 .color(color::TEXT_PRIMARY),
         );
         ui.add_space(space::XS);
-        StepIndicator::new(draft.step, &NEW_PROJECT_STEPS).show(ui);
+        let steps = NEW_PROJECT_STEPS.map(tr);
+        let steps = steps.each_ref().map(String::as_str);
+        StepIndicator::new(draft.step, &steps).show(ui);
         ui.add_space(space::LG);
 
-        ui.label(RichText::new("Project name").text_style(label_strong_style()));
+        ui.label(RichText::new(tr("new-project-name")).text_style(label_strong_style()));
         let name = ui.add(
             TextEdit::singleline(&mut draft.name)
-                .hint_text(DEFAULT_PROJECT_NAME)
+                .hint_text(tr("object-untitled"))
                 .desired_width(f32::INFINITY)
                 .margin(Margin::symmetric(8, 6)),
         );
-        name.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, "Project name"));
+        name.widget_info(|| {
+            WidgetInfo::labeled(WidgetType::TextEdit, true, tr("new-project-name"))
+        });
         if !draft.focus_requested {
             name.request_focus();
             draft.focus_requested = true;
         }
         ui.add_space(space::LG);
 
-        ui.label(RichText::new("Texture resolution").text_style(label_strong_style()));
+        ui.label(RichText::new(tr("new-project-resolution")).text_style(label_strong_style()));
         ui.add_space(space::XS);
         ui.horizontal(|ui| {
             for resolution in TextureResolution::ALL {
@@ -215,19 +217,17 @@ fn new_project(ctx: &egui::Context, draft: &mut NewProjectDraft) -> WizardOutcom
             }
         });
         ui.label(
-            RichText::new(
-                "The project stays vector-based: you can export at any resolution later.",
-            )
-            .small()
-            .color(color::TEXT_SECONDARY),
+            RichText::new(tr("new-project-resolution-hint"))
+                .small()
+                .color(color::TEXT_SECONDARY),
         );
         ui.add_space(space::XL);
 
         let mut cancel = false;
         let mut create = false;
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            create |= ui.add(primary_button("Create")).clicked();
-            cancel |= ui.add(secondary_button("Cancel")).clicked();
+            create |= ui.add(primary_button(&tr("button-create"))).clicked();
+            cancel |= ui.add(secondary_button(&tr("button-cancel"))).clicked();
         });
         // Enter confirms from anywhere in the dialog (a focused Cancel button
         // handles Enter as its own click above).
@@ -242,7 +242,16 @@ fn new_project(ctx: &egui::Context, draft: &mut NewProjectDraft) -> WizardOutcom
     if cancel || escape {
         outcome = WizardOutcome::Cancel;
     } else if create {
-        outcome = WizardOutcome::Create(Project::new(&draft.name, draft.resolution));
+        let name = if draft.name.trim().is_empty() {
+            tr("object-untitled")
+        } else {
+            draft.name.clone()
+        };
+        let mut project = Project::new(&name, draft.resolution);
+        for surface in &mut project.surfaces {
+            surface.name = tr("object-main-texture");
+        }
+        outcome = WizardOutcome::Create(project);
     }
     outcome
 }
@@ -287,14 +296,14 @@ fn resolution_card(ui: &mut Ui, resolution: TextureResolution, selected: bool) -
     painter.text(
         rect.left_top() + Vec2::new(14.0, 48.0),
         Align2::LEFT_CENTER,
-        format!("× {side} px"),
+        tr!("new-project-resolution-side", side = side.to_string()),
         egui::TextStyle::Body.resolve(ui.style()),
         color::TEXT_SECONDARY,
     );
     let note = match resolution {
-        TextureResolution::R2048 => "Light & fast",
-        TextureResolution::R4096 => "Recommended",
-        TextureResolution::R8192 => "Maximum detail",
+        TextureResolution::R2048 => tr("resolution-light"),
+        TextureResolution::R4096 => tr("resolution-recommended"),
+        TextureResolution::R8192 => tr("resolution-maximum"),
     };
     painter.text(
         rect.left_top() + Vec2::new(14.0, 68.0),
@@ -316,18 +325,18 @@ fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
     let response = modal("preferences_modal").show(ctx, |ui| {
         ui.set_width(440.0);
         ui.label(
-            RichText::new("Preferences")
+            RichText::new(tr("home-preferences"))
                 .text_style(title_style())
                 .color(color::TEXT_PRIMARY),
         );
         ui.add_space(space::LG);
-        ui.label(RichText::new("Interface").text_style(label_strong_style()));
+        ui.label(RichText::new(tr("prefs-interface")).text_style(label_strong_style()));
         ui.add_space(space::XS);
         egui::Grid::new("prefs_grid")
             .num_columns(2)
             .spacing([space::LG, space::SM])
             .show(ui, |ui| {
-                ui.label("UI scale");
+                ui.label(tr("prefs-ui-scale"));
                 let mut ui_pct = (prefs.ui_scale * 100.0).round();
                 let r = ui.add(
                     egui::Slider::new(
@@ -335,9 +344,12 @@ fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
                         (UI_SCALE_RANGE.start() * 100.0)..=(UI_SCALE_RANGE.end() * 100.0),
                     )
                     .step_by(5.0)
-                    .suffix("%"),
+                    .suffix("%")
+                    .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
                 );
-                r.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, "UI scale"));
+                r.widget_info(|| {
+                    WidgetInfo::labeled(WidgetType::Slider, true, tr("prefs-ui-scale"))
+                });
                 // Apply on release while dragging, so the slider does not move
                 // under the pointer as the interface rescales.
                 if r.changed() && !r.dragged() || r.drag_stopped() {
@@ -345,7 +357,7 @@ fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
                 }
                 ui.end_row();
 
-                ui.label("Text size");
+                ui.label(tr("prefs-text-size"));
                 let mut text_pct = (prefs.text_scale * 100.0).round();
                 let r = ui.add(
                     egui::Slider::new(
@@ -353,28 +365,56 @@ fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
                         (TEXT_SCALE_RANGE.start() * 100.0)..=(TEXT_SCALE_RANGE.end() * 100.0),
                     )
                     .step_by(5.0)
-                    .suffix("%"),
+                    .suffix("%")
+                    .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
                 );
-                r.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, "Text size"));
+                r.widget_info(|| {
+                    WidgetInfo::labeled(WidgetType::Slider, true, tr("prefs-text-size"))
+                });
                 if r.changed() {
                     prefs.text_scale = text_pct / 100.0;
+                }
+                ui.end_row();
+
+                ui.label(tr("prefs-language"));
+                let current = prefs.language();
+                let name = |l: Option<tp_i18n::Language>| {
+                    l.map_or_else(|| tr("language-system"), |l| l.native_name().to_owned())
+                };
+                let mut picked = current;
+                let combo = egui::ComboBox::from_id_salt("prefs_language")
+                    .width(160.0)
+                    .selected_text(name(current))
+                    .show_ui(ui, |ui| {
+                        let choices = std::iter::once(None)
+                            .chain(tp_i18n::Language::ALL.into_iter().map(Some));
+                        for choice in choices {
+                            ui.selectable_value(&mut picked, choice, name(choice));
+                        }
+                    });
+                combo.response.widget_info(|| {
+                    WidgetInfo::labeled(WidgetType::ComboBox, true, tr("prefs-language"))
+                });
+                if picked != current {
+                    prefs.set_language(picked);
+                    ctx.request_repaint();
                 }
                 ui.end_row();
             });
         ui.add_space(space::XS);
         ui.label(
-            RichText::new("Changes apply immediately. 100% follows your display's scale factor.")
+            RichText::new(tr("prefs-scale-hint"))
                 .small()
                 .color(color::TEXT_SECONDARY),
         );
         ui.add_space(space::LG);
-        ui.label(RichText::new("Canvas").text_style(label_strong_style()));
+        ui.label(RichText::new(tr("prefs-canvas")).text_style(label_strong_style()));
         ui.add_space(space::XS);
         egui::Grid::new("prefs_canvas_grid")
             .num_columns(2)
             .spacing([space::LG, space::SM])
             .show(ui, |ui| {
-                ui.label("Grid spacing");
+                ui.label(tr("prefs-grid-spacing"));
                 let range = crate::prefs::GRID_SPACING_RANGE;
                 let r = ui.add(
                     egui::DragValue::new(&mut prefs.view_aids.grid_spacing)
@@ -383,14 +423,16 @@ fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
                         .max_decimals(0)
                         .suffix(" px"),
                 );
-                r.widget_info(|| WidgetInfo::labeled(WidgetType::DragValue, true, "Grid spacing"));
+                r.widget_info(|| {
+                    WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-grid-spacing"))
+                });
                 ui.end_row();
             });
         ui.add_space(space::XL);
         let mut close = false;
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            close |= ui.add(primary_button("Done")).clicked();
-            if ui.add(secondary_button("Reset to defaults")).clicked() {
+            close |= ui.add(primary_button(&tr("button-done"))).clicked();
+            if ui.add(secondary_button(&tr("prefs-reset"))).clicked() {
                 prefs.reset_scaling();
             }
         });
@@ -404,7 +446,7 @@ fn shortcuts(ctx: &egui::Context) -> bool {
     let response = modal("shortcuts_modal").show(ctx, |ui| {
         ui.set_width(460.0);
         ui.label(
-            RichText::new("Keyboard Shortcuts")
+            RichText::new(tr("cmd-keyboard-shortcuts"))
                 .text_style(title_style())
                 .color(color::TEXT_PRIMARY),
         );
@@ -419,19 +461,21 @@ fn shortcuts(ctx: &egui::Context) -> bool {
                     .show(ui, |ui| {
                         for id in CommandId::all() {
                             if let Some(shortcut) = formatter.command(id) {
-                                ui.label(id.meta().label);
+                                ui.label(tr(id.meta().label));
                                 ui.label(RichText::new(shortcut).color(color::TEXT_SECONDARY));
                                 ui.end_row();
                             }
                         }
-                        ui.label("Temporary Hand tool");
-                        ui.label(RichText::new("Hold Space").color(color::TEXT_SECONDARY));
+                        ui.label(tr("shortcuts-temporary-hand"));
+                        ui.label(
+                            RichText::new(tr("shortcuts-hold-space")).color(color::TEXT_SECONDARY),
+                        );
                         ui.end_row();
                     });
             });
         ui.add_space(space::LG);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            ui.add(primary_button("Close")).clicked()
+            ui.add(primary_button(&tr("button-close"))).clicked()
         })
         .inner
     });
@@ -450,14 +494,14 @@ fn about(ctx: &egui::Context) -> bool {
             );
         });
         ui.label(
-            RichText::new(format!("Version {}", env!("CARGO_PKG_VERSION")))
+            RichText::new(tr!("about-version", version = env!("CARGO_PKG_VERSION")))
                 .color(color::TEXT_SECONDARY),
         );
         ui.add_space(space::SM);
-        ui.label("Livery editor for Euro Truck Simulator 2 and American Truck Simulator.");
+        ui.label(tr("about-tagline"));
         ui.add_space(space::LG);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            ui.add(primary_button("Close")).clicked()
+            ui.add(primary_button(&tr("button-close"))).clicked()
         })
         .inner
     });

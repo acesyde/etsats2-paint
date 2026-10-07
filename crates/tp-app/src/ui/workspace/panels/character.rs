@@ -5,6 +5,7 @@ use egui::{
     TextEdit, Ui, Vec2, WidgetInfo, WidgetType,
 };
 use tp_core::document::{CharStyle, TextAlign};
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, radius, space};
 use tp_ui::widgets::{IconButton, NumericField};
@@ -19,21 +20,23 @@ fn common<T: PartialEq + Clone>(mut values: impl Iterator<Item = T>) -> Option<T
     values.all(|v| v == first).then_some(first)
 }
 
-fn weight_name(weight: u16) -> &'static str {
-    match weight {
-        0..=149 => "Thin",
-        150..=249 => "Extra Light",
-        250..=349 => "Light",
-        350..=449 => "Regular",
-        450..=549 => "Medium",
-        550..=649 => "Semi Bold",
-        650..=749 => "Bold",
-        750..=849 => "Extra Bold",
-        _ => "Black",
-    }
+fn weight_name(weight: u16) -> String {
+    tr(weight_id(weight))
 }
 
-const MIXED: &str = "Mixed";
+fn weight_id(weight: u16) -> &'static str {
+    match weight {
+        0..=149 => "weight-thin",
+        150..=249 => "weight-extra-light",
+        250..=349 => "weight-light",
+        350..=449 => "weight-regular",
+        450..=549 => "weight-medium",
+        550..=649 => "weight-semi-bold",
+        650..=749 => "weight-bold",
+        750..=849 => "weight-extra-bold",
+        _ => "weight-black",
+    }
+}
 
 /// Styles being edited: the selected texts', or the style for new texts.
 fn styles(ws: &Workspace) -> Vec<CharStyle> {
@@ -58,7 +61,7 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         return;
     }
     ui.label(
-        RichText::new("Character")
+        RichText::new(tr("char-title"))
             .small()
             .color(color::TEXT_SECONDARY),
     );
@@ -90,7 +93,7 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
             .text
             .fonts
             .weights(family.as_deref().unwrap_or(tp_text::FALLBACK_FAMILY));
-        let text = weight.map_or(MIXED.to_owned(), |w| format!("{} {w}", weight_name(w)));
+        let text = weight.map_or(tr("mixed"), |w| format!("{} {w}", weight_name(w)));
         let combo = egui::ComboBox::from_id_salt("font_weight")
             .width(150.0)
             .selected_text(text)
@@ -98,46 +101,46 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
                 for w in available {
                     let label = format!("{} {w}", weight_name(w));
                     if ui.selectable_label(weight == Some(w), label).clicked() {
-                        set(env, "Change Font Weight", |s| s.weight = w);
+                        set(env, "undo-change-font-weight", |s| s.weight = w);
                     }
                 }
             });
-        combo
-            .response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, true, "Font weight"));
+        combo.response.widget_info(|| {
+            WidgetInfo::labeled(WidgetType::ComboBox, true, tr("char-font-weight"))
+        });
         let italic = common(styles.iter().map(|s| s.italic));
         let on = italic == Some(true);
         if ui
-            .add(IconButton::new(icons::ITALIC, "Italic").selected(on))
+            .add(IconButton::new(icons::ITALIC, &tr("char-italic")).selected(on))
             .clicked()
         {
-            set(env, "Change Italic", |s| s.italic = !on);
+            set(env, "undo-change-italic", |s| s.italic = !on);
         }
     });
 
     // Size and alignment.
     ui.horizontal(|ui| {
         let size = common(styles.iter().map(|s| s.size));
-        let e = NumericField::new("Size", "Font size", size)
+        let e = NumericField::new(&tr("char-size"), &tr("char-font-size"), size)
             .suffix("px")
             .range(1.0..=10_000.0)
             .decimals(1)
             .width(56.0)
             .show(ui);
         apply_field(env, e, |ws, v| {
-            ws.set_char_style("Change Text Size", |s| s.size = v);
+            ws.set_char_style("undo-change-text-size", |s| s.size = v);
         });
         let align = common(styles.iter().map(|s| s.align));
         for (value, icon, name) in [
-            (TextAlign::Left, icons::ALIGN_LEFT, "Align left"),
-            (TextAlign::Center, icons::ALIGN_CENTER, "Align center"),
-            (TextAlign::Right, icons::ALIGN_RIGHT, "Align right"),
+            (TextAlign::Left, icons::ALIGN_LEFT, "char-align-left"),
+            (TextAlign::Center, icons::ALIGN_CENTER, "char-align-center"),
+            (TextAlign::Right, icons::ALIGN_RIGHT, "char-align-right"),
         ] {
             if ui
-                .add(IconButton::new(icon, name).selected(align == Some(value)))
+                .add(IconButton::new(icon, &tr(name)).selected(align == Some(value)))
                 .clicked()
             {
-                set(env, "Change Alignment", |s| s.align = value);
+                set(env, "undo-change-alignment", |s| s.align = value);
             }
         }
     });
@@ -145,22 +148,22 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     // Letter spacing and line height.
     ui.horizontal(|ui| {
         let tracking = common(styles.iter().map(|s| s.letter_spacing));
-        let e = NumericField::new("Tracking", "Letter spacing", tracking)
+        let e = NumericField::new(&tr("char-tracking"), &tr("char-letter-spacing"), tracking)
             .suffix("‰")
             .range(-200.0..=1000.0)
             .width(44.0)
             .show(ui);
         apply_field(env, e, |ws, v| {
-            ws.set_char_style("Change Letter Spacing", |s| s.letter_spacing = v);
+            ws.set_char_style("undo-change-letter-spacing", |s| s.letter_spacing = v);
         });
         let leading = common(styles.iter().map(|s| s.line_height));
-        let e = NumericField::new("Line", "Line height", leading)
+        let e = NumericField::new(&tr("char-line"), &tr("char-line-height"), leading)
             .suffix("%")
             .range(50.0..=300.0)
             .width(44.0)
             .show(ui);
         apply_field(env, e, |ws, v| {
-            ws.set_char_style("Change Line Height", |s| s.line_height = v);
+            ws.set_char_style("undo-change-line-height", |s| s.line_height = v);
         });
     });
 }
@@ -169,11 +172,11 @@ fn family_button(ui: &mut Ui, family: Option<&str>, missing: bool) -> egui::Resp
     let height = 26.0;
     let (rect, response) =
         ui.allocate_exact_size(Vec2::new(ui.available_width(), height), Sense::click());
-    let label = family.unwrap_or(MIXED).to_owned();
+    let label = family.map_or_else(|| tr("mixed"), str::to_owned);
     let name = if missing {
-        format!("Font family: {label} (Font not found: {label})")
+        tr!("char-family-missing-name", family = label.as_str())
     } else {
-        format!("Font family: {label}")
+        tr!("char-family-name", family = label.as_str())
     };
     response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, &name));
     let painter = ui.painter();
@@ -215,9 +218,9 @@ fn family_button(ui: &mut Ui, family: Option<&str>, missing: bool) -> egui::Resp
         color::TEXT_SECONDARY,
     );
     if missing {
-        response.on_hover_text(format!("Font not found: {label}"))
+        response.on_hover_text(tr!("char-font-not-found", family = label.as_str()))
     } else {
-        response.on_hover_text("Font family")
+        response.on_hover_text(tr("char-font-family"))
     }
 }
 
@@ -246,11 +249,11 @@ fn font_picker(ui: &Ui, env: &mut PanelEnv<'_>, button: &egui::Response) {
                     let picker = env.ws.panels.font_picker.as_mut()?;
                     let search = ui.add(
                         TextEdit::singleline(&mut picker.query)
-                            .hint_text(format!("{} Search fonts", icons::SEARCH))
+                            .hint_text(format!("{} {}", icons::SEARCH, tr("char-search-fonts")))
                             .desired_width(f32::INFINITY),
                     );
                     search.widget_info(|| {
-                        WidgetInfo::labeled(WidgetType::TextEdit, true, "Search fonts")
+                        WidgetInfo::labeled(WidgetType::TextEdit, true, tr("char-search-fonts"))
                     });
                     if std::mem::take(&mut picker.focus_requested) {
                         search.request_focus();
@@ -282,7 +285,7 @@ fn font_picker(ui: &Ui, env: &mut PanelEnv<'_>, button: &egui::Response) {
                     }
                     if matches.is_empty() {
                         ui.label(
-                            RichText::new("No matching fonts")
+                            RichText::new(tr("char-no-fonts"))
                                 .small()
                                 .color(color::TEXT_SECONDARY),
                         );
@@ -340,7 +343,7 @@ fn font_picker(ui: &Ui, env: &mut PanelEnv<'_>, button: &egui::Response) {
         Some(Some(family)) => {
             env.ws.panels.font_picker = None;
             let weights = env.ws.text.fonts.weights(&family);
-            set(env, "Change Font", |s| {
+            set(env, "undo-change-font", |s| {
                 s.family.clone_from(&family);
                 if !weights.contains(&s.weight) {
                     s.weight = weights
