@@ -18,7 +18,7 @@ The workspace SHALL show a menu bar with the menus File, Edit, Object, Layer, Vi
 - **THEN** the project closes and the home screen is shown
 
 ### Requirement: Tool bar
-The workspace SHALL show a vertical tool bar on the left with, in order: Selection, Direct Selection, Move, Rectangle, Ellipse, Polygon, Pen, Line, Text, Image, Eyedropper, Zoom, Hand. Exactly one tool SHALL be active at a time and the active tool SHALL be identifiable without relying on color alone. Clicking a tool SHALL make it active.
+The workspace SHALL show a vertical tool bar on the left with, in order: Selection, Direct Selection, Move, Rectangle, Ellipse, Polygon, Pen, Line, Text, Image, Eyedropper, Gradient, Zoom, Hand. Exactly one tool SHALL be active at a time and the active tool SHALL be identifiable without relying on color alone. Clicking a tool SHALL make it active.
 
 #### Scenario: Default tool
 - **WHEN** a project is opened

@@ -29,7 +29,7 @@ Each surface SHALL hold an ordered tree of objects: a top-level ordered list whe
 - **THEN** the drawing order from bottom to top is blue ellipse, red rectangle, green rectangle
 
 ### Requirement: Object geometry and appearance
-Rectangles and ellipses SHALL be defined by a frame (center point, width, height, rotation in degrees clockwise around the center), and SHALL remain vector objects: their geometry is never rasterized in the document. Rectangles SHALL support a corner radius (default 0, at most half the smaller side). Every shape SHALL have a solid fill color with alpha, an optional stroke (color and width in texture pixels), and an opacity from 0% to 100%; a group SHALL have an opacity that multiplies its children's. A group's bounds are the union of its visible children's bounds. Width and height SHALL never be smaller than 1 texture pixel. New shapes created with a tool SHALL use the workspace's current fill and stroke (initially the default fill and no stroke).
+Rectangles and ellipses SHALL be defined by a frame (center point, width, height, rotation in degrees clockwise around the center), and SHALL remain vector objects: their geometry is never rasterized in the document. Rectangles SHALL support a corner radius (default 0, at most half the smaller side). Every shape SHALL have a fill paint, an optional stroke (paint and width in texture pixels), and an opacity from 0% to 100%. A paint SHALL be either a solid color with alpha or a linear or radial gradient (see the gradients capability). A group SHALL have an opacity that multiplies its children's. A group's bounds are the union of its visible children's bounds. Width and height SHALL never be smaller than 1 texture pixel. New shapes created with a tool SHALL use the workspace's current fill and stroke (initially the default fill and no stroke).
 
 #### Scenario: Default appearance of a new shape
 - **WHEN** a rectangle is created with a tool in a new project
@@ -42,6 +42,10 @@ Rectangles and ellipses SHALL be defined by a frame (center point, width, height
 #### Scenario: Current style applies to new shapes
 - **WHEN** the current fill is set to white with a black 8 px stroke and the user draws an ellipse
 - **THEN** the ellipse has a white fill and a black 8 px stroke
+
+#### Scenario: Gradient fill with a solid stroke
+- **WHEN** a rectangle's fill is set to a linear gradient while its stroke stays solid black
+- **THEN** the rectangle has the gradient fill and the solid black stroke, and its other properties are unchanged
 
 ### Requirement: Objects may extend beyond the surface
 Objects SHALL be allowed to lie partly or fully outside the surface bounds; they are kept in the document and remain selectable, and only the part inside the surface belongs to the texture.
@@ -157,7 +161,7 @@ Each surface SHALL hold an ordered list of guides. A guide is horizontal or vert
 - **THEN** its surface has no guides
 
 ### Requirement: Stroke style
-A stroke SHALL have, besides its color and width:
+A stroke SHALL have, besides its paint (a solid color or a gradient) and its width:
 
 - an **alignment**: Center (straddles the edge, default), Inside (within the filled area) or Outside (outside it);
 - an optional **dash pattern**: a dash length (0 or more) and a gap length (more than 0), in texture pixels, starting at the beginning of each subpath;
