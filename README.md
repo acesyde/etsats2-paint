@@ -3,9 +3,10 @@
 A livery editor for **Euro Truck Simulator 2** and **American Truck Simulator**: pick a
 vehicle, design its paint job with vector tools, and export a ready-to-install mod.
 
-> Early development. The current build contains the application shell: home screen,
-> New Project dialog, editor workspace layout, design system, keyboard shortcuts and
-> preferences. Canvas editing, vehicle templates and export come next.
+> Early development. The current build designs the paint jobs of a fleet: vehicle
+> packages with their templates, projects holding several trucks and trailers of one
+> game, vector editing (shapes, paths, text, images, gradients) and texture export to
+> PNG or DDS. Exporting a ready-to-install mod comes next.
 
 Built in Rust with [egui](https://github.com/emilk/egui) (wgpu backend) for Linux,
 Windows and macOS.

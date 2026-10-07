@@ -180,6 +180,7 @@ fn menu_contents(
             item(ui, cmds, ClearGuides);
             cmds.menu_toggle(ui, Snapping, layout.is_some() && aids.snapping);
             ui.separator();
+            cmds.menu_toggle(ui, ToggleVehicles, layout.is_some_and(|l| l.vehicles_open));
             for kind in PanelKind::ALL {
                 cmds.menu_toggle(
                     ui,
@@ -196,7 +197,12 @@ fn menu_contents(
         }
         "menu-vehicle" => {
             item(ui, cmds, VehicleLibrary);
+            item(ui, cmds, AddVehicle);
             item(ui, cmds, VehicleInfo);
+            ui.separator();
+            item(ui, cmds, NextTexture);
+            item(ui, cmds, PreviousTexture);
+            ui.separator();
             item(ui, cmds, UpdateTemplate);
         }
         "menu-export" => {

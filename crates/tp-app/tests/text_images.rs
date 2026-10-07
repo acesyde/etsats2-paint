@@ -13,7 +13,6 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use tp_app::AppState;
 use tp_app::import::{read_bytes, solid_png};
-use tp_app::layout::PanelKind;
 use tp_app::prefs::Prefs;
 use tp_app::tool::Tool;
 use tp_app::workspace::Workspace;
@@ -35,7 +34,7 @@ fn settle(h: &mut H) {
 fn open() -> H {
     let mut prefs = Prefs::default();
     for slot in &mut prefs.layout.panels {
-        slot.open = slot.kind != PanelKind::Vehicle;
+        slot.open = true;
         slot.collapsed = false;
     }
     let mut h = Harness::builder()
@@ -51,6 +50,18 @@ fn open() -> H {
 
 fn ws(h: &H) -> &Workspace {
     h.state().workspace().expect("project open")
+}
+
+/// Imported files: the project's assets other than its vehicle templates.
+fn imported(h: &H) -> Vec<std::sync::Arc<tp_core::Asset>> {
+    let project = &ws(h).project;
+    let templates: Vec<_> = project.template_assets().collect();
+    project
+        .assets
+        .values()
+        .filter(|a| !templates.contains(&a.id))
+        .cloned()
+        .collect()
 }
 
 fn ws_mut(h: &mut H) -> &mut Workspace {
@@ -491,7 +502,7 @@ fn same_logo_twice() {
     place_bytes(&mut h, vec![("logo.png", png.clone())], None);
     place_bytes(&mut h, vec![("logo.png", png)], None);
     assert_eq!(ws(&h).project.surface().objects.len(), 2);
-    assert_eq!(ws(&h).project.assets.len(), 1);
+    assert_eq!(imported(&h).len(), 1);
     assert!(h.query_by_label("80 × 40 px · 2 uses").is_some());
 }
 
@@ -503,7 +514,7 @@ fn undo_an_import() {
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
     settle(&mut h);
     assert!(ws(&h).project.surface().objects.is_empty());
-    assert!(ws(&h).project.assets.is_empty());
+    assert!(imported(&h).is_empty());
     assert!(h.query_by_label("No assets").is_some());
 }
 
@@ -640,11 +651,11 @@ fn remove_an_unused_asset() {
     assert!(ws(&h).project.surface().objects.is_empty());
     h.get_by_label("Remove Asset").click();
     settle(&mut h);
-    assert!(ws(&h).project.assets.is_empty());
+    assert!(imported(&h).is_empty());
     assert!(h.query_by_label("Asset badge").is_none());
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
     settle(&mut h);
-    assert_eq!(ws(&h).project.assets.len(), 1);
+    assert_eq!(imported(&h).len(), 1);
     assert!(h.query_by_label("Asset badge").is_some());
 }
 
@@ -656,7 +667,7 @@ fn remove_is_disabled_while_used() {
     assert!(remove.accesskit_node().is_disabled());
     remove.click();
     settle(&mut h);
-    assert_eq!(ws(&h).project.assets.len(), 1);
+    assert_eq!(imported(&h).len(), 1);
 }
 
 #[test]
@@ -674,7 +685,7 @@ fn place_and_rename_from_the_assets_panel() {
     settle(&mut h);
     h.key_press(Key::Enter);
     settle(&mut h);
-    let asset = ws(&h).project.assets.values().next().unwrap().clone();
+    let asset = imported(&h)[0].clone();
     assert_eq!(asset.name, "ACE badge");
     // Existing objects keep their names.
     assert!(
@@ -700,7 +711,7 @@ fn empty_assets_panel_offers_place() {
     });
     h.get_by_label("Place…").click();
     settle(&mut h);
-    assert_eq!(ws(&h).project.assets.len(), 1);
+    assert_eq!(imported(&h).len(), 1);
 }
 
 // --------------------------------------------------------------- eyedropper

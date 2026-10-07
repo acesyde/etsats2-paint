@@ -144,3 +144,16 @@ cmd-update-template = Vorlage aktualisieren…
 cmd-show-template = Vorlage anzeigen
 reason-no-update = Es ist keine neuere Version dieses Fahrzeugs installiert.
 reason-no-template = Diese Textur hat keine Vorlage.
+
+## Fleet
+
+cmd-add-vehicle = Fahrzeug hinzufügen…
+reason-last-vehicle = Ein Projekt behält mindestens ein Fahrzeug.
+reason-choose-vehicle = Wählen Sie ein Fahrzeug und mindestens eine Variante.
+
+## Textures
+
+cmd-sidebar = Seitenleiste
+cmd-next-texture = Nächste Textur
+cmd-previous-texture = Vorherige Textur
+reason-one-texture = Das Projekt hat nur eine Textur.

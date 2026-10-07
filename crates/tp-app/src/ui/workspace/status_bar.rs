@@ -59,7 +59,15 @@ pub fn show(ui: &mut Ui, ws: &Workspace, view_mode: ViewMode) {
         );
         item(ui, position);
         divider(ui);
-        item(ui, &ws.project.surface().name);
+        // "Vehicle › Variant › Texture", shortened when too long.
+        let active = ws.project.active_surface;
+        let name = ws.project.surface_names(active).map_or_else(
+            || ws.project.surface().name.clone(),
+            |(v, x, t)| format!("{v} › {x} › {t}"),
+        );
+        let label =
+            egui::Label::new(RichText::new(&name).small().color(color::TEXT_SECONDARY)).truncate();
+        ui.add(label).on_hover_text(&name);
 
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let (icon, text, tint) = match ws.save_state() {

@@ -145,3 +145,16 @@ cmd-update-template = Update Template…
 cmd-show-template = Show Template
 reason-no-update = No newer version of this vehicle is installed.
 reason-no-template = This texture has no template.
+
+## Fleet
+
+cmd-add-vehicle = Add Vehicle…
+reason-last-vehicle = A project keeps at least one vehicle.
+reason-choose-vehicle = Choose a vehicle and at least one variant.
+
+## Textures
+
+cmd-sidebar = Sidebar
+cmd-next-texture = Next Texture
+cmd-previous-texture = Previous Texture
+reason-one-texture = The project has a single texture.

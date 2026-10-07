@@ -71,3 +71,9 @@ undo-place = Platzieren
 
 undo-update-template = Vorlage aktualisieren
 undo-dismiss-layout = Layoutänderung verwerfen
+
+## Fleet
+
+undo-add-vehicle = Fahrzeug hinzufügen
+undo-change-variants = Varianten ändern
+undo-remove-vehicle = Fahrzeug entfernen

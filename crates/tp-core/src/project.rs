@@ -90,9 +90,22 @@ pub enum TemplateStatus {
     Removed,
 }
 
-/// The template of a surface: a reference image of the texture layout.
+/// Which texture of which variant of which vehicle a surface paints.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TextureKey {
+    pub package_id: String,
+    pub variant_id: String,
+    pub texture_id: String,
+}
+
+/// The template of a surface: a reference image of the texture layout. It
+/// also records the vehicle texture the surface belongs to.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SurfaceTemplate {
+    /// The vehicle package the texture comes from.
+    pub package_id: String,
+    /// The variant of that vehicle.
+    pub variant_id: String,
     /// The package texture it comes from.
     pub texture_id: String,
     /// The image, stored with the project's assets.
@@ -109,6 +122,20 @@ impl SurfaceTemplate {
     /// Default opacity of a new template.
     pub const DEFAULT_OPACITY: f32 = 0.6;
 
+    /// The vehicle texture this template belongs to.
+    pub fn key(&self) -> TextureKey {
+        TextureKey {
+            package_id: self.package_id.clone(),
+            variant_id: self.variant_id.clone(),
+            texture_id: self.texture_id.clone(),
+        }
+    }
+
+    /// Whether it belongs to `variant` of `package`.
+    pub fn is_of(&self, package: &str, variant: &str) -> bool {
+        self.package_id == package && self.variant_id == variant
+    }
+
     /// Whether it should be drawn (shown and still in the package).
     pub fn is_drawn(&self) -> bool {
         self.visible && self.status != TemplateStatus::Removed
@@ -116,8 +143,10 @@ impl SurfaceTemplate {
 
     /// The same template ignoring opacity and visibility (undo compares
     /// templates this way).
-    fn document_part(&self) -> (&str, AssetId, u32, TemplateStatus) {
+    fn document_part(&self) -> (&str, &str, &str, AssetId, u32, TemplateStatus) {
         (
+            &self.package_id,
+            &self.variant_id,
             &self.texture_id,
             self.asset,
             self.layout_version,
@@ -126,20 +155,34 @@ impl SurfaceTemplate {
     }
 }
 
-/// The vehicle a project is made for: the package and version its templates
-/// come from.
+/// A variant of a vehicle chosen in a project.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct VehicleRef {
+pub struct VariantRef {
+    pub id: String,
+    pub name: String,
+}
+
+/// A vehicle of a project: the package and version its templates come
+/// from, and the variants painted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectVehicle {
     pub package_id: String,
     /// Semantic version of the package.
     pub version: String,
-    pub variant_id: String,
+    /// Chosen variants, in the order their surfaces appear.
+    pub variants: Vec<VariantRef>,
     pub name: String,
     pub brand: String,
     /// `truck` or `trailer`.
     pub kind: String,
     /// `ets2` or `ats`.
     pub game: String,
+}
+
+impl ProjectVehicle {
+    pub fn variant(&self, id: &str) -> Option<&VariantRef> {
+        self.variants.iter().find(|v| v.id == id)
+    }
 }
 
 impl Surface {
@@ -247,8 +290,10 @@ pub struct Project {
     pub palette: Vec<Rgba>,
     /// Imported files, shared by image objects and templates.
     pub assets: BTreeMap<AssetId, Arc<Asset>>,
-    /// The vehicle the project is made for (`None`: a blank texture).
-    pub vehicle: Option<VehicleRef>,
+    /// The vehicles of the fleet, all of one game. Projects made by the
+    /// application always have at least one; [`Project::new`] makes one
+    /// without (unit tests).
+    pub vehicles: Vec<ProjectVehicle>,
     next_id: u64,
 }
 
@@ -272,7 +317,7 @@ impl Project {
             active_surface: 0,
             palette: Vec::new(),
             assets: BTreeMap::new(),
-            vehicle: None,
+            vehicles: Vec::new(),
             next_id: 1,
         }
     }
@@ -318,6 +363,75 @@ impl Project {
 
     pub fn surface(&self) -> &Surface {
         &self.surfaces[self.active_surface]
+    }
+
+    /// The game of the fleet (`ets2` or `ats`): its first vehicle's.
+    pub fn game(&self) -> Option<&str> {
+        self.vehicles.first().map(|v| v.game.as_str())
+    }
+
+    /// The project's vehicle of `package_id`.
+    pub fn vehicle(&self, package_id: &str) -> Option<&ProjectVehicle> {
+        self.vehicles.iter().find(|v| v.package_id == package_id)
+    }
+
+    /// The vehicle surface `index` belongs to.
+    pub fn vehicle_of(&self, index: usize) -> Option<&ProjectVehicle> {
+        let t = self.surfaces.get(index)?.template.as_ref()?;
+        self.vehicle(&t.package_id)
+    }
+
+    /// The surfaces of `variant` of `package`: a contiguous range (empty,
+    /// at the end of the vehicle's surfaces, when it has none).
+    pub fn variant_range(&self, package: &str, variant: &str) -> std::ops::Range<usize> {
+        let of = |s: &Surface| {
+            s.template
+                .as_ref()
+                .is_some_and(|t| t.is_of(package, variant))
+        };
+        match self.surfaces.iter().position(of) {
+            Some(start) => {
+                let len = self.surfaces[start..].iter().take_while(|s| of(s)).count();
+                start..start + len
+            }
+            None => {
+                let end = self.vehicle_range(package).end;
+                end..end
+            }
+        }
+    }
+
+    /// The surfaces of the vehicle `package`: a contiguous range (empty at
+    /// the end of the project when it has none).
+    pub fn vehicle_range(&self, package: &str) -> std::ops::Range<usize> {
+        let of = |s: &Surface| s.template.as_ref().is_some_and(|t| t.package_id == package);
+        match self.surfaces.iter().position(of) {
+            Some(start) => {
+                let len = self.surfaces[start..].iter().take_while(|s| of(s)).count();
+                start..start + len
+            }
+            None => self.surfaces.len()..self.surfaces.len(),
+        }
+    }
+
+    /// Vehicle, variant and texture names of surface `index`, falling back
+    /// to the ids when the vehicle is unknown.
+    pub fn surface_names(&self, index: usize) -> Option<(String, String, String)> {
+        let surface = self.surfaces.get(index)?;
+        let t = surface.template.as_ref()?;
+        let vehicle = self.vehicle(&t.package_id);
+        let vehicle_name = vehicle.map_or_else(|| t.package_id.clone(), |v| v.name.clone());
+        let variant_name = vehicle
+            .and_then(|v| v.variant(&t.variant_id))
+            .map_or_else(|| t.variant_id.clone(), |v| v.name.clone());
+        Some((vehicle_name, variant_name, surface.name.clone()))
+    }
+
+    /// Whether any surface in `range` holds artwork.
+    pub fn has_artwork(&self, range: std::ops::Range<usize>) -> bool {
+        self.surfaces
+            .get(range)
+            .is_some_and(|s| s.iter().any(|s| !s.objects.is_empty()))
     }
 
     pub fn surface_mut(&mut self) -> &mut Surface {
@@ -561,7 +675,7 @@ impl Project {
                     template: s.template.clone(),
                 })
                 .collect(),
-            vehicle: self.vehicle.clone(),
+            vehicles: self.vehicles.clone(),
             surfaces: self.surfaces.iter().map(|s| s.objects.clone()).collect(),
             guides: self.surfaces.iter().map(|s| s.guides.clone()).collect(),
             active_surface: self.active_surface,
@@ -578,11 +692,11 @@ impl Project {
         // The surface list itself may differ (an update added surfaces).
         // Template opacity and visibility are not part of the history: keep
         // the current values of the same texture.
-        let shown: Vec<(String, f32, bool)> = self
+        let shown: Vec<(TextureKey, f32, bool)> = self
             .surfaces
             .iter()
             .filter_map(|s| s.template.as_ref())
-            .map(|t| (t.texture_id.clone(), t.opacity, t.visible))
+            .map(|t| (t.key(), t.opacity, t.visible))
             .collect();
         self.surfaces = snapshot
             .meta
@@ -593,7 +707,7 @@ impl Project {
                 let mut template = meta.template.clone();
                 if let Some(t) = &mut template
                     && let Some((_, opacity, visible)) =
-                        shown.iter().find(|(id, ..)| *id == t.texture_id)
+                        shown.iter().find(|(key, ..)| *key == t.key())
                 {
                     t.opacity = *opacity;
                     t.visible = *visible;
@@ -607,7 +721,7 @@ impl Project {
                 }
             })
             .collect();
-        self.vehicle = snapshot.vehicle.clone();
+        self.vehicles = snapshot.vehicles.clone();
         self.active_surface = snapshot.active_surface.min(self.surfaces.len() - 1);
         self.palette = snapshot.palette.clone();
         self.assets = snapshot.assets.clone();
@@ -628,7 +742,7 @@ struct SurfaceMeta {
 pub struct Snapshot {
     /// Name, size and template of each surface.
     meta: Vec<SurfaceMeta>,
-    vehicle: Option<VehicleRef>,
+    vehicles: Vec<ProjectVehicle>,
     surfaces: Vec<Vec<Arc<Object>>>,
     guides: Vec<Vec<Guide>>,
     active_surface: usize,
@@ -655,7 +769,7 @@ impl Snapshot {
     /// (objects and points). Unchanged objects share their `Arc`, so this is mostly pointer checks.
     pub fn same_document(&self, other: &Snapshot) -> bool {
         self.active_surface == other.active_surface
-            && self.vehicle == other.vehicle
+            && self.vehicles == other.vehicles
             && self.meta.len() == other.meta.len()
             && self.meta.iter().zip(&other.meta).all(|(a, b)| {
                 a.name == b.name
@@ -1000,7 +1114,13 @@ mod tests {
     }
 
     fn template(texture: &str, asset: AssetId) -> SurfaceTemplate {
+        keyed("a.b", "standard", texture, asset)
+    }
+
+    fn keyed(package: &str, variant: &str, texture: &str, asset: AssetId) -> SurfaceTemplate {
         SurfaceTemplate {
+            package_id: package.into(),
+            variant_id: variant.into(),
             texture_id: texture.into(),
             asset,
             layout_version: 1,
@@ -1025,19 +1145,11 @@ mod tests {
         let mut chassis = Surface::new("Chassis", 1024.0);
         chassis.template = Some(template("chassis", asset));
         p.surfaces.push(chassis);
-        p.vehicle = Some(VehicleRef {
-            package_id: "a.b".into(),
-            version: "1.3.0".into(),
-            variant_id: "standard".into(),
-            name: "A".into(),
-            brand: "B".into(),
-            kind: "truck".into(),
-            game: "ets2".into(),
-        });
+        p.vehicles = vec![vehicle("a.b", &["standard"])];
         assert!(!before.same_document(&p.snapshot(&[])));
         p.restore(&before);
         assert_eq!(p.surfaces.len(), 1);
-        assert!(p.vehicle.is_none());
+        assert!(p.vehicles.is_empty());
         assert_eq!(p.asset_usage(asset), 1, "templates count as uses");
         assert_eq!(p.template_assets().collect::<Vec<_>>(), vec![asset]);
     }
@@ -1065,5 +1177,93 @@ mod tests {
         assert!(p.surface().objects.is_empty());
         let t = p.surfaces[0].template.as_ref().unwrap();
         assert_eq!((t.opacity, t.visible), (0.2, false));
+    }
+
+    fn vehicle(package: &str, variants: &[&str]) -> ProjectVehicle {
+        ProjectVehicle {
+            package_id: package.into(),
+            version: "1.0.0".into(),
+            variants: variants
+                .iter()
+                .map(|v| VariantRef {
+                    id: (*v).into(),
+                    name: v.to_uppercase(),
+                })
+                .collect(),
+            name: format!("Vehicle {package}"),
+            brand: "B".into(),
+            kind: "truck".into(),
+            game: "ets2".into(),
+        }
+    }
+
+    /// A fleet: truck a.b (standard: cabin, chassis; high: cabin) and
+    /// trailer c.d (body: body).
+    fn fleet() -> Project {
+        let mut p = Project::new("F", TextureResolution::R2048);
+        let (asset, _) = p.add_asset(
+            "t",
+            AssetKind::Raster,
+            Arc::from(&b"png"[..]),
+            Size::new(8.0, 8.0),
+        );
+        p.surfaces = [
+            ("a.b", "standard", "cabin"),
+            ("a.b", "standard", "chassis"),
+            ("a.b", "high", "cabin"),
+            ("c.d", "body", "body"),
+        ]
+        .iter()
+        .map(|(pkg, var, tex)| {
+            let mut s = Surface::new(*tex, 1024.0);
+            s.template = Some(keyed(pkg, var, tex, asset));
+            s
+        })
+        .collect();
+        p.vehicles = vec![
+            vehicle("a.b", &["standard", "high"]),
+            vehicle("c.d", &["body"]),
+        ];
+        p
+    }
+
+    #[test]
+    fn fleet_ranges_names_and_artwork() {
+        let mut p = fleet();
+        assert_eq!(p.game(), Some("ets2"));
+        assert_eq!(p.variant_range("a.b", "standard"), 0..2);
+        assert_eq!(p.variant_range("a.b", "high"), 2..3);
+        assert_eq!(p.variant_range("c.d", "body"), 3..4);
+        assert_eq!(p.vehicle_range("a.b"), 0..3);
+        // A variant without surfaces sits at the end of its vehicle.
+        assert_eq!(p.variant_range("a.b", "other"), 3..3);
+        assert_eq!(p.vehicle_range("x.y"), 4..4);
+        assert_eq!(p.vehicle_of(3).unwrap().package_id, "c.d");
+        assert_eq!(
+            p.surface_names(2),
+            Some(("Vehicle a.b".into(), "HIGH".into(), "cabin".into()))
+        );
+        assert!(!p.has_artwork(0..4));
+        p.active_surface = 2;
+        p.add(rect_at(10.0, 10.0));
+        assert!(p.has_artwork(2..3));
+        assert!(!p.has_artwork(0..2));
+        assert!(Project::new("x", TextureResolution::R2048).game().is_none());
+    }
+
+    #[test]
+    fn same_texture_in_two_variants_keeps_its_own_settings() {
+        let mut p = fleet();
+        let before = p.snapshot(&[]);
+        p.add(rect_at(10.0, 10.0));
+        p.surfaces[0].template.as_mut().unwrap().opacity = 0.1;
+        p.surfaces[2].template.as_mut().unwrap().opacity = 0.9;
+        p.restore(&before);
+        assert_eq!(p.surfaces[0].template.as_ref().unwrap().opacity, 0.1);
+        assert_eq!(p.surfaces[2].template.as_ref().unwrap().opacity, 0.9);
+        // Vehicles are part of the document.
+        let mut q = p.clone();
+        q.vehicles[0].version = "2.0.0".into();
+        assert!(!p.snapshot(&[]).same_document(&q.snapshot(&[])));
     }
 }

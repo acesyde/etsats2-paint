@@ -71,3 +71,9 @@ undo-place = Colocar
 
 undo-update-template = Actualizar plantilla
 undo-dismiss-layout = Descartar cambio de disposición
+
+## Fleet
+
+undo-add-vehicle = Añadir vehículo
+undo-change-variants = Cambiar variantes
+undo-remove-vehicle = Quitar vehículo

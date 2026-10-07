@@ -3928,6 +3928,7 @@ name = "tp-vehicles"
 version = "0.1.0"
 dependencies = [
  "image",
+ "log",
  "resvg",
  "semver",
  "serde",

@@ -8,13 +8,13 @@ context: |
   Product rules every change must respect:
   - Every project has a vehicle. There is no blank-texture project; vehicles
     without a package go through Custom vehicle (templates packed locally).
-  - A project is a fleet: several trucks with chosen variants and several
-    trailers, exported as one mod.
+  - A project is a fleet of one game (ETS2 or ATS): several trucks with
+    chosen variants and several trailers, exported as one mod.
   - Texture layouts (UVs) differ per vehicle. Sharing across vehicles is by
     elements (palette, symbols with per-texture instances, styles), never by
     copying a placement; only variants of the same truck may copy positions.
-  - Open, not decided: one game per project; textures shared between variants
-    in the package format.
+  - Open, not decided: textures shared between variants in the package
+    format.
 
 # Project context (optional)
 # This is shown to AI when creating artifacts.

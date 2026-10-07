@@ -72,3 +72,9 @@ undo-place = Place
 
 undo-update-template = Update Template
 undo-dismiss-layout = Dismiss Layout Change
+
+## Fleet
+
+undo-add-vehicle = Add Vehicle
+undo-change-variants = Change Variants
+undo-remove-vehicle = Remove Vehicle

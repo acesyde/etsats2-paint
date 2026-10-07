@@ -109,7 +109,7 @@ fn export_to_png() {
     export_to(&mut h, &dir.path().join("ace"));
     assert_eq!(
         h.state().dialogs_suggested(),
-        vec!["ACE Logistics.png".to_owned()]
+        vec!["ACE Logistics - TruckPaint Sample Truck - Standard cab - Cabin.png".to_owned()]
     );
     wait_until(&mut h, |h| h.state().modal.is_none());
     assert_eq!(image::image_dimensions(&path).unwrap(), (4096, 4096));

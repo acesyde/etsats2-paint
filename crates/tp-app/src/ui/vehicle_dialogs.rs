@@ -1,5 +1,6 @@
-//! Vehicle Library and Update Template dialogs, and the vehicle list shared
-//! with the New Project wizard.
+//! Vehicle Library, Update Template, Add Vehicle, Variants and Remove from
+//! Project dialogs, and the vehicle list shared with the New Project
+//! wizard.
 
 use egui::{Align, Layout, RichText, ScrollArea, TextEdit, Ui, WidgetInfo, WidgetType};
 use tp_i18n::tr;
@@ -19,6 +20,8 @@ pub struct VehicleFilter {
     pub query: String,
     pub game: Option<Game>,
     pub kind: Option<Kind>,
+    /// The game is set by the project: no game filter is shown.
+    pub game_locked: bool,
 }
 
 impl VehicleFilter {
@@ -45,16 +48,18 @@ impl VehicleFilter {
                 Some(Game::Ets2) => "Euro Truck Simulator 2".to_owned(),
                 Some(Game::Ats) => "American Truck Simulator".to_owned(),
             };
-            let combo = egui::ComboBox::from_id_salt((id, "game"))
-                .selected_text(game_name(self.game))
-                .show_ui(ui, |ui| {
-                    for g in [None, Some(Game::Ets2), Some(Game::Ats)] {
-                        ui.selectable_value(&mut self.game, g, game_name(g));
-                    }
+            if !self.game_locked {
+                let combo = egui::ComboBox::from_id_salt((id, "game"))
+                    .selected_text(game_name(self.game))
+                    .show_ui(ui, |ui| {
+                        for g in [None, Some(Game::Ets2), Some(Game::Ats)] {
+                            ui.selectable_value(&mut self.game, g, game_name(g));
+                        }
+                    });
+                combo.response.widget_info(|| {
+                    WidgetInfo::labeled(WidgetType::ComboBox, true, tr("vehicles-game-filter"))
                 });
-            combo.response.widget_info(|| {
-                WidgetInfo::labeled(WidgetType::ComboBox, true, tr("vehicles-game-filter"))
-            });
+            }
             let kind_name = |k: Option<Kind>| match k {
                 None => tr("vehicles-all-kinds"),
                 Some(k) => kind_label(k),
@@ -108,6 +113,86 @@ pub fn filtered<'a>(
         .iter()
         .filter(|v| filter.matches(&v.newest().manifest))
         .collect()
+}
+
+/// A vehicle and the variants checked for it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct VehicleChoice {
+    pub id: String,
+    pub version: semver::Version,
+    pub variants: Vec<String>,
+}
+
+impl VehicleChoice {
+    /// The newest version of `vehicle` with its first variant checked.
+    pub fn of(vehicle: &InstalledVehicle) -> Self {
+        let m = &vehicle.newest().manifest;
+        Self {
+            id: vehicle.id.clone(),
+            version: m.version.clone(),
+            variants: m
+                .variants
+                .first()
+                .map(|v| v.id.clone())
+                .into_iter()
+                .collect(),
+        }
+    }
+
+    /// Ready to create or add: at least one variant checked.
+    pub fn is_complete(&self) -> bool {
+        !self.variants.is_empty()
+    }
+}
+
+/// Checkboxes for `variants` of `m`, keeping the package's order.
+pub fn variant_checkboxes(ui: &mut Ui, m: &Manifest, variants: &mut Vec<String>) {
+    for variant in &m.variants {
+        let mut on = variants.contains(&variant.id);
+        let textures: Vec<String> = variant.textures.iter().map(|t| t.name.clone()).collect();
+        let response = ui.checkbox(&mut on, &variant.name);
+        response
+            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, true, on, &variant.name));
+        let response = response.on_hover_text(textures.join(", "));
+        if response.changed() {
+            if on {
+                variants.push(variant.id.clone());
+                let order: Vec<&str> = m.variants.iter().map(|v| v.id.as_str()).collect();
+                variants.sort_by_key(|v| order.iter().position(|o| o == v));
+            } else {
+                variants.retain(|v| *v != variant.id);
+            }
+        }
+    }
+}
+
+/// The installed vehicles passing `filter` (minus `exclude`), one row each;
+/// the chosen one shows its variants as checkboxes.
+pub fn vehicle_list(
+    ui: &mut Ui,
+    library: &VehicleLibrary,
+    filter: &VehicleFilter,
+    exclude: &[String],
+    choice: &mut Option<VehicleChoice>,
+) {
+    for vehicle in filtered(library, filter) {
+        if exclude.contains(&vehicle.id) {
+            continue;
+        }
+        let m = &vehicle.newest().manifest;
+        let selected = choice.as_ref().is_some_and(|c| c.id == vehicle.id);
+        let text = format!("{}   {}", m.name, summary(m));
+        let row = ui.selectable_label(selected, text);
+        row.widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, true, selected, &m.name));
+        if row.clicked() && !selected {
+            *choice = Some(VehicleChoice::of(vehicle));
+        }
+        if selected && let Some(c) = choice.as_mut() {
+            ui.indent(("variants", &vehicle.id), |ui| {
+                variant_checkboxes(ui, m, &mut c.variants);
+            });
+        }
+    }
 }
 
 /// Installs `paths`; returns one line per file (success or why it failed).
@@ -368,6 +453,316 @@ pub fn update(ctx: &egui::Context, state: &mut AppState, dialog: &UpdateDialog) 
         let now = ctx.input(|i| i.time);
         if let Some(ws) = state.workspace_mut() {
             ws.apply_update(&dialog.package, now);
+        }
+        keep = false;
+    }
+    if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+        keep = false;
+    }
+    keep
+}
+
+/// State of the Add Vehicle dialog.
+#[derive(Clone, Debug, Default)]
+pub struct AddVehicleDialog {
+    pub filter: VehicleFilter,
+    pub choice: Option<VehicleChoice>,
+    pub messages: Vec<Result<String, String>>,
+}
+
+impl AddVehicleDialog {
+    /// The dialog for a project of `game`.
+    pub fn for_game(game: Option<&str>) -> Self {
+        let game = match game {
+            Some("ats") => Some(Game::Ats),
+            Some(_) => Some(Game::Ets2),
+            None => None,
+        };
+        Self {
+            filter: VehicleFilter {
+                game,
+                game_locked: game.is_some(),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+}
+
+/// Shows the Add Vehicle dialog; returns false once it is closed.
+pub fn add_vehicle(
+    ctx: &egui::Context,
+    state: &mut AppState,
+    dialog: &mut AddVehicleDialog,
+) -> bool {
+    let mut keep = true;
+    let mut add = false;
+    let mut install_clicked = false;
+    let exclude: Vec<String> = state
+        .workspace()
+        .map(|ws| {
+            ws.project
+                .vehicles
+                .iter()
+                .map(|v| v.package_id.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+    super::dialogs::modal("add_vehicle_modal").show(ctx, |ui| {
+        ui.set_width(560.0);
+        ui.label(
+            RichText::new(tr("cmd-add-vehicle").trim_end_matches('…'))
+                .text_style(title_style())
+                .color(color::TEXT_PRIMARY),
+        );
+        ui.add_space(space::SM);
+        for message in &dialog.messages {
+            let (text, tint) = match message {
+                Ok(text) => (text, color::SUCCESS),
+                Err(text) => (text, color::ERROR),
+            };
+            ui.label(RichText::new(text).small().color(tint));
+        }
+        dialog.filter.show(ui, "add_vehicle");
+        ui.add_space(space::SM);
+        let available = filtered(&state.vehicles, &dialog.filter)
+            .iter()
+            .any(|v| !exclude.contains(&v.id));
+        if available {
+            ScrollArea::vertical()
+                .max_height(320.0)
+                .auto_shrink([false, true])
+                .show(ui, |ui| {
+                    vehicle_list(
+                        ui,
+                        &state.vehicles,
+                        &dialog.filter,
+                        &exclude,
+                        &mut dialog.choice,
+                    );
+                });
+        } else {
+            ui.label(
+                RichText::new(tr("add-vehicle-none"))
+                    .small()
+                    .color(color::TEXT_SECONDARY),
+            );
+        }
+        ui.add_space(space::LG);
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let ready = dialog
+                .choice
+                .as_ref()
+                .is_some_and(VehicleChoice::is_complete);
+            add |= ui
+                .add_enabled(ready, primary_button(&tr("add-vehicle-add")))
+                .clicked();
+            keep &= !ui.add(secondary_button(&tr("button-cancel"))).clicked();
+            install_clicked |= ui.add(secondary_button(&tr("vehicles-install"))).clicked();
+        });
+    });
+    if install_clicked {
+        let paths = state.dialogs.pick_packages();
+        if !paths.is_empty() {
+            dialog.messages = install(state, &paths);
+        }
+    }
+    if add && let Some(choice) = dialog.choice.clone() {
+        let now = ctx.input(|i| i.time);
+        match state.vehicles.load(&choice.id, &choice.version) {
+            Ok(package) => {
+                if let Some(ws) = state.workspace_mut() {
+                    match ws.add_vehicle(&package, &choice.variants, now) {
+                        Ok(()) => keep = false,
+                        Err(err) => dialog.messages = vec![Err(fleet_error_message(err))],
+                    }
+                }
+            }
+            Err(err) => {
+                dialog.messages = vec![Err(crate::vehicles::install_error_message(
+                    &err,
+                    &format!("{} {}", choice.id, choice.version),
+                ))];
+            }
+        }
+    }
+    if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+        keep = false;
+    }
+    keep
+}
+
+/// Why a fleet change was refused, in the current language.
+pub fn fleet_error_message(err: crate::vehicle_project::FleetError) -> String {
+    use crate::vehicle_project::FleetError;
+    tr(match err {
+        FleetError::OtherGame => "fleet-error-other-game",
+        FleetError::AlreadyThere => "fleet-error-already-there",
+        FleetError::BadVariants => "fleet-error-variants",
+        FleetError::WrongVersion => "fleet-error-version",
+        FleetError::LastVehicle => "reason-last-vehicle",
+        FleetError::Unknown => "fleet-error-unknown",
+    })
+}
+
+/// State of the Variants dialog of a project's vehicle.
+#[derive(Clone, Debug)]
+pub struct VariantsDialog {
+    pub package_id: String,
+    pub name: String,
+    pub version: String,
+    pub checked: Vec<String>,
+    /// Variants with artwork about to be removed: asks for confirmation.
+    pub confirm: Option<Vec<String>>,
+}
+
+impl VariantsDialog {
+    pub fn new(vehicle: &tp_core::ProjectVehicle) -> Self {
+        Self {
+            package_id: vehicle.package_id.clone(),
+            name: vehicle.name.clone(),
+            version: vehicle.version.clone(),
+            checked: vehicle.variants.iter().map(|v| v.id.clone()).collect(),
+            confirm: None,
+        }
+    }
+}
+
+/// Shows the Variants dialog; returns false once it is closed.
+pub fn variants(ctx: &egui::Context, state: &mut AppState, dialog: &mut VariantsDialog) -> bool {
+    let mut keep = true;
+    let mut apply = false;
+    let mut update = false;
+    let installed = state
+        .workspace()
+        .and_then(|ws| ws.project.vehicle(&dialog.package_id))
+        .and_then(|v| state.vehicles.recorded(v))
+        .map(|i| i.manifest.clone());
+    super::dialogs::modal("variants_modal").show(ctx, |ui| {
+        ui.set_width(440.0);
+        ui.label(
+            RichText::new(tr!("variants-title", name = dialog.name.as_str()))
+                .text_style(title_style())
+                .color(color::TEXT_PRIMARY),
+        );
+        ui.add_space(space::SM);
+        match &installed {
+            Some(m) => {
+                if dialog.confirm.is_none() {
+                    variant_checkboxes(ui, m, &mut dialog.checked);
+                }
+            }
+            None => {
+                ui.label(
+                    RichText::new(tr!(
+                        "variants-missing-version",
+                        version = dialog.version.as_str()
+                    ))
+                    .color(color::WARNING),
+                );
+            }
+        }
+        if let Some(names) = &dialog.confirm {
+            ui.label(
+                RichText::new(tr!("variants-remove-confirm", variants = names.join(", ")))
+                    .color(color::WARNING),
+            );
+        }
+        ui.add_space(space::LG);
+        ui.with_layout(
+            Layout::right_to_left(Align::Center),
+            |ui| match &installed {
+                Some(_) => {
+                    let label = if dialog.confirm.is_some() {
+                        tr("variants-remove")
+                    } else {
+                        tr("variants-apply")
+                    };
+                    apply |= ui
+                        .add_enabled(!dialog.checked.is_empty(), primary_button(&label))
+                        .clicked();
+                    keep &= !ui.add(secondary_button(&tr("button-cancel"))).clicked();
+                }
+                None => {
+                    update |= ui.add(primary_button(&tr("cmd-update-template"))).clicked();
+                    keep &= !ui.add(secondary_button(&tr("button-cancel"))).clicked();
+                }
+            },
+        );
+    });
+    if apply && let Some(m) = &installed {
+        // Variants with artwork being removed ask first.
+        let removed_with_art: Vec<String> = state
+            .workspace()
+            .and_then(|ws| {
+                let v = ws.project.vehicle(&dialog.package_id)?;
+                Some(
+                    v.variants
+                        .iter()
+                        .filter(|x| !dialog.checked.contains(&x.id))
+                        .filter(|x| {
+                            ws.project
+                                .has_artwork(ws.project.variant_range(&dialog.package_id, &x.id))
+                        })
+                        .map(|x| x.name.clone())
+                        .collect(),
+                )
+            })
+            .unwrap_or_default();
+        if dialog.confirm.is_none() && !removed_with_art.is_empty() {
+            dialog.confirm = Some(removed_with_art);
+        } else {
+            let now = ctx.input(|i| i.time);
+            let loaded = state.vehicles.load(&m.id, &m.version);
+            if let (Ok(package), Some(ws)) = (loaded, state.workspace_mut()) {
+                let _ = ws.set_variants(&package, &dialog.checked, now);
+            }
+            keep = false;
+        }
+    }
+    if update {
+        state.modal = None;
+        state.open_update_dialog(Some(&dialog.package_id));
+        return false;
+    }
+    if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+        if dialog.confirm.is_some() {
+            dialog.confirm = None;
+        } else {
+            keep = false;
+        }
+    }
+    keep
+}
+
+/// Asks before removing a vehicle with artwork; returns false once closed.
+pub fn remove_vehicle(
+    ctx: &egui::Context,
+    state: &mut AppState,
+    package_id: &str,
+    name: &str,
+) -> bool {
+    let mut keep = true;
+    let mut remove = false;
+    super::dialogs::modal("remove_vehicle_modal").show(ctx, |ui| {
+        ui.set_width(420.0);
+        ui.label(
+            RichText::new(tr("vehicles-remove-from-project"))
+                .text_style(title_style())
+                .color(color::TEXT_PRIMARY),
+        );
+        ui.add_space(space::SM);
+        ui.label(tr!("remove-vehicle-confirm", name = name));
+        ui.add_space(space::LG);
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            remove |= ui.add(primary_button(&tr("vehicles-remove"))).clicked();
+            keep &= !ui.add(secondary_button(&tr("button-cancel"))).clicked();
+        });
+    });
+    if remove {
+        let now = ctx.input(|i| i.time);
+        if let Some(ws) = state.workspace_mut() {
+            let _ = ws.remove_vehicle(package_id, now);
         }
         keep = false;
     }

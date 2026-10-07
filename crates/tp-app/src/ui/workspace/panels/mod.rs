@@ -8,7 +8,7 @@ pub mod line_style;
 mod properties;
 mod stroke;
 mod transform;
-mod vehicle;
+pub mod vehicle;
 
 use egui::{Frame, Margin, ScrollArea, Ui};
 use tp_i18n::tr;
@@ -28,6 +28,8 @@ pub struct PanelEnv<'a> {
     pub recent_colors: &'a [[u8; 4]],
     /// Installed vehicle packages.
     pub vehicles: &'a crate::vehicles::VehicleLibrary,
+    /// An action on one of the project's vehicles, run after the frame.
+    pub vehicle_request: &'a mut Option<crate::state::VehicleRequest>,
     pub now: f64,
 }
 
@@ -143,6 +145,7 @@ fn body(
         PanelKind::Stroke => stroke::show(ui, env),
         PanelKind::Layers => layers::show(ui, cmds, env),
         PanelKind::Assets => assets::show(ui, cmds, env),
-        PanelKind::Vehicle => vehicle::show(ui, cmds, env),
+        // Shown in the Vehicles sidebar, never in the column.
+        PanelKind::Vehicle => {}
     }
 }

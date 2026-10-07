@@ -15,5 +15,8 @@ zip.workspace = true
 image.workspace = true
 resvg.workspace = true
 
+[dev-dependencies]
+log.workspace = true
+
 [lints]
 workspace = true

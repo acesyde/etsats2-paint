@@ -6,7 +6,7 @@ panel-colors = Farben
 panel-stroke = Kontur
 panel-transform = Transformieren
 panel-assets = Assets
-panel-vehicle = Fahrzeug
+panel-vehicle = Fahrzeuge
 empty-properties = Nichts ausgewählt
 empty-properties-hint = Wählen Sie ein Objekt auf der Arbeitsfläche aus, um seine Eigenschaften zu bearbeiten.
 empty-layers = Noch keine Ebenen
@@ -229,12 +229,9 @@ undo-change-font = Schrift ändern
 
 ## Vehicle panel
 
-vehicle-panel-none = Kein Fahrzeug
-vehicle-panel-none-hint = Dieses Projekt ist eine leere Textur. Erstellen Sie ein Projekt aus einem Fahrzeug, um auf seinen Vorlagen zu malen.
 vehicle-panel-package = Paket { $version } · Spielversionen { $games }
 vehicle-panel-package-missing = Paket { $version } (nicht installiert)
 vehicle-panel-update = Version { $version } ist verfügbar
-vehicle-panel-textures = Texturen
 vehicle-panel-texture = Textur { $name }
 vehicle-panel-layout-changed = Layout geändert
 vehicle-panel-dismiss = Verwerfen
@@ -242,3 +239,26 @@ vehicle-panel-dismiss-named = Layoutänderung von { $name } verwerfen
 vehicle-panel-removed = Nicht in dieser Version
 vehicle-panel-opacity = Vorlage
 vehicle-panel-opacity-name = Deckkraft der Vorlage
+
+## Fleet
+
+vehicle-panel-update-named = Vorlage von { $name } aktualisieren
+vehicles-variants = Varianten…
+vehicles-remove-from-project = Aus dem Projekt entfernen
+
+## Vehicles sidebar
+
+
+## Sidebar
+
+sidebar-project = Projekt
+sidebar-show = Seitenleiste anzeigen
+sidebar-hide = Seitenleiste ausblenden
+sidebar-vehicles-game = Fahrzeuge · { $game }
+project-name = Name
+project-version = Version
+project-game-versions = Spielversionen
+vehicle-actions-named = Aktionen für { $name }
+vehicle-panel-needs-check = Eine Textur muss nach einem Update geprüft werden
+texture-layout-changed = Das Layout dieser Textur hat sich in Version { $version } geändert: Prüfen Sie Ihre Gestaltung.
+texture-not-in-version = Diese Textur gibt es in Version { $version } des Fahrzeugs nicht: Sie hat keine Vorlage.

@@ -53,6 +53,7 @@ pub enum CommandId {
     ActualSize,
     SetViewMode(ViewMode),
     TogglePreview,
+    ToggleVehicles,
     TogglePanel(PanelKind),
     ResetWorkspace,
     ShowGrid,
@@ -62,6 +63,9 @@ pub enum CommandId {
     DesignGallery,
     // Vehicle
     VehicleLibrary,
+    AddVehicle,
+    NextTexture,
+    PreviousTexture,
     VehicleInfo,
     UpdateTemplate,
     ShowTemplate,
@@ -109,6 +113,8 @@ impl Direction {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct EditContext {
     pub has_project: bool,
+    /// Textures (surfaces) of the open project.
+    pub texture_count: usize,
     pub has_selection: bool,
     pub can_undo: bool,
     pub can_redo: bool,
@@ -248,6 +254,9 @@ impl CommandId {
             Snapping,
             DesignGallery,
             VehicleLibrary,
+            AddVehicle,
+            NextTexture,
+            PreviousTexture,
             VehicleInfo,
             UpdateTemplate,
             ShowTemplate,
@@ -257,6 +266,7 @@ impl CommandId {
             About,
         ];
         all.extend([ViewMode::TwoD, ViewMode::ThreeD, ViewMode::Split].map(SetViewMode));
+        all.push(ToggleVehicles);
         all.extend(PanelKind::ALL.map(TogglePanel));
         all.extend([SwapColorTarget, SwapFillStroke, DefaultColors, Deselect]);
         for direction in Direction::ALL {
@@ -625,6 +635,13 @@ impl CommandId {
                 Workspace,
                 NeedsProject,
             ),
+            ToggleVehicles => m(
+                "cmd-sidebar",
+                Some(icons::VEHICLE),
+                const { &[sc(NONE, Key::F5)] },
+                Workspace,
+                NeedsProject,
+            ),
             TogglePanel(kind) => m(
                 kind.title(),
                 Some(kind.icon()),
@@ -683,6 +700,27 @@ impl CommandId {
                 &[],
                 App,
                 Always,
+            ),
+            AddVehicle => m(
+                "cmd-add-vehicle",
+                Some(icons::ADD),
+                &[],
+                Workspace,
+                When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
+            ),
+            NextTexture => m(
+                "cmd-next-texture",
+                None,
+                const { &[sc(CMD, Key::PageDown)] },
+                Workspace,
+                When(|c| c.texture_count > 1, "reason-one-texture"),
+            ),
+            PreviousTexture => m(
+                "cmd-previous-texture",
+                None,
+                const { &[sc(CMD, Key::PageUp)] },
+                Workspace,
+                When(|c| c.texture_count > 1, "reason-one-texture"),
             ),
             VehicleInfo => m(
                 "cmd-vehicle-information",

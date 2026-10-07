@@ -23,6 +23,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         queue,
         screen,
         vehicles,
+        vehicle_request,
         ..
     } = state;
     let Screen::Workspace(ws) = screen else {
@@ -57,6 +58,16 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         )
         .show(ui, |ui| toolbar::show(ui, &mut cmds, ws.tool));
 
+    vehicles_sidebar(
+        ui,
+        &mut cmds,
+        layout,
+        ws,
+        vehicles,
+        vehicle_request,
+        generation,
+    );
+
     let column = Panel::right(egui::Id::new(("panel_column", generation)))
         .resizable(true)
         .default_size(layout.column_width)
@@ -67,6 +78,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
                 ws,
                 recent_colors,
                 vehicles,
+                vehicle_request,
                 now: ctx.input(|i| i.time),
             };
             panels::show(ui, &mut cmds, layout, &mut env);
@@ -79,7 +91,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     CentralPanel::no_frame()
         .frame(Frame::new().fill(color::SURFACE_0))
         .show(ui, |ui| match layout.view_mode {
-            ViewMode::TwoD => canvas_with_tabs(ui, &mut cmds, ws),
+            ViewMode::TwoD => canvas_area(ui, &mut cmds, ws),
             ViewMode::ThreeD => preview::show(ui, &mut cmds, false),
             ViewMode::Split => {
                 let total = ui.available_width();
@@ -98,46 +110,79 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
                 }
                 CentralPanel::no_frame()
                     .frame(Frame::new().fill(color::SURFACE_0))
-                    .show(ui, |ui| canvas_with_tabs(ui, &mut cmds, ws));
+                    .show(ui, |ui| canvas_area(ui, &mut cmds, ws));
             }
         });
 }
 
-/// The canvas, with tabs to switch textures when the project has several.
-fn canvas_with_tabs(
+/// The sidebar: the project and its fleet tree on the left of the canvas,
+/// or a strip with a button to show it again.
+fn vehicles_sidebar(
+    ui: &mut Ui,
+    cmds: &mut CommandUi<'_>,
+    layout: &mut crate::layout::WorkspaceLayout,
+    ws: &mut crate::workspace::Workspace,
+    vehicles: &crate::vehicles::VehicleLibrary,
+    vehicle_request: &mut Option<crate::state::VehicleRequest>,
+    generation: u32,
+) {
+    use egui::ScrollArea;
+    use tp_i18n::tr;
+    use tp_ui::widgets::IconButton;
+
+    let frame = Frame::new()
+        .fill(color::SURFACE_1)
+        .inner_margin(Margin::symmetric(space::SM as i8, space::SM as i8));
+    if !layout.vehicles_open {
+        Panel::left("vehicles_strip")
+            .exact_size(36.0)
+            .resizable(false)
+            .frame(frame)
+            .show(ui, |ui| {
+                let show = tr("sidebar-show");
+                if ui
+                    .add(IconButton::new(tp_ui::icons::VEHICLE, &show))
+                    .on_hover_text(&show)
+                    .clicked()
+                {
+                    cmds.push(crate::commands::CommandId::ToggleVehicles);
+                }
+            });
+        return;
+    }
+    let range = crate::layout::VEHICLES_WIDTH_RANGE;
+    let sidebar = Panel::left(egui::Id::new(("vehicles_sidebar", generation)))
+        .resizable(true)
+        .default_size(layout.vehicles_width)
+        .size_range(range.clone())
+        .frame(frame)
+        .show(ui, |ui| {
+            ScrollArea::vertical()
+                .id_salt("vehicles_sidebar_scroll")
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    ui.spacing_mut().item_spacing.y = space::XS + 2.0;
+                    let mut env = panels::PanelEnv {
+                        ws,
+                        recent_colors: &[],
+                        vehicles,
+                        vehicle_request,
+                        now: ui.input(|i| i.time),
+                    };
+                    panels::vehicle::show(ui, cmds, &mut env);
+                });
+        });
+    let width = sidebar.response.rect.width().round();
+    if (width - layout.vehicles_width).abs() >= 1.0 {
+        layout.vehicles_width = width.clamp(*range.start(), *range.end());
+    }
+}
+
+/// The canvas (textures are switched from the sidebar).
+fn canvas_area(
     ui: &mut Ui,
     cmds: &mut crate::ui::CommandUi<'_>,
     ws: &mut crate::workspace::Workspace,
 ) {
-    if ws.project.surfaces.len() > 1 {
-        let names: Vec<String> = ws.project.surfaces.iter().map(|s| s.name.clone()).collect();
-        let active = ws.project.active_surface;
-        let picked = Frame::new()
-            .fill(color::SURFACE_1)
-            .inner_margin(Margin::symmetric(tp_ui::tokens::space::SM as i8, 2))
-            .show(ui, |ui| {
-                ui.push_id("texture_tabs", |ui| {
-                    let mut control = tp_ui::widgets::SegmentedControl::new();
-                    for (i, name) in names.iter().enumerate() {
-                        let flagged = ws.project.surfaces[i]
-                            .template
-                            .as_ref()
-                            .is_some_and(|t| t.status == tp_core::TemplateStatus::LayoutChanged);
-                        let icon = if flagged {
-                            tp_ui::icons::WARNING
-                        } else {
-                            tp_ui::icons::VEHICLE
-                        };
-                        control = control.segment(i, icon, name, None);
-                    }
-                    control.show(ui, active)
-                })
-                .inner
-            })
-            .inner;
-        if let Some(index) = picked {
-            ws.set_active_surface(index);
-        }
-    }
     canvas::show(ui, cmds, ws);
 }

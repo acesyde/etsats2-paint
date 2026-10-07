@@ -173,13 +173,11 @@ impl Drop for RecoveryStore {
 
 #[cfg(test)]
 mod tests {
-    use tp_core::{Project, TextureResolution};
-
     use super::*;
 
     fn write_copy(store: &RecoveryStore, name: &str) {
         tp_file::write(
-            &Project::new(name, TextureResolution::R2048),
+            &crate::vehicle_project::test_project(name),
             &store.copy_path(),
         )
         .unwrap();

@@ -60,14 +60,8 @@ button-ok = OK
 button-create = Create
 button-done = Done
 button-close = Close
-new-project-step-name = Name & resolution
+new-project-step-name = Name
 new-project-name = Project name
-new-project-resolution = Texture resolution
-new-project-resolution-hint = The project stays vector-based: you can export at any resolution later.
-new-project-resolution-side = × { $side } px
-resolution-light = Light & fast
-resolution-recommended = Recommended
-resolution-maximum = Maximum detail
 prefs-interface = Interface
 prefs-ui-scale = UI scale
 prefs-text-size = Text size
@@ -153,8 +147,23 @@ update-apply = Update
 ## New Project wizard
 
 new-project-step-vehicle = Vehicle
-new-project-blank = Blank texture
 new-project-no-vehicles-hint = No vehicle yet? Try the sample truck, or install a package.
 new-project-textures = Textures
 button-next = Next
 button-back = Back
+
+## Fleet
+
+add-vehicle-none = No other vehicle of this game is installed. Install a package to add one.
+add-vehicle-add = Add
+fleet-error-other-game = This vehicle is for another game than the project.
+fleet-error-already-there = This vehicle is already in the project.
+fleet-error-variants = Choose at least one variant of this vehicle.
+fleet-error-version = The installed version differs from the one the project uses.
+fleet-error-unknown = This vehicle is not in the project.
+variants-title = Variants of { $name }
+variants-missing-version = Version { $version } of this vehicle is not installed. Update its template to change its variants.
+variants-remove-confirm = The artwork of { $variants } will be removed with them.
+variants-remove = Remove
+variants-apply = Apply
+remove-vehicle-confirm = Remove { $name } and its artwork from the project?

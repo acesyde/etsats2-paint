@@ -78,32 +78,46 @@ fn cancelled_open_dialog_does_nothing() {
 }
 
 #[test]
-fn new_project_defaults_to_4096_and_untitled() {
-    let mut h = harness();
-    create_project(&mut h);
-    let ws = h.state().workspace().unwrap();
-    assert_eq!(ws.project.name, "Untitled");
-    assert_eq!(ws.project.resolution.side(), 4096);
-    assert_eq!(h.state().title(), "Untitled — TruckPaint");
-}
-
-#[test]
-fn new_project_with_name_and_resolution_via_keyboard() {
+fn new_project_defaults_to_the_vehicle_name() {
     let mut h = harness();
     h.get_by_label("New Project").click();
     h.run();
-    // Enter on the Vehicle step (Blank texture) goes to the next step.
+    pick_sample(&mut h);
+    h.get_by_label("Next").click();
+    h.run();
+    h.get_by_label("Create").click();
+    h.run();
+    let ws = h.state().workspace().unwrap();
+    assert_eq!(ws.project.name, "TruckPaint Sample Truck");
+    assert_eq!(ws.project.surface().name, "Cabin");
+    assert_eq!(ws.project.surface().size, 4096.0);
+    assert_eq!(h.state().title(), "TruckPaint Sample Truck — TruckPaint");
+}
+
+/// Picks the sample vehicle on the New Project Vehicle step.
+fn pick_sample(h: &mut Harness<'static, AppState>) {
+    h.get_by_role_and_label(Role::RadioButton, common::SAMPLE)
+        .click();
+    h.run();
+}
+
+#[test]
+fn new_project_with_name_via_keyboard() {
+    let mut h = harness();
+    h.get_by_label("New Project").click();
+    h.run();
+    pick_sample(&mut h);
+    // Enter on the Vehicle step goes to the next step.
     h.key_press(Key::Enter);
     h.run();
     h.get_by_role_and_label(Role::TextInput, "Project name")
         .type_text("ACE Logistics");
-    h.get_by_label("2048 × 2048").click();
     h.run();
     h.key_press(Key::Enter);
     h.run();
     let ws = h.state().workspace().expect("created with Enter");
     assert_eq!(ws.project.name, "ACE Logistics");
-    assert_eq!(ws.project.resolution.side(), 2048);
+    assert_eq!(ws.project.surfaces.len(), 4, "the Standard cab's textures");
 }
 
 #[test]
@@ -123,6 +137,7 @@ fn new_project_dialog_tab_moves_focus() {
     let mut h = harness();
     h.get_by_label("New Project").click();
     h.run();
+    pick_sample(&mut h);
     h.get_by_label("Next").click();
     h.run();
     assert!(

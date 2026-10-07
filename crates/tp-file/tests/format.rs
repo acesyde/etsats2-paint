@@ -104,19 +104,22 @@ fn rich_project() -> Project {
     p
 }
 
-/// Makes `p` a three-texture vehicle project: Cabin (the main surface),
-/// Chassis and Accessories, each with a template.
+/// Makes `p` a fleet: the Volvo FH16 2012 with its "Globetrotter XL"
+/// (Cabin, the main surface, Chassis and Accessories) and "Globetrotter"
+/// (Cabin) variants, and the Krone Cool Liner trailer (Body).
 fn add_vehicle(p: &mut Project) {
-    use tp_core::{Surface, SurfaceTemplate, TemplateStatus, VehicleRef};
-    let template = |p: &mut Project, texture: &str, layout, opacity, visible, status| {
+    use tp_core::{ProjectVehicle, Surface, SurfaceTemplate, TemplateStatus, VariantRef};
+    let template = |p: &mut Project, key: (&str, &str, &str), layout, opacity, visible, status| {
         let (asset, _) = p.add_asset(
-            &format!("{texture} template"),
+            &format!("{} {} template", key.1, key.2),
             AssetKind::Raster,
             Arc::from(PNG),
             Size::new(64.0, 64.0),
         );
         SurfaceTemplate {
-            texture_id: texture.into(),
+            package_id: key.0.into(),
+            variant_id: key.1.into(),
+            texture_id: key.2.into(),
             asset,
             layout_version: layout,
             opacity,
@@ -124,37 +127,92 @@ fn add_vehicle(p: &mut Project) {
             status,
         }
     };
+    const VOLVO: &str = "scs.volvo.fh16_2012";
+    const KRONE: &str = "scs.krone.cool_liner";
     p.surfaces[0].name = "Cabin".into();
-    p.surfaces[0].template = Some(template(p, "cabin", 2, 0.6, true, TemplateStatus::Current));
-    let mut chassis = Surface::new("Chassis", 2048.0);
-    chassis.template = Some(template(
+    p.surfaces[0].template = Some(template(
         p,
-        "chassis",
+        (VOLVO, "globetrotter_xl", "cabin"),
+        2,
+        0.6,
+        true,
+        TemplateStatus::Current,
+    ));
+    let add = |p: &mut Project, name: &str, size, t| {
+        let mut s = Surface::new(name, size);
+        s.template = Some(t);
+        p.surfaces.push(s);
+    };
+    let t = template(
+        p,
+        (VOLVO, "globetrotter_xl", "chassis"),
         1,
         0.35,
         false,
         TemplateStatus::Current,
-    ));
-    let mut accessories = Surface::new("Accessories", 1024.0);
-    accessories.template = Some(template(
+    );
+    add(p, "Chassis", 2048.0, t);
+    let t = template(
         p,
-        "accessories",
+        (VOLVO, "globetrotter_xl", "accessories"),
         3,
         0.6,
         true,
         TemplateStatus::LayoutChanged,
-    ));
-    p.surfaces.push(chassis);
-    p.surfaces.push(accessories);
-    p.vehicle = Some(VehicleRef {
-        package_id: "scs.volvo.fh16_2012".into(),
-        version: "1.3.0".into(),
-        variant_id: "globetrotter_xl".into(),
-        name: "Volvo FH16 2012".into(),
-        brand: "Volvo".into(),
-        kind: "truck".into(),
-        game: "ets2".into(),
-    });
+    );
+    add(p, "Accessories", 1024.0, t);
+    let t = template(
+        p,
+        (VOLVO, "globetrotter", "cabin"),
+        2,
+        0.8,
+        true,
+        TemplateStatus::Current,
+    );
+    add(p, "Cabin", 4096.0, t);
+    let t = template(
+        p,
+        (KRONE, "cool_liner", "body"),
+        1,
+        0.6,
+        true,
+        TemplateStatus::Removed,
+    );
+    add(p, "Body", 4096.0, t);
+    let variant = |id: &str, name: &str| VariantRef {
+        id: id.into(),
+        name: name.into(),
+    };
+    p.vehicles = vec![
+        ProjectVehicle {
+            package_id: VOLVO.into(),
+            version: "1.3.0".into(),
+            variants: vec![
+                variant("globetrotter_xl", "Globetrotter XL"),
+                variant("globetrotter", "Globetrotter"),
+            ],
+            name: "Volvo FH16 2012".into(),
+            brand: "Volvo".into(),
+            kind: "truck".into(),
+            game: "ets2".into(),
+        },
+        ProjectVehicle {
+            package_id: KRONE.into(),
+            version: "2.0.0".into(),
+            variants: vec![variant("cool_liner", "Cool Liner")],
+            name: "Krone Cool Liner".into(),
+            brand: "Krone".into(),
+            kind: "trailer".into(),
+            game: "ets2".into(),
+        },
+    ];
+}
+
+/// A project with only `objects` on a fleet's first surface.
+fn plain_project() -> Project {
+    let mut p = Project::new("x", TextureResolution::R2048);
+    add_vehicle(&mut p);
+    p
 }
 
 /// A star, a curved path with a hole and an open line (format 2).
@@ -261,6 +319,7 @@ fn assert_same_document(a: &Project, b: &Project) {
     assert_eq!(a.palette, b.palette);
     assert_eq!(a.surfaces, b.surfaces);
     assert_eq!(a.assets, b.assets);
+    assert_eq!(a.vehicles, b.vehicles);
 }
 
 #[test]
@@ -311,7 +370,7 @@ fn failed_write_keeps_the_previous_file() {
     use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("ace.truckpaint");
-    tp_file::write(&Project::new("old", TextureResolution::R2048), &path).unwrap();
+    tp_file::write(&plain_project(), &path).unwrap();
     let before = std::fs::read(&path).unwrap();
     std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
     let result = tp_file::write(&rich_project(), &path);
@@ -396,7 +455,7 @@ fn write_current_fixture() {
 
 #[test]
 fn every_stroke_option_round_trips() {
-    let mut p = Project::new("x", TextureResolution::R2048);
+    let mut p = plain_project();
     let caps = [Cap::Butt, Cap::Round, Cap::Square];
     let joins = [Join::Miter, Join::Round, Join::Bevel];
     let aligns = [
@@ -472,7 +531,7 @@ fn v1_fixture_opens() {
     let opened = tp_file::read(&fixture(1)).unwrap();
     let p = &opened.project;
     let names: Vec<&str> = p.surfaces.iter().map(|s| s.name.as_str()).collect();
-    assert_eq!(names, ["Cabin", "Chassis", "Accessories"]);
+    assert_eq!(names, ["Cabin", "Chassis", "Accessories", "Cabin", "Body"]);
     assert_eq!(p.surfaces[2].size, 1024.0);
     let chassis = p.surfaces[1].template.as_ref().unwrap();
     assert_eq!((chassis.opacity, chassis.visible), (0.35, false));
@@ -480,7 +539,10 @@ fn v1_fixture_opens() {
         p.surfaces[2].template.as_ref().unwrap().status,
         tp_core::TemplateStatus::LayoutChanged
     );
-    assert_eq!(p.vehicle.as_ref().unwrap().version, "1.3.0");
+    assert_eq!(p.vehicles.len(), 2);
+    assert_eq!(p.vehicles[0].version, "1.3.0");
+    assert_eq!(p.vehicles[0].variants[1].name, "Globetrotter");
+    assert_eq!(p.variant_range("scs.volvo.fh16_2012", "globetrotter"), 3..4);
     assert!(!opened.migrated);
     assert_same_document(&opened.project, &rich_project());
     let objects = &opened.project.surface().objects;
@@ -498,7 +560,7 @@ fn v1_fixture_opens() {
 
 #[test]
 fn gradients_round_trip() {
-    let mut p = Project::new("x", TextureResolution::R2048);
+    let mut p = plain_project();
     for o in gradient_objects() {
         p.add(o);
     }
@@ -515,7 +577,86 @@ fn gradient_with_one_stop_is_damaged() {
              fill: Linear(start: (0.0, 0.5), end: (1.0, 0.5),
                           stops: [(offset: 0.0, color: (255, 0, 0, 255))]),
              opacity: 1.0, visible: true, locked: false),
-        ])])"#;
+        ])],
+        vehicles: [(package_id: "a.b", version: "1.0.0", name: "A", brand: "B",
+                    kind: "truck", game: "ets2", variants: [(id: "v", name: "V")])])"#;
     let err = tp_file::from_bytes(&zip_with(doc)).unwrap_err();
     assert!(matches!(err, Error::Damaged(_)), "{err:?}");
+}
+
+#[test]
+fn single_vehicle_files_of_development_builds_are_converted() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/v1-single-vehicle.truckpaint");
+    let p = tp_file::read(&path).unwrap().project;
+    assert_eq!(p.vehicles.len(), 1);
+    let v = &p.vehicles[0];
+    assert_eq!(v.package_id, "scs.volvo.fh16_2012");
+    assert_eq!(v.variants.len(), 1);
+    // The name was not stored: the id stands in.
+    assert_eq!(v.variants[0].id, "globetrotter_xl");
+    assert_eq!(v.variants[0].name, "globetrotter_xl");
+    for s in &p.surfaces {
+        let t = s.template.as_ref().unwrap();
+        assert_eq!(
+            (t.package_id.as_str(), t.variant_id.as_str()),
+            ("scs.volvo.fh16_2012", "globetrotter_xl")
+        );
+    }
+    assert_eq!(p.surfaces.len(), 3);
+}
+
+#[test]
+fn blank_texture_files_are_a_development_format() {
+    let doc = r#"(format: 1, name: "x", resolution: 2048, active_surface: 0,
+        surfaces: [(name: "Main texture", size: 2048.0)])"#;
+    let err = tp_file::from_bytes(&zip_with(doc)).unwrap_err();
+    assert!(matches!(err, Error::Unsupported { found: 1 }), "{err:?}");
+    assert!(err.message("a.truckpaint").contains("development format"));
+}
+
+#[test]
+fn inconsistent_fleets_are_damaged() {
+    let p = rich_project();
+    let damaged = |edit: &dyn Fn(&mut tp_file::current::FileProject)| {
+        let mut file = tp_file::current::from_project(&p);
+        edit(&mut file);
+        let text = ron::ser::to_string(&file).unwrap();
+        // Asset entries are missing too, but the fleet is checked on the
+        // document: build a full ZIP from the real project instead.
+        let bytes = tp_file::to_bytes(&p).unwrap();
+        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        let mut out = Vec::new();
+        {
+            let mut w = zip::ZipWriter::new(std::io::Cursor::new(&mut out));
+            for i in 0..zip.len() {
+                let mut entry = zip.by_index(i).unwrap();
+                let name = entry.name().to_owned();
+                let mut data = Vec::new();
+                std::io::Read::read_to_end(&mut entry, &mut data).unwrap();
+                if name == "project.ron" {
+                    data = text.clone().into_bytes();
+                }
+                w.start_file(name, zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                w.write_all(&data).unwrap();
+            }
+            w.finish().unwrap();
+        }
+        tp_file::from_bytes(&out).unwrap_err()
+    };
+    let mixed = damaged(&|f| f.vehicles[1].game = "ats".into());
+    assert!(
+        matches!(mixed, Error::Damaged(ref why) if why.contains("different games")),
+        "{mixed:?}"
+    );
+    let unknown = damaged(&|f| {
+        f.surfaces[1].template.as_mut().unwrap().variant_id = "nope".into();
+    });
+    assert!(matches!(unknown, Error::Damaged(_)), "{unknown:?}");
+    let twice = damaged(&|f| {
+        let v = f.vehicles[0].clone();
+        f.vehicles.push(v);
+    });
+    assert!(matches!(twice, Error::Damaged(_)), "{twice:?}");
 }

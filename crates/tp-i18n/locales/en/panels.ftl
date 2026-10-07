@@ -7,7 +7,7 @@ panel-colors = Colors
 panel-stroke = Stroke
 panel-transform = Transform
 panel-assets = Assets
-panel-vehicle = Vehicle
+panel-vehicle = Vehicles
 empty-properties = Nothing selected
 empty-properties-hint = Select an object on the canvas to edit its properties.
 empty-layers = No layers yet
@@ -227,12 +227,9 @@ undo-change-font = Change Font
 
 ## Vehicle panel
 
-vehicle-panel-none = No vehicle
-vehicle-panel-none-hint = This project is a blank texture. Create a project from a vehicle to paint on its templates.
 vehicle-panel-package = Package { $version } · game versions { $games }
 vehicle-panel-package-missing = Package { $version } (not installed)
 vehicle-panel-update = Version { $version } is available
-vehicle-panel-textures = Textures
 vehicle-panel-texture = Texture { $name }
 vehicle-panel-layout-changed = Layout changed
 vehicle-panel-dismiss = Dismiss
@@ -240,3 +237,26 @@ vehicle-panel-dismiss-named = Dismiss layout change of { $name }
 vehicle-panel-removed = Not in this version
 vehicle-panel-opacity = Template
 vehicle-panel-opacity-name = Template opacity
+
+## Fleet
+
+vehicle-panel-update-named = Update the template of { $name }
+vehicles-variants = Variants…
+vehicles-remove-from-project = Remove from Project
+
+## Vehicles sidebar
+
+
+## Sidebar
+
+sidebar-project = Project
+sidebar-show = Show Sidebar
+sidebar-hide = Hide Sidebar
+sidebar-vehicles-game = Vehicles · { $game }
+project-name = Name
+project-version = Version
+project-game-versions = Game versions
+vehicle-actions-named = Actions for { $name }
+vehicle-panel-needs-check = A texture needs checking after an update
+texture-layout-changed = The layout of this texture changed in version { $version }: check your artwork.
+texture-not-in-version = This texture is not in version { $version } of the vehicle: it has no template.

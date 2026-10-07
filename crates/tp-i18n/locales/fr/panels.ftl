@@ -6,7 +6,7 @@ panel-colors = Couleurs
 panel-stroke = Contour
 panel-transform = Transformation
 panel-assets = Ressources
-panel-vehicle = Véhicule
+panel-vehicle = Véhicules
 empty-properties = Aucune sélection
 empty-properties-hint = Sélectionnez un objet dans la zone de travail pour modifier ses propriétés.
 empty-layers = Aucun calque pour l’instant
@@ -229,12 +229,9 @@ undo-change-font = Modifier la police
 
 ## Vehicle panel
 
-vehicle-panel-none = Aucun véhicule
-vehicle-panel-none-hint = Ce projet est une texture vierge. Créez un projet à partir d’un véhicule pour peindre sur ses gabarits.
 vehicle-panel-package = Paquet { $version } · versions du jeu { $games }
 vehicle-panel-package-missing = Paquet { $version } (non installé)
 vehicle-panel-update = La version { $version } est disponible
-vehicle-panel-textures = Textures
 vehicle-panel-texture = Texture { $name }
 vehicle-panel-layout-changed = Disposition modifiée
 vehicle-panel-dismiss = Ignorer
@@ -242,3 +239,26 @@ vehicle-panel-dismiss-named = Ignorer le changement de disposition de { $name }
 vehicle-panel-removed = Absente de cette version
 vehicle-panel-opacity = Gabarit
 vehicle-panel-opacity-name = Opacité du gabarit
+
+## Fleet
+
+vehicle-panel-update-named = Mettre à jour le gabarit de { $name }
+vehicles-variants = Variantes…
+vehicles-remove-from-project = Retirer du projet
+
+## Vehicles sidebar
+
+
+## Sidebar
+
+sidebar-project = Projet
+sidebar-show = Afficher la barre latérale
+sidebar-hide = Masquer la barre latérale
+sidebar-vehicles-game = Véhicules · { $game }
+project-name = Nom
+project-version = Version
+project-game-versions = Versions du jeu
+vehicle-actions-named = Actions pour { $name }
+vehicle-panel-needs-check = Une texture est à vérifier après une mise à jour
+texture-layout-changed = La disposition de cette texture a changé en version { $version } : vérifiez votre dessin.
+texture-not-in-version = Cette texture n’existe pas dans la version { $version } du véhicule : elle n’a pas de gabarit.
