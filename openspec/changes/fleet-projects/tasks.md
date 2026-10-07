@@ -67,7 +67,16 @@
 
 ## 5b. Workspace follow-ups (review feedback)
 
-- [x] 5.6 Move the fleet tree to a Vehicles sidebar on the left (D6b): collapsible to a strip, View › Vehicles (F5), Vehicle Information opens it, width and state remembered, `PanelKind::Vehicle` removed from the column, older preferences still loading. Verify with the kittest `the_vehicles_sidebar_hides_and_comes_back`, the layout sanitizing unit test, and the fleet screenshots.
+- [x] 5.6 Move the fleet tree to a sidebar on the left (D6): collapsible to a strip, View › Sidebar (F5), Vehicle Information opens it, width and state remembered, `PanelKind::Vehicle` removed from the column, older preferences still loading. Verify with the kittest `the_vehicles_sidebar_hides_and_comes_back`, the layout sanitizing unit test, and the fleet screenshots.
+- [x] 5.9 Redesign the sidebar (D6):
+  - a read-only Project section (Name, empty Version and Game versions);
+  - Vehicles · game with a + button;
+  - vehicle groups with a ⋯ menu and an update button;
+  - variant and texture rows with warning icons;
+  - texture tabs removed, and Next/Previous Texture (Cmd/Ctrl+Page Down/Up) added;
+  - template settings and update flags moved to Properties when nothing is selected.
+
+  Verify with the kittests `the_tree_and_shortcuts_switch_textures`, `two_variants_at_once_and_the_tree_selects_textures`, `hide_the_template_with_shift_t` (Properties checkbox and slider), `update_from_the_vehicle_panel_and_undo` (flag and Dismiss in Properties), `add_vehicle_lists_only_the_project_game` (⋯ menu), and the fleet screenshots.
 - [x] 5.7 Open projects in a view showing the canvas (D6c). Verify with the kittest `projects_open_showing_the_canvas`.
 - [x] 5.8 Stop the "No match for 'sans-serif' font-family" warnings: the package reader sizes SVG templates with a font resolver that looks for no font. Verify with `tp-vehicles/tests/svg_logs.rs` (91 warnings for one read of the sample before, none after).
 

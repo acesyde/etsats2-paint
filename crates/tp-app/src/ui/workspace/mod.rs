@@ -91,7 +91,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     CentralPanel::no_frame()
         .frame(Frame::new().fill(color::SURFACE_0))
         .show(ui, |ui| match layout.view_mode {
-            ViewMode::TwoD => canvas_with_tabs(ui, &mut cmds, ws),
+            ViewMode::TwoD => canvas_area(ui, &mut cmds, ws),
             ViewMode::ThreeD => preview::show(ui, &mut cmds, false),
             ViewMode::Split => {
                 let total = ui.available_width();
@@ -110,13 +110,13 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
                 }
                 CentralPanel::no_frame()
                     .frame(Frame::new().fill(color::SURFACE_0))
-                    .show(ui, |ui| canvas_with_tabs(ui, &mut cmds, ws));
+                    .show(ui, |ui| canvas_area(ui, &mut cmds, ws));
             }
         });
 }
 
-/// The Vehicles sidebar: the fleet tree on the left of the canvas, or a
-/// strip with a button to show it again.
+/// The sidebar: the project and its fleet tree on the left of the canvas,
+/// or a strip with a button to show it again.
 fn vehicles_sidebar(
     ui: &mut Ui,
     cmds: &mut CommandUi<'_>,
@@ -126,9 +126,8 @@ fn vehicles_sidebar(
     vehicle_request: &mut Option<crate::state::VehicleRequest>,
     generation: u32,
 ) {
-    use egui::{RichText, ScrollArea};
+    use egui::ScrollArea;
     use tp_i18n::tr;
-    use tp_ui::theme::label_strong_style;
     use tp_ui::widgets::IconButton;
 
     let frame = Frame::new()
@@ -140,7 +139,7 @@ fn vehicles_sidebar(
             .resizable(false)
             .frame(frame)
             .show(ui, |ui| {
-                let show = tr("vehicles-sidebar-show");
+                let show = tr("sidebar-show");
                 if ui
                     .add(IconButton::new(tp_ui::icons::VEHICLE, &show))
                     .on_hover_text(&show)
@@ -158,21 +157,6 @@ fn vehicles_sidebar(
         .size_range(range.clone())
         .frame(frame)
         .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(tp_ui::icons::rich(tp_ui::icons::VEHICLE).color(color::TEXT_SECONDARY));
-                ui.label(RichText::new(tr("panel-vehicle")).text_style(label_strong_style()));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let hide = tr("vehicles-sidebar-hide");
-                    if ui
-                        .add(IconButton::new(tp_ui::icons::HIDE_SIDEBAR, &hide))
-                        .on_hover_text(&hide)
-                        .clicked()
-                    {
-                        cmds.push(crate::commands::CommandId::ToggleVehicles);
-                    }
-                });
-            });
-            ui.separator();
             ScrollArea::vertical()
                 .id_salt("vehicles_sidebar_scroll")
                 .auto_shrink([false, false])
@@ -194,55 +178,11 @@ fn vehicles_sidebar(
     }
 }
 
-/// The canvas, with tabs to switch between the textures of the active
-/// variant when it has several.
-fn canvas_with_tabs(
+/// The canvas (textures are switched from the sidebar).
+fn canvas_area(
     ui: &mut Ui,
     cmds: &mut crate::ui::CommandUi<'_>,
     ws: &mut crate::workspace::Workspace,
 ) {
-    let project = &ws.project;
-    let active = project.active_surface;
-    let range = project
-        .surface()
-        .template
-        .as_ref()
-        .map_or(active..active + 1, |t| {
-            project.variant_range(&t.package_id, &t.variant_id)
-        });
-    if range.len() > 1 {
-        let tabs: Vec<(usize, String, bool)> = range
-            .map(|i| {
-                let s = &project.surfaces[i];
-                let flagged = s
-                    .template
-                    .as_ref()
-                    .is_some_and(|t| t.status == tp_core::TemplateStatus::LayoutChanged);
-                (i, s.name.clone(), flagged)
-            })
-            .collect();
-        let picked = Frame::new()
-            .fill(color::SURFACE_1)
-            .inner_margin(Margin::symmetric(tp_ui::tokens::space::SM as i8, 2))
-            .show(ui, |ui| {
-                ui.push_id("texture_tabs", |ui| {
-                    let mut control = tp_ui::widgets::SegmentedControl::new();
-                    for (i, name, flagged) in &tabs {
-                        let icon = if *flagged {
-                            tp_ui::icons::WARNING
-                        } else {
-                            tp_ui::icons::VEHICLE
-                        };
-                        control = control.segment(*i, icon, name, None);
-                    }
-                    control.show(ui, active)
-                })
-                .inner
-            })
-            .inner;
-        if let Some(index) = picked {
-            ws.set_active_surface(index);
-        }
-    }
     canvas::show(ui, cmds, ws);
 }

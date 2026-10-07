@@ -91,6 +91,20 @@ fn create_vehicle_project(h: &mut H) {
     h.run();
 }
 
+/// Opens the ⋯ menu of `vehicle` in the sidebar and clicks `item`.
+fn vehicle_action(h: &mut H, vehicle: &str, item: &str) {
+    h.get_by_label(&format!("Actions for {vehicle}")).click();
+    h.run();
+    h.get_by_label(item).click();
+    h.run();
+}
+
+/// Clicks a texture of the sidebar tree.
+fn pick_texture(h: &mut H, path: &str) {
+    h.get_by_label(&format!("Texture {path}")).click();
+    h.run();
+}
+
 fn install_v120(h: &mut H, dir: &Path) {
     let file = package_file(dir, "1.2.0", &sample::truck_textures());
     h.state_mut().vehicles.install_file(&file).unwrap();
@@ -186,13 +200,12 @@ fn creating_a_project_for_a_vehicle_and_back() {
 }
 
 #[test]
-fn tabs_switch_textures() {
+fn the_tree_and_shortcuts_switch_textures() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = app(dir.path());
     install_v120(&mut h, dir.path());
     create_vehicle_project(&mut h);
-    h.get_by_label("Chassis").click();
-    h.run();
+    pick_texture(&mut h, "Sample Truck › Standard cabin › Chassis");
     assert_eq!(ws(&h).project.active_surface, 1);
     // The status bar names the active texture with its vehicle and variant.
     assert!(
@@ -207,6 +220,16 @@ fn tabs_switch_textures() {
     h.run();
     assert!(ws(&h).project.surfaces[1].get(id).is_some());
     assert!(ws(&h).project.surfaces[0].objects.is_empty());
+    // Next and previous texture from the keyboard.
+    h.key_press_modifiers(Modifiers::COMMAND, Key::PageDown);
+    h.run();
+    assert_eq!(ws(&h).project.active_surface, 2);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::PageDown);
+    h.run();
+    assert_eq!(ws(&h).project.active_surface, 0, "wraps around");
+    h.key_press_modifiers(Modifiers::COMMAND, Key::PageUp);
+    h.run();
+    assert_eq!(ws(&h).project.active_surface, 2);
 }
 
 #[test]
@@ -224,6 +247,15 @@ fn hide_the_template_with_shift_t() {
     h.key_press_modifiers(Modifiers::SHIFT, Key::T);
     h.run();
     assert!(visible(&h));
+    // The same setting in the Properties panel, with nothing selected.
+    h.get_by_role_and_label(Role::CheckBox, "Show Template")
+        .click();
+    h.run();
+    assert!(!visible(&h));
+    assert!(
+        h.query_by_role_and_label(Role::Slider, "Template opacity")
+            .is_some()
+    );
 }
 
 #[test]
@@ -232,7 +264,10 @@ fn update_from_the_vehicle_panel_and_undo() {
     let mut h = app(dir.path());
     install_v120(&mut h, dir.path());
     create_vehicle_project(&mut h);
-    assert!(h.query_by_label_contains("is available").is_none());
+    assert!(
+        h.query_by_label("Update the template of Sample Truck")
+            .is_none()
+    );
     let v13 = package_file(
         dir.path(),
         "1.3.0",
@@ -244,7 +279,6 @@ fn update_from_the_vehicle_panel_and_undo() {
     );
     h.state_mut().vehicles.install_file(&v13).unwrap();
     h.run();
-    assert!(h.query_by_label("Version 1.3.0 is available").is_some());
     h.get_by_label("Update the template of Sample Truck")
         .click();
     h.run();
@@ -256,7 +290,11 @@ fn update_from_the_vehicle_panel_and_undo() {
     let status = |h: &H, i: usize| ws(h).project.surfaces[i].template.as_ref().unwrap().status;
     assert_eq!(status(&h, 0), TemplateStatus::LayoutChanged);
     assert_eq!(status(&h, 1), TemplateStatus::Current);
-    assert!(h.query_by_label("Layout changed").is_some());
+    // The Properties panel (nothing selected) says so for the active Cabin.
+    assert!(
+        h.query_by_label_contains("The layout of this texture changed in version 1.3.0")
+            .is_some()
+    );
     h.get_by_label("Dismiss layout change of Sample Truck › Standard cabin › Cabin")
         .click();
     h.run();
@@ -279,7 +317,10 @@ fn removing_a_version_keeps_open_projects_and_files_work_without_it() {
         .unwrap();
     h.run();
     assert!(ws(&h).project.surfaces.iter().all(|s| s.template.is_some()));
-    assert!(h.query_by_label("Package 1.2.0 (not installed)").is_some());
+    assert!(
+        h.query_by_label("Truck · 1.2.0").is_some(),
+        "recorded version"
+    );
     // Saved and reopened without the package: templates travel with it.
     let bytes = tp_file::to_bytes(&ws(&h).project).unwrap();
     let opened = tp_file::from_bytes(&bytes).unwrap().project;
@@ -293,8 +334,7 @@ fn exporting_a_smaller_texture_without_its_template() {
     let mut h = app(dir.path());
     install_v120(&mut h, dir.path());
     create_vehicle_project(&mut h);
-    h.get_by_label("Accessories").click();
-    h.run();
+    pick_texture(&mut h, "Sample Truck › Standard cabin › Accessories");
     h.key_press_modifiers(Modifiers::COMMAND, Key::E);
     for _ in 0..4 {
         h.step();
@@ -516,32 +556,24 @@ fn create_sample_project(h: &mut H, variants: &[&str]) {
 }
 
 #[test]
-fn two_variants_at_once_and_tabs_follow_the_variant() {
+fn two_variants_at_once_and_the_tree_selects_textures() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = app(dir.path());
     create_sample_project(&mut h, &["Standard cab", "High roof"]);
     let p = &ws(&h).project;
     assert_eq!(p.surfaces.len(), 8);
     assert_eq!(p.vehicles[0].variants.len(), 2);
-    // Tabs show the Standard cab's four textures only.
-    assert_eq!(
-        h.query_all_by_label("Side skirts").count(),
-        1,
-        "one tab: the High roof's textures are not tabs"
-    );
-    h.get_by_label("Texture TruckPaint Sample Truck › High roof › Chassis")
-        .click();
-    h.run();
+    pick_texture(&mut h, "TruckPaint Sample Truck › High roof › Chassis");
     assert_eq!(ws(&h).project.active_surface, 5);
     assert!(
         h.query_by_label("TruckPaint Sample Truck › High roof › Chassis")
             .is_some(),
         "status bar breadcrumb"
     );
-    // Clicking a tab stays within the High roof.
-    h.get_by_label("Cabin").click();
+    // The next texture follows the project order.
+    h.key_press_modifiers(Modifiers::COMMAND, Key::PageDown);
     h.run();
-    assert_eq!(ws(&h).project.active_surface, 4);
+    assert_eq!(ws(&h).project.active_surface, 6);
 }
 
 #[test]
@@ -608,18 +640,21 @@ fn add_vehicle_lists_only_the_project_game() {
     assert_eq!(p.vehicles.len(), 2);
     assert_eq!(p.surfaces.len(), 5);
     assert_eq!(p.active_surface, 4);
-    assert!(h.query_by_label("ETS2 fleet").is_some());
+    assert!(h.query_by_label("Vehicles · ETS2").is_some());
     // The trailer can be removed (no artwork: no question); the last
     // vehicle cannot.
-    h.get_by_label("Remove Krone Cool Liner from the project")
+    vehicle_action(&mut h, "Krone Cool Liner", "Remove from Project");
+    assert_eq!(ws(&h).project.vehicles.len(), 1);
+    h.get_by_label("Actions for TruckPaint Sample Truck")
         .click();
     h.run();
-    assert_eq!(ws(&h).project.vehicles.len(), 1);
     assert!(
-        h.get_by_label("Remove TruckPaint Sample Truck from the project")
+        h.get_by_label("Remove from Project")
             .accesskit_node()
             .is_disabled()
     );
+    h.key_press(Key::Escape);
+    h.run();
     ws_mut(&mut h).undo();
     h.run();
     assert_eq!(ws(&h).project.vehicles.len(), 2);
@@ -636,9 +671,7 @@ fn removing_a_variant_with_artwork_asks_and_undoes() {
         1.0,
     );
     h.run();
-    h.get_by_label("Variants of TruckPaint Sample Truck")
-        .click();
-    h.run();
+    vehicle_action(&mut h, "TruckPaint Sample Truck", "Variants…");
     h.get_by_role_and_label(Role::CheckBox, "Standard cab")
         .click();
     h.run();
@@ -670,9 +703,7 @@ fn variants_need_the_recorded_version() {
         .remove(SAMPLE_ID, &"1.1.0".parse().unwrap())
         .unwrap();
     h.run();
-    h.get_by_label("Variants of TruckPaint Sample Truck")
-        .click();
-    h.run();
+    vehicle_action(&mut h, "TruckPaint Sample Truck", "Variants…");
     assert!(
         h.query_by_label_contains("Version 1.1.0 of this vehicle is not installed")
             .is_some()
@@ -745,11 +776,11 @@ fn the_vehicles_sidebar_hides_and_comes_back() {
     create_sample_project(&mut h, &["Standard cab"]);
     let tree_row = "Texture TruckPaint Sample Truck › Standard cab › Chassis";
     assert!(h.query_by_label(tree_row).is_some(), "open by default");
-    h.get_by_label("Hide Vehicles").click();
+    h.get_by_label("Hide Sidebar").click();
     h.run();
     assert!(h.query_by_label(tree_row).is_none());
     assert!(!h.state().prefs.layout.vehicles_open, "remembered");
-    h.get_by_label("Show Vehicles").click();
+    h.get_by_label("Show Sidebar").click();
     h.run();
     assert!(h.query_by_label(tree_row).is_some());
     // F5 toggles it; Vehicle › Vehicle Information shows it.

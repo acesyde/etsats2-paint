@@ -199,6 +199,10 @@ fn menu_contents(
             item(ui, cmds, VehicleLibrary);
             item(ui, cmds, AddVehicle);
             item(ui, cmds, VehicleInfo);
+            ui.separator();
+            item(ui, cmds, NextTexture);
+            item(ui, cmds, PreviousTexture);
+            ui.separator();
             item(ui, cmds, UpdateTemplate);
         }
         "menu-export" => {

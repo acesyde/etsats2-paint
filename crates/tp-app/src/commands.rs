@@ -64,6 +64,8 @@ pub enum CommandId {
     // Vehicle
     VehicleLibrary,
     AddVehicle,
+    NextTexture,
+    PreviousTexture,
     VehicleInfo,
     UpdateTemplate,
     ShowTemplate,
@@ -111,6 +113,8 @@ impl Direction {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct EditContext {
     pub has_project: bool,
+    /// Textures (surfaces) of the open project.
+    pub texture_count: usize,
     pub has_selection: bool,
     pub can_undo: bool,
     pub can_redo: bool,
@@ -251,6 +255,8 @@ impl CommandId {
             DesignGallery,
             VehicleLibrary,
             AddVehicle,
+            NextTexture,
+            PreviousTexture,
             VehicleInfo,
             UpdateTemplate,
             ShowTemplate,
@@ -630,7 +636,7 @@ impl CommandId {
                 NeedsProject,
             ),
             ToggleVehicles => m(
-                "panel-vehicle",
+                "cmd-sidebar",
                 Some(icons::VEHICLE),
                 const { &[sc(NONE, Key::F5)] },
                 Workspace,
@@ -701,6 +707,20 @@ impl CommandId {
                 &[],
                 Workspace,
                 When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
+            ),
+            NextTexture => m(
+                "cmd-next-texture",
+                None,
+                const { &[sc(CMD, Key::PageDown)] },
+                Workspace,
+                When(|c| c.texture_count > 1, "reason-one-texture"),
+            ),
+            PreviousTexture => m(
+                "cmd-previous-texture",
+                None,
+                const { &[sc(CMD, Key::PageUp)] },
+                Workspace,
+                When(|c| c.texture_count > 1, "reason-one-texture"),
             ),
             VehicleInfo => m(
                 "cmd-vehicle-information",

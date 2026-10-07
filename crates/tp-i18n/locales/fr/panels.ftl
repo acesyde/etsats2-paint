@@ -242,14 +242,23 @@ vehicle-panel-opacity-name = Opacité du gabarit
 
 ## Fleet
 
-vehicles-fleet-game = Flotte { $game }
 vehicle-panel-update-named = Mettre à jour le gabarit de { $name }
 vehicles-variants = Variantes…
-vehicles-variants-named = Variantes de { $name }
 vehicles-remove-from-project = Retirer du projet
-vehicles-remove-named = Retirer { $name } du projet
 
 ## Vehicles sidebar
 
-vehicles-sidebar-show = Afficher les véhicules
-vehicles-sidebar-hide = Masquer les véhicules
+
+## Sidebar
+
+sidebar-project = Projet
+sidebar-show = Afficher la barre latérale
+sidebar-hide = Masquer la barre latérale
+sidebar-vehicles-game = Véhicules · { $game }
+project-name = Nom
+project-version = Version
+project-game-versions = Versions du jeu
+vehicle-actions-named = Actions pour { $name }
+vehicle-panel-needs-check = Une texture est à vérifier après une mise à jour
+texture-layout-changed = La disposition de cette texture a changé en version { $version } : vérifiez votre dessin.
+texture-not-in-version = Cette texture n’existe pas dans la version { $version } du véhicule : elle n’a pas de gabarit.

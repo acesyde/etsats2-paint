@@ -278,6 +278,7 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
     let objects = env.ws.selected_objects();
     summary(ui, &objects, env.ws);
     if objects.is_empty() {
+        super::vehicle::texture_section(ui, env);
         if env.ws.tool == crate::tool::Tool::Text {
             ui.add_space(space::XS);
             super::character::show(ui, env);

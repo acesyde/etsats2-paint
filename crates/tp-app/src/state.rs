@@ -389,6 +389,7 @@ impl AppState {
         match self.workspace() {
             Some(ws) => EditContext {
                 has_project: true,
+                texture_count: ws.project.surfaces.len(),
                 has_selection: !ws.selection.is_empty(),
                 can_undo: ws.history.can_undo() || ws.is_drawing_pen(),
                 can_redo: ws.history.can_redo(),
@@ -599,6 +600,14 @@ impl AppState {
                 }
             }),
             CommandId::VehicleInfo => self.prefs.layout.vehicles_open = true,
+            CommandId::NextTexture | CommandId::PreviousTexture => {
+                let next = id == CommandId::NextTexture;
+                self.with_workspace(|ws| {
+                    let n = ws.project.surfaces.len();
+                    let i = ws.project.active_surface;
+                    ws.set_active_surface(if next { (i + 1) % n } else { (i + n - 1) % n });
+                });
+            }
             CommandId::ToggleVehicles => {
                 self.prefs.layout.vehicles_open = !self.prefs.layout.vehicles_open;
             }

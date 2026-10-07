@@ -24,7 +24,7 @@
 **Goals:**
 - **Fleet model:** a document model where every surface is keyed by (vehicle, variant, texture), and a project holds several vehicles with chosen variants, all of one game.
 - **Single undo steps:** adding or removing vehicles and variants, and updating one vehicle, are each one undo step, built on the existing snapshot mechanism.
-- **Navigation:** a tree in the Vehicles panel, tabs scoped to the active variant, and a breadcrumb in the status bar.
+- **Navigation:** a tree in a left sidebar as the single place to switch textures, keyboard shortcuts, and a breadcrumb in the status bar.
 - **Vehicle-only tests:** every UI test runs on a vehicle project, and the blank project is gone from the app.
 
 **Non-Goals:**
@@ -106,20 +106,29 @@ When the vehicle has several variants, `TextureChange` names include the variant
 
 **Opening the dialog:** `AppState::open_update_dialog(package_id: Option<&str>)`. `None`, used by the Vehicle › Update Template… command, means the vehicle of the active surface. The panel notice passes its vehicle. The `update_available` command context checks the active surface's vehicle.
 
-### D6. Vehicles panel
-`PanelKind::Vehicle` keeps its persisted name. Only its title message changes, to `panel-vehicles` "Vehicles", so saved layouts still load.
+### D6. The sidebar: Project and Vehicles
+Navigation is on the left and the selection's properties on the right, as in Figma. The sidebar is the **only** place to switch textures, so the canvas has no texture tabs.
 
-**The panel:**
-- **Header:** "ETS2 fleet" / "ATS fleet" (`vehicles-fleet-game`).
-- **One collapsing section per vehicle:**
-  - name, brand · kind, and package version with game versions;
-  - the update notice;
-  - **Variants…** and **Remove from Project** as two small buttons (a `⋯` menu was considered, but plain buttons are easier to find and to test), the latter disabled with a reason on the last vehicle.
-- **Under each vehicle:** one collapsing section per variant, holding selectable texture rows ("Cabin · 4096"). The active row is highlighted, and the badges and Dismiss stay as today.
-- **After the tree:**
-  - **Add Vehicle…** (command `AddVehicle`);
-  - the active template's opacity slider and visibility toggle.
-- **Defaults:** sections open on first show; the active vehicle and variant are always open.
+**Layout:** a resizable `Panel::left` between the tool bar and the canvas, 200–420 px wide and open by default. When hidden, it becomes a 36 px strip with a Show Sidebar button.
+- **Remembered state:** `WorkspaceLayout` gains `vehicles_open` and `vehicles_width`, both defaulted by serde.
+- **Command:** `ToggleVehicles` (View › Sidebar, F5; F6–F8 already toggle right-hand panels). Vehicle Information opens the sidebar.
+- **`PanelKind::Vehicle`:** it leaves the right column (`PanelKind::ALL`). The variant is kept only so preferences saved by earlier builds still deserialize, and `sanitized` drops its slot.
+
+**Sections:** both use `CollapsingState`, with an action button at the right of their headers.
+- **Project:** Name, Version and Game versions as disabled, read-only fields. Version and Game versions are empty: a later feature stores and edits them. The game isn't listed, since it never changes and titles the next section. The header holds the Hide Sidebar button.
+- **Vehicles · ETS2:** the + button runs `AddVehicle`. Each vehicle is a group:
+  - **Header:** its name, the update button (arrow-circle icon and version) when a newer version is installed, and a ⋯ menu (`menu_button`) with Variants…, Update Template… (when available) and Remove from Project (disabled with a reason on the last vehicle).
+  - **Body:** "Truck · 1.1.0" (game versions on hover), then each variant as a sub-group with a warning icon when one of its textures is flagged, then the texture rows: a selectable name, the size right-aligned, and a warning icon when flagged.
+
+The active vehicle and variant are forced open. Panel actions on a vehicle go through `VehicleRequest`.
+
+**The Template section** moves to the Properties panel, shown when nothing is selected (`vehicle::texture_section`): the flagged-state message with Dismiss, Show Template and the opacity slider.
+
+**Texture shortcuts:** `NextTexture` and `PreviousTexture` (Cmd/Ctrl+Page Down/Up, Vehicle menu) cycle through the surfaces in project order. They need `EditContext.texture_count > 1`. They make texture switching possible while the sidebar is hidden.
+
+**Icons:** they are drawn with the icon font (`icons::rich`): MORE, UPDATE, WARNING, HIDE_SIDEBAR. In plain text, Inter's private-use glyphs would shadow them, and "⋯" or "⬆" are missing from the bundled fonts.
+
+**Alternatives considered:** the tree in the right column, rejected because it's hard to find; texture tabs plus a tree stopping at the variants, rejected because tabs and tree were two entry points to the same choice; a separate Project panel on the right, rejected because it would be almost empty today.
 
 The dialogs go through `state.modal`, like the library and update dialogs:
 - **`Modal::AddVehicle(AddVehicleDialog { filter, choice: Option<(id, version, Vec<variant>)> })`:**
@@ -132,23 +141,10 @@ The dialogs go through `state.modal`, like the library and update dialogs:
   - unchecking variants that hold artwork switches to an inline confirmation naming them, as with Remove in the library.
 - **`Modal::RemoveVehicle { package_id }`:** a confirmation when the vehicle holds artwork, otherwise immediate.
 
-### D6b. The Vehicles sidebar on the left
-Navigation goes on the left and the selection's properties on the right, as in Figma.
-
-**Layout:** a resizable `Panel::left` between the tool bar and the canvas, 200–420 px wide, open by default. When hidden, it becomes a 36 px strip with a Show Vehicles button.
-
-**Remembered state:** `WorkspaceLayout` gains `vehicles_open` and `vehicles_width`, both defaulted by serde, so older preferences load.
-
-**Command:** `ToggleVehicles`, listed under View before the panels, with shortcut F5 (F6–F8 already toggle right-hand panels). Vehicle Information now opens the sidebar.
-
-**`PanelKind::Vehicle`:** it leaves `PanelKind::ALL`, the right column. The variant is kept only so preferences saved by earlier builds still deserialize, and `sanitized` drops its slot.
-
 ### D6c. Opening shows the canvas
 The view mode is a remembered preference, and the 3D view is still a placeholder: a project opened after a 3D session showed no canvas. `AppState::open_project` turns `ThreeD` into `TwoD` and keeps `TwoD` and `Split`.
 
-### D7. Tabs and status bar
-**Tabs:** `canvas_with_tabs` shows only `variant_range(active)`. The segment indices map back to project indices, and the tabs are hidden when that range holds one surface.
-
+### D7. Status bar
 **Status bar:** shows `vehicle › variant › texture` from `variant_names`, truncated with an ellipsis when too wide, with the full text on hover.
 
 ### D8. New Project wizard
@@ -203,7 +199,7 @@ v1 hasn't been released, as with the earlier reset.
   - Add Vehicle;
   - variants added and removed, with confirmation and undo;
   - removing a vehicle, and the last vehicle disabled;
-  - the tree switching surfaces and the tabs scoped to the variant;
+  - the tree and the keyboard switching surfaces;
   - the status bar breadcrumb;
   - update of one vehicle only;
   - the game filter;

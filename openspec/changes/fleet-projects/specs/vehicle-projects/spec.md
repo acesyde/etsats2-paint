@@ -11,12 +11,12 @@ A project SHALL belong to exactly one game, ETS2 or ATS: the game of its first v
 The user SHALL be able to change which vehicles and variants a project covers. Each change is one undo step.
 
 - **Add a vehicle:** Vehicle › Add Vehicle… opens a dialog listing the installed vehicles of the project's game that aren't in the project yet. It is searchable by name and brand and filterable by kind. Each vehicle shows its variants as checkboxes, and at least one must be checked. Confirming adds the vehicle at its newest installed version and adds one surface per texture of each checked variant, after the existing surfaces. The first new surface becomes active.
-- **Change the variants of a vehicle:** the vehicle's **Variants…** action in the Vehicles sidebar shows checkboxes for the variants of the project's recorded version.
+- **Change the variants of a vehicle:** the vehicle's **Variants…** action in the sidebar (⋯ menu) shows checkboxes for the variants of the project's recorded version.
   - Checking a variant adds its surfaces.
   - Unchecking one removes its surfaces. If any of them holds artwork, a confirmation names the variant first.
   - At least one variant stays checked.
   - Adding a variant needs the recorded version to be installed. When it isn't, the action explains that the version is missing and offers Update Template… instead.
-- **Remove a vehicle:** the vehicle's **Remove from Project** action removes the vehicle and its surfaces. If any of them holds artwork, a confirmation names the vehicle first. The last vehicle of a project can't be removed.
+- **Remove a vehicle:** the vehicle's **Remove from Project** action (⋯ menu) removes the vehicle and its surfaces. If any of them holds artwork, a confirmation names the vehicle first. The last vehicle of a project can't be removed.
 
 Template images no longer used by any surface SHALL be dropped from the project's assets. Undo SHALL restore them with the surfaces.
 
@@ -54,53 +54,66 @@ The project name SHALL default to the vehicle name.
 - **THEN** the project has six surfaces, three per variant, and the Standard cab's Cabin is active
 
 ### Requirement: Switching textures
-The user SHALL be able to make any surface active from the Vehicles sidebar tree.
-
-When the active variant has several textures, tabs above the canvas SHALL list them in order and SHALL show which one is active. Clicking a tab SHALL make that surface active. The tabs only show textures of the active variant, and are hidden when it has a single texture.
+The sidebar's tree SHALL be the place to switch textures: clicking a texture makes its surface active. There are no texture tabs above the canvas. Vehicle › Next Texture (Cmd/Ctrl+Page Down) and Vehicle › Previous Texture (Cmd/Ctrl+Page Up) SHALL make the following or preceding surface active, in project order and wrapping around; they are disabled for a project with one texture.
 
 When the active surface changes:
-- the canvas, rulers, Layers panel and status bar SHALL show that surface. The status bar names it as "<vehicle> › <variant> › <texture>";
+- the canvas, rulers, Layers panel, Properties panel and status bar SHALL show that surface. The status bar names it as "<vehicle> › <variant> › <texture>";
 - the selection SHALL be cleared;
 - each surface SHALL keep its own view (zoom and scroll) for as long as the project's list of surfaces doesn't change. Adding or removing vehicles or variants fits the other surfaces to the window again.
 
 Undo and redo SHALL apply to the whole project. Undoing a change made on another surface SHALL make that surface active.
 
 #### Scenario: Paint on the chassis
-- **WHEN** the user clicks the "Chassis" tab and draws a rectangle
+- **WHEN** the user clicks "Chassis" in the sidebar's tree and draws a rectangle
 - **THEN** the rectangle is on the Chassis surface and the Cabin surface is unchanged
 
 #### Scenario: Undo across textures
 - **WHEN** the user draws on Cabin, switches to Chassis, and presses Undo
 - **THEN** Cabin becomes active and the rectangle drawn on it is removed
 
-#### Scenario: Tabs follow the active variant
-- **WHEN** a project covers the sample truck's Standard cab and High roof, and the user clicks the High roof's Chassis in the Vehicles sidebar
-- **THEN** the tabs list the High roof's textures with Chassis active, and the status bar shows "TruckPaint Sample Truck › High roof › Chassis"
+#### Scenario: Next texture from the keyboard
+- **WHEN** the active texture is the High roof's Chassis and the user presses Cmd/Ctrl+Page Down
+- **THEN** the High roof's Accessories becomes active, and the status bar shows "TruckPaint Sample Truck › High roof › Accessories"
+
+### Requirement: Template overlay
+A surface's template SHALL be drawn on the canvas above the artwork, at the surface's size, as a locked overlay.
+- It cannot be selected, moved or edited, and it is not listed in the Layers panel.
+- Its opacity (default 60%) and visibility SHALL be set per surface in the Properties panel when nothing is selected, saved with the project, and not recorded in the undo history.
+- View › Show Template (Shift+T) SHALL toggle the visibility of the active surface's template.
+- The template SHALL never be exported. It is also left out of the eyedropper and of hit testing.
+
+When an update flagged the active texture, the Properties panel SHALL say so: "Layout changed" with a Dismiss action, or "Not in this version" (no template settings then).
+
+#### Scenario: Hide the template
+- **WHEN** the user presses Shift+T on a vehicle project
+- **THEN** the active surface's template is hidden, the artwork is unchanged, and pressing Shift+T again shows it
+
+#### Scenario: Template settings in Properties
+- **WHEN** nothing is selected and the user unchecks Show Template in the Properties panel
+- **THEN** the active surface's template is hidden, and no undo step is recorded
+
+#### Scenario: Template is not exported
+- **WHEN** a vehicle project with its template visible is exported to PNG
+- **THEN** the image contains only the artwork
 
 ### Requirement: Vehicle panel
-The Vehicles sidebar, on the left of the canvas (see the workspace-layout capability), SHALL show the project's game and a tree of its vehicles:
-- **for each vehicle:** its name, brand and kind, and its package version with its supported game versions;
-- **under each vehicle:** its chosen variants;
-- **under each variant:** its textures with their sizes. The active texture is highlighted, and clicking a texture makes it active.
+The sidebar, on the left of the canvas (see the workspace-layout capability), SHALL show a **Vehicles** section titled with the project's game ("Vehicles · ETS2"), with an **Add Vehicle** (+) button, and a tree of the project's vehicles:
+- **each vehicle** is a group titled with its name, with its kind and package version below (the supported game versions on hover) and a **⋯** actions menu: **Variants…**, **Update Template…** (when a newer version is installed) and **Remove from Project** (disabled for the last vehicle). When a newer version is installed, an update button showing that version SHALL also appear next to the menu;
+- **under each vehicle:** its chosen variants, with a warning icon when one of their textures was flagged by an update;
+- **under each variant:** its textures with their sizes and a warning icon when flagged. The active texture is highlighted, and clicking a texture makes it active.
 
-Each vehicle SHALL offer **Variants…** and **Remove from Project**. The panel SHALL end with an **Add Vehicle…** action.
-
-Below the tree, the sidebar SHALL show the active surface's template opacity and visibility.
-
-Textures flagged by an update SHALL show a "Layout changed" badge with a Dismiss action, and textures not in the recorded version a "Not in this version" badge. When a newer version of a vehicle's package is installed, that vehicle SHALL show a notice with an **Update Template…** action.
-
-Vehicle › Vehicle Information SHALL open the Vehicles sidebar.
+Groups can be collapsed; the active vehicle and variant stay open. Vehicle › Vehicle Information SHALL open the sidebar.
 
 #### Scenario: Newer version available
 - **WHEN** a project made with version 1.2.0 of a vehicle is open and version 1.3.0 of that vehicle is installed
-- **THEN** the Vehicles sidebar shows, on that vehicle, that version 1.3.0 is available with an Update Template… action
+- **THEN** that vehicle's group shows an update button for 1.3.0, which opens Update Template
 
 #### Scenario: Switching from the tree
-- **WHEN** the user clicks "Side skirts" under the trailer's variant in the Vehicles sidebar
+- **WHEN** the user clicks "Side skirts" under the trailer's variant in the sidebar
 - **THEN** that surface becomes active and is highlighted in the tree
 
 ### Requirement: Update Template
-Update Template SHALL work on one vehicle of the project. It is reached from that vehicle's notice in the Vehicles sidebar, or from Vehicle › Update Template…, which applies to the vehicle of the active surface. It SHALL be enabled when a newer version of that vehicle's package is installed.
+Update Template SHALL work on one vehicle of the project. It is reached from that vehicle's update button or ⋯ menu in the sidebar, or from Vehicle › Update Template…, which applies to the vehicle of the active surface. It SHALL be enabled when a newer version of that vehicle's package is installed.
 
 It SHALL show what will change for every chosen variant of the vehicle. On confirmation, it switches the vehicle to that version as one undo step:
 
@@ -126,8 +139,8 @@ Undo SHALL restore the previous templates, surfaces and recorded version.
 - **THEN** the truck's surfaces are updated and the trailer's surfaces and recorded version are unchanged
 
 ### Requirement: Templates travel with the project
-A project SHALL open with its templates on any computer, whether or not its packages are installed. When a package isn't installed, the Vehicles sidebar SHALL still show the recorded vehicle, version, variant names and textures. Update Template and adding variants stay disabled for that vehicle.
+A project SHALL open with its templates on any computer, whether or not its packages are installed. When a package isn't installed, the sidebar SHALL still show the recorded vehicle, version, variant names and textures. Update Template and adding variants stay disabled for that vehicle.
 
 #### Scenario: Opening without the package
 - **WHEN** a project is opened on a computer where its packages are not installed
-- **THEN** every surface shows its template, and the Vehicles sidebar shows each vehicle, its version and its variants as recorded in the project
+- **THEN** every surface shows its template, and the sidebar shows each vehicle, its version and its variants as recorded in the project

@@ -22,8 +22,9 @@ Today a project holds at most one vehicle and one variant, and New Project still
 
   These are all single undo steps.
 - **Navigation:**
-  - **Vehicles sidebar:** the Vehicle panel leaves the right column and becomes a **Vehicles** sidebar on the left of the canvas, holding a tree, Vehicle › Variant › Texture. Clicking a texture makes it active. The sidebar collapses to a strip (View › Vehicles, F5) and remembers its state and width.
-  - **Texture tabs:** they now show only the textures of the active variant.
+  - **Sidebar:** the Vehicle panel leaves the right column. A sidebar on the left of the canvas holds a read-only **Project** section (name; version and game versions empty until a later feature) and a **Vehicles** section: a tree, Vehicle › Variant › Texture, with + to add a vehicle and a ⋯ menu per vehicle. It collapses to a strip (View › Sidebar, F5) and remembers its state and width.
+  - **No texture tabs:** the tree is the only place to switch textures, with Next/Previous Texture (Cmd/Ctrl+Page Down/Up) as the keyboard path.
+  - **Template settings:** they move to the Properties panel when nothing is selected, together with the update flags and Dismiss.
   - **Status bar:** names the active texture as "Vehicle › Variant › Texture".
 - **Update Template:**
   - It works **per vehicle**: the Vehicles panel shows the update notice on the vehicle concerned.
@@ -50,7 +51,8 @@ Today a project holds at most one vehicle and one variant, and New Project still
 - `document-model`: every surface belongs to a vehicle's variant texture. There is no blank surface or "Main texture".
 - `project-files`: files store the list of vehicles with their variants, and each template's vehicle and variant. Files without a vehicle are refused.
 - `texture-export`: the proposed file name includes the vehicle and variant.
-- `workspace-layout`: the Vehicles sidebar on the left (new requirement), the Vehicle panel leaving the right column, and projects opening in a view that shows the canvas.
+- `workspace-layout`: the sidebar on the left with its Project and Vehicles sections (new requirement), the Vehicle panel leaving the right column, and projects opening in a view that shows the canvas.
+- `properties-panel`: with nothing selected, the panel also shows the active texture's template settings.
 
 ## Impact
 

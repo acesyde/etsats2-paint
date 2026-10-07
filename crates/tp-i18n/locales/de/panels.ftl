@@ -242,14 +242,23 @@ vehicle-panel-opacity-name = Deckkraft der Vorlage
 
 ## Fleet
 
-vehicles-fleet-game = { $game }-Flotte
 vehicle-panel-update-named = Vorlage von { $name } aktualisieren
 vehicles-variants = Varianten…
-vehicles-variants-named = Varianten von { $name }
 vehicles-remove-from-project = Aus dem Projekt entfernen
-vehicles-remove-named = { $name } aus dem Projekt entfernen
 
 ## Vehicles sidebar
 
-vehicles-sidebar-show = Fahrzeuge anzeigen
-vehicles-sidebar-hide = Fahrzeuge ausblenden
+
+## Sidebar
+
+sidebar-project = Projekt
+sidebar-show = Seitenleiste anzeigen
+sidebar-hide = Seitenleiste ausblenden
+sidebar-vehicles-game = Fahrzeuge · { $game }
+project-name = Name
+project-version = Version
+project-game-versions = Spielversionen
+vehicle-actions-named = Aktionen für { $name }
+vehicle-panel-needs-check = Eine Textur muss nach einem Update geprüft werden
+texture-layout-changed = Das Layout dieser Textur hat sich in Version { $version } geändert: Prüfen Sie Ihre Gestaltung.
+texture-not-in-version = Diese Textur gibt es in Version { $version } des Fahrzeugs nicht: Sie hat keine Vorlage.

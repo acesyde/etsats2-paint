@@ -1502,13 +1502,14 @@ fn render_sample_vehicle() {
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_fleet_screens() {
+    use tp_app::layout::PanelKind;
     use tp_app::state::Modal;
     use tp_app::ui::vehicle_dialogs::{AddVehicleDialog, VariantsDialog, VehicleChoice};
     for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
         let mut prefs = Prefs::default();
         prefs.set_language(Some(language));
         for slot in &mut prefs.layout.panels {
-            slot.collapsed = true;
+            slot.collapsed = slot.kind != PanelKind::Properties;
         }
         let code = language.code();
         let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
@@ -1560,7 +1561,12 @@ fn render_fleet_screens() {
             .unwrap()
             .add_vehicle(&krone, &["standard".into()], 1.0)
             .unwrap();
-        h.state_mut().workspace_mut().unwrap().set_active_surface(5);
+        let ws = h.state_mut().workspace_mut().unwrap();
+        ws.set_active_surface(5);
+        // A texture flagged by an update: ⚠ in the tree, the notice in
+        // Properties.
+        ws.project.surfaces[5].template.as_mut().unwrap().status =
+            tp_core::TemplateStatus::LayoutChanged;
         for _ in 0..20 {
             h.step();
         }

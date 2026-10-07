@@ -240,14 +240,23 @@ vehicle-panel-opacity-name = Template opacity
 
 ## Fleet
 
-vehicles-fleet-game = { $game } fleet
 vehicle-panel-update-named = Update the template of { $name }
 vehicles-variants = Variants…
-vehicles-variants-named = Variants of { $name }
 vehicles-remove-from-project = Remove from Project
-vehicles-remove-named = Remove { $name } from the project
 
 ## Vehicles sidebar
 
-vehicles-sidebar-show = Show Vehicles
-vehicles-sidebar-hide = Hide Vehicles
+
+## Sidebar
+
+sidebar-project = Project
+sidebar-show = Show Sidebar
+sidebar-hide = Hide Sidebar
+sidebar-vehicles-game = Vehicles · { $game }
+project-name = Name
+project-version = Version
+project-game-versions = Game versions
+vehicle-actions-named = Actions for { $name }
+vehicle-panel-needs-check = A texture needs checking after an update
+texture-layout-changed = The layout of this texture changed in version { $version }: check your artwork.
+texture-not-in-version = This texture is not in version { $version } of the vehicle: it has no template.
