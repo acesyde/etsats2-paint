@@ -92,7 +92,7 @@
 ## 10. Verification
 
 - [x] 10.1 Run `mise run fmt:check`, `mise run lint` and `mise run test`, and verify that all three pass.
-- [ ] 10.2 Run the app and walk through it:
+- [x] 10.2 Run the app and walk through it:
   - install the sample vehicles;
   - create a truck project with both main textures;
   - add the trailer;
