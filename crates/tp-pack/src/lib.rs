@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 use tp_vehicles::{MANIFEST, Manifest, Package, PackageError};
 
+pub mod custom;
 pub mod dds;
 
 /// Why a folder could not be packed or a package is invalid.
@@ -155,20 +156,9 @@ fn is_dds(path: &str) -> bool {
     path.to_ascii_lowercase().ends_with(".dds")
 }
 
-/// Packs `folder` (a `vehicle.json` and the files it references) and
-/// validates the result. Nothing is written to disk.
-pub fn pack_folder(folder: &Path) -> Result<Packed, PackError> {
-    let manifest_path = folder.join(MANIFEST);
-    if !manifest_path.is_file() {
-        return Err(PackError::NoManifest(folder.to_path_buf()));
-    }
-    let text = std::fs::read(&manifest_path).map_err(io(&manifest_path))?;
-    let mut value: Value =
-        serde_json::from_slice(&text).map_err(|e| PackError::BadManifest(e.to_string()))?;
-    let manifest: Manifest =
-        serde_json::from_value(value.clone()).map_err(|e| PackError::BadManifest(e.to_string()))?;
-
-    // Referenced files, each with the part it is first used by.
+/// The files a manifest references (templates and preview), each with the
+/// name of the part it is first used by.
+fn referenced(manifest: &Manifest) -> BTreeMap<String, String> {
     let mut referenced: BTreeMap<String, String> = BTreeMap::new();
     for (_, part) in manifest.paint_job.parts() {
         referenced
@@ -180,9 +170,26 @@ pub fn pack_folder(folder: &Path) -> Result<Packed, PackError> {
             .entry(preview.clone())
             .or_insert_with(|| "preview".into());
     }
+    referenced
+}
 
-    let mut entries: BTreeMap<String, Vec<u8>> = BTreeMap::new();
-    let mut converted = Vec::new();
+fn parse(value: &Value) -> Result<Manifest, PackError> {
+    serde_json::from_value(value.clone()).map_err(|e| PackError::BadManifest(e.to_string()))
+}
+
+/// Packs `folder` (a `vehicle.json` and the files it references) and
+/// validates the result. Nothing is written to disk.
+pub fn pack_folder(folder: &Path) -> Result<Packed, PackError> {
+    let manifest_path = folder.join(MANIFEST);
+    if !manifest_path.is_file() {
+        return Err(PackError::NoManifest(folder.to_path_buf()));
+    }
+    let text = std::fs::read(&manifest_path).map_err(io(&manifest_path))?;
+    let value: Value =
+        serde_json::from_slice(&text).map_err(|e| PackError::BadManifest(e.to_string()))?;
+    let referenced = referenced(&parse(&value)?);
+
+    let mut files = BTreeMap::new();
     for (path, texture) in &referenced {
         if !tp_vehicles::is_safe_path(path) || path == MANIFEST {
             return Err(PackError::UnsafePath(path.clone()));
@@ -199,12 +206,51 @@ pub fn pack_folder(folder: &Path) -> Result<Packed, PackError> {
         if meta.len() > tp_vehicles::MAX_UNCOMPRESSED {
             return Err(PackError::TooLarge { path: path.clone() });
         }
-        let bytes = std::fs::read(&file).map_err(io(&file))?;
+        files.insert(path.clone(), std::fs::read(&file).map_err(io(&file))?);
+    }
+    let mut packed = pack_entries(value, files)?;
+    list_ignored(folder, folder, &referenced, &mut packed.ignored);
+    packed.ignored.sort();
+    Ok(packed)
+}
+
+/// Packs a manifest and the files it references, given by their path in
+/// the package, and validates the result. DDS templates are converted to
+/// PNG. Files the manifest doesn't reference are left out.
+pub fn pack_entries(
+    manifest: Value,
+    files: BTreeMap<String, Vec<u8>>,
+) -> Result<Packed, PackError> {
+    pack_entries_with(manifest, files, &mut || {})
+}
+
+/// [`pack_entries`], calling `converted_one` after each DDS template is
+/// converted.
+pub fn pack_entries_with(
+    mut value: Value,
+    mut files: BTreeMap<String, Vec<u8>>,
+    converted_one: &mut dyn FnMut(),
+) -> Result<Packed, PackError> {
+    let referenced = referenced(&parse(&value)?);
+    let mut entries: BTreeMap<String, Vec<u8>> = BTreeMap::new();
+    let mut converted = Vec::new();
+    for (path, texture) in &referenced {
+        if !tp_vehicles::is_safe_path(path) || path == MANIFEST {
+            return Err(PackError::UnsafePath(path.clone()));
+        }
+        let bytes = files.remove(path).ok_or_else(|| PackError::MissingFile {
+            texture: texture.clone(),
+            path: path.clone(),
+        })?;
+        if bytes.len() as u64 > tp_vehicles::MAX_UNCOMPRESSED {
+            return Err(PackError::TooLarge { path: path.clone() });
+        }
         let (name, bytes) = if is_dds(path) {
-            let image = dds::decode(&bytes).map_err(|detail| PackError::UnsupportedDds {
+            let image = dds::decode(&bytes).map_err(|e| PackError::UnsupportedDds {
                 texture: texture.clone(),
-                detail,
+                detail: e.to_string(),
             })?;
+            drop(bytes);
             let mut png = Vec::new();
             image
                 .write_to(&mut Cursor::new(&mut png), image::ImageFormat::Png)
@@ -214,6 +260,7 @@ pub fn pack_folder(folder: &Path) -> Result<Packed, PackError> {
                 })?;
             let name = format!("{}.png", &path[..path.len() - 4]);
             converted.push((path.clone(), name.clone()));
+            converted_one();
             (name, png)
         } else {
             (path.clone(), bytes)
@@ -226,13 +273,10 @@ pub fn pack_folder(folder: &Path) -> Result<Packed, PackError> {
 
     let bytes = write_zip(&value, &entries);
     let manifest = Package::read(&bytes).map_err(PackError::Package)?.manifest;
-    let mut ignored = Vec::new();
-    list_ignored(folder, folder, &referenced, &mut ignored);
-    ignored.sort();
     Ok(Packed {
         bytes,
         manifest,
-        ignored,
+        ignored: Vec::new(),
         converted,
     })
 }

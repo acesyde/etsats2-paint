@@ -15,6 +15,10 @@ pub trait FileDialogs {
     fn save_export(&mut self, suggested: &str) -> Option<PathBuf>;
     /// Vehicle packages to install.
     fn pick_packages(&mut self) -> Vec<PathBuf>;
+    /// Template images of a custom vehicle (PNG, DDS or SVG).
+    fn pick_templates(&mut self) -> Vec<PathBuf>;
+    /// Where to export a vehicle package, proposing `suggested`.
+    fn save_package(&mut self, suggested: &str) -> Option<PathBuf>;
     /// Names proposed so far (scripted dialogs only).
     fn suggested(&self) -> Vec<String> {
         Vec::new()
@@ -48,6 +52,22 @@ impl FileDialogs for NativeDialogs {
             .unwrap_or_default()
     }
 
+    fn pick_templates(&mut self) -> Vec<PathBuf> {
+        rfd::FileDialog::new()
+            .set_title(tr("custom-add-templates"))
+            .add_filter(tr("filter-templates"), &["png", "dds", "svg"])
+            .pick_files()
+            .unwrap_or_default()
+    }
+
+    fn save_package(&mut self, suggested: &str) -> Option<PathBuf> {
+        rfd::FileDialog::new()
+            .set_title(tr("dialog-export-package"))
+            .add_filter(tr("filter-packages"), &[tp_vehicles::EXTENSION])
+            .set_file_name(suggested)
+            .save_file()
+    }
+
     fn pick_images(&mut self) -> Vec<PathBuf> {
         rfd::FileDialog::new()
             .set_title(tr("cmd-place"))
@@ -77,6 +97,8 @@ pub struct ScriptedDialogs {
     pub images: VecDeque<Vec<PathBuf>>,
     pub export: VecDeque<PathBuf>,
     pub packages: VecDeque<Vec<PathBuf>>,
+    pub templates: VecDeque<Vec<PathBuf>>,
+    pub package_save: VecDeque<PathBuf>,
     /// File names proposed by save dialogs, in order.
     pub suggested: Vec<String>,
 }
@@ -106,6 +128,15 @@ impl FileDialogs for ScriptedDialogs {
 
     fn pick_packages(&mut self) -> Vec<PathBuf> {
         self.packages.pop_front().unwrap_or_default()
+    }
+
+    fn pick_templates(&mut self) -> Vec<PathBuf> {
+        self.templates.pop_front().unwrap_or_default()
+    }
+
+    fn save_package(&mut self, suggested: &str) -> Option<PathBuf> {
+        self.suggested.push(suggested.to_owned());
+        self.package_save.pop_front()
     }
 }
 

@@ -92,6 +92,15 @@ pub fn game_label(game: Game) -> &'static str {
     }
 }
 
+/// Supported game versions: "any version" when unlimited.
+pub fn versions_text(versions: &semver::VersionReq) -> String {
+    if *versions == semver::VersionReq::STAR {
+        tr("vehicles-any-version")
+    } else {
+        versions.to_string()
+    }
+}
+
 /// "Volvo · Truck · ETS2 · 1.3.0".
 pub fn summary(m: &Manifest) -> String {
     format!(
@@ -299,6 +308,9 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
     let mut keep = true;
     let mut install_clicked = false;
     let mut sample_clicked = false;
+    let mut custom_clicked = false;
+    let mut new_version = None;
+    let mut export = None;
     let mut remove = None;
     super::dialogs::modal("vehicle_library_modal").show(ctx, |ui| {
         ui.set_width(640.0);
@@ -326,6 +338,9 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
                 sample_clicked |= ui
                     .add(primary_button(&tr("vehicles-install-sample")))
                     .clicked();
+                custom_clicked |= ui
+                    .add(secondary_button(&tr("custom-open-library")))
+                    .clicked();
             });
         } else {
             dialog.filter.show(ui, "library");
@@ -333,7 +348,21 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
             ScrollArea::vertical().max_height(360.0).show(ui, |ui| {
                 for vehicle in filtered(&state.vehicles, &dialog.filter) {
                     let m = &vehicle.newest().manifest;
-                    ui.label(RichText::new(&m.name).text_style(label_strong_style()));
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new(&m.name).text_style(label_strong_style()));
+                        if tp_pack::custom::is_custom(&vehicle.id) {
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                let name = tr!("vehicles-new-version-of", name = m.name.as_str());
+                                let button = ui.add(secondary_button(&tr("vehicles-new-version")));
+                                button.widget_info(|| {
+                                    WidgetInfo::labeled(WidgetType::Button, true, &name)
+                                });
+                                if button.clicked() {
+                                    new_version = Some(vehicle.id.clone());
+                                }
+                            });
+                        }
+                    });
                     ui.label(
                         RichText::new(summary(m))
                             .small()
@@ -344,7 +373,7 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
                     ui.label(
                         RichText::new(tr!(
                             "vehicles-details",
-                            versions = m.game.versions.to_string(),
+                            versions = versions_text(&m.game.versions),
                             main = main.join(", "),
                             accessories = m.paint_job.accessories.len()
                         ))
@@ -370,11 +399,27 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
                                     format!("{} {version}", m.name),
                                 ));
                             }
+                            let name = tr!(
+                                "vehicles-export-version",
+                                name = m.name.as_str(),
+                                version = version.as_str()
+                            );
+                            if ui.add(IconButton::new(icons::EXPORT, &name)).clicked() {
+                                export = Some((
+                                    v.path.clone(),
+                                    format!("{}-{version}.{}", vehicle.id, tp_vehicles::EXTENSION),
+                                ));
+                            }
                         });
                     }
                     ui.separator();
                 }
             });
+            ui.label(
+                RichText::new(tr("custom-scs-reminder"))
+                    .small()
+                    .color(color::TEXT_SECONDARY),
+            );
         }
         if let Some((_, _, name)) = &dialog.confirm_remove {
             ui.add_space(space::SM);
@@ -400,6 +445,11 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
                 None => {
                     keep &= !ui.add(primary_button(&tr("button-close"))).clicked();
                     install_clicked |= ui.add(secondary_button(&tr("vehicles-install"))).clicked();
+                    if !state.vehicles.vehicles().is_empty() {
+                        custom_clicked |= ui
+                            .add(secondary_button(&tr("custom-open-library")))
+                            .clicked();
+                    }
                 }
             }
         });
@@ -409,6 +459,33 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
     }
     if sample_clicked {
         dialog.messages = install_samples(state);
+    }
+    if let Some((from, suggested)) = export
+        && let Some(to) = state.dialogs.save_package(&suggested)
+    {
+        let written = std::fs::read(&from)
+            .map_err(|e| e.to_string())
+            .and_then(|bytes| tp_file::write_atomic(&to, &bytes).map_err(|e| e.to_string()));
+        let file = to.display().to_string();
+        dialog.messages = vec![match written {
+            Ok(()) => Ok(tr!("vehicles-exported", file = file.as_str())),
+            Err(reason) => Err(tr!(
+                "vehicles-export-failed",
+                file = file.as_str(),
+                reason = reason.as_str()
+            )),
+        }];
+    }
+    if custom_clicked {
+        super::custom_vehicle::open(
+            state,
+            super::custom_vehicle::Origin::Library(std::mem::take(dialog)),
+        );
+        return true;
+    }
+    if let Some(id) = new_version {
+        super::custom_vehicle::open_new_version(state, &id, std::mem::take(dialog));
+        return true;
     }
     if install_clicked {
         let paths = state.dialogs.pick_packages();
@@ -575,6 +652,7 @@ pub fn add_vehicle(
     let mut keep = true;
     let mut add = false;
     let mut install_clicked = false;
+    let mut custom_clicked = false;
     let exclude: Vec<String> = state
         .workspace()
         .map(|ws| {
@@ -637,8 +715,16 @@ pub fn add_vehicle(
                 .clicked();
             keep &= !ui.add(secondary_button(&tr("button-cancel"))).clicked();
             install_clicked |= ui.add(secondary_button(&tr("vehicles-install"))).clicked();
+            custom_clicked |= ui.add(secondary_button(&tr("custom-open"))).clicked();
         });
     });
+    if custom_clicked {
+        super::custom_vehicle::open(
+            state,
+            super::custom_vehicle::Origin::AddVehicle(std::mem::take(dialog)),
+        );
+        return true;
+    }
     if install_clicked {
         let paths = state.dialogs.pick_packages();
         if !paths.is_empty() {

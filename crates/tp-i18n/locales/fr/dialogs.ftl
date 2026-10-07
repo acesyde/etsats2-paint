@@ -116,9 +116,73 @@ pkg-missing-template = le gabarit de « { $texture } » est manquant.
 pkg-bad-template = le gabarit de « { $texture } » n’est pas une image PNG ou SVG lisible.
 pkg-template-too-large = le gabarit de « { $texture } » est trop grand.
 
+## Custom vehicles
+
+custom-build-failed = { $name } n’a pas pu être créé : { $reason }
+custom-template-unconvertible = le gabarit de « { $texture } » ne peut pas être converti.
+custom-file-not-image = { $file } ne peut pas être utilisé : ce n’est pas une image PNG, DDS ou SVG.
+custom-file-unsupported-dds = { $file } ne peut pas être lu : sa compression DDS ({ $format }) n’est pas prise en charge. Enregistrez-le en BC1, BC2, BC3 ou RGB(A) non compressé.
+custom-file-damaged = { $file } ne peut pas être lu : le fichier est endommagé ou incomplet.
+custom-file-too-large = { $file } ne peut pas être utilisé : il dépasse { $size } px.
+custom-file-io = { $file } ne peut pas être lu ({ $reason }).
+custom-build-stopped = { $name } n’a pas pu être créé : la création s’est arrêtée de façon inattendue.
+custom-title = Véhicule personnalisé
+custom-new-version-title = Nouvelle version de { $name }
+custom-open = Véhicule personnalisé…
+custom-open-library = Véhicule personnalisé…
+custom-id = Identifiant
+custom-version = Version
+custom-name = Nom
+custom-brand = Marque
+custom-kind = Type
+custom-game = Jeu
+custom-game-path = Chemin dans le jeu
+custom-game-path-hint = Comme dans les définitions du jeu, p. ex. scania.r_2016
+custom-game-versions = Versions du jeu
+custom-game-versions-hint = Toutes les versions, ou une plage comme >=1.53
+custom-alt-uv = Jeu d’UV alternatif
+custom-colour-picker = Choix de couleur
+custom-textures = Textures
+custom-drop-hint = Déposez ici les gabarits du jeu (PNG, DDS ou SVG), ou ajoutez-les. Chaque fichier est une texture.
+custom-add-templates = Ajouter des gabarits…
+custom-row-name = Nom de la texture { $n }
+custom-row-role = Rôle de la texture { $n }
+custom-row-size = Taille de la texture { $n }
+custom-row-game-ids = Identifiants de jeu de la texture { $n }
+custom-row-replace = Remplacer…
+custom-row-replace-name = Remplacer le gabarit de la texture { $n }
+custom-row-remove = Supprimer la texture { $n }
+custom-role-main = Texture principale
+custom-role-accessory = Accessoire
+custom-hint-cabins = Noms internes des cabines qui utilisent cette disposition, p. ex. highline, highline_8x4
+custom-hint-cabins-optional = Noms internes des cabines qui utilisent cette disposition ; laissez vide pour peindre toutes les cabines
+custom-hint-accessories = Identifiants des accessoires couverts par cette texture, p. ex. mirror.painted, s_mirror.painted
+custom-file = { $file } · { $width } × { $height } px
+custom-not-square = Pas carré : l’image sera étirée sur la texture carrée.
+custom-scs-reminder = Les gabarits des jeux de base appartiennent à SCS Software : utilisez-les pour vos propres livrées, et vérifiez leur licence avant de partager un paquet.
+custom-create = Créer
+custom-building = Création du paquet… ({ $done }/{ $total })
+custom-building-plain = Création du paquet…
+custom-problem-name = Saisissez le nom du véhicule.
+custom-problem-brand = Saisissez la marque du véhicule.
+custom-problem-game-path = Le chemin dans le jeu est fait de mots en a–z, 0–9 et _ séparés par des points, comme dans les définitions du jeu, p. ex. scania.r_2016.
+custom-problem-game-versions = Saisissez une plage de versions comme >=1.53, ou laissez vide pour toutes les versions.
+custom-problem-version = Saisissez une version comme 1.1.0.
+custom-problem-version-not-higher = La version doit être supérieure à { $version }.
+custom-problem-installed = { $id } est déjà installé. Créez-en une nouvelle version avec Nouvelle version… dans la bibliothèque de véhicules, ou changez le nom.
+custom-problem-no-main = Faites de l’une des textures une texture principale.
+custom-problem-trailer-main = Une remorque a une seule texture principale : faites des autres des accessoires.
+custom-problem-texture-name = Saisissez le nom de la texture.
+custom-problem-cabins = Saisissez les noms internes des cabines qui utilisent cette disposition.
+custom-problem-accessory-ids = Saisissez les identifiants des accessoires couverts par cette texture.
+custom-problem-game-id = « { $id } » n’est pas un identifiant de jeu valide : utilisez des mots en a–z, 0–9 et _ séparés par des points.
+custom-problem-duplicate-game-id = « { $id } » est déjà utilisé par une autre texture.
+
 ## Vehicle library and updates
 
 filter-packages = Paquets de véhicules
+filter-templates = Gabarits (PNG, DDS, SVG)
+dialog-export-package = Exporter le paquet de véhicule (les gabarits des jeux de base appartiennent à SCS Software)
 vehicles-search = Rechercher un véhicule
 vehicles-all-games = Tous les jeux
 vehicles-game-filter = Jeu
@@ -136,6 +200,12 @@ vehicles-remove-confirm = Supprimer { $name } de la bibliothèque ? Les projets 
 vehicles-remove = Supprimer
 vehicles-install = Installer…
 vehicles-install-sample = Installer les véhicules d’exemple
+vehicles-any-version = toutes les versions
+vehicles-new-version = Nouvelle version…
+vehicles-new-version-of = Nouvelle version de { $name }
+vehicles-export-version = Exporter { $name } { $version }
+vehicles-exported = { $file } exporté
+vehicles-export-failed = { $file } n’a pas pu être écrit : { $reason }
 update-versions = { $name } : version { $from } → { $to }
 update-replaced = { $name } : gabarit remplacé
 update-layout-changed = { $name } : disposition modifiée, vérifiez le motif

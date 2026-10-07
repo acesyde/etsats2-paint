@@ -173,7 +173,7 @@ fn vehicle_group(ui: &mut Ui, env: &mut PanelEnv<'_>, vehicle: &ProjectVehicle, 
                 Some(i) => tr!(
                     "vehicle-panel-package",
                     version = vehicle.version.as_str(),
-                    games = i.manifest.game.versions.to_string()
+                    games = crate::ui::vehicle_dialogs::versions_text(&i.manifest.game.versions)
                 ),
                 None => tr!(
                     "vehicle-panel-package-missing",

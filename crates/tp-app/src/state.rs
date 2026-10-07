@@ -64,6 +64,9 @@ pub enum Modal {
     AddVehicle(crate::ui::vehicle_dialogs::AddVehicleDialog),
     /// The textures a project's vehicle paints.
     Textures(crate::ui::vehicle_dialogs::TexturesDialog),
+    /// Custom Vehicle dialog (or New Version…), over the dialog it came
+    /// from.
+    CustomVehicle(Box<crate::ui::custom_vehicle::CustomVehicleDialog>),
     /// Confirmation before removing a vehicle with artwork from the project.
     RemoveVehicle {
         package_id: String,
@@ -730,26 +733,36 @@ impl AppState {
                 .extension()
                 .is_some_and(|e| e.eq_ignore_ascii_case(tp_vehicles::EXTENSION))
         };
+        let named = |f: &std::sync::Arc<dyn egui::DroppedFile + Send + Sync>| {
+            let path = f.path();
+            let name = path.file_name().map_or_else(
+                || path.display().to_string(),
+                |n| n.to_string_lossy().into_owned(),
+            );
+            (
+                name,
+                f.bytes().map(|b| b.to_vec()).map_err(|e| e.to_string()),
+            )
+        };
         let packages: Vec<(String, Result<Vec<u8>, String>)> = dropped
             .iter()
             .filter(|f| is_package(f))
-            .map(|f| {
-                let path = f.path();
-                let name = path.file_name().map_or_else(
-                    || path.display().to_string(),
-                    |n| n.to_string_lossy().into_owned(),
-                );
-                (
-                    name,
-                    f.bytes().map(|b| b.to_vec()).map_err(|e| e.to_string()),
-                )
-            })
+            .map(named)
             .collect();
         dropped.retain(|f| !is_package(f));
+        // Other files dropped on the Custom Vehicle dialog are templates.
+        if let Some(Modal::CustomVehicle(dialog)) = &mut self.modal {
+            if !dropped.is_empty() {
+                dialog.add_files(dropped.iter().map(named).collect(), hover);
+            }
+            dropped.clear();
+        }
         if !packages.is_empty() {
             let results = crate::ui::vehicle_dialogs::install_named(self, packages);
             let failed: Vec<String> = results.iter().filter_map(|r| r.clone().err()).collect();
-            if !failed.is_empty() {
+            if let Some(Modal::CustomVehicle(dialog)) = &mut self.modal {
+                dialog.messages = results;
+            } else if !failed.is_empty() {
                 self.modal = Some(Modal::Message {
                     title: tr("cmd-vehicle-library"),
                     text: failed.join("\n"),

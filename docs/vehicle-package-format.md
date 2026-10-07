@@ -139,7 +139,7 @@ A trailer has a single main texture, and its bodies and lengths are accessories:
 | Field | Required | Meaning |
 |---|---|---|
 | `format` | yes | Package format version, currently `1`. |
-| `id` | yes | Stable identifier: lowercase words separated by dots, at least two (`a`–`z`, `0`–`9`, `_`, `-`). Use `scs.<brand>.<model>` for vehicles of the base games and `community.<author>.<name>` for community vehicles. Never change it between versions. |
+| `id` | yes | Stable identifier: lowercase words separated by dots, at least two (`a`–`z`, `0`–`9`, `_`, `-`). Use `scs.<brand>.<model>` for vehicles of the base games and `community.<author>.<name>` for community vehicles. `custom.<brand>.<name>` is used by vehicles made in TruckPaint (see [Custom vehicles](#custom-vehicles)). Never change it between versions. |
 | `version` | yes | [Semantic version](https://semver.org) of the package (`1.3.0`). Increase it for every release. |
 | `name`, `brand` | yes | Shown in the library. |
 | `kind` | yes | `truck` or `trailer`. Filters the library and chooses the game folder of the mod. |
@@ -205,6 +205,29 @@ cargo run -p tp-pack --bin tpv -- check my-truck.tpv
 - **Exit status:** 0 on success. On failure: 1, with the reason, and no file written.
 
 Templates of the base games belong to SCS Software. Pack them for your own use, but check the license before sharing a package.
+
+## Custom vehicles
+
+When no package exists for a vehicle, a painter can make one in TruckPaint, without writing a manifest: **Custom vehicle…** in New Project or in Add Vehicle…, or **Custom Vehicle…** in the Vehicle Library.
+
+1. Fill in the vehicle: name, brand, kind (truck or trailer), game, game path and, optionally, the supported game versions (empty: any version), the alternate UV set and the colour picker.
+2. Drop the template files on the dialog, or use Add Templates…: PNG, SVG, or DDS in the formats `tpv` converts. Each file becomes one texture. Its name comes from the file name and its size from the image's width. The first one is a main texture, the others are accessories. Change any of them as needed.
+3. Enter the game ids, as for any package:
+   - for a truck with several main textures, the internal names of the cabins of each one;
+   - for each accessory, the accessory ids it covers.
+
+   These names come from the vehicle's definitions under `def/vehicle/truck/<game path>/` (or `trailer_owned/`), in the game's or the mod's archives. They are required: a mod can't be exported without them.
+4. Click **Create**. TruckPaint packs the package the way `tpv pack` does, DDS templates included, checks it the same way, and installs it.
+
+A custom vehicle has the id `custom.<brand>.<name>` and version 1.0.0. Each word is the brand or the name, lowercased, with other characters replaced by `_`. Its textures get ids made from their names the same way.
+
+**After a game update,** use **New Version…** on the vehicle in the Vehicle Library. The dialog opens with the newest version's data and templates, and proposes the next minor version (1.0.0 gives 1.1.0):
+- replace the templates that changed (Replace…, or drop a file on a texture). Each replaced template gets a higher `layout_version`, so Update Template flags it in projects;
+- a texture keeps its id when it is renamed. Removed textures are left out of the new version, and new ones get new ids.
+
+The id, kind and game of a custom vehicle can't change.
+
+**Sharing:** **Export…** in the Vehicle Library saves any installed version as a `.tpv` file, unchanged. Another painter installs it like any package. Templates from the base games belong to SCS Software: check their license before sharing.
 
 ## Reference examples
 

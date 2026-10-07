@@ -117,9 +117,73 @@ pkg-missing-template = the template of “{ $texture }” is missing.
 pkg-bad-template = the template of “{ $texture }” is not a readable PNG or SVG image.
 pkg-template-too-large = the template of “{ $texture }” is too large.
 
+## Custom vehicles
+
+custom-build-failed = { $name } could not be built: { $reason }
+custom-template-unconvertible = the template of “{ $texture }” can't be converted.
+custom-file-not-image = { $file } can't be used: it is not a PNG, DDS or SVG image.
+custom-file-unsupported-dds = { $file } can't be read: its DDS compression ({ $format }) is not supported. Save it as BC1, BC2, BC3 or uncompressed RGB(A).
+custom-file-damaged = { $file } can't be read: the file is damaged or incomplete.
+custom-file-too-large = { $file } can't be used: it is larger than { $size } px.
+custom-file-io = { $file } can't be read ({ $reason }).
+custom-build-stopped = { $name } could not be built: the build stopped unexpectedly.
+custom-title = Custom Vehicle
+custom-new-version-title = New Version of { $name }
+custom-open = Custom vehicle…
+custom-open-library = Custom Vehicle…
+custom-id = Id
+custom-version = Version
+custom-name = Name
+custom-brand = Brand
+custom-kind = Kind
+custom-game = Game
+custom-game-path = Game path
+custom-game-path-hint = As in the game's definitions, e.g. scania.r_2016
+custom-game-versions = Game versions
+custom-game-versions-hint = Any version, or a range such as >=1.53
+custom-alt-uv = Alternate UV set
+custom-colour-picker = Colour picker
+custom-textures = Textures
+custom-drop-hint = Drop the game's template files here (PNG, DDS or SVG), or add them. Each file is one texture.
+custom-add-templates = Add Templates…
+custom-row-name = Name of texture { $n }
+custom-row-role = Role of texture { $n }
+custom-row-size = Size of texture { $n }
+custom-row-game-ids = Game ids of texture { $n }
+custom-row-replace = Replace…
+custom-row-replace-name = Replace the template of texture { $n }
+custom-row-remove = Remove texture { $n }
+custom-role-main = Main texture
+custom-role-accessory = Accessory
+custom-hint-cabins = Internal names of the cabins that use this layout, e.g. highline, highline_8x4
+custom-hint-cabins-optional = Internal names of the cabins that use this layout; leave empty to paint every cabin
+custom-hint-accessories = Accessory ids this texture covers, e.g. mirror.painted, s_mirror.painted
+custom-file = { $file } · { $width } × { $height } px
+custom-not-square = Not square: the image will be stretched to the square texture.
+custom-scs-reminder = Templates from the base games belong to SCS Software: use them for your own liveries, and check their license before sharing a package.
+custom-create = Create
+custom-building = Building the package… ({ $done }/{ $total })
+custom-building-plain = Building the package…
+custom-problem-name = Enter the vehicle's name.
+custom-problem-brand = Enter the vehicle's brand.
+custom-problem-game-path = The game path is words of a–z, 0–9 and _ separated by dots, as in the game's definitions, e.g. scania.r_2016.
+custom-problem-game-versions = Enter a version range such as >=1.53, or leave empty for any version.
+custom-problem-version = Enter a version such as 1.1.0.
+custom-problem-version-not-higher = The version must be higher than { $version }.
+custom-problem-installed = { $id } is already installed. Make a new version of it with New Version… in the Vehicle Library, or change the name.
+custom-problem-no-main = Make one of the textures a main texture.
+custom-problem-trailer-main = A trailer has one main texture: make the others accessories.
+custom-problem-texture-name = Enter the texture's name.
+custom-problem-cabins = Enter the internal names of the cabins that use this layout.
+custom-problem-accessory-ids = Enter the accessory ids this texture covers.
+custom-problem-game-id = “{ $id }” is not a valid game id: use words of a–z, 0–9 and _ separated by dots.
+custom-problem-duplicate-game-id = “{ $id }” is already used by another texture.
+
 ## Vehicle library and updates
 
 filter-packages = Vehicle packages
+filter-templates = Templates (PNG, DDS, SVG)
+dialog-export-package = Export Vehicle Package (templates from the base games belong to SCS Software)
 vehicles-search = Search vehicles
 vehicles-all-games = All games
 vehicles-game-filter = Game
@@ -137,6 +201,12 @@ vehicles-remove-confirm = Remove { $name } from the library? Projects keep their
 vehicles-remove = Remove
 vehicles-install = Install…
 vehicles-install-sample = Install the sample vehicles
+vehicles-any-version = any version
+vehicles-new-version = New Version…
+vehicles-new-version-of = New version of { $name }
+vehicles-export-version = Export { $name } { $version }
+vehicles-exported = Exported { $file }
+vehicles-export-failed = { $file } could not be written: { $reason }
 update-versions = { $name }: version { $from } → { $to }
 update-replaced = { $name }: template replaced
 update-layout-changed = { $name }: layout changed, check the artwork

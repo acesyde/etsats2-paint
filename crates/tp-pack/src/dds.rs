@@ -25,15 +25,132 @@ enum Layout {
     },
 }
 
+/// Why a DDS file can't be read.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DdsError {
+    NotDds,
+    Empty,
+    TooLarge,
+    CubeOrVolume,
+    Array,
+    /// An unsupported FourCC compression.
+    Compression(String),
+    /// An unsupported DX10 (DXGI) format.
+    Dxgi(u32),
+    /// An uncompressed pixel format with this many bits per pixel.
+    PixelFormat(u32),
+    TruncatedDx10Header,
+    Truncated,
+    InvalidSize,
+}
+
+impl DdsError {
+    /// The format that isn't supported ("BC7", "ATI2", "16-bit"…), when the
+    /// file is a valid DDS file in a format TruckPaint doesn't read.
+    pub fn unsupported_format(&self) -> Option<String> {
+        Some(match self {
+            DdsError::CubeOrVolume => "cube map".into(),
+            DdsError::Array => "texture array".into(),
+            DdsError::Compression(c) => c.clone(),
+            DdsError::Dxgi(n) => match n {
+                80 | 81 => "BC4".into(),
+                83 | 84 => "BC5".into(),
+                95 | 96 => "BC6H".into(),
+                98 | 99 => "BC7".into(),
+                n => format!("DXGI {n}"),
+            },
+            DdsError::PixelFormat(bits) => format!("{bits}-bit"),
+            _ => return None,
+        })
+    }
+}
+
+impl std::fmt::Display for DdsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DdsError::NotDds => f.write_str("not a DDS file"),
+            DdsError::Empty => f.write_str("empty image"),
+            DdsError::TooLarge => write!(
+                f,
+                "images larger than {} px are not supported",
+                tp_vehicles::MAX_IMAGE_SIDE
+            ),
+            DdsError::CubeOrVolume => {
+                f.write_str("cube maps and volume textures are not supported")
+            }
+            DdsError::Array => f.write_str("texture arrays are not supported"),
+            DdsError::Compression(c) => write!(f, "compression {c} is not supported"),
+            DdsError::Dxgi(n) => write!(f, "DXGI format {n} is not supported"),
+            DdsError::PixelFormat(bits) => {
+                write!(
+                    f,
+                    "pixel format with {bits} bits per pixel is not supported"
+                )
+            }
+            DdsError::TruncatedDx10Header => f.write_str("truncated DX10 header"),
+            DdsError::Truncated => f.write_str("truncated image data"),
+            DdsError::InvalidSize => f.write_str("invalid size"),
+        }
+    }
+}
+
+impl std::error::Error for DdsError {}
+
 fn u32_at(bytes: &[u8], offset: usize) -> u32 {
     u32::from_le_bytes(bytes[offset..offset + 4].try_into().expect("4 bytes"))
 }
 
+/// The top mip level's size and layout, and where its data starts.
+struct Header {
+    width: u32,
+    height: u32,
+    layout: Layout,
+    data_start: usize,
+}
+
+/// Reads the header of a DDS file and checks that its format is supported
+/// and its data complete, without decoding it: the image's width and
+/// height. The error says why it is not supported, as [`decode`] does.
+pub fn probe(bytes: &[u8]) -> Result<(u32, u32), DdsError> {
+    let h = read_header(bytes)?;
+    Ok((h.width, h.height))
+}
+
 /// Decodes the top mip level of a DDS file. The error says why it is not
 /// supported, in English.
-pub fn decode(bytes: &[u8]) -> Result<RgbaImage, String> {
+pub fn decode(bytes: &[u8]) -> Result<RgbaImage, DdsError> {
+    let Header {
+        width,
+        height,
+        layout,
+        data_start,
+    } = read_header(bytes)?;
+    let (w, h) = (width as usize, height as usize);
+    let data = &bytes[data_start..];
+    let mut rgba = vec![0u8; w * h * 4];
+    match layout {
+        Layout::Bc(format) => format.decompress(data, w, h, &mut rgba),
+        Layout::Masks { bytes: bpp, masks } => {
+            for (pixel, out) in data.chunks_exact(bpp).zip(rgba.as_chunks_mut::<4>().0) {
+                let mut raw = [0u8; 4];
+                raw[..bpp].copy_from_slice(pixel);
+                let value = u32::from_le_bytes(raw);
+                for (channel, mask) in masks.iter().enumerate() {
+                    out[channel] = if *mask == 0 {
+                        if channel == 3 { 255 } else { 0 }
+                    } else {
+                        channel_value(value, *mask)
+                    };
+                }
+            }
+        }
+    }
+    RgbaImage::from_raw(width, height, rgba).ok_or(DdsError::InvalidSize)
+}
+
+fn read_header(bytes: &[u8]) -> Result<Header, DdsError> {
     if bytes.len() < HEADER || &bytes[..4] != MAGIC {
-        return Err("not a DDS file".into());
+        return Err(DdsError::NotDds);
     }
     let header = &bytes[4..HEADER];
     let height = u32_at(header, 8);
@@ -49,10 +166,13 @@ pub fn decode(bytes: &[u8]) -> Result<RgbaImage, String> {
     ];
     let caps2 = u32_at(header, 108);
     if width == 0 || height == 0 {
-        return Err("empty image".into());
+        return Err(DdsError::Empty);
+    }
+    if width > tp_vehicles::MAX_IMAGE_SIDE || height > tp_vehicles::MAX_IMAGE_SIDE {
+        return Err(DdsError::TooLarge);
     }
     if caps2 & (DDSCAPS2_CUBEMAP | DDSCAPS2_VOLUME) != 0 {
-        return Err("cube maps and volume textures are not supported".into());
+        return Err(DdsError::CubeOrVolume);
     }
     let mut data_start = HEADER;
     let layout = if pf_flags & DDPF_FOURCC != 0 {
@@ -62,20 +182,21 @@ pub fn decode(bytes: &[u8]) -> Result<RgbaImage, String> {
             b"DXT4" | b"DXT5" => Layout::Bc(texpresso::Format::Bc3),
             b"DX10" => {
                 if bytes.len() < HEADER + DX10_HEADER {
-                    return Err("truncated DX10 header".into());
+                    return Err(DdsError::TruncatedDx10Header);
                 }
                 data_start += DX10_HEADER;
                 let dx10 = &bytes[HEADER..HEADER + DX10_HEADER];
                 let array_size = u32_at(dx10, 12);
                 if array_size > 1 {
-                    return Err("texture arrays are not supported".into());
+                    return Err(DdsError::Array);
                 }
                 dxgi_layout(u32_at(dx10, 0))?
             }
             other => {
-                return Err(format!(
-                    "compression {} is not supported",
-                    String::from_utf8_lossy(other).trim_end_matches('\0')
+                return Err(DdsError::Compression(
+                    String::from_utf8_lossy(other)
+                        .trim_end_matches('\0')
+                        .to_owned(),
                 ));
             }
         }
@@ -89,40 +210,23 @@ pub fn decode(bytes: &[u8]) -> Result<RgbaImage, String> {
             masks,
         }
     } else {
-        return Err(format!(
-            "pixel format with {bit_count} bits per pixel is not supported"
-        ));
+        return Err(DdsError::PixelFormat(bit_count));
     };
 
     let (w, h) = (width as usize, height as usize);
-    let data = &bytes[data_start..];
-    let mut rgba = vec![0u8; w * h * 4];
-    match layout {
-        Layout::Bc(format) => {
-            if data.len() < format.compressed_size(w, h) {
-                return Err("truncated image data".into());
-            }
-            format.decompress(data, w, h, &mut rgba);
-        }
-        Layout::Masks { bytes: bpp, masks } => {
-            if data.len() < w * h * bpp {
-                return Err("truncated image data".into());
-            }
-            for (pixel, out) in data.chunks_exact(bpp).zip(rgba.as_chunks_mut::<4>().0) {
-                let mut raw = [0u8; 4];
-                raw[..bpp].copy_from_slice(pixel);
-                let value = u32::from_le_bytes(raw);
-                for (channel, mask) in masks.iter().enumerate() {
-                    out[channel] = if *mask == 0 {
-                        if channel == 3 { 255 } else { 0 }
-                    } else {
-                        channel_value(value, *mask)
-                    };
-                }
-            }
-        }
+    let needed = match layout {
+        Layout::Bc(format) => format.compressed_size(w, h),
+        Layout::Masks { bytes: bpp, .. } => w * h * bpp,
+    };
+    if bytes.len() - data_start < needed {
+        return Err(DdsError::Truncated);
     }
-    RgbaImage::from_raw(width, height, rgba).ok_or_else(|| "invalid size".into())
+    Ok(Header {
+        width,
+        height,
+        layout,
+        data_start,
+    })
 }
 
 /// A channel extracted with `mask` and scaled to 8 bits.
@@ -134,7 +238,7 @@ fn channel_value(value: u32, mask: u32) -> u8 {
     ((u64::from(raw) * 255 + max / 2) / max) as u8
 }
 
-fn dxgi_layout(format: u32) -> Result<Layout, String> {
+fn dxgi_layout(format: u32) -> Result<Layout, DdsError> {
     const RGBA: [u32; 4] = [0xff, 0xff00, 0xff_0000, 0xff00_0000];
     const BGRA: [u32; 4] = [0xff_0000, 0xff00, 0xff, 0xff00_0000];
     Ok(match format {
@@ -149,13 +253,12 @@ fn dxgi_layout(format: u32) -> Result<Layout, String> {
             bytes: 4,
             masks: BGRA,
         },
-        other => return Err(format!("DXGI format {other} is not supported")),
+        other => return Err(DdsError::Dxgi(other)),
     })
 }
 
-/// Test helpers: DDS files built in memory.
-#[cfg(test)]
-pub(crate) mod build {
+/// DDS files built in memory, for tests and demos.
+pub mod build {
     use super::*;
 
     /// A header for `width`×`height` with the given pixel format fields.
@@ -296,15 +399,39 @@ mod tests {
     }
 
     #[test]
+    fn probe_reads_the_size_without_decoding() {
+        let src = quadrants();
+        for bytes in [
+            bc(&src, texpresso::Format::Bc1, b"DXT1"),
+            bc(&src, texpresso::Format::Bc3, b"DXT5"),
+            dx10(&src, texpresso::Format::Bc3, 77),
+            bgra(&src),
+        ] {
+            assert_eq!(probe(&bytes), Ok((16, 16)));
+        }
+        // The same reasons as decode.
+        let bc7 = dx10(&src, texpresso::Format::Bc3, 98);
+        assert_eq!(probe(&bc7).unwrap_err(), decode(&bc7).unwrap_err());
+        let mut cube = bc(&src, texpresso::Format::Bc1, b"DXT1");
+        cube[4 + 108..4 + 112].copy_from_slice(&DDSCAPS2_CUBEMAP.to_le_bytes());
+        assert!(probe(&cube).unwrap_err().to_string().contains("cube maps"));
+        assert_eq!(probe(&cube).unwrap_err(), decode(&cube).unwrap_err());
+        let mut truncated = bc(&src, texpresso::Format::Bc1, b"DXT1");
+        truncated.truncate(truncated.len() - 1);
+        assert_eq!(probe(&truncated).unwrap_err(), DdsError::Truncated);
+    }
+
+    #[test]
     fn unsupported_files_are_refused() {
         let src = quadrants();
         // BC7 (DXGI 98).
         let err = decode(&dx10(&src, texpresso::Format::Bc3, 98)).unwrap_err();
-        assert!(err.contains("98"), "{err}");
+        assert!(err.to_string().contains("98"), "{err}");
+        assert_eq!(err.unsupported_format().as_deref(), Some("BC7"));
         // Truncated data.
         let mut bytes = bc(&src, texpresso::Format::Bc1, b"DXT1");
         bytes.truncate(bytes.len() - 1);
-        assert!(decode(&bytes).unwrap_err().contains("truncated"));
+        assert_eq!(decode(&bytes).unwrap_err(), DdsError::Truncated);
         assert!(decode(b"not a dds").is_err());
         assert!(decode(&bc(&src, texpresso::Format::Bc1, b"ATI2")).is_err());
     }
