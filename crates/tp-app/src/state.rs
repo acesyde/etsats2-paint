@@ -1,8 +1,8 @@
 //! Application state machine and per-frame orchestration.
 
 use egui::{Key, Ui, ViewportCommand};
+use tp_core::Project;
 use tp_core::document::Object;
-use tp_core::{Project, TextureResolution};
 use tp_i18n::tr;
 use tp_ui::ThemeSettings;
 
@@ -34,10 +34,9 @@ pub enum Screen {
 pub struct NewProjectDraft {
     pub step: usize,
     pub name: String,
-    pub resolution: TextureResolution,
     pub focus_requested: bool,
-    /// The chosen vehicle (package id, version, variant), or a blank texture.
-    pub vehicle: Option<(String, semver::Version, String)>,
+    /// The chosen vehicle and its checked variants.
+    pub vehicle: Option<crate::ui::vehicle_dialogs::VehicleChoice>,
     pub filter: crate::ui::vehicle_dialogs::VehicleFilter,
     /// Results of installing packages from the wizard.
     pub messages: Vec<Result<String, String>>,
@@ -61,6 +60,23 @@ pub enum Modal {
     VehicleLibrary(crate::ui::vehicle_dialogs::LibraryDialog),
     /// Update Template confirmation.
     UpdateTemplate(Box<crate::ui::vehicle_dialogs::UpdateDialog>),
+    /// Add Vehicle dialog.
+    AddVehicle(crate::ui::vehicle_dialogs::AddVehicleDialog),
+    /// The variants of a project's vehicle.
+    Variants(crate::ui::vehicle_dialogs::VariantsDialog),
+    /// Confirmation before removing a vehicle with artwork from the project.
+    RemoveVehicle {
+        package_id: String,
+        name: String,
+    },
+}
+
+/// An action on one vehicle of the project, asked from the Vehicles panel.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum VehicleRequest {
+    Update(String),
+    Variants(String),
+    Remove(String),
 }
 
 pub struct AppState {
@@ -73,6 +89,8 @@ pub struct AppState {
     fonts_installed: bool,
     pub screen: Screen,
     pub modal: Option<Modal>,
+    /// Asked from the Vehicles panel during the frame; handled after it.
+    pub vehicle_request: Option<VehicleRequest>,
     pub show_gallery: bool,
     /// Commands triggered this frame, executed at the end of the frame.
     pub queue: Vec<CommandId>,
@@ -142,6 +160,7 @@ impl AppState {
             fonts_installed: false,
             screen: Screen::Home,
             modal: None,
+            vehicle_request: None,
             show_gallery: false,
             queue: Vec::new(),
             recent_available: Vec::new(),
@@ -219,9 +238,15 @@ impl AppState {
 
     /// Runs one frame of the whole application.
     /// Opens Update Template for the newest installed version of the
-    /// project's vehicle.
-    pub fn open_update_dialog(&mut self) {
-        let Some(vehicle) = self.workspace().and_then(|ws| ws.project.vehicle.clone()) else {
+    /// project's vehicle `package_id` (`None`: the active surface's).
+    pub fn open_update_dialog(&mut self, package_id: Option<&str>) {
+        let Some(vehicle) = self.workspace().and_then(|ws| {
+            match package_id {
+                Some(id) => ws.project.vehicle(id),
+                None => ws.project.vehicle_of(ws.project.active_surface),
+            }
+            .cloned()
+        }) else {
             return;
         };
         let Some(version) = self
@@ -256,6 +281,41 @@ impl AppState {
         }
     }
 
+    /// Runs an action asked from the Vehicles panel.
+    pub fn handle_vehicle_request(&mut self, request: VehicleRequest, now: f64) {
+        match request {
+            VehicleRequest::Update(id) => self.open_update_dialog(Some(&id)),
+            VehicleRequest::Variants(id) => {
+                let Some(vehicle) = self
+                    .workspace()
+                    .and_then(|ws| ws.project.vehicle(&id).cloned())
+                else {
+                    return;
+                };
+                self.modal = Some(Modal::Variants(
+                    crate::ui::vehicle_dialogs::VariantsDialog::new(&vehicle),
+                ));
+            }
+            VehicleRequest::Remove(id) => {
+                let Some(ws) = self.workspace() else {
+                    return;
+                };
+                let Some(vehicle) = ws.project.vehicle(&id) else {
+                    return;
+                };
+                let name = vehicle.name.clone();
+                if ws.project.has_artwork(ws.project.vehicle_range(&id)) {
+                    self.modal = Some(Modal::RemoveVehicle {
+                        package_id: id,
+                        name,
+                    });
+                } else if let Some(ws) = self.workspace_mut() {
+                    let _ = ws.remove_vehicle(&id, now);
+                }
+            }
+        }
+    }
+
     /// The interface language: the user's choice, else the system's.
     pub fn language(&self) -> tp_i18n::Language {
         self.prefs.language().unwrap_or(self.system_language)
@@ -285,6 +345,9 @@ impl AppState {
         match self.screen {
             Screen::Home => ui::home::show(ui, self),
             Screen::Workspace(_) => ui::workspace::show(ui, self),
+        }
+        if let Some(request) = self.vehicle_request.take() {
+            self.handle_vehicle_request(request, ctx.input(|i| i.time));
         }
         ui::dialogs::show_modal(&ctx, self);
         if self.show_gallery {
@@ -354,8 +417,7 @@ impl AppState {
                     .is_some_and(|t| t.visible),
                 update_available: ws
                     .project
-                    .vehicle
-                    .as_ref()
+                    .vehicle_of(ws.project.active_surface)
                     .is_some_and(|v| self.vehicles.update_for(v).is_some()),
             },
             None => EditContext::default(),
@@ -540,7 +602,15 @@ impl AppState {
             CommandId::VehicleLibrary => {
                 self.modal = Some(Modal::VehicleLibrary(Default::default()));
             }
-            CommandId::UpdateTemplate => self.open_update_dialog(),
+            CommandId::AddVehicle => {
+                let game = self
+                    .workspace()
+                    .and_then(|ws| ws.project.game().map(str::to_owned));
+                self.modal = Some(Modal::AddVehicle(
+                    crate::ui::vehicle_dialogs::AddVehicleDialog::for_game(game.as_deref()),
+                ));
+            }
+            CommandId::UpdateTemplate => self.open_update_dialog(None),
             CommandId::Snapping => self.prefs.view_aids.snapping = !self.prefs.view_aids.snapping,
             CommandId::ClearGuides => self.with_workspace(|ws| {
                 ws.edit("cmd-clear-guides", now, false, |project, _| {

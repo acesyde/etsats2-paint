@@ -11,4 +11,3 @@ object-text = Text
 object-image = Image
 object-layer-n = Layer { $n }
 object-untitled = Untitled
-object-main-texture = Main texture

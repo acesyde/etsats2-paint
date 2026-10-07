@@ -161,6 +161,13 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Opened, Error> {
         .from_str(&text)
         .map_err(|e| Error::Damaged(e.to_string()))?;
     let (document, migrated) = migrate(header.format, &text)?;
+    // Blank-texture projects of development builds: every project has a
+    // vehicle now.
+    if !document.has_vehicle() {
+        return Err(Error::Unsupported {
+            found: header.format,
+        });
+    }
     let project = current::into_project(&document, |entry| {
         let mut out = Vec::new();
         zip.by_name(entry).ok()?.read_to_end(&mut out).ok()?;

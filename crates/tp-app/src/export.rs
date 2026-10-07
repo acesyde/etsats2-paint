@@ -291,6 +291,36 @@ impl PreviewJob {
     }
 }
 
+/// `name` made usable as a file name on every system: characters the file
+/// systems refuse become "-", and leading or trailing spaces and dots go.
+pub fn file_stem_safe(name: &str) -> String {
+    let replaced: String = name
+        .chars()
+        .map(|c| {
+            if c.is_control() || matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+                '-'
+            } else {
+                c
+            }
+        })
+        .collect();
+    replaced
+        .trim_matches(|c: char| c == ' ' || c == '.')
+        .to_owned()
+}
+
+/// The proposed name of an export of the active surface:
+/// "<project> - <vehicle> - <variant> - <texture>".
+pub fn export_name(project: &Project) -> String {
+    let name = match project.surface_names(project.active_surface) {
+        Some((vehicle, variant, texture)) => {
+            format!("{} - {vehicle} - {variant} - {texture}", project.name)
+        }
+        None => project.name.clone(),
+    };
+    file_stem_safe(&name)
+}
+
 #[cfg(test)]
 mod tests {
     use tp_core::TextureResolution;
@@ -379,5 +409,13 @@ mod tests {
             || {},
         );
         assert!(matches!(job.wait(), ExportOutcome::Failed { path: p, .. } if p == path));
+    }
+
+    #[test]
+    fn file_names_are_safe() {
+        assert_eq!(file_stem_safe("Scania R/S: \"V8\"?"), "Scania R-S- -V8--");
+        assert_eq!(file_stem_safe("  .ACE.. "), "ACE");
+        assert_eq!(file_stem_safe("a\\b|c*d<e>f"), "a-b-c-d-e-f");
+        assert_eq!(file_stem_safe("tab\there"), "tab-here");
     }
 }

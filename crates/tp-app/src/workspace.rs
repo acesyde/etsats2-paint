@@ -259,11 +259,36 @@ impl Workspace {
             .with_points(self.points.iter().copied())
     }
 
+    /// Which vehicle texture each surface paints, in order.
+    fn surface_keys(&self) -> Vec<Option<tp_core::TextureKey>> {
+        self.project
+            .surfaces
+            .iter()
+            .map(|s| s.template.as_ref().map(tp_core::SurfaceTemplate::key))
+            .collect()
+    }
+
+    /// After a change of the surface list (vehicles or variants added or
+    /// removed), views stored by index no longer match: every surface is
+    /// fitted again when shown.
+    fn reset_views_if_reshaped(&mut self, before: &[Option<tp_core::TextureKey>]) -> bool {
+        if self.surface_keys() == before {
+            return false;
+        }
+        self.viewports.clear();
+        self.viewport = None;
+        true
+    }
+
     /// Restores a snapshot with its object and point selection.
     pub fn restore(&mut self, state: &Snapshot) {
         let before = self.project.active_surface;
+        let keys = self.surface_keys();
         self.selection = self.project.restore(state);
         self.points = state.points().iter().copied().collect();
+        if self.reset_views_if_reshaped(&keys) {
+            return;
+        }
         let after = self.project.active_surface;
         if after != before {
             // The restored state is on another surface: show it with its view.
@@ -319,7 +344,9 @@ impl Workspace {
         edit: impl FnOnce(&mut Project, &mut Vec<ObjectId>),
     ) {
         let before = self.snapshot();
+        let keys = self.surface_keys();
         edit(&mut self.project, &mut self.selection);
+        self.reset_views_if_reshaped(&keys);
         self.record(label, before, now, coalesce);
     }
 

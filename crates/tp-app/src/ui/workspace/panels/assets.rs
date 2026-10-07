@@ -35,7 +35,19 @@ fn size_text(asset: &Asset) -> String {
 }
 
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
-    let assets: Vec<_> = env.ws.project.assets.values().cloned().collect();
+    // Templates are vehicle data, not imported files: they are listed only
+    // when an image uses the same file too.
+    let project = &env.ws.project;
+    let templates: Vec<_> = project.template_assets().collect();
+    let assets: Vec<_> = project
+        .assets
+        .values()
+        .filter(|a| {
+            let as_template = templates.iter().filter(|t| **t == a.id).count();
+            as_template == 0 || project.asset_usage(a.id) > as_template
+        })
+        .cloned()
+        .collect();
     if assets.is_empty() {
         EmptyState::new(icons::ASSETS, &tr("empty-assets"), &tr("empty-assets-hint")).show(ui);
         ui.vertical_centered(|ui| {
@@ -51,7 +63,10 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
 }
 
 fn row(ui: &mut Ui, env: &mut PanelEnv<'_>, asset: &Asset) {
-    let uses = env.ws.project.asset_usage(asset.id);
+    // Uses by images (a template using the same file is not counted).
+    let project = &env.ws.project;
+    let uses = project.asset_usage(asset.id)
+        - project.template_assets().filter(|a| *a == asset.id).count();
     let height = THUMB + space::XS;
     let (rect, response) = ui.allocate_exact_size(
         Vec2::new(ui.available_width(), height),

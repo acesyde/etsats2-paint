@@ -10,4 +10,3 @@ object-text = Texto
 object-image = Imagen
 object-layer-n = Capa { $n }
 object-untitled = Sin título
-object-main-texture = Textura principal

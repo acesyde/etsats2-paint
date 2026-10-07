@@ -196,6 +196,7 @@ fn menu_contents(
         }
         "menu-vehicle" => {
             item(ui, cmds, VehicleLibrary);
+            item(ui, cmds, AddVehicle);
             item(ui, cmds, VehicleInfo);
             item(ui, cmds, UpdateTemplate);
         }

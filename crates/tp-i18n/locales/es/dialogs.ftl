@@ -59,14 +59,8 @@ button-ok = Aceptar
 button-create = Crear
 button-done = Listo
 button-close = Cerrar
-new-project-step-name = Nombre y resolución
+new-project-step-name = Nombre
 new-project-name = Nombre del proyecto
-new-project-resolution = Resolución de la textura
-new-project-resolution-hint = El proyecto sigue siendo vectorial: podrá exportarlo a cualquier resolución más adelante.
-new-project-resolution-side = × { $side } px
-resolution-light = Ligera y rápida
-resolution-recommended = Recomendada
-resolution-maximum = Máximo detalle
 prefs-interface = Interfaz
 prefs-ui-scale = Escala de la interfaz
 prefs-text-size = Tamaño del texto
@@ -152,8 +146,23 @@ update-apply = Actualizar
 ## New Project wizard
 
 new-project-step-vehicle = Vehículo
-new-project-blank = Textura en blanco
 new-project-no-vehicles-hint = ¿Aún sin vehículos? Pruebe el camión de ejemplo o instale un paquete.
 new-project-textures = Texturas
 button-next = Siguiente
 button-back = Atrás
+
+## Fleet
+
+add-vehicle-none = No hay otro vehículo de este juego instalado. Instale un paquete para añadir uno.
+add-vehicle-add = Añadir
+fleet-error-other-game = Este vehículo es de otro juego que el proyecto.
+fleet-error-already-there = Este vehículo ya está en el proyecto.
+fleet-error-variants = Elija al menos una variante de este vehículo.
+fleet-error-version = La versión instalada es distinta de la del proyecto.
+fleet-error-unknown = Este vehículo no está en el proyecto.
+variants-title = Variantes de { $name }
+variants-missing-version = La versión { $version } de este vehículo no está instalada. Actualice su plantilla para cambiar sus variantes.
+variants-remove-confirm = El diseño de { $variants } se eliminará con ellas.
+variants-remove = Eliminar
+variants-apply = Aplicar
+remove-vehicle-confirm = ¿Quitar { $name } y su diseño del proyecto?

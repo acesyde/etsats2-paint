@@ -28,6 +28,8 @@ pub struct PanelEnv<'a> {
     pub recent_colors: &'a [[u8; 4]],
     /// Installed vehicle packages.
     pub vehicles: &'a crate::vehicles::VehicleLibrary,
+    /// An action on one of the project's vehicles, run after the frame.
+    pub vehicle_request: &'a mut Option<crate::state::VehicleRequest>,
     pub now: f64,
 }
 

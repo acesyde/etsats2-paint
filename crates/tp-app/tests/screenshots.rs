@@ -49,6 +49,9 @@ fn render_screens() {
 
         h.get_by_label("New Project").click();
         h.run();
+        h.get_by_role_and_label(egui::accesskit::Role::RadioButton, common::SAMPLE)
+            .click();
+        h.run();
         save(&mut h, &format!("new_project_{suffix}"));
 
         h.get_by_label("Next").click();
@@ -1437,11 +1440,11 @@ fn render_vehicle_screens() {
         let code = language.code();
         h.state_mut().modal = Some(Modal::NewProject(Default::default()));
         if let Some(Modal::NewProject(d)) = &mut h.state_mut().modal {
-            d.vehicle = Some((
-                "scs.sample.truck".into(),
-                "1.3.0".parse().unwrap(),
-                "standard".into(),
-            ));
+            d.vehicle = Some(tp_app::ui::vehicle_dialogs::VehicleChoice {
+                id: "scs.sample.truck".into(),
+                version: "1.3.0".parse().unwrap(),
+                variants: vec!["standard".into()],
+            });
         }
         save(&mut h, &format!("vehicle_wizard_{code}"));
         h.state_mut().modal = None;
@@ -1490,5 +1493,83 @@ fn render_sample_vehicle() {
             h.run();
             save(&mut h, &format!("sample_{variant}_{code}"));
         }
+    }
+}
+
+/// A fleet: the sample truck's two cabs and a trailer, with the Vehicles
+/// panel tree, the Add Vehicle and Variants dialogs and the wizard's
+/// variant checkboxes, in English and German.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_fleet_screens() {
+    use tp_app::layout::PanelKind;
+    use tp_app::state::Modal;
+    use tp_app::ui::vehicle_dialogs::{AddVehicleDialog, VariantsDialog, VehicleChoice};
+    for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
+        let mut prefs = Prefs::default();
+        prefs.set_language(Some(language));
+        for slot in &mut prefs.layout.panels {
+            slot.collapsed = !matches!(slot.kind, PanelKind::Vehicle);
+        }
+        let code = language.code();
+        let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
+        // A trailer package next to the sample.
+        let mut m = tp_vehicles::sample::manifest(
+            "scs.krone.cool_liner",
+            "Krone Cool Liner",
+            "1.0.0",
+            &tp_vehicles::sample::truck_textures()[..1],
+        );
+        m["kind"] = "trailer".into();
+        let trailer = tp_vehicles::sample::zip(
+            &m,
+            &[("templates/cabin.png".into(), tp_vehicles::sample::png(64))],
+        );
+        h.state_mut().vehicles.install_bytes(&trailer).unwrap();
+        // Wizard with both cabs checked.
+        let sample = tp_app::vehicles::SAMPLE_ID;
+        h.state_mut().modal = Some(Modal::NewProject(Default::default()));
+        if let Some(Modal::NewProject(d)) = &mut h.state_mut().modal {
+            d.vehicle = Some(VehicleChoice {
+                id: sample.into(),
+                version: "1.1.0".parse().unwrap(),
+                variants: vec!["standard".into(), "high_roof".into()],
+            });
+        }
+        save(&mut h, &format!("fleet_wizard_{code}"));
+        // The fleet project.
+        let package = h
+            .state()
+            .vehicles
+            .load(sample, &"1.1.0".parse().unwrap())
+            .unwrap();
+        let project = tp_app::vehicle_project::fleet_project(
+            "ACE Logistics",
+            &package,
+            &["standard".into(), "high_roof".into()],
+        )
+        .unwrap();
+        h.state_mut().modal = None;
+        h.state_mut().open_project(project);
+        let krone = h
+            .state()
+            .vehicles
+            .load("scs.krone.cool_liner", &"1.0.0".parse().unwrap())
+            .unwrap();
+        h.state_mut()
+            .workspace_mut()
+            .unwrap()
+            .add_vehicle(&krone, &["standard".into()], 1.0)
+            .unwrap();
+        h.state_mut().workspace_mut().unwrap().set_active_surface(5);
+        for _ in 0..20 {
+            h.step();
+        }
+        save(&mut h, &format!("fleet_project_{code}"));
+        h.state_mut().modal = Some(Modal::AddVehicle(AddVehicleDialog::for_game(Some("ets2"))));
+        save(&mut h, &format!("fleet_add_vehicle_{code}"));
+        let vehicle = h.state().workspace().unwrap().project.vehicles[0].clone();
+        h.state_mut().modal = Some(Modal::Variants(VariantsDialog::new(&vehicle)));
+        save(&mut h, &format!("fleet_variants_{code}"));
     }
 }

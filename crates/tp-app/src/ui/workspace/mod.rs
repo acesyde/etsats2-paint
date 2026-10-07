@@ -23,6 +23,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         queue,
         screen,
         vehicles,
+        vehicle_request,
         ..
     } = state;
     let Screen::Workspace(ws) = screen else {
@@ -67,6 +68,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
                 ws,
                 recent_colors,
                 vehicles,
+                vehicle_request,
                 now: ctx.input(|i| i.time),
             };
             panels::show(ui, &mut cmds, layout, &mut env);
@@ -103,32 +105,46 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         });
 }
 
-/// The canvas, with tabs to switch textures when the project has several.
+/// The canvas, with tabs to switch between the textures of the active
+/// variant when it has several.
 fn canvas_with_tabs(
     ui: &mut Ui,
     cmds: &mut crate::ui::CommandUi<'_>,
     ws: &mut crate::workspace::Workspace,
 ) {
-    if ws.project.surfaces.len() > 1 {
-        let names: Vec<String> = ws.project.surfaces.iter().map(|s| s.name.clone()).collect();
-        let active = ws.project.active_surface;
+    let project = &ws.project;
+    let active = project.active_surface;
+    let range = project
+        .surface()
+        .template
+        .as_ref()
+        .map_or(active..active + 1, |t| {
+            project.variant_range(&t.package_id, &t.variant_id)
+        });
+    if range.len() > 1 {
+        let tabs: Vec<(usize, String, bool)> = range
+            .map(|i| {
+                let s = &project.surfaces[i];
+                let flagged = s
+                    .template
+                    .as_ref()
+                    .is_some_and(|t| t.status == tp_core::TemplateStatus::LayoutChanged);
+                (i, s.name.clone(), flagged)
+            })
+            .collect();
         let picked = Frame::new()
             .fill(color::SURFACE_1)
             .inner_margin(Margin::symmetric(tp_ui::tokens::space::SM as i8, 2))
             .show(ui, |ui| {
                 ui.push_id("texture_tabs", |ui| {
                     let mut control = tp_ui::widgets::SegmentedControl::new();
-                    for (i, name) in names.iter().enumerate() {
-                        let flagged = ws.project.surfaces[i]
-                            .template
-                            .as_ref()
-                            .is_some_and(|t| t.status == tp_core::TemplateStatus::LayoutChanged);
-                        let icon = if flagged {
+                    for (i, name, flagged) in &tabs {
+                        let icon = if *flagged {
                             tp_ui::icons::WARNING
                         } else {
                             tp_ui::icons::VEHICLE
                         };
-                        control = control.segment(i, icon, name, None);
+                        control = control.segment(*i, icon, name, None);
                     }
                     control.show(ui, active)
                 })

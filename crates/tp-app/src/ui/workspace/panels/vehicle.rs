@@ -1,165 +1,203 @@
-//! Vehicle panel: the project's vehicle and package version, its textures,
-//! the active template's opacity and visibility, and available updates.
+//! Vehicles panel: the fleet's vehicles, their variants and textures as a
+//! tree, package versions and updates, and the active template's opacity
+//! and visibility.
 
-use egui::{RichText, Slider, Ui, WidgetInfo, WidgetType};
-use tp_core::TemplateStatus;
+use egui::{CollapsingHeader, RichText, Slider, Ui, WidgetInfo, WidgetType};
+use tp_core::{ProjectVehicle, TemplateStatus};
 use tp_i18n::tr;
-use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, space};
-use tp_ui::widgets::{EmptyState, secondary_button};
+use tp_ui::widgets::secondary_button;
 
 use super::PanelEnv;
 use crate::commands::CommandId;
+use crate::state::VehicleRequest;
 use crate::ui::CommandUi;
 
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
-    let Some(vehicle) = env.ws.project.vehicle.clone() else {
-        EmptyState::new(
-            icons::VEHICLE,
-            &tr("vehicle-panel-none"),
-            &tr("vehicle-panel-none-hint"),
-        )
-        .show(ui);
-        ui.vertical_centered(|ui| {
-            if ui
-                .add(secondary_button(&tr("cmd-vehicle-library")))
-                .clicked()
-            {
-                cmds.push(CommandId::VehicleLibrary);
-            }
-        });
-        return;
-    };
-    // Vehicle and package.
-    ui.label(RichText::new(&vehicle.name).text_style(label_strong_style()));
-    let kind = tr(match vehicle.kind.as_str() {
-        "trailer" => "vehicles-trailer",
-        _ => "vehicles-truck",
-    });
-    let game = vehicle.game.to_uppercase();
-    let variant = env
-        .vehicles
-        .get(&vehicle.package_id)
-        .and_then(|v| {
-            v.versions.iter().find_map(|i| {
-                i.manifest
-                    .variant(&vehicle.variant_id)
-                    .map(|x| x.name.clone())
-            })
-        })
-        .unwrap_or_else(|| vehicle.variant_id.clone());
-    ui.label(
-        RichText::new(format!("{} · {kind} · {game} · {variant}", vehicle.brand))
-            .small()
-            .color(color::TEXT_SECONDARY),
-    );
-    let installed = env.vehicles.get(&vehicle.package_id).and_then(|v| {
-        v.versions
-            .iter()
-            .find(|i| i.manifest.version.to_string() == vehicle.version)
-    });
-    let package_line = match installed {
-        Some(i) => tr!(
-            "vehicle-panel-package",
-            version = vehicle.version.as_str(),
-            games = i.manifest.game_versions.to_string()
-        ),
-        None => tr!(
-            "vehicle-panel-package-missing",
-            version = vehicle.version.as_str()
-        ),
-    };
-    ui.label(
-        RichText::new(package_line)
-            .small()
-            .color(color::TEXT_SECONDARY),
-    );
-    if let Some(update) = env.vehicles.update_for(&vehicle) {
-        ui.add_space(space::XS);
+    if let Some(game) = env.ws.project.game() {
         ui.label(
-            RichText::new(tr!(
-                "vehicle-panel-update",
-                version = update.manifest.version.to_string()
-            ))
-            .color(color::ACCENT),
+            RichText::new(tr!("vehicles-fleet-game", game = game.to_uppercase()))
+                .small()
+                .color(color::TEXT_SECONDARY),
         );
-        if ui
-            .add(secondary_button(&tr("cmd-update-template")))
-            .clicked()
-        {
-            cmds.push(CommandId::UpdateTemplate);
-        }
     }
-
-    // Textures.
+    let vehicles = env.ws.project.vehicles.clone();
+    let last = vehicles.len() <= 1;
+    for vehicle in &vehicles {
+        vehicle_section(ui, env, vehicle, last);
+    }
     ui.add_space(space::SM);
-    ui.label(
-        RichText::new(tr("vehicle-panel-textures"))
-            .small()
-            .color(color::TEXT_SECONDARY),
-    );
-    let active = env.ws.project.active_surface;
-    let rows: Vec<(String, f64, Option<TemplateStatus>)> = env
+    if ui.add(secondary_button(&tr("cmd-add-vehicle"))).clicked() {
+        cmds.push(CommandId::AddVehicle);
+    }
+    template_controls(ui, env);
+}
+
+/// A vehicle: its package, update notice, actions and variants.
+fn vehicle_section(ui: &mut Ui, env: &mut PanelEnv<'_>, vehicle: &ProjectVehicle, last: bool) {
+    let active_vehicle = env
         .ws
         .project
-        .surfaces
-        .iter()
-        .map(|s| {
-            (
-                s.name.clone(),
-                s.size,
-                s.template.as_ref().map(|t| t.status),
-            )
-        })
-        .collect();
-    for (i, (name, size, status)) in rows.into_iter().enumerate() {
-        ui.horizontal(|ui| {
-            let text = format!("{name} · {size} px");
-            let row = ui.selectable_label(i == active, text);
-            row.widget_info(|| {
-                WidgetInfo::selected(
-                    WidgetType::SelectableLabel,
+        .vehicle_of(env.ws.project.active_surface)
+        .is_some_and(|v| v.package_id == vehicle.package_id);
+    let header =
+        CollapsingHeader::new(RichText::new(&vehicle.name).text_style(label_strong_style()))
+            .id_salt(("fleet_vehicle", &vehicle.package_id))
+            .default_open(true)
+            .open(active_vehicle.then_some(true));
+    header.show(ui, |ui| {
+        let kind = tr(match vehicle.kind.as_str() {
+            "trailer" => "vehicles-trailer",
+            _ => "vehicles-truck",
+        });
+        ui.label(
+            RichText::new(format!("{} · {kind}", vehicle.brand))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        );
+        let package_line = match env.vehicles.recorded(vehicle) {
+            Some(i) => tr!(
+                "vehicle-panel-package",
+                version = vehicle.version.as_str(),
+                games = i.manifest.game_versions.to_string()
+            ),
+            None => tr!(
+                "vehicle-panel-package-missing",
+                version = vehicle.version.as_str()
+            ),
+        };
+        ui.label(
+            RichText::new(package_line)
+                .small()
+                .color(color::TEXT_SECONDARY),
+        );
+        if let Some(update) = env.vehicles.update_for(vehicle) {
+            ui.label(
+                RichText::new(tr!(
+                    "vehicle-panel-update",
+                    version = update.manifest.version.to_string()
+                ))
+                .color(color::ACCENT),
+            );
+            let button = ui.add(secondary_button(&tr("cmd-update-template")));
+            button.widget_info(|| {
+                WidgetInfo::labeled(
+                    WidgetType::Button,
                     true,
-                    i == active,
-                    tr!("vehicle-panel-texture", name = name.as_str()),
+                    tr!("vehicle-panel-update-named", name = vehicle.name.as_str()),
                 )
             });
-            if row.clicked() {
-                env.ws.set_active_surface(i);
+            if button.clicked() {
+                *env.vehicle_request = Some(VehicleRequest::Update(vehicle.package_id.clone()));
             }
-            match status {
-                Some(TemplateStatus::LayoutChanged) => {
-                    ui.label(
-                        RichText::new(tr("vehicle-panel-layout-changed"))
-                            .small()
-                            .color(color::WARNING),
-                    );
-                    let dismiss = ui.small_button(tr("vehicle-panel-dismiss"));
-                    dismiss.widget_info(|| {
-                        WidgetInfo::labeled(
-                            WidgetType::Button,
-                            true,
-                            tr!("vehicle-panel-dismiss-named", name = name.as_str()),
-                        )
-                    });
-                    if dismiss.clicked() {
-                        env.ws.dismiss_layout_change(i, env.now);
-                    }
-                }
-                Some(TemplateStatus::Removed) => {
-                    ui.label(
-                        RichText::new(tr("vehicle-panel-removed"))
-                            .small()
-                            .color(color::TEXT_SECONDARY),
-                    );
-                }
-                _ => {}
+        }
+        ui.horizontal(|ui| {
+            let variants = ui.small_button(tr("vehicles-variants"));
+            variants.widget_info(|| {
+                WidgetInfo::labeled(
+                    WidgetType::Button,
+                    true,
+                    tr!("vehicles-variants-named", name = vehicle.name.as_str()),
+                )
+            });
+            if variants.clicked() {
+                *env.vehicle_request = Some(VehicleRequest::Variants(vehicle.package_id.clone()));
+            }
+            let remove = ui
+                .add_enabled(
+                    !last,
+                    egui::Button::new(tr("vehicles-remove-from-project")).small(),
+                )
+                .on_disabled_hover_text(tr("reason-last-vehicle"));
+            remove.widget_info(|| {
+                WidgetInfo::labeled(
+                    WidgetType::Button,
+                    !last,
+                    tr!("vehicles-remove-named", name = vehicle.name.as_str()),
+                )
+            });
+            if remove.clicked() {
+                *env.vehicle_request = Some(VehicleRequest::Remove(vehicle.package_id.clone()));
             }
         });
-    }
+        for variant in &vehicle.variants {
+            let range = env
+                .ws
+                .project
+                .variant_range(&vehicle.package_id, &variant.id);
+            let active_variant = range.contains(&env.ws.project.active_surface);
+            CollapsingHeader::new(&variant.name)
+                .id_salt(("fleet_variant", &vehicle.package_id, &variant.id))
+                .default_open(true)
+                .open(active_variant.then_some(true))
+                .show(ui, |ui| {
+                    for i in range {
+                        texture_row(ui, env, i);
+                    }
+                });
+        }
+    });
+}
 
-    // The active texture's template.
+/// A texture: selects it; shows its update badges.
+fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
+    let active = env.ws.project.active_surface == i;
+    let surface = &env.ws.project.surfaces[i];
+    let name = surface.name.clone();
+    let size = surface.size;
+    let status = surface.template.as_ref().map(|t| t.status);
+    let label = env
+        .ws
+        .project
+        .surface_names(i)
+        .map_or_else(|| name.clone(), |(v, x, t)| format!("{v} › {x} › {t}"));
+    ui.horizontal(|ui| {
+        let row = ui.selectable_label(active, format!("{name} · {size} px"));
+        row.widget_info(|| {
+            WidgetInfo::selected(
+                WidgetType::SelectableLabel,
+                true,
+                active,
+                tr!("vehicle-panel-texture", name = label.as_str()),
+            )
+        });
+        if row.clicked() {
+            env.ws.set_active_surface(i);
+        }
+        match status {
+            Some(TemplateStatus::LayoutChanged) => {
+                ui.label(
+                    RichText::new(tr("vehicle-panel-layout-changed"))
+                        .small()
+                        .color(color::WARNING),
+                );
+                let dismiss = ui.small_button(tr("vehicle-panel-dismiss"));
+                dismiss.widget_info(|| {
+                    WidgetInfo::labeled(
+                        WidgetType::Button,
+                        true,
+                        tr!("vehicle-panel-dismiss-named", name = label.as_str()),
+                    )
+                });
+                if dismiss.clicked() {
+                    env.ws.dismiss_layout_change(i, env.now);
+                }
+            }
+            Some(TemplateStatus::Removed) => {
+                ui.label(
+                    RichText::new(tr("vehicle-panel-removed"))
+                        .small()
+                        .color(color::TEXT_SECONDARY),
+                );
+            }
+            _ => {}
+        }
+    });
+}
+
+/// The active texture's template opacity and visibility.
+fn template_controls(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     let Some(template) = env.ws.project.surface().template.clone() else {
         return;
     };

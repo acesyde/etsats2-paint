@@ -74,3 +74,9 @@ undo-place = Importer
 
 undo-update-template = Mettre à jour le gabarit
 undo-dismiss-layout = Ignorer le changement de disposition
+
+## Fleet
+
+undo-add-vehicle = Ajouter un véhicule
+undo-change-variants = Modifier les variantes
+undo-remove-vehicle = Retirer le véhicule

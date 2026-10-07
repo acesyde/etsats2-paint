@@ -144,3 +144,9 @@ cmd-update-template = Mettre à jour le gabarit…
 cmd-show-template = Afficher le gabarit
 reason-no-update = Aucune version plus récente de ce véhicule n’est installée.
 reason-no-template = Cette texture n’a pas de gabarit.
+
+## Fleet
+
+cmd-add-vehicle = Ajouter un véhicule…
+reason-last-vehicle = Un projet garde au moins un véhicule.
+reason-choose-vehicle = Choisissez un véhicule et au moins une variante.

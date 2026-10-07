@@ -21,7 +21,8 @@ Illustrator or Inkscape is not a goal.
 The blank-texture project goes away. New Project starts by choosing a vehicle.
 
 When no package exists for a vehicle (a truck just released, or a community
-mod nobody has packaged), the player uses **Custom vehicle…**:
+mod nobody has packaged), the player will use **Custom vehicle…** (next
+change, `custom-vehicle`):
 1. drop the template files (DDS or PNG);
 2. name each texture and pick the game.
 
@@ -55,20 +56,22 @@ don't redraw". Variants of the same truck often share most of their layout,
 so **copy from variant** (same coordinates) is offered. The 3D preview will
 make placement easier later.
 
-### Implications to plan for
-- **Scale:** a fleet can reach 30 to 40 textures, mostly 4096². Only the active
-  texture is kept at full resolution; the others are loaded on demand or as
-  thumbnails.
-- **Navigation:** a tree (vehicle → variant → texture) replaces the texture
-  tabs as the main way to move around. Tabs remain for the few open textures.
+### One game per project
+A project belongs to one game, ETS2 or ATS, set by its first vehicle: ETS2
+and ATS mods are separate mods, so one project exports one mod. A player with
+fleets in both games has two projects (sharing a symbol library, later).
+
+### How a fleet works (shipped in `fleet-projects`)
+- **Scale:** a fleet can reach 30 to 40 textures, mostly 4096². The canvas is
+  vector-based and only draws the active texture, and its caches drop what is
+  not shown, so no on-demand loading is needed.
+- **Navigation:** the Vehicles panel shows a tree (vehicle → variant →
+  texture); the tabs above the canvas list the active variant's textures.
 - **Update Template:** works per vehicle, since each vehicle in a project has
   its own package version.
 
 ## Open questions
 
-- **One game per project?** Proposed: yes. ETS2 and ATS mods are separate
-  mods, so one project exports one mod. A player with fleets in both games
-  would have two projects sharing a symbol library. *Not decided yet.*
 - **Textures shared between variants:** in ETS2, some cabins of a truck use
   the same texture (same layout) and others don't (Paintjob Packer's
   `separate_paint_jobs`). The package format can't express a texture shared
@@ -82,7 +85,7 @@ make placement easier later.
 
 | # | Change | What it does | Why now |
 |---|---|---|---|
-| 1 | `fleet-projects` | Removes the blank project and adds Custom vehicle…. A project holds N vehicles and their chosen variants, with Add vehicle…. Adds the vehicle/variant/texture tree and on-demand texture loading. | The product decision above; everything after builds on it. |
+| 1 | `custom-vehicle` | Custom vehicle… in New Project and Add Vehicle…: drop template files (DDS or PNG), name the textures and pick the game; TruckPaint packs a local package, which can be exported as a `.tpv`. | The escape hatch for vehicles without a package, now that every project needs a vehicle. |
 | 2 | `shared-textures` | Variants can share a texture in the package format. | Fixes the format before others publish packages. |
 | 3 | `brand-kit` | Project palette, symbols with instances, shared styles, copy from variant. | Makes a fleet a shared identity rather than separate drawings. |
 | 4 | `mod-export` | Exports the whole fleet as one ready-to-install mod. | The deliverable of the app. Needs the fleet model and shared textures. |
@@ -92,6 +95,9 @@ make placement easier later.
 ## Shipped
 
 The changes already merged are archived in `openspec/changes/archive/`, and
-their requirements are in `openspec/specs/`. The most recent ones are the
-vehicle library (vehicle packages, projects and versioned templates), and the
-sample vehicle with the `tpv` packer.
+their requirements are in `openspec/specs/`. The most recent ones are:
+- `fleet-projects`: no blank project; a project holds several vehicles of one
+  game with their chosen variants, the Vehicles panel tree, Add Vehicle…,
+  Variants… and Update Template per vehicle;
+- the sample vehicle with the `tpv` packer;
+- the vehicle library (vehicle packages, projects and versioned templates).

@@ -6,7 +6,7 @@ panel-colors = Colores
 panel-stroke = Trazo
 panel-transform = Transformar
 panel-assets = Recursos
-panel-vehicle = Vehículo
+panel-vehicle = Vehículos
 empty-properties = Nada seleccionado
 empty-properties-hint = Seleccione un objeto en el lienzo para editar sus propiedades.
 empty-layers = Aún no hay capas
@@ -226,12 +226,9 @@ undo-change-font = Cambiar fuente
 
 ## Vehicle panel
 
-vehicle-panel-none = Sin vehículo
-vehicle-panel-none-hint = Este proyecto es una textura en blanco. Cree un proyecto a partir de un vehículo para pintar sobre sus plantillas.
 vehicle-panel-package = Paquete { $version } · versiones del juego { $games }
 vehicle-panel-package-missing = Paquete { $version } (no instalado)
 vehicle-panel-update = La versión { $version } está disponible
-vehicle-panel-textures = Texturas
 vehicle-panel-texture = Textura { $name }
 vehicle-panel-layout-changed = Disposición cambiada
 vehicle-panel-dismiss = Descartar
@@ -239,3 +236,12 @@ vehicle-panel-dismiss-named = Descartar el cambio de disposición de { $name }
 vehicle-panel-removed = No está en esta versión
 vehicle-panel-opacity = Plantilla
 vehicle-panel-opacity-name = Opacidad de la plantilla
+
+## Fleet
+
+vehicles-fleet-game = Flota { $game }
+vehicle-panel-update-named = Actualizar la plantilla de { $name }
+vehicles-variants = Variantes…
+vehicles-variants-named = Variantes de { $name }
+vehicles-remove-from-project = Quitar del proyecto
+vehicles-remove-named = Quitar { $name } del proyecto

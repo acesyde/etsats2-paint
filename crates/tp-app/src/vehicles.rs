@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use tp_core::VehicleRef;
+use tp_core::ProjectVehicle;
 use tp_i18n::tr;
 use tp_vehicles::{Manifest, Package, PackageError};
 
@@ -219,13 +219,22 @@ impl VehicleLibrary {
         Ok(Package::read(&std::fs::read(path)?)?)
     }
 
-    /// The newest installed version newer than the project's, if it still
-    /// has the project's variant.
-    pub fn update_for(&self, vehicle: &VehicleRef) -> Option<&InstalledVersion> {
+    /// The newest installed version newer than the one a project's vehicle
+    /// records (variants it no longer has are reported by the update plan).
+    pub fn update_for(&self, vehicle: &ProjectVehicle) -> Option<&InstalledVersion> {
         let current = semver::Version::parse(&vehicle.version).ok()?;
-        self.get(&vehicle.package_id)?.versions.iter().find(|v| {
-            v.manifest.version > current && v.manifest.variant(&vehicle.variant_id).is_some()
-        })
+        self.get(&vehicle.package_id)?
+            .versions
+            .iter()
+            .find(|v| v.manifest.version > current)
+    }
+
+    /// The installed version a project's vehicle records.
+    pub fn recorded(&self, vehicle: &ProjectVehicle) -> Option<&InstalledVersion> {
+        self.get(&vehicle.package_id)?
+            .versions
+            .iter()
+            .find(|v| v.manifest.version.to_string() == vehicle.version)
     }
 }
 
@@ -323,14 +332,17 @@ mod tests {
     }
 
     #[test]
-    fn updates_need_a_newer_version_with_the_variant() {
+    fn updates_need_a_newer_version() {
         let dir = tempfile::tempdir().unwrap();
         let mut lib = VehicleLibrary::open(dir.path());
         lib.install_bytes(&pkg("1.2.0")).unwrap();
-        let mut vehicle = VehicleRef {
+        let mut vehicle = ProjectVehicle {
             package_id: "scs.sample.truck".into(),
             version: "1.2.0".into(),
-            variant_id: "standard".into(),
+            variants: vec![tp_core::VariantRef {
+                id: "standard".into(),
+                name: "Standard cabin".into(),
+            }],
             name: "Sample Truck".into(),
             brand: "Sample".into(),
             kind: "truck".into(),
@@ -346,7 +358,15 @@ mod tests {
                 .to_string(),
             "1.3.0"
         );
-        vehicle.variant_id = "other".into();
+        assert_eq!(
+            lib.recorded(&vehicle).unwrap().manifest.version.to_string(),
+            "1.2.0"
+        );
+        // A variant the new version lacks does not hide the update: the
+        // plan reports its textures as removed.
+        vehicle.variants[0].id = "other".into();
+        assert!(lib.update_for(&vehicle).is_some());
+        vehicle.version = "1.3.0".into();
         assert!(lib.update_for(&vehicle).is_none());
     }
 }

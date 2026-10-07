@@ -62,6 +62,7 @@ pub enum CommandId {
     DesignGallery,
     // Vehicle
     VehicleLibrary,
+    AddVehicle,
     VehicleInfo,
     UpdateTemplate,
     ShowTemplate,
@@ -248,6 +249,7 @@ impl CommandId {
             Snapping,
             DesignGallery,
             VehicleLibrary,
+            AddVehicle,
             VehicleInfo,
             UpdateTemplate,
             ShowTemplate,
@@ -683,6 +685,13 @@ impl CommandId {
                 &[],
                 App,
                 Always,
+            ),
+            AddVehicle => m(
+                "cmd-add-vehicle",
+                Some(icons::ADD),
+                &[],
+                Workspace,
+                When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
             ),
             VehicleInfo => m(
                 "cmd-vehicle-information",

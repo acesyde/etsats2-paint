@@ -130,7 +130,6 @@ impl Drop for Saver {
 
 #[cfg(test)]
 mod tests {
-    use tp_core::TextureResolution;
 
     use super::*;
 
@@ -142,7 +141,7 @@ mod tests {
         let id = saver
             .write(
                 JobKind::Save,
-                Project::new("a", TextureResolution::R2048),
+                crate::vehicle_project::test_project("a"),
                 path.clone(),
                 None,
             )
@@ -159,7 +158,7 @@ mod tests {
         let mut saver = Saver::new(|| {});
         saver.write(
             JobKind::Save,
-            Project::new("a", TextureResolution::R2048),
+            crate::vehicle_project::test_project("a"),
             PathBuf::from("/nonexistent-dir/a.truckpaint"),
             None,
         );

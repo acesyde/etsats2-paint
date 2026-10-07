@@ -10,4 +10,3 @@ object-text = Text
 object-image = Bild
 object-layer-n = Ebene { $n }
 object-untitled = Unbenannt
-object-main-texture = Haupttextur

@@ -1,6 +1,6 @@
 //! Format version 1, the first released format: objects, paints, paths,
-//! texts, images, guides, the palette, assets and, for vehicle projects,
-//! the vehicle and each surface's template. Frozen once released: a new
+//! texts, images, guides, the palette, assets, the fleet's vehicles with
+//! their variants, and each surface's template. Frozen once released: a new
 //! format version gets its own module and a migration from this one.
 
 use std::collections::BTreeMap;
@@ -14,8 +14,8 @@ use tp_core::document::{
 };
 use tp_core::kurbo::{Point, Size, Vec2};
 use tp_core::{
-    Asset, AssetKind, Axis, Guide, Project, Surface, SurfaceTemplate, TemplateStatus,
-    TextureResolution, VehicleRef,
+    Asset, AssetKind, Axis, Guide, Project, ProjectVehicle, Surface, SurfaceTemplate,
+    TemplateStatus, TextureResolution, VariantRef,
 };
 
 /// The document (`project.ron`). Asset bytes live in separate ZIP entries.
@@ -31,16 +31,40 @@ pub struct FileProject {
     pub surfaces: Vec<FileSurface>,
     #[serde(default)]
     pub assets: Vec<FileAsset>,
-    /// The vehicle of a vehicle project.
+    /// The vehicles of the fleet.
     #[serde(default)]
+    pub vehicles: Vec<FileVehicle>,
+    /// Development builds stored a single vehicle and variant here; read
+    /// only, converted to `vehicles`.
+    #[serde(default, skip_serializing)]
     pub vehicle: Option<FileVehicle>,
 }
 
-/// The package a vehicle project's templates come from.
+impl FileProject {
+    /// Whether the project has a vehicle (files without one come from
+    /// development builds of the blank-texture era).
+    pub fn has_vehicle(&self) -> bool {
+        !self.vehicles.is_empty() || self.vehicle.is_some()
+    }
+}
+
+/// A chosen variant of a vehicle.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileVariant {
+    pub id: String,
+    pub name: String,
+}
+
+/// A vehicle of the project: the package its templates come from.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FileVehicle {
     pub package_id: String,
     pub version: String,
+    #[serde(default)]
+    pub variants: Vec<FileVariant>,
+    /// The single variant of development builds (read only; empty
+    /// otherwise).
+    #[serde(default, skip_serializing)]
     pub variant_id: String,
     pub name: String,
     pub brand: String,
@@ -59,6 +83,12 @@ pub enum FileTemplateStatus {
 /// A surface's template: an asset shown over the artwork.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FileTemplate {
+    /// Empty in development builds' files: the single vehicle's.
+    #[serde(default)]
+    pub package_id: String,
+    /// Empty in development builds' files: the single variant.
+    #[serde(default)]
+    pub variant_id: String,
     pub texture_id: String,
     pub asset: u64,
     pub layout_version: u32,
@@ -492,6 +522,8 @@ pub fn from_project(project: &Project) -> FileProject {
                     })
                     .collect(),
                 template: s.template.as_ref().map(|t| FileTemplate {
+                    package_id: t.package_id.clone(),
+                    variant_id: t.variant_id.clone(),
                     texture_id: t.texture_id.clone(),
                     asset: t.asset.0,
                     layout_version: t.layout_version,
@@ -519,16 +551,96 @@ pub fn from_project(project: &Project) -> FileProject {
                 size: [a.size.width, a.size.height],
             })
             .collect(),
-        vehicle: project.vehicle.as_ref().map(|v| FileVehicle {
+        vehicles: project
+            .vehicles
+            .iter()
+            .map(|v| FileVehicle {
+                package_id: v.package_id.clone(),
+                version: v.version.clone(),
+                variants: v
+                    .variants
+                    .iter()
+                    .map(|x| FileVariant {
+                        id: x.id.clone(),
+                        name: x.name.clone(),
+                    })
+                    .collect(),
+                variant_id: String::new(),
+                name: v.name.clone(),
+                brand: v.brand.clone(),
+                kind: v.kind.clone(),
+                game: v.game.clone(),
+            })
+            .collect(),
+        vehicle: None,
+    }
+}
+
+/// The project's vehicles, converting the single vehicle of development
+/// builds (whose variant name was not stored: its id stands in).
+fn vehicles_from_file(file: &FileProject) -> Vec<ProjectVehicle> {
+    let convert = |v: &FileVehicle| {
+        let mut variants: Vec<VariantRef> = v
+            .variants
+            .iter()
+            .map(|x| VariantRef {
+                id: x.id.clone(),
+                name: x.name.clone(),
+            })
+            .collect();
+        if variants.is_empty() && !v.variant_id.is_empty() {
+            variants.push(VariantRef {
+                id: v.variant_id.clone(),
+                name: v.variant_id.clone(),
+            });
+        }
+        ProjectVehicle {
             package_id: v.package_id.clone(),
             version: v.version.clone(),
-            variant_id: v.variant_id.clone(),
+            variants,
             name: v.name.clone(),
             brand: v.brand.clone(),
             kind: v.kind.clone(),
             game: v.game.clone(),
-        }),
+        }
+    };
+    if file.vehicles.is_empty() {
+        file.vehicle.iter().map(convert).collect()
+    } else {
+        file.vehicles.iter().map(convert).collect()
     }
+}
+
+/// Every vehicle has a variant, all share one game, none is repeated, and
+/// every surface's template names a vehicle and one of its variants.
+fn check_fleet(vehicles: &[ProjectVehicle], surfaces: &[Surface]) -> Result<(), String> {
+    let Some(first) = vehicles.first() else {
+        return Err("the project has no vehicle".to_owned());
+    };
+    for (i, v) in vehicles.iter().enumerate() {
+        if v.game != first.game {
+            return Err("the vehicles are for different games".to_owned());
+        }
+        if v.variants.is_empty() {
+            return Err(format!("{} has no variant", v.package_id));
+        }
+        if vehicles[..i].iter().any(|o| o.package_id == v.package_id) {
+            return Err(format!("{} is listed twice", v.package_id));
+        }
+    }
+    for s in surfaces {
+        let Some(t) = &s.template else {
+            return Err(format!("{} has no vehicle texture", s.name));
+        };
+        let known = vehicles
+            .iter()
+            .find(|v| v.package_id == t.package_id)
+            .is_some_and(|v| v.variant(&t.variant_id).is_some());
+        if !known {
+            return Err(format!("{} belongs to an unknown vehicle variant", s.name));
+        }
+    }
+    Ok(())
 }
 
 fn object_from_file(
@@ -697,7 +809,20 @@ pub fn into_project(
                     if !assets.contains_key(&AssetId(t.asset)) {
                         return Err(format!("the template of {} is missing", s.name));
                     }
+                    let legacy = || file.vehicle.as_ref();
+                    let package_id = if t.package_id.is_empty() {
+                        legacy().map(|v| v.package_id.clone()).unwrap_or_default()
+                    } else {
+                        t.package_id.clone()
+                    };
+                    let variant_id = if t.variant_id.is_empty() {
+                        legacy().map(|v| v.variant_id.clone()).unwrap_or_default()
+                    } else {
+                        t.variant_id.clone()
+                    };
                     Some(SurfaceTemplate {
+                        package_id,
+                        variant_id,
                         texture_id: t.texture_id.clone(),
                         asset: AssetId(t.asset),
                         layout_version: t.layout_version,
@@ -727,14 +852,7 @@ pub fn into_project(
         file.palette.iter().map(|c| rgba(*c)).collect(),
         assets,
     );
-    project.vehicle = file.vehicle.as_ref().map(|v| VehicleRef {
-        package_id: v.package_id.clone(),
-        version: v.version.clone(),
-        variant_id: v.variant_id.clone(),
-        name: v.name.clone(),
-        brand: v.brand.clone(),
-        kind: v.kind.clone(),
-        game: v.game.clone(),
-    });
+    project.vehicles = vehicles_from_file(file);
+    check_fleet(&project.vehicles, &project.surfaces)?;
     Ok(project)
 }
