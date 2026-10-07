@@ -22,6 +22,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         prefs,
         queue,
         screen,
+        vehicles,
         ..
     } = state;
     let Screen::Workspace(ws) = screen else {
@@ -65,6 +66,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
             let mut env = panels::PanelEnv {
                 ws,
                 recent_colors,
+                vehicles,
                 now: ctx.input(|i| i.time),
             };
             panels::show(ui, &mut cmds, layout, &mut env);
@@ -77,7 +79,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     CentralPanel::no_frame()
         .frame(Frame::new().fill(color::SURFACE_0))
         .show(ui, |ui| match layout.view_mode {
-            ViewMode::TwoD => canvas::show(ui, &mut cmds, ws),
+            ViewMode::TwoD => canvas_with_tabs(ui, &mut cmds, ws),
             ViewMode::ThreeD => preview::show(ui, &mut cmds, false),
             ViewMode::Split => {
                 let total = ui.available_width();
@@ -96,7 +98,46 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
                 }
                 CentralPanel::no_frame()
                     .frame(Frame::new().fill(color::SURFACE_0))
-                    .show(ui, |ui| canvas::show(ui, &mut cmds, ws));
+                    .show(ui, |ui| canvas_with_tabs(ui, &mut cmds, ws));
             }
         });
+}
+
+/// The canvas, with tabs to switch textures when the project has several.
+fn canvas_with_tabs(
+    ui: &mut Ui,
+    cmds: &mut crate::ui::CommandUi<'_>,
+    ws: &mut crate::workspace::Workspace,
+) {
+    if ws.project.surfaces.len() > 1 {
+        let names: Vec<String> = ws.project.surfaces.iter().map(|s| s.name.clone()).collect();
+        let active = ws.project.active_surface;
+        let picked = Frame::new()
+            .fill(color::SURFACE_1)
+            .inner_margin(Margin::symmetric(tp_ui::tokens::space::SM as i8, 2))
+            .show(ui, |ui| {
+                ui.push_id("texture_tabs", |ui| {
+                    let mut control = tp_ui::widgets::SegmentedControl::new();
+                    for (i, name) in names.iter().enumerate() {
+                        let flagged = ws.project.surfaces[i]
+                            .template
+                            .as_ref()
+                            .is_some_and(|t| t.status == tp_core::TemplateStatus::LayoutChanged);
+                        let icon = if flagged {
+                            tp_ui::icons::WARNING
+                        } else {
+                            tp_ui::icons::VEHICLE
+                        };
+                        control = control.segment(i, icon, name, None);
+                    }
+                    control.show(ui, active)
+                })
+                .inner
+            })
+            .inner;
+        if let Some(index) = picked {
+            ws.set_active_surface(index);
+        }
+    }
+    canvas::show(ui, cmds, ws);
 }

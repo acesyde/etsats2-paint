@@ -179,6 +179,7 @@ impl AppState {
         match done.result {
             Ok(()) => {
                 ws.saved = Some(pending.snapshot);
+                ws.settings_changed = false;
                 ws.path = Some(pending.path.clone());
                 ws.recovery_written = None;
                 let name = ws.project.name.clone();
@@ -383,6 +384,7 @@ pub fn file_error(err: &tp_file::Error, file: &str) -> String {
         tp_file::Error::NotAProject => tr!("file-not-a-project", file = file),
         tp_file::Error::Damaged(_) => tr!("file-damaged", file = file),
         tp_file::Error::NewerVersion { .. } => tr!("file-newer-version", file = file),
+        tp_file::Error::Unsupported { .. } => tr!("file-dev-format", file = file),
         tp_file::Error::Io(e) => tr!("file-io", file = file, reason = e.to_string()),
     }
 }

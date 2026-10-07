@@ -41,7 +41,6 @@ cmd-show-guides = Afficher les repères
 cmd-clear-guides = Effacer les repères
 cmd-snapping = Magnétisme
 cmd-design-system-gallery = Galerie du système de design
-cmd-choose-vehicle = Choisir un véhicule…
 cmd-vehicle-information = Informations sur le véhicule
 cmd-export-texture = Exporter la texture…
 cmd-export-mod = Exporter le mod…
@@ -137,3 +136,11 @@ tool-hand = Main
 reason-combine-open-line = Les lignes ouvertes n’ont pas de surface à combiner.
 reason-combine-text = Les textes ne peuvent pas être combinés : utilisez d’abord Vectoriser le texte.
 reason-combine-image = Les images ne peuvent pas être combinées.
+
+## Vehicles
+
+cmd-vehicle-library = Bibliothèque de véhicules…
+cmd-update-template = Mettre à jour le gabarit…
+cmd-show-template = Afficher le gabarit
+reason-no-update = Aucune version plus récente de ce véhicule n’est installée.
+reason-no-template = Cette texture n’a pas de gabarit.

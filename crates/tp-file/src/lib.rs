@@ -8,8 +8,6 @@
 //! the current one; writing always uses the current version.
 
 pub mod v1;
-pub mod v2;
-pub mod v3;
 
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
@@ -20,14 +18,14 @@ use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
 /// Current file format version.
-pub const FORMAT_VERSION: u32 = 3;
+pub const FORMAT_VERSION: u32 = 1;
 /// File extension, without the dot.
 pub const EXTENSION: &str = "truckpaint";
 const MIMETYPE: &str = "application/x-truckpaint";
 const DOCUMENT: &str = "project.ron";
 
 /// The current format's module.
-pub use v3 as current;
+pub use v1 as current;
 
 /// Why a file could not be read or written.
 #[derive(Debug)]
@@ -36,6 +34,10 @@ pub enum Error {
     NotAProject,
     /// A project, but incomplete or inconsistent.
     Damaged(String),
+    /// Written by an unreleased development build.
+    Unsupported {
+        found: u32,
+    },
     /// Written by a newer TruckPaint.
     NewerVersion {
         found: u32,
@@ -50,6 +52,9 @@ impl Error {
         match self {
             Self::NotAProject => format!("{file} is not a TruckPaint project."),
             Self::Damaged(_) => format!("{file} is damaged and cannot be opened."),
+            Self::Unsupported { .. } => {
+                format!("{file} uses a development format that this version cannot open.")
+            }
             Self::NewerVersion { .. } => {
                 format!("{file} was created with a newer version of TruckPaint.")
             }
@@ -63,6 +68,7 @@ impl std::fmt::Display for Error {
         match self {
             Self::NotAProject => write!(f, "not a TruckPaint project"),
             Self::Damaged(why) => write!(f, "damaged project: {why}"),
+            Self::Unsupported { found } => write!(f, "development format {found}"),
             Self::NewerVersion { found, supported } => {
                 write!(f, "format {found} is newer than {supported}")
             }
@@ -169,17 +175,11 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Opened, Error> {
 fn migrate(format: u32, text: &str) -> Result<(current::FileProject, bool), Error> {
     let parse_err = |e: ron::error::SpannedError| Error::Damaged(e.to_string());
     match format {
-        // Each older version is parsed with its own module, then converted
-        // step by step (`vN → vN+1`).
-        1 => {
-            let v1: v1::FileProject = ron_options().from_str(text).map_err(parse_err)?;
-            Ok((v3::from_v2(v2::from_v1(v1)), true))
-        }
-        2 => {
-            let v2: v2::FileProject = ron_options().from_str(text).map_err(parse_err)?;
-            Ok((v3::from_v2(v2), true))
-        }
-        3 => Ok((ron_options().from_str(text).map_err(parse_err)?, false)),
+        // The next format adds its module and converts from the older ones
+        // here, step by step (`vN → vN+1`).
+        1 => Ok((ron_options().from_str(text).map_err(parse_err)?, false)),
+        // Formats of unreleased development builds.
+        2 | 3 => Err(Error::Unsupported { found: format }),
         0 => Err(Error::Damaged("invalid format version 0".into())),
         found => Err(Error::NewerVersion {
             found,

@@ -31,6 +31,11 @@ impl AppDirs {
         self.data.join("logs")
     }
 
+    /// Installed vehicle packages.
+    pub fn vehicles(&self) -> PathBuf {
+        self.data.join("vehicles")
+    }
+
     /// Crash-recovery copies of unsaved projects.
     pub fn recovery(&self) -> PathBuf {
         self.data.join("recovery")

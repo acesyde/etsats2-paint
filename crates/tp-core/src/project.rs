@@ -75,6 +75,71 @@ pub struct Surface {
     pub size: f64,
     pub objects: Vec<Arc<Object>>,
     pub guides: Vec<Guide>,
+    /// The vehicle's texture layout shown over the artwork (never exported).
+    pub template: Option<SurfaceTemplate>,
+}
+
+/// Where a template stands after an update to a newer package version.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TemplateStatus {
+    #[default]
+    Current,
+    /// The texture's layout version changed: the artwork may need checking.
+    LayoutChanged,
+    /// The texture no longer exists in the package version; no template.
+    Removed,
+}
+
+/// The template of a surface: a reference image of the texture layout.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SurfaceTemplate {
+    /// The package texture it comes from.
+    pub texture_id: String,
+    /// The image, stored with the project's assets.
+    pub asset: AssetId,
+    pub layout_version: u32,
+    /// 0.0..=1.0; not part of the undo history.
+    pub opacity: f32,
+    /// Not part of the undo history.
+    pub visible: bool,
+    pub status: TemplateStatus,
+}
+
+impl SurfaceTemplate {
+    /// Default opacity of a new template.
+    pub const DEFAULT_OPACITY: f32 = 0.6;
+
+    /// Whether it should be drawn (shown and still in the package).
+    pub fn is_drawn(&self) -> bool {
+        self.visible && self.status != TemplateStatus::Removed
+    }
+
+    /// The same template ignoring opacity and visibility (undo compares
+    /// templates this way).
+    fn document_part(&self) -> (&str, AssetId, u32, TemplateStatus) {
+        (
+            &self.texture_id,
+            self.asset,
+            self.layout_version,
+            self.status,
+        )
+    }
+}
+
+/// The vehicle a project is made for: the package and version its templates
+/// come from.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VehicleRef {
+    pub package_id: String,
+    /// Semantic version of the package.
+    pub version: String,
+    pub variant_id: String,
+    pub name: String,
+    pub brand: String,
+    /// `truck` or `trailer`.
+    pub kind: String,
+    /// `ets2` or `ats`.
+    pub game: String,
 }
 
 impl Surface {
@@ -84,6 +149,7 @@ impl Surface {
             size,
             objects: Vec::new(),
             guides: Vec::new(),
+            template: None,
         }
     }
 
@@ -179,8 +245,10 @@ pub struct Project {
     pub active_surface: usize,
     /// Saved colors, without duplicates.
     pub palette: Vec<Rgba>,
-    /// Imported files, shared by image objects.
+    /// Imported files, shared by image objects and templates.
     pub assets: BTreeMap<AssetId, Arc<Asset>>,
+    /// The vehicle the project is made for (`None`: a blank texture).
+    pub vehicle: Option<VehicleRef>,
     next_id: u64,
 }
 
@@ -204,6 +272,7 @@ impl Project {
             active_surface: 0,
             palette: Vec::new(),
             assets: BTreeMap::new(),
+            vehicle: None,
             next_id: 1,
         }
     }
@@ -415,7 +484,19 @@ impl Project {
                 })
                 .sum()
         }
-        self.surfaces.iter().map(|s| count(&s.objects, asset)).sum()
+        let templates = self.template_assets().filter(|a| *a == asset).count();
+        self.surfaces
+            .iter()
+            .map(|s| count(&s.objects, asset))
+            .sum::<usize>()
+            + templates
+    }
+
+    /// Assets used by surface templates (not listed as images).
+    pub fn template_assets(&self) -> impl Iterator<Item = AssetId> + '_ {
+        self.surfaces
+            .iter()
+            .filter_map(|s| s.template.as_ref().map(|t| t.asset))
     }
 
     /// Removes an unused asset; returns false if it is used or unknown.
@@ -471,6 +552,16 @@ impl Project {
     /// Captures the document state (cheap: objects are shared).
     pub fn snapshot(&self, selection: &[ObjectId]) -> Snapshot {
         Snapshot {
+            meta: self
+                .surfaces
+                .iter()
+                .map(|s| SurfaceMeta {
+                    name: s.name.clone(),
+                    size: s.size,
+                    template: s.template.clone(),
+                })
+                .collect(),
+            vehicle: self.vehicle.clone(),
             surfaces: self.surfaces.iter().map(|s| s.objects.clone()).collect(),
             guides: self.surfaces.iter().map(|s| s.guides.clone()).collect(),
             active_surface: self.active_surface,
@@ -484,12 +575,39 @@ impl Project {
     /// Restores a snapshot and returns its selection. Ids stay unique because
     /// the id counter is never rewound.
     pub fn restore(&mut self, snapshot: &Snapshot) -> Vec<ObjectId> {
-        for (surface, objects) in self.surfaces.iter_mut().zip(&snapshot.surfaces) {
-            surface.objects = objects.clone();
-        }
-        for (surface, guides) in self.surfaces.iter_mut().zip(&snapshot.guides) {
-            surface.guides = guides.clone();
-        }
+        // The surface list itself may differ (an update added surfaces).
+        // Template opacity and visibility are not part of the history: keep
+        // the current values of the same texture.
+        let shown: Vec<(String, f32, bool)> = self
+            .surfaces
+            .iter()
+            .filter_map(|s| s.template.as_ref())
+            .map(|t| (t.texture_id.clone(), t.opacity, t.visible))
+            .collect();
+        self.surfaces = snapshot
+            .meta
+            .iter()
+            .zip(&snapshot.surfaces)
+            .zip(&snapshot.guides)
+            .map(|((meta, objects), guides)| {
+                let mut template = meta.template.clone();
+                if let Some(t) = &mut template
+                    && let Some((_, opacity, visible)) =
+                        shown.iter().find(|(id, ..)| *id == t.texture_id)
+                {
+                    t.opacity = *opacity;
+                    t.visible = *visible;
+                }
+                Surface {
+                    name: meta.name.clone(),
+                    size: meta.size,
+                    objects: objects.clone(),
+                    guides: guides.clone(),
+                    template,
+                }
+            })
+            .collect();
+        self.vehicle = snapshot.vehicle.clone();
         self.active_surface = snapshot.active_surface.min(self.surfaces.len() - 1);
         self.palette = snapshot.palette.clone();
         self.assets = snapshot.assets.clone();
@@ -497,9 +615,20 @@ impl Project {
     }
 }
 
+/// Name, size and template of a surface, in a snapshot.
+#[derive(Clone, Debug, PartialEq)]
+struct SurfaceMeta {
+    name: String,
+    size: f64,
+    template: Option<SurfaceTemplate>,
+}
+
 /// Document state stored in the undo history.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Snapshot {
+    /// Name, size and template of each surface.
+    meta: Vec<SurfaceMeta>,
+    vehicle: Option<VehicleRef>,
     surfaces: Vec<Vec<Arc<Object>>>,
     guides: Vec<Vec<Guide>>,
     active_surface: usize,
@@ -526,6 +655,14 @@ impl Snapshot {
     /// (objects and points). Unchanged objects share their `Arc`, so this is mostly pointer checks.
     pub fn same_document(&self, other: &Snapshot) -> bool {
         self.active_surface == other.active_surface
+            && self.vehicle == other.vehicle
+            && self.meta.len() == other.meta.len()
+            && self.meta.iter().zip(&other.meta).all(|(a, b)| {
+                a.name == b.name
+                    && a.size == b.size
+                    && a.template.as_ref().map(SurfaceTemplate::document_part)
+                        == b.template.as_ref().map(SurfaceTemplate::document_part)
+            })
             && self.guides == other.guides
             && self.palette == other.palette
             && self.assets.len() == other.assets.len()
@@ -860,5 +997,73 @@ mod tests {
         p.restore(&before);
         assert!(!p.surface().get(t).unwrap().is_group());
         assert!(!p.replace_with_group(ObjectId(999), Object::group(ObjectId(0), vec![])));
+    }
+
+    fn template(texture: &str, asset: AssetId) -> SurfaceTemplate {
+        SurfaceTemplate {
+            texture_id: texture.into(),
+            asset,
+            layout_version: 1,
+            opacity: SurfaceTemplate::DEFAULT_OPACITY,
+            visible: true,
+            status: TemplateStatus::Current,
+        }
+    }
+
+    #[test]
+    fn restoring_rebuilds_the_surface_list_and_vehicle() {
+        let mut p = Project::new("T", TextureResolution::R2048);
+        let (asset, _) = p.add_asset(
+            "cabin",
+            AssetKind::Raster,
+            Arc::from(&b"png"[..]),
+            Size::new(8.0, 8.0),
+        );
+        p.surfaces[0].template = Some(template("cabin", asset));
+        let before = p.snapshot(&[]);
+        // An update: a new surface and a recorded version.
+        let mut chassis = Surface::new("Chassis", 1024.0);
+        chassis.template = Some(template("chassis", asset));
+        p.surfaces.push(chassis);
+        p.vehicle = Some(VehicleRef {
+            package_id: "a.b".into(),
+            version: "1.3.0".into(),
+            variant_id: "standard".into(),
+            name: "A".into(),
+            brand: "B".into(),
+            kind: "truck".into(),
+            game: "ets2".into(),
+        });
+        assert!(!before.same_document(&p.snapshot(&[])));
+        p.restore(&before);
+        assert_eq!(p.surfaces.len(), 1);
+        assert!(p.vehicle.is_none());
+        assert_eq!(p.asset_usage(asset), 1, "templates count as uses");
+        assert_eq!(p.template_assets().collect::<Vec<_>>(), vec![asset]);
+    }
+
+    #[test]
+    fn template_opacity_and_visibility_survive_undo() {
+        let mut p = Project::new("T", TextureResolution::R2048);
+        let (asset, _) = p.add_asset(
+            "cabin",
+            AssetKind::Raster,
+            Arc::from(&b"png"[..]),
+            Size::new(8.0, 8.0),
+        );
+        p.surfaces[0].template = Some(template("cabin", asset));
+        let before = p.snapshot(&[]);
+        p.add(rect_at(100.0, 100.0));
+        let t = p.surfaces[0].template.as_mut().unwrap();
+        t.opacity = 0.2;
+        t.visible = false;
+        // Changing them alone is not a document change.
+        let mut q = p.clone();
+        q.surfaces[0].template.as_mut().unwrap().opacity = 0.9;
+        assert!(p.snapshot(&[]).same_document(&q.snapshot(&[])));
+        p.restore(&before);
+        assert!(p.surface().objects.is_empty());
+        let t = p.surfaces[0].template.as_ref().unwrap();
+        assert_eq!((t.opacity, t.visible), (0.2, false));
     }
 }

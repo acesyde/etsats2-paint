@@ -97,3 +97,61 @@ export-background = Hintergrund
 export-transparent = Transparent
 export-background-color = Hintergrundfarbe
 prefs-language = Sprache
+file-dev-format = { $file } verwendet ein Entwicklungsformat, das diese Version nicht öffnen kann.
+
+## Vehicle packages
+
+pkg-install-failed = { $file } konnte nicht installiert werden: { $reason }
+pkg-no-library = es gibt keinen Ordner für die Fahrzeugbibliothek.
+pkg-io = sie konnte nicht gelesen oder geschrieben werden ({ $reason }).
+pkg-not-a-zip = es ist kein Fahrzeugpaket.
+pkg-no-manifest = es enthält kein vehicle.json-Manifest.
+pkg-bad-manifest = sein Manifest ist ungültig ({ $reason }).
+pkg-newer-format = es wurde für eine neuere TruckPaint-Version erstellt.
+pkg-bad-id = seine ID „{ $id }“ ist ungültig.
+pkg-no-variant = es beschreibt keine Variante.
+pkg-empty-variant = die Variante „{ $variant }“ hat keine Textur.
+pkg-duplicate-variant = die Variante „{ $variant }“ ist doppelt definiert.
+pkg-duplicate-texture = die Textur „{ $texture }“ ist doppelt definiert.
+pkg-bad-size = die Textur „{ $texture }“ hat eine ungültige Größe ({ $size }).
+pkg-unsafe-path = es enthält einen unsicheren Pfad ({ $path }).
+pkg-too-large = es ist zu groß.
+pkg-missing-template = die Vorlage von „{ $texture }“ fehlt.
+pkg-bad-template = die Vorlage von „{ $texture }“ ist kein lesbares PNG- oder SVG-Bild.
+pkg-template-too-large = die Vorlage von „{ $texture }“ ist zu groß.
+
+## Vehicle library and updates
+
+filter-packages = Fahrzeugpakete
+vehicles-search = Fahrzeuge suchen
+vehicles-all-games = Alle Spiele
+vehicles-game-filter = Spiel
+vehicles-all-kinds = Lkw und Anhänger
+vehicles-kind-filter = Art
+vehicles-truck = Lkw
+vehicles-trailer = Anhänger
+vehicles-installed = { $name } { $version } installiert
+vehicles-empty = Kein Fahrzeug installiert
+vehicles-empty-hint = Fahrzeugpakete (.tpv) enthalten die Vorlagen eines Lkw oder Anhängers. Installieren Sie eines, um eine Lackierung zu beginnen.
+vehicles-details = Spielversionen { $versions } · { $variants }
+vehicles-version = Version { $version }
+vehicles-remove-version = { $name } { $version } entfernen
+vehicles-remove-confirm = { $name } aus der Bibliothek entfernen? Projekte behalten ihre Vorlagen.
+vehicles-remove = Entfernen
+vehicles-install = Installieren…
+update-versions = { $name }: Version { $from } → { $to }
+update-replaced = { $name }: Vorlage ersetzt
+update-layout-changed = { $name }: Layout geändert, Grafik prüfen
+update-resized = { $name }: Größe { $old } → { $new } px, Grafik skaliert
+update-added = { $name }: neue Textur
+update-removed = { $name }: in dieser Version nicht mehr enthalten, Grafik bleibt erhalten
+update-artwork-kept = Ihre Grafik bleibt erhalten. Sie können die Aktualisierung rückgängig machen.
+update-apply = Aktualisieren
+
+## New Project wizard
+
+new-project-step-vehicle = Fahrzeug
+new-project-blank = Leere Textur
+new-project-textures = Texturen
+button-next = Weiter
+button-back = Zurück

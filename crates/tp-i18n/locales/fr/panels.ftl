@@ -226,3 +226,19 @@ undo-change-alignment = Modifier l’alignement
 undo-change-letter-spacing = Modifier l’espacement des lettres
 undo-change-line-height = Modifier la hauteur de ligne
 undo-change-font = Modifier la police
+
+## Vehicle panel
+
+vehicle-panel-none = Aucun véhicule
+vehicle-panel-none-hint = Ce projet est une texture vierge. Créez un projet à partir d’un véhicule pour peindre sur ses gabarits.
+vehicle-panel-package = Paquet { $version } · versions du jeu { $games }
+vehicle-panel-package-missing = Paquet { $version } (non installé)
+vehicle-panel-update = La version { $version } est disponible
+vehicle-panel-textures = Textures
+vehicle-panel-texture = Texture { $name }
+vehicle-panel-layout-changed = Disposition modifiée
+vehicle-panel-dismiss = Ignorer
+vehicle-panel-dismiss-named = Ignorer le changement de disposition de { $name }
+vehicle-panel-removed = Absente de cette version
+vehicle-panel-opacity = Gabarit
+vehicle-panel-opacity-name = Opacité du gabarit

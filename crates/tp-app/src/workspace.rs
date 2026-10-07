@@ -151,6 +151,11 @@ pub struct Workspace {
     pub selection: Vec<ObjectId>,
     /// `None` until the canvas size is known (first frame).
     pub viewport: Option<Viewport>,
+    /// Views of the other surfaces, by index (`None`: fit when shown).
+    pub viewports: Vec<Option<Viewport>>,
+    /// Template opacity or visibility changed since the last save (not in
+    /// the undo history).
+    pub settings_changed: bool,
     pub history: History<Snapshot>,
     pub gesture: Gesture,
     /// Canvas area on screen during the last frame.
@@ -218,6 +223,8 @@ impl Workspace {
             recovery_written: None,
             selection: Vec::new(),
             viewport: None,
+            viewports: Vec::new(),
+            settings_changed: false,
             history: History::default(),
             gesture: Gesture::Idle,
             canvas_rect: None,
@@ -254,8 +261,39 @@ impl Workspace {
 
     /// Restores a snapshot with its object and point selection.
     pub fn restore(&mut self, state: &Snapshot) {
+        let before = self.project.active_surface;
         self.selection = self.project.restore(state);
         self.points = state.points().iter().copied().collect();
+        let after = self.project.active_surface;
+        if after != before {
+            // The restored state is on another surface: show it with its view.
+            self.project.active_surface = before;
+            self.swap_view(after);
+        }
+    }
+
+    /// Makes surface `index` active, with its own view; the selection and
+    /// point selection are cleared and text editing ends.
+    pub fn set_active_surface(&mut self, index: usize) {
+        if index == self.project.active_surface || index >= self.project.surfaces.len() {
+            return;
+        }
+        if self.is_editing_text() {
+            self.end_text_session(0.0);
+        }
+        self.selection.clear();
+        self.points.clear();
+        self.swap_view(index);
+    }
+
+    /// Stores the current view and shows surface `index` with its own.
+    fn swap_view(&mut self, index: usize) {
+        let current = self.project.active_surface;
+        let needed = self.project.surfaces.len().max(current + 1).max(index + 1);
+        self.viewports.resize(needed, None);
+        self.viewports[current] = self.viewport;
+        self.viewport = self.viewports[index].take();
+        self.project.active_surface = index;
     }
 
     /// Records the change from `before` to the current state, unless nothing
@@ -338,9 +376,11 @@ impl Workspace {
     /// Whether the document differs from its saved state (always true for a
     /// project never saved).
     pub fn has_unsaved_changes(&self) -> bool {
-        self.saved
-            .as_ref()
-            .is_none_or(|saved| !self.snapshot().same_document(saved))
+        self.settings_changed
+            || self
+                .saved
+                .as_ref()
+                .is_none_or(|saved| !self.snapshot().same_document(saved))
     }
 
     /// Save state shown in the status bar.
@@ -358,6 +398,7 @@ impl Workspace {
     pub fn mark_saved(&mut self, path: std::path::PathBuf) {
         self.saved = Some(self.snapshot());
         self.path = Some(path);
+        self.settings_changed = false;
     }
 
     /// Selected objects in stacking order (bottom to top).

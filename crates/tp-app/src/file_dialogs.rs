@@ -13,6 +13,8 @@ pub trait FileDialogs {
     fn pick_images(&mut self) -> Vec<PathBuf>;
     /// Where to export a texture, proposing `suggested` (with its extension).
     fn save_export(&mut self, suggested: &str) -> Option<PathBuf>;
+    /// Vehicle packages to install.
+    fn pick_packages(&mut self) -> Vec<PathBuf>;
     /// Names proposed so far (scripted dialogs only).
     fn suggested(&self) -> Vec<String> {
         Vec::new()
@@ -36,6 +38,14 @@ impl FileDialogs for NativeDialogs {
             .add_filter(tr("filter-project"), &[tp_file::EXTENSION])
             .set_file_name(suggested)
             .save_file()
+    }
+
+    fn pick_packages(&mut self) -> Vec<PathBuf> {
+        rfd::FileDialog::new()
+            .set_title(tr("cmd-vehicle-library"))
+            .add_filter(tr("filter-packages"), &[tp_vehicles::EXTENSION])
+            .pick_files()
+            .unwrap_or_default()
     }
 
     fn pick_images(&mut self) -> Vec<PathBuf> {
@@ -66,6 +76,7 @@ pub struct ScriptedDialogs {
     pub save: VecDeque<PathBuf>,
     pub images: VecDeque<Vec<PathBuf>>,
     pub export: VecDeque<PathBuf>,
+    pub packages: VecDeque<Vec<PathBuf>>,
     /// File names proposed by save dialogs, in order.
     pub suggested: Vec<String>,
 }
@@ -91,6 +102,10 @@ impl FileDialogs for ScriptedDialogs {
 
     fn suggested(&self) -> Vec<String> {
         self.suggested.clone()
+    }
+
+    fn pick_packages(&mut self) -> Vec<PathBuf> {
+        self.packages.pop_front().unwrap_or_default()
     }
 }
 

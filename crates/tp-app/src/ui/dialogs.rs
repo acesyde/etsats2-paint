@@ -13,10 +13,11 @@ use tp_ui::widgets::{StepIndicator, paint_focus_ring, primary_button, secondary_
 
 use crate::commands::{CommandId, ShortcutFormatter};
 use crate::state::{AppState, Modal, NewProjectDraft};
+use crate::vehicles::VehicleLibrary;
 
 /// Titles of the New Project wizard steps. Vehicle steps will be inserted
 /// before "Name & resolution".
-pub const NEW_PROJECT_STEPS: [&str; 1] = ["new-project-step-name"];
+pub const NEW_PROJECT_STEPS: [&str; 2] = ["new-project-step-vehicle", "new-project-step-name"];
 
 fn dialog_frame() -> Frame {
     Frame::new()
@@ -51,23 +52,73 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         }
         return;
     }
+    if matches!(state.modal, Some(Modal::VehicleLibrary(_))) {
+        let Some(Modal::VehicleLibrary(mut dialog)) = state.modal.take() else {
+            unreachable!()
+        };
+        if super::vehicle_dialogs::library(ctx, state, &mut dialog) && state.modal.is_none() {
+            state.modal = Some(Modal::VehicleLibrary(dialog));
+        }
+        return;
+    }
+    if matches!(state.modal, Some(Modal::UpdateTemplate(_))) {
+        let Some(Modal::UpdateTemplate(dialog)) = state.modal.take() else {
+            unreachable!()
+        };
+        if super::vehicle_dialogs::update(ctx, state, &dialog) && state.modal.is_none() {
+            state.modal = Some(Modal::UpdateTemplate(dialog));
+        }
+        return;
+    }
     let Some(modal_kind) = state.modal.as_mut() else {
         return;
     };
     let close = match modal_kind {
-        Modal::NewProject(draft) => match new_project(ctx, draft) {
+        Modal::NewProject(draft) => match new_project(ctx, draft, &state.vehicles) {
             WizardOutcome::Pending => false,
             WizardOutcome::Cancel => true,
             WizardOutcome::Create(project) => {
                 state.open_project(project);
                 true
             }
+            WizardOutcome::Install => {
+                let paths = state.dialogs.pick_packages();
+                let results = super::vehicle_dialogs::install(state, &paths);
+                if let Some(Modal::NewProject(draft)) = &mut state.modal {
+                    draft.messages = results;
+                }
+                false
+            }
+            WizardOutcome::CreateVehicle {
+                name,
+                id,
+                version,
+                variant,
+            } => {
+                let loaded = state.vehicles.load(&id, &version);
+                match loaded.map(|p| crate::vehicle_project::vehicle_project(&name, &p, &variant)) {
+                    Ok(Some(project)) => {
+                        state.open_project(project);
+                        true
+                    }
+                    Ok(None) => true,
+                    Err(err) => {
+                        state.modal = Some(Modal::Message {
+                            title: tr("home-new-project"),
+                            text: crate::vehicles::install_error_message(&err, &name),
+                        });
+                        false
+                    }
+                }
+            }
         },
         Modal::Preferences => preferences(ctx, &mut state.prefs),
         Modal::KeyboardShortcuts => shortcuts(ctx),
         Modal::About => about(ctx),
         Modal::Message { title, text } => message(ctx, title, text),
-        Modal::Export(_) => unreachable!("handled above"),
+        Modal::Export(_) | Modal::VehicleLibrary(_) | Modal::UpdateTemplate(_) => {
+            unreachable!("handled above")
+        }
         Modal::UnsavedChanges(action) => {
             let action = action.clone();
             let name = state
@@ -174,12 +225,107 @@ enum WizardOutcome {
     Pending,
     Cancel,
     Create(Project),
+    /// Create a project from an installed vehicle.
+    CreateVehicle {
+        name: String,
+        id: String,
+        version: semver::Version,
+        variant: String,
+    },
+    /// Install packages, then come back to the Vehicle step.
+    Install,
 }
 
-fn new_project(ctx: &egui::Context, draft: &mut NewProjectDraft) -> WizardOutcome {
+/// Vehicle step: the installed vehicles (or a blank texture) and variants.
+fn vehicle_step(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary) {
+    draft.filter.show(ui, "wizard");
+    ui.add_space(space::SM);
+    for message in &draft.messages {
+        let (text, tint) = match message {
+            Ok(text) => (text, color::SUCCESS),
+            Err(text) => (text, color::ERROR),
+        };
+        ui.label(RichText::new(text).small().color(tint));
+    }
+    egui::ScrollArea::vertical()
+        .max_height(280.0)
+        .auto_shrink([false, true])
+        .show(ui, |ui| {
+            let blank = draft.vehicle.is_none();
+            let row = ui.selectable_label(blank, tr("new-project-blank"));
+            row.widget_info(|| {
+                WidgetInfo::selected(
+                    WidgetType::RadioButton,
+                    true,
+                    blank,
+                    tr("new-project-blank"),
+                )
+            });
+            if row.clicked() {
+                draft.vehicle = None;
+            }
+            for vehicle in super::vehicle_dialogs::filtered(library, &draft.filter) {
+                let newest = vehicle.newest();
+                let m = &newest.manifest;
+                let selected = draft
+                    .vehicle
+                    .as_ref()
+                    .is_some_and(|(id, ..)| *id == vehicle.id);
+                let text = format!("{}   {}", m.name, super::vehicle_dialogs::summary(m));
+                let row = ui.selectable_label(selected, text);
+                row.widget_info(|| {
+                    WidgetInfo::selected(WidgetType::RadioButton, true, selected, &m.name)
+                });
+                if row.clicked() && !selected {
+                    draft.vehicle = Some((
+                        vehicle.id.clone(),
+                        m.version.clone(),
+                        m.variants[0].id.clone(),
+                    ));
+                }
+                if selected && m.variants.len() > 1 {
+                    ui.indent(("variants", &vehicle.id), |ui| {
+                        for variant in &m.variants {
+                            let on = draft
+                                .vehicle
+                                .as_ref()
+                                .is_some_and(|(.., v)| *v == variant.id);
+                            if ui.radio(on, &variant.name).clicked()
+                                && let Some((.., v)) = &mut draft.vehicle
+                            {
+                                *v = variant.id.clone();
+                            }
+                        }
+                    });
+                }
+            }
+        });
+}
+
+/// The variant chosen in the draft, if it is installed.
+fn chosen<'a>(
+    draft: &NewProjectDraft,
+    library: &'a VehicleLibrary,
+) -> Option<(&'a tp_vehicles::Manifest, &'a tp_vehicles::Variant)> {
+    let (id, version, variant) = draft.vehicle.as_ref()?;
+    let installed = library
+        .get(id)?
+        .versions
+        .iter()
+        .find(|v| v.manifest.version == *version)?;
+    let v = installed.manifest.variant(variant)?;
+    Some((&installed.manifest, v))
+}
+
+fn new_project(
+    ctx: &egui::Context,
+    draft: &mut NewProjectDraft,
+    library: &VehicleLibrary,
+) -> WizardOutcome {
     let mut outcome = WizardOutcome::Pending;
+    let last = draft.step >= NEW_PROJECT_STEPS.len() - 1;
     let response = modal("new_project_modal").show(ctx, |ui| {
-        ui.set_width(520.0);
+        ui.set_width(560.0);
         ui.label(
             RichText::new(tr("home-new-project"))
                 .text_style(title_style())
@@ -191,67 +337,124 @@ fn new_project(ctx: &egui::Context, draft: &mut NewProjectDraft) -> WizardOutcom
         StepIndicator::new(draft.step, &steps).show(ui);
         ui.add_space(space::LG);
 
-        ui.label(RichText::new(tr("new-project-name")).text_style(label_strong_style()));
-        let name = ui.add(
-            TextEdit::singleline(&mut draft.name)
-                .hint_text(tr("object-untitled"))
-                .desired_width(f32::INFINITY)
-                .margin(Margin::symmetric(8, 6)),
-        );
-        name.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::TextEdit, true, tr("new-project-name"))
-        });
-        if !draft.focus_requested {
-            name.request_focus();
-            draft.focus_requested = true;
-        }
-        ui.add_space(space::LG);
-
-        ui.label(RichText::new(tr("new-project-resolution")).text_style(label_strong_style()));
-        ui.add_space(space::XS);
-        ui.horizontal(|ui| {
-            for resolution in TextureResolution::ALL {
-                if resolution_card(ui, resolution, draft.resolution == resolution).clicked() {
-                    draft.resolution = resolution;
+        if draft.step == 0 {
+            vehicle_step(ui, draft, library);
+        } else {
+            ui.label(RichText::new(tr("new-project-name")).text_style(label_strong_style()));
+            let hint = chosen(draft, library)
+                .map_or_else(|| tr("object-untitled"), |(m, _)| m.name.clone());
+            let name = ui.add(
+                TextEdit::singleline(&mut draft.name)
+                    .hint_text(hint)
+                    .desired_width(f32::INFINITY)
+                    .margin(Margin::symmetric(8, 6)),
+            );
+            name.widget_info(|| {
+                WidgetInfo::labeled(WidgetType::TextEdit, true, tr("new-project-name"))
+            });
+            if !draft.focus_requested {
+                name.request_focus();
+                draft.focus_requested = true;
+            }
+            ui.add_space(space::LG);
+            match chosen(draft, library) {
+                Some((_, variant)) => {
+                    ui.label(
+                        RichText::new(tr("new-project-textures")).text_style(label_strong_style()),
+                    );
+                    for t in &variant.textures {
+                        ui.label(
+                            RichText::new(format!("{} · {} × {} px", t.name, t.size, t.size))
+                                .color(color::TEXT_SECONDARY),
+                        );
+                    }
+                }
+                None => {
+                    ui.label(
+                        RichText::new(tr("new-project-resolution"))
+                            .text_style(label_strong_style()),
+                    );
+                    ui.add_space(space::XS);
+                    ui.horizontal(|ui| {
+                        for resolution in TextureResolution::ALL {
+                            if resolution_card(ui, resolution, draft.resolution == resolution)
+                                .clicked()
+                            {
+                                draft.resolution = resolution;
+                            }
+                        }
+                    });
+                    ui.label(
+                        RichText::new(tr("new-project-resolution-hint"))
+                            .small()
+                            .color(color::TEXT_SECONDARY),
+                    );
                 }
             }
-        });
-        ui.label(
-            RichText::new(tr("new-project-resolution-hint"))
-                .small()
-                .color(color::TEXT_SECONDARY),
-        );
+        }
         ui.add_space(space::XL);
 
-        let mut cancel = false;
-        let mut create = false;
+        let (mut cancel, mut next, mut back, mut install) = (false, false, false, false);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            create |= ui.add(primary_button(&tr("button-create"))).clicked();
+            let label = if last {
+                tr("button-create")
+            } else {
+                tr("button-next")
+            };
+            next |= ui.add(primary_button(&label)).clicked();
+            if draft.step > 0 {
+                back |= ui.add(secondary_button(&tr("button-back"))).clicked();
+            }
             cancel |= ui.add(secondary_button(&tr("button-cancel"))).clicked();
+            if draft.step == 0 {
+                install |= ui.add(secondary_button(&tr("vehicles-install"))).clicked();
+            }
         });
-        // Enter confirms from anywhere in the dialog (a focused Cancel button
-        // handles Enter as its own click above).
-        if !cancel && ui.input(|i| i.key_pressed(Key::Enter)) {
-            create = true;
+        // Enter confirms the current step (a focused button handles Enter as
+        // its own click above).
+        if !cancel && !back && !install && ui.input(|i| i.key_pressed(Key::Enter)) {
+            next = true;
         }
-        (cancel, create)
+        (cancel, next, back, install)
     });
 
-    let (cancel, create) = response.inner;
+    let (cancel, next, back, install) = response.inner;
     let escape = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::Escape));
     if cancel || escape {
         outcome = WizardOutcome::Cancel;
-    } else if create {
-        let name = if draft.name.trim().is_empty() {
-            tr("object-untitled")
-        } else {
-            draft.name.clone()
+    } else if install {
+        outcome = WizardOutcome::Install;
+    } else if back {
+        draft.step = draft.step.saturating_sub(1);
+    } else if next && !last {
+        draft.step += 1;
+        draft.focus_requested = false;
+    } else if next {
+        let typed = draft.name.trim().to_owned();
+        outcome = match (chosen(draft, library), draft.vehicle.clone()) {
+            (Some((m, _)), Some((id, version, variant))) => WizardOutcome::CreateVehicle {
+                name: if typed.is_empty() {
+                    m.name.clone()
+                } else {
+                    typed
+                },
+                id,
+                version,
+                variant,
+            },
+            _ => {
+                let name = if typed.is_empty() {
+                    tr("object-untitled")
+                } else {
+                    draft.name.clone()
+                };
+                let mut project = Project::new(&name, draft.resolution);
+                for surface in &mut project.surfaces {
+                    surface.name = tr("object-main-texture");
+                }
+                WizardOutcome::Create(project)
+            }
         };
-        let mut project = Project::new(&name, draft.resolution);
-        for surface in &mut project.surfaces {
-            surface.name = tr("object-main-texture");
-        }
-        outcome = WizardOutcome::Create(project);
     }
     outcome
 }

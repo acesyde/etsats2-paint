@@ -223,3 +223,19 @@ undo-change-alignment = Cambiar alineación
 undo-change-letter-spacing = Cambiar espaciado entre letras
 undo-change-line-height = Cambiar interlineado
 undo-change-font = Cambiar fuente
+
+## Vehicle panel
+
+vehicle-panel-none = Sin vehículo
+vehicle-panel-none-hint = Este proyecto es una textura en blanco. Cree un proyecto a partir de un vehículo para pintar sobre sus plantillas.
+vehicle-panel-package = Paquete { $version } · versiones del juego { $games }
+vehicle-panel-package-missing = Paquete { $version } (no instalado)
+vehicle-panel-update = La versión { $version } está disponible
+vehicle-panel-textures = Texturas
+vehicle-panel-texture = Textura { $name }
+vehicle-panel-layout-changed = Disposición cambiada
+vehicle-panel-dismiss = Descartar
+vehicle-panel-dismiss-named = Descartar el cambio de disposición de { $name }
+vehicle-panel-removed = No está en esta versión
+vehicle-panel-opacity = Plantilla
+vehicle-panel-opacity-name = Opacidad de la plantilla

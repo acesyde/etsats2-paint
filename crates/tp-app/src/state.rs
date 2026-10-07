@@ -3,6 +3,7 @@
 use egui::{Key, Ui, ViewportCommand};
 use tp_core::document::Object;
 use tp_core::{Project, TextureResolution};
+use tp_i18n::tr;
 use tp_ui::ThemeSettings;
 
 use crate::commands::{self, Availability, CommandId, EditContext};
@@ -35,6 +36,11 @@ pub struct NewProjectDraft {
     pub name: String,
     pub resolution: TextureResolution,
     pub focus_requested: bool,
+    /// The chosen vehicle (package id, version, variant), or a blank texture.
+    pub vehicle: Option<(String, semver::Version, String)>,
+    pub filter: crate::ui::vehicle_dialogs::VehicleFilter,
+    /// Results of installing packages from the wizard.
+    pub messages: Vec<Result<String, String>>,
 }
 
 pub enum Modal {
@@ -51,6 +57,10 @@ pub enum Modal {
     },
     /// Export Texture dialog.
     Export(Box<crate::ui::export_dialog::ExportDialog>),
+    /// Vehicle Library dialog.
+    VehicleLibrary(crate::ui::vehicle_dialogs::LibraryDialog),
+    /// Update Template confirmation.
+    UpdateTemplate(Box<crate::ui::vehicle_dialogs::UpdateDialog>),
 }
 
 pub struct AppState {
@@ -82,6 +92,8 @@ pub struct AppState {
     /// Load the fonts installed on the computer (off in tests, so results
     /// do not depend on the machine).
     pub system_fonts: bool,
+    /// Installed vehicle packages.
+    pub vehicles: crate::vehicles::VehicleLibrary,
     /// Language of the operating system (English unless detected).
     pub system_language: tp_i18n::Language,
     /// Open / Save / Place dialogs (scripted in tests).
@@ -140,6 +152,7 @@ impl AppState {
             fonts: None,
             system_fonts: false,
             system_language: tp_i18n::Language::English,
+            vehicles: crate::vehicles::VehicleLibrary::default(),
             // Tests never open real dialogs; `new` installs the native ones.
             dialogs: Box::new(crate::file_dialogs::ScriptedDialogs::default()),
             saver: None,
@@ -205,6 +218,44 @@ impl AppState {
     }
 
     /// Runs one frame of the whole application.
+    /// Opens Update Template for the newest installed version of the
+    /// project's vehicle.
+    pub fn open_update_dialog(&mut self) {
+        let Some(vehicle) = self.workspace().and_then(|ws| ws.project.vehicle.clone()) else {
+            return;
+        };
+        let Some(version) = self
+            .vehicles
+            .update_for(&vehicle)
+            .map(|v| v.manifest.version.clone())
+        else {
+            return;
+        };
+        let loaded = self.vehicles.load(&vehicle.package_id, &version);
+        let Some(ws) = self.workspace() else {
+            return;
+        };
+        match loaded {
+            Ok(package) => {
+                if let Some(plan) = crate::vehicle_project::plan(&ws.project, &package) {
+                    self.modal = Some(Modal::UpdateTemplate(Box::new(
+                        crate::ui::vehicle_dialogs::UpdateDialog {
+                            package: Box::new(package),
+                            plan,
+                        },
+                    )));
+                }
+            }
+            Err(err) => {
+                let file = format!("{} {version}", vehicle.name);
+                self.modal = Some(Modal::Message {
+                    title: tr("undo-update-template"),
+                    text: crate::vehicles::install_error_message(&err, &file),
+                });
+            }
+        }
+    }
+
     /// The interface language: the user's choice, else the system's.
     pub fn language(&self) -> tp_i18n::Language {
         self.prefs.language().unwrap_or(self.system_language)
@@ -289,6 +340,23 @@ impl AppState {
                 selection_has_text: ws.selection_has_text(),
                 combine_block: ws.combine_block(),
                 align_to_key: ws.panels.align_to == crate::arrange::AlignTo::KeyObject,
+                has_template: ws
+                    .project
+                    .surface()
+                    .template
+                    .as_ref()
+                    .is_some_and(|t| t.status != tp_core::TemplateStatus::Removed),
+                template_visible: ws
+                    .project
+                    .surface()
+                    .template
+                    .as_ref()
+                    .is_some_and(|t| t.visible),
+                update_available: ws
+                    .project
+                    .vehicle
+                    .as_ref()
+                    .is_some_and(|v| self.vehicles.update_for(v).is_some()),
             },
             None => EditContext::default(),
         }
@@ -457,6 +525,22 @@ impl AppState {
             }
             CommandId::ShowGrid => self.prefs.view_aids.grid = !self.prefs.view_aids.grid,
             CommandId::ShowGuides => self.prefs.view_aids.guides = !self.prefs.view_aids.guides,
+            CommandId::ShowTemplate => self.with_workspace(|ws| {
+                if let Some(t) = ws.project.surface_mut().template.as_mut() {
+                    t.visible = !t.visible;
+                    ws.settings_changed = true;
+                }
+            }),
+            CommandId::VehicleInfo => {
+                crate::ui::workspace::panels::reveal(
+                    &mut self.prefs.layout,
+                    crate::layout::PanelKind::Vehicle,
+                );
+            }
+            CommandId::VehicleLibrary => {
+                self.modal = Some(Modal::VehicleLibrary(Default::default()));
+            }
+            CommandId::UpdateTemplate => self.open_update_dialog(),
             CommandId::Snapping => self.prefs.view_aids.snapping = !self.prefs.view_aids.snapping,
             CommandId::ClearGuides => self.with_workspace(|ws| {
                 ws.edit("cmd-clear-guides", now, false, |project, _| {
@@ -557,9 +641,55 @@ impl AppState {
     /// files.
     fn after_frame(&mut self, ctx: &egui::Context) {
         let now = ctx.input(|i| i.time);
-        let dropped = ctx.input(|i| i.raw.dropped_files.clone());
+        let mut dropped = ctx.input(|i| i.raw.dropped_files.clone());
         let hover = ctx.input(|i| i.pointer.latest_pos());
         let ppp = ctx.pixels_per_point();
+        // Dropped vehicle packages are installed (home screen or workspace).
+        let is_package = |f: &std::sync::Arc<dyn egui::DroppedFile + Send + Sync>| {
+            f.path()
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case(tp_vehicles::EXTENSION))
+        };
+        let packages: Vec<(String, Result<Vec<u8>, String>)> = dropped
+            .iter()
+            .filter(|f| is_package(f))
+            .map(|f| {
+                let path = f.path();
+                let name = path.file_name().map_or_else(
+                    || path.display().to_string(),
+                    |n| n.to_string_lossy().into_owned(),
+                );
+                (
+                    name,
+                    f.bytes().map(|b| b.to_vec()).map_err(|e| e.to_string()),
+                )
+            })
+            .collect();
+        dropped.retain(|f| !is_package(f));
+        if !packages.is_empty() {
+            let results = crate::ui::vehicle_dialogs::install_named(self, packages);
+            let failed: Vec<String> = results.iter().filter_map(|r| r.clone().err()).collect();
+            if !failed.is_empty() {
+                self.modal = Some(Modal::Message {
+                    title: tr("cmd-vehicle-library"),
+                    text: failed.join("\n"),
+                });
+            } else if let Some(ws) = self.workspace_mut() {
+                let done: Vec<String> = results.into_iter().filter_map(Result::ok).collect();
+                ws.show_hint(done.join(", "), now);
+            } else if let Some(Modal::VehicleLibrary(dialog)) = &mut self.modal {
+                dialog.messages = results;
+            } else {
+                self.modal = Some(Modal::Message {
+                    title: tr("cmd-vehicle-library"),
+                    text: results
+                        .into_iter()
+                        .filter_map(Result::ok)
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                });
+            }
+        }
         self.poll_saves(ctx);
         self.write_recovery(ctx, now);
         let Screen::Workspace(ws) = &mut self.screen else {

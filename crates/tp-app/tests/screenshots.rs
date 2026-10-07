@@ -51,6 +51,8 @@ fn render_screens() {
         h.run();
         save(&mut h, &format!("new_project_{suffix}"));
 
+        h.get_by_label("Next").click();
+        h.run();
         h.get_by_label("Create").click();
         save(&mut h, &format!("workspace_{suffix}"));
 
@@ -1366,6 +1368,8 @@ fn render_languages() {
             // A project with a selected stroked text (Properties, Colors).
             h.get_by_label(&tp_i18n::tr("home-new-project")).click();
             h.run();
+            h.get_by_label(&tp_i18n::tr("button-next")).click();
+            h.run();
             h.get_by_label(&tp_i18n::tr("button-create")).click();
             h.run();
             let (text, _) = gradient_scene(&mut h);
@@ -1390,5 +1394,66 @@ fn render_languages() {
             h.state_mut().workspace_mut().unwrap().selection = vec![r];
             save(&mut h, &format!("lang_{code}_transform_{suffix}"));
         }
+    }
+}
+
+/// A vehicle project (tabs, template overlay, Vehicle panel with an update)
+/// and the New Project vehicle step, in English and German.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_vehicle_screens() {
+    use tp_app::layout::PanelKind;
+    use tp_app::state::Modal;
+    use tp_vehicles::sample::{self, SampleTexture};
+    for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut prefs = Prefs::default();
+        prefs.set_language(Some(language));
+        for slot in &mut prefs.layout.panels {
+            slot.collapsed = !matches!(slot.kind, PanelKind::Vehicle | PanelKind::Layers);
+        }
+        let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
+        h.state_mut().vehicles =
+            tp_app::vehicles::VehicleLibrary::open(&dir.path().join("library"));
+        let tex = |id, name, size, layout| SampleTexture {
+            id,
+            name,
+            size,
+            layout,
+        };
+        for (version, cabin_layout) in [("1.2.0", 1), ("1.3.0", 2)] {
+            let bytes = sample::package(
+                "scs.sample.truck",
+                "Sample Truck",
+                version,
+                &[
+                    tex("cabin", "Cabin", 4096, cabin_layout),
+                    tex("chassis", "Chassis", 2048, 1),
+                    tex("accessories", "Accessories", 1024, 1),
+                ],
+            );
+            h.state_mut().vehicles.install_bytes(&bytes).unwrap();
+        }
+        let code = language.code();
+        h.state_mut().modal = Some(Modal::NewProject(Default::default()));
+        if let Some(Modal::NewProject(d)) = &mut h.state_mut().modal {
+            d.vehicle = Some((
+                "scs.sample.truck".into(),
+                "1.3.0".parse().unwrap(),
+                "standard".into(),
+            ));
+        }
+        save(&mut h, &format!("vehicle_wizard_{code}"));
+        h.state_mut().modal = None;
+        h.run();
+        let package = h
+            .state()
+            .vehicles
+            .load("scs.sample.truck", &"1.2.0".parse().unwrap())
+            .unwrap();
+        let project =
+            tp_app::vehicle_project::vehicle_project("Sample Truck", &package, "standard").unwrap();
+        h.state_mut().open_project(project);
+        save(&mut h, &format!("vehicle_project_{code}"));
     }
 }

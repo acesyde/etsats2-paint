@@ -12,8 +12,12 @@ impl TruckPaintApp {
         cc: &eframe::CreationContext<'_>,
         store: Option<PrefsStore>,
         recovery_dir: Option<std::path::PathBuf>,
+        vehicles_dir: Option<std::path::PathBuf>,
     ) -> Self {
         let mut state = AppState::new(store);
+        if let Some(dir) = vehicles_dir {
+            state.vehicles = crate::vehicles::VehicleLibrary::open(&dir);
+        }
         state.system_language = sys_locale::get_locale()
             .map(|locale| tp_i18n::Language::from_locale(&locale))
             .unwrap_or_default();

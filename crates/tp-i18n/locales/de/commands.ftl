@@ -41,7 +41,6 @@ cmd-show-guides = Hilfslinien anzeigen
 cmd-clear-guides = Hilfslinien löschen
 cmd-snapping = Einrasten
 cmd-design-system-gallery = Designsystem-Galerie
-cmd-choose-vehicle = Fahrzeug auswählen…
 cmd-vehicle-information = Fahrzeuginformationen
 cmd-export-texture = Textur exportieren…
 cmd-export-mod = Mod exportieren…
@@ -137,3 +136,11 @@ tool-hand = Hand
 reason-combine-open-line = Offene Linien haben keine Fläche zum Kombinieren.
 reason-combine-text = Texte können nicht kombiniert werden: Verwenden Sie zuerst „In Pfade umwandeln“.
 reason-combine-image = Bilder können nicht kombiniert werden.
+
+## Vehicles
+
+cmd-vehicle-library = Fahrzeugbibliothek…
+cmd-update-template = Vorlage aktualisieren…
+cmd-show-template = Vorlage anzeigen
+reason-no-update = Es ist keine neuere Version dieses Fahrzeugs installiert.
+reason-no-template = Diese Textur hat keine Vorlage.

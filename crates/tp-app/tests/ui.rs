@@ -92,6 +92,9 @@ fn new_project_with_name_and_resolution_via_keyboard() {
     let mut h = harness();
     h.get_by_label("New Project").click();
     h.run();
+    // Enter on the Vehicle step (Blank texture) goes to the next step.
+    h.key_press(Key::Enter);
+    h.run();
     h.get_by_role_and_label(Role::TextInput, "Project name")
         .type_text("ACE Logistics");
     h.get_by_label("2048 × 2048").click();
@@ -108,7 +111,7 @@ fn escape_cancels_new_project() {
     let mut h = harness();
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_label("Step 1 of 1 — Name & resolution");
+    h.get_by_label("Step 1 of 2 — Vehicle");
     h.key_press(Key::Escape);
     h.run();
     assert!(h.state().modal.is_none());
@@ -119,6 +122,8 @@ fn escape_cancels_new_project() {
 fn new_project_dialog_tab_moves_focus() {
     let mut h = harness();
     h.get_by_label("New Project").click();
+    h.run();
+    h.get_by_label("Next").click();
     h.run();
     assert!(
         h.get_by_role_and_label(Role::TextInput, "Project name")
