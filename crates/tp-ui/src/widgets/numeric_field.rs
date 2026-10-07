@@ -1,6 +1,7 @@
 use egui::{
     CursorIcon, Id, Key, Margin, Response, RichText, Sense, TextEdit, Ui, WidgetInfo, WidgetType,
 };
+use tp_i18n::tr;
 
 use crate::tokens::{color, space};
 
@@ -79,13 +80,7 @@ impl<'a> NumericField<'a> {
     }
 
     fn format(&self, v: f64) -> String {
-        let text = format!("{v:.prec$}", prec = self.decimals);
-        let text = if text.contains('.') {
-            text.trim_end_matches('0').trim_end_matches('.').to_owned()
-        } else {
-            text
-        };
-        if text == "-0" { "0".to_owned() } else { text }
+        tp_i18n::format_number(v, self.decimals)
     }
 
     fn clamp(&self, v: f64) -> f64 {
@@ -117,11 +112,26 @@ impl<'a> NumericField<'a> {
             let mut buffer = ui
                 .data(|d| d.get_temp::<String>(text_id))
                 .unwrap_or_else(|| self.value.map(|v| self.format(v)).unwrap_or_default());
+            let hint = if self.value.is_none() {
+                tr("mixed")
+            } else {
+                String::new()
+            };
+            // Wide enough for the "Mixed" hint in every language.
+            let hint_width = ui
+                .painter()
+                .layout_no_wrap(
+                    hint.clone(),
+                    egui::TextStyle::Body.resolve(ui.style()),
+                    egui::Color32::WHITE,
+                )
+                .size()
+                .x;
             let edit = TextEdit::singleline(&mut buffer)
                 .id(text_id)
-                .desired_width(self.width)
+                .desired_width(self.width.max(hint_width + 14.0))
                 .margin(Margin::symmetric(6, 3))
-                .hint_text(if self.value.is_none() { "Mixed" } else { "" });
+                .hint_text(hint);
             let response = ui.add(edit);
             response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, self.name));
             if !self.suffix.is_empty() {

@@ -234,7 +234,7 @@ fn format_ruler(value: f64) -> String {
     if (value - value.round()).abs() < 1e-6 {
         format!("{}", value.round() as i64)
     } else {
-        format!("{value:.1}")
+        tp_i18n::localize_number(&format!("{value:.1}")).into_owned()
     }
 }
 

@@ -1,0 +1,14 @@
+
+## Default names of new objects
+
+object-rectangle = Rectangle
+object-ellipse = Ellipse
+object-polygon = Polygon
+object-path = Path
+object-line = Line
+object-group = Group
+object-text = Text
+object-image = Image
+object-layer-n = Layer { $n }
+object-untitled = Untitled
+object-main-texture = Main texture

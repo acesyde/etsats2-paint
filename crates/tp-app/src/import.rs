@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::sync::Arc;
+use tp_i18n::tr;
 
 use resvg::usvg;
 use tp_core::AssetKind;
@@ -23,12 +24,31 @@ pub struct ImportedFile {
 pub struct ImportError {
     /// File name shown to the user.
     pub file: String,
-    pub reason: String,
+    /// Message id of the reason.
+    pub reason: &'static str,
+    /// System error text, for reasons that show one.
+    pub detail: Option<String>,
 }
 
+impl ImportError {
+    /// A file that could not be read from disk.
+    pub fn unreadable(file: String, detail: impl ToString) -> Self {
+        Self {
+            file,
+            reason: "import-unreadable",
+            detail: Some(detail.to_string()),
+        }
+    }
+}
+
+/// "file: reason", in the current language.
 impl std::fmt::Display for ImportError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.file, self.reason)
+        let reason = match &self.detail {
+            Some(detail) => tr!(self.reason, detail = detail.as_str()),
+            None => tr(self.reason),
+        };
+        write!(f, "{}: {reason}", self.file)
     }
 }
 
@@ -46,32 +66,33 @@ fn sniff(bytes: &[u8]) -> Option<AssetKind> {
 
 /// Validates bytes named `file_name` and reads their natural size.
 pub fn read_bytes(file_name: &str, bytes: Vec<u8>) -> Result<ImportedFile, ImportError> {
-    let error = |reason: &str| ImportError {
+    let error = |reason: &'static str| ImportError {
         file: file_name.to_owned(),
-        reason: reason.to_owned(),
+        reason,
+        detail: None,
     };
     let name = Path::new(file_name).file_stem().map_or_else(
         || file_name.to_owned(),
         |s| s.to_string_lossy().into_owned(),
     );
-    let kind = sniff(&bytes).ok_or_else(|| error("unsupported format"))?;
+    let kind = sniff(&bytes).ok_or_else(|| error("import-unsupported"))?;
     let size = match kind {
         AssetKind::Raster => {
             let reader = image::ImageReader::new(std::io::Cursor::new(&bytes))
                 .with_guessed_format()
-                .map_err(|_| error("unsupported format"))?;
-            let image = reader.decode().map_err(|_| error("the image is damaged"))?;
+                .map_err(|_| error("import-unsupported"))?;
+            let image = reader.decode().map_err(|_| error("import-damaged"))?;
             Size::new(f64::from(image.width()), f64::from(image.height()))
         }
         AssetKind::Svg => {
             let tree = usvg::Tree::from_data(&bytes, svg_options())
-                .map_err(|_| error("the SVG file is invalid"))?;
+                .map_err(|_| error("import-invalid-svg"))?;
             let s = tree.size();
             Size::new(f64::from(s.width()), f64::from(s.height()))
         }
     };
     if size.width < 1.0 || size.height < 1.0 {
-        return Err(error("the image is empty"));
+        return Err(error("import-empty"));
     }
     Ok(ImportedFile {
         name,
@@ -92,10 +113,7 @@ pub fn read_files(paths: &[std::path::PathBuf]) -> Vec<Result<ImportedFile, Impo
             );
             match std::fs::read(path) {
                 Ok(bytes) => read_bytes(&file_name, bytes),
-                Err(err) => Err(ImportError {
-                    file: file_name,
-                    reason: format!("cannot be read ({err})"),
-                }),
+                Err(err) => Err(ImportError::unreadable(file_name, err)),
             }
         })
         .collect()

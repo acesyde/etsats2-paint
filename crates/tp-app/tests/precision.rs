@@ -106,7 +106,7 @@ fn clear_guides_is_one_undo_step() {
     h.get_by_label("Clear Guides").click();
     h.run();
     assert!(ws(&h).project.surface().guides.is_empty());
-    assert_eq!(ws(&h).history.undo_label(), Some("Clear Guides"));
+    assert_eq!(ws(&h).history.undo_label(), Some("cmd-clear-guides"));
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
     h.run();
     assert_eq!(ws(&h).project.surface().guides.len(), 2);
@@ -211,7 +211,7 @@ fn horizontal_guide_from_the_top_ruler() {
     assert_eq!(g.len(), 1);
     assert_eq!(g[0].axis, Axis::Horizontal);
     assert!(near(g[0].position, 1024.0), "{g:?}");
-    assert_eq!(ws(&h).history.undo_label(), Some("Add Guide"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-add-guide"));
 }
 
 #[test]
@@ -243,7 +243,7 @@ fn move_a_guide_and_undo() {
     let (from, to) = (screen(&h, 500.0, 2000.0), screen(&h, 2048.0, 2100.0));
     drag(&mut h, from, to, Modifiers::NONE);
     assert!(near(guides(&h)[0].position, 2048.0), "{:?}", guides(&h));
-    assert_eq!(ws(&h).history.undo_label(), Some("Move Guide"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-move-guide"));
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
     h.run();
     assert_eq!(guides(&h)[0].position, 500.0);
@@ -259,7 +259,7 @@ fn delete_by_dropping_on_a_ruler() {
     let (from, to) = (screen(&h, 2000.0, 1000.0), on_top_ruler(&h, 2000.0));
     drag(&mut h, from, to, Modifiers::NONE);
     assert!(guides(&h).is_empty());
-    assert_eq!(ws(&h).history.undo_label(), Some("Delete Guide"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-delete-guide"));
 }
 
 #[test]

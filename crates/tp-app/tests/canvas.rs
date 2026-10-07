@@ -247,7 +247,7 @@ fn dragging_moves_the_whole_selection_in_one_undo_step() {
     drag(&mut h, from, to, Modifiers::NONE);
     assert!(near(frame_of(&h, a).center.x, 900.0));
     assert!(near(frame_of(&h, b).center.x, 1900.0));
-    assert_eq!(ws(&h).history.undo_label(), Some("Move"));
+    assert_eq!(ws(&h).history.undo_label(), Some("tool-move"));
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
     h.run();
     assert!(near(frame_of(&h, a).center.x, 500.0));
@@ -268,7 +268,7 @@ fn proportional_resize_from_corner_handle() {
         near(f.size.width, 2000.0) && near(f.size.height, 1000.0),
         "{f:?}"
     );
-    assert_eq!(ws(&h).history.undo_label(), Some("Resize"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-resize"));
 }
 
 #[test]
@@ -285,7 +285,7 @@ fn shift_rotation_snaps_to_15_degrees() {
     let rot = frame_of(&h, a).rotation_deg;
     assert!(rot.abs() > 1.0, "rotated: {rot}");
     assert!((rot / 15.0 - (rot / 15.0).round()).abs() < 1e-6, "{rot}");
-    assert_eq!(ws(&h).history.undo_label(), Some("Rotate"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-rotate"));
 }
 
 #[test]

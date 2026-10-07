@@ -1,6 +1,7 @@
 //! Application menu bar (File, Edit, Object, Layer, View, Vehicle, Export, Help).
 
 use egui::{Align, Layout, Ui};
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, size, space};
 use tp_ui::widgets::SegmentedControl;
@@ -11,7 +12,14 @@ use crate::layout::{PanelKind, ViewMode, WorkspaceLayout};
 
 /// Menu titles, in order.
 pub const MENUS: [&str; 8] = [
-    "File", "Edit", "Object", "Layer", "View", "Vehicle", "Export", "Help",
+    "menu-file",
+    "menu-edit",
+    "menu-object",
+    "menu-layer",
+    "menu-view",
+    "menu-vehicle",
+    "menu-export",
+    "menu-help",
 ];
 
 /// Draws the menu bar row. `layout` is `None` on the home screen.
@@ -32,7 +40,7 @@ pub fn show(
         ui.add_space(space::XS);
 
         for title in MENUS {
-            ui.menu_button(title, |ui| {
+            ui.menu_button(tr(title), |ui| {
                 ui.set_min_width(220.0);
                 menu_contents(ui, cmds, title, layout, aids);
             });
@@ -45,21 +53,21 @@ pub fn show(
                     .segment(
                         ViewMode::TwoD,
                         icons::VIEW_2D,
-                        "2D",
+                        &tr("view-2d"),
                         cmds.shortcuts
                             .command(CommandId::SetViewMode(ViewMode::TwoD)),
                     )
                     .segment(
                         ViewMode::ThreeD,
                         icons::VIEW_3D,
-                        "3D",
+                        &tr("view-3d"),
                         cmds.shortcuts
                             .command(CommandId::SetViewMode(ViewMode::ThreeD)),
                     )
                     .segment(
                         ViewMode::Split,
                         icons::VIEW_SPLIT,
-                        "Split",
+                        &tr("view-split"),
                         cmds.shortcuts
                             .command(CommandId::SetViewMode(ViewMode::Split)),
                     )
@@ -84,7 +92,7 @@ fn menu_contents(
         cmds.menu_item(ui, id);
     };
     match title {
-        "File" => {
+        "menu-file" => {
             item(ui, cmds, NewProject);
             item(ui, cmds, OpenProject);
             ui.separator();
@@ -97,7 +105,7 @@ fn menu_contents(
             ui.separator();
             item(ui, cmds, Quit);
         }
-        "Edit" => {
+        "menu-edit" => {
             item(ui, cmds, Undo);
             item(ui, cmds, Redo);
             ui.separator();
@@ -112,7 +120,7 @@ fn menu_contents(
             ui.separator();
             item(ui, cmds, Preferences);
         }
-        "Object" => {
+        "menu-object" => {
             item(ui, cmds, EditText);
             ui.separator();
             item(ui, cmds, Group);
@@ -120,13 +128,13 @@ fn menu_contents(
             ui.separator();
             item(ui, cmds, ConvertToPath);
             item(ui, cmds, CreateOutlines);
-            ui.menu_button("Combine", |ui| {
+            ui.menu_button(tr("menu-combine"), |ui| {
                 ui.set_min_width(220.0);
                 for op in tp_core::document::BooleanOp::ALL {
                     item(ui, cmds, Combine(op));
                 }
             });
-            ui.menu_button("Align", |ui| {
+            ui.menu_button(tr("menu-align"), |ui| {
                 ui.set_min_width(260.0);
                 for edge in tp_core::document::Edge::ALL {
                     item(ui, cmds, Align(edge));
@@ -148,12 +156,12 @@ fn menu_contents(
             ui.separator();
             item(ui, cmds, MirrorToOtherSide);
         }
-        "Layer" => {
+        "menu-layer" => {
             item(ui, cmds, NewLayer);
             item(ui, cmds, DuplicateLayer);
             item(ui, cmds, DeleteLayer);
         }
-        "View" => {
+        "menu-view" => {
             item(ui, cmds, ZoomIn);
             item(ui, cmds, ZoomOut);
             item(ui, cmds, FitToScreen);
@@ -184,15 +192,15 @@ fn menu_contents(
                 item(ui, cmds, DesignGallery);
             }
         }
-        "Vehicle" => {
+        "menu-vehicle" => {
             item(ui, cmds, ChooseVehicle);
             item(ui, cmds, VehicleInfo);
         }
-        "Export" => {
+        "menu-export" => {
             item(ui, cmds, ExportTexture);
             item(ui, cmds, ExportMod);
         }
-        "Help" => {
+        "menu-help" => {
             item(ui, cmds, KeyboardShortcuts);
             ui.separator();
             item(ui, cmds, About);

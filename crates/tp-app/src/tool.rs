@@ -42,20 +42,20 @@ impl Tool {
 
     pub fn name(self) -> &'static str {
         match self {
-            Self::Select => "Selection",
-            Self::DirectSelect => "Direct Selection",
-            Self::Move => "Move",
-            Self::Rectangle => "Rectangle",
-            Self::Ellipse => "Ellipse",
-            Self::Polygon => "Polygon",
-            Self::Pen => "Pen",
-            Self::Line => "Line",
-            Self::Text => "Text",
-            Self::Image => "Image",
-            Self::Eyedropper => "Eyedropper",
-            Self::Gradient => "Gradient",
-            Self::Zoom => "Zoom",
-            Self::Hand => "Hand",
+            Self::Select => "tool-selection",
+            Self::DirectSelect => "tool-direct-selection",
+            Self::Move => "tool-move",
+            Self::Rectangle => "tool-rectangle",
+            Self::Ellipse => "tool-ellipse",
+            Self::Polygon => "tool-polygon",
+            Self::Pen => "tool-pen",
+            Self::Line => "tool-line",
+            Self::Text => "tool-text",
+            Self::Image => "tool-image",
+            Self::Eyedropper => "tool-eyedropper",
+            Self::Gradient => "tool-gradient",
+            Self::Zoom => "tool-zoom",
+            Self::Hand => "tool-hand",
         }
     }
 

@@ -6,6 +6,7 @@ use egui::{
     WidgetType,
 };
 use tp_core::{Asset, AssetKind};
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, radius, space};
 use tp_ui::widgets::{EmptyState, IconButton, secondary_button};
@@ -18,25 +19,17 @@ const THUMB: f32 = 36.0;
 
 /// "1 use", "3 uses".
 pub fn uses_text(count: usize) -> String {
-    if count == 1 {
-        "1 use".to_owned()
-    } else {
-        format!("{count} uses")
-    }
+    tr!("assets-uses", count = count)
 }
 
 /// Why Remove is disabled for a used asset.
 pub fn used_by_text(count: usize) -> String {
-    if count == 1 {
-        "Used by 1 object".to_owned()
-    } else {
-        format!("Used by {count} objects")
-    }
+    tr!("assets-used-by", count = count)
 }
 
 fn size_text(asset: &Asset) -> String {
     match asset.kind {
-        AssetKind::Svg => "Vector".to_owned(),
+        AssetKind::Svg => tr("assets-vector"),
         AssetKind::Raster => format!("{:.0} × {:.0} px", asset.size.width, asset.size.height),
     }
 }
@@ -44,14 +37,9 @@ fn size_text(asset: &Asset) -> String {
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     let assets: Vec<_> = env.ws.project.assets.values().cloned().collect();
     if assets.is_empty() {
-        EmptyState::new(
-            icons::ASSETS,
-            "No assets",
-            "Imported logos and images will be listed here.",
-        )
-        .show(ui);
+        EmptyState::new(icons::ASSETS, &tr("empty-assets"), &tr("empty-assets-hint")).show(ui);
         ui.vertical_centered(|ui| {
-            if ui.add(secondary_button("Place…")).clicked() {
+            if ui.add(secondary_button(&tr("cmd-place"))).clicked() {
                 cmds.push(CommandId::Place);
             }
         });
@@ -69,7 +57,7 @@ fn row(ui: &mut Ui, env: &mut PanelEnv<'_>, asset: &Asset) {
         Vec2::new(ui.available_width(), height),
         Sense::click_and_drag(),
     );
-    let label = format!("Asset {}", asset.name);
+    let label = tr!("assets-item", name = asset.name.as_str());
     response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, &label));
     response.dnd_set_drag_payload(asset.id);
     if response.hovered() {
@@ -125,7 +113,10 @@ fn row(ui: &mut Ui, env: &mut PanelEnv<'_>, asset: &Asset) {
         .is_some_and(|(id, _)| *id == asset.id);
     child.with_layout(Layout::right_to_left(Align::Center), |ui| {
         ui.spacing_mut().item_spacing.x = space::XXS;
-        let remove = ui.add_enabled(uses == 0, IconButton::new(icons::REMOVE, "Remove Asset"));
+        let remove = ui.add_enabled(
+            uses == 0,
+            IconButton::new(icons::REMOVE, &tr("undo-remove-asset")),
+        );
         let remove = if uses > 0 {
             remove.on_disabled_hover_text(used_by_text(uses))
         } else {
@@ -135,12 +126,15 @@ fn row(ui: &mut Ui, env: &mut PanelEnv<'_>, asset: &Asset) {
             env.ws.remove_asset(asset.id, env.now);
         }
         if ui
-            .add(IconButton::new(icons::RENAME, "Rename Asset"))
+            .add(IconButton::new(icons::RENAME, &tr("undo-rename-asset")))
             .clicked()
         {
             env.ws.panels.renaming_asset = Some((asset.id, asset.name.clone()));
         }
-        if ui.add(IconButton::new(icons::ADD, "Place Asset")).clicked() {
+        if ui
+            .add(IconButton::new(icons::ADD, &tr("assets-place")))
+            .clicked()
+        {
             env.ws.place_asset(asset.id, None, env.now);
         }
         ui.with_layout(Layout::top_down(Align::Min), |ui| {
@@ -169,7 +163,7 @@ fn rename_field(ui: &mut Ui, env: &mut PanelEnv<'_>) {
             .desired_width(f32::INFINITY)
             .id_salt(("rename_asset", id.0)),
     );
-    edit.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, "Asset name"));
+    edit.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, tr("assets-name")));
     if !edit.has_focus() && !edit.lost_focus() {
         edit.request_focus();
     }

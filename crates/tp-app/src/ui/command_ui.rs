@@ -2,6 +2,7 @@
 //! same command queue.
 
 use egui::{Response, Ui};
+use tp_i18n::tr;
 use tp_ui::widgets::{IconButton, MenuRow, ToolButton};
 
 use crate::commands::{CommandId, EditContext, ShortcutFormatter};
@@ -27,17 +28,13 @@ impl<'q> CommandUi<'q> {
         is_enabled(id, &self.edit)
     }
 
-    /// Menu label, naming the operation for Undo/Redo ("Undo Move").
+    /// Menu label in the current language, naming the operation for
+    /// Undo/Redo ("Undo Move").
     pub fn label(&self, id: CommandId) -> String {
-        let base = id.meta().label;
-        let detail = match id {
-            CommandId::Undo => self.edit.undo_label,
-            CommandId::Redo => self.edit.redo_label,
-            _ => None,
-        };
-        match detail {
-            Some(detail) => format!("{base} {detail}"),
-            None => base.to_owned(),
+        match (id, self.edit.undo_label, self.edit.redo_label) {
+            (CommandId::Undo, Some(action), _) => tr!("cmd-undo-action", action = tr(action)),
+            (CommandId::Redo, _, Some(action)) => tr!("cmd-redo-action", action = tr(action)),
+            _ => tr(id.meta().label),
         }
     }
 
@@ -68,7 +65,7 @@ impl<'q> CommandUi<'q> {
                 .checked(checked),
         );
         if !enabled && let Some(reason) = disabled_reason_for(id, &self.edit) {
-            response = response.on_disabled_hover_text(reason);
+            response = response.on_disabled_hover_text(tr(reason));
         }
         if response.clicked() {
             self.push(id);
@@ -82,10 +79,12 @@ impl<'q> CommandUi<'q> {
         let meta = id.meta();
         let shortcut = self.shortcuts.command(id);
         let enabled = self.enabled(id);
-        let mut button = IconButton::new(meta.icon.unwrap_or("?"), meta.label)
+        let label = tr(meta.label);
+        let reason = disabled_reason_for(id, &self.edit).map(tr);
+        let mut button = IconButton::new(meta.icon.unwrap_or("?"), &label)
             .shortcut(shortcut.as_deref())
             .selected(selected);
-        if let Some(reason) = disabled_reason_for(id, &self.edit) {
+        if let Some(reason) = &reason {
             button = button.disabled_reason(reason);
         }
         let response = ui.add_enabled(enabled, button);
@@ -99,9 +98,10 @@ impl<'q> CommandUi<'q> {
     pub fn tool_button(&mut self, ui: &mut Ui, id: CommandId, active: bool) -> Response {
         let meta = id.meta();
         let shortcut = self.shortcuts.command(id);
+        let label = tr(meta.label);
         let response = ui.add_enabled(
             self.enabled(id),
-            ToolButton::new(meta.icon.unwrap_or("?"), meta.label)
+            ToolButton::new(meta.icon.unwrap_or("?"), &label)
                 .shortcut(shortcut.as_deref())
                 .active(active),
         );

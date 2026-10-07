@@ -1,17 +1,20 @@
 //! Object › Combine: Unite, Minus Front, Intersect and Exclude.
 
-use tp_core::document::{BooleanError, BooleanOp, Object, combine, operand_problem, tree};
+use tp_core::document::{
+    BooleanError, BooleanOp, Object, OperandProblem, combine, operand_problem, tree,
+};
 use tp_core::kurbo::Affine;
+use tp_i18n::tr;
 
 use crate::workspace::Workspace;
 
 /// Undo label and menu label of a combine command.
 pub fn combine_label(op: BooleanOp) -> &'static str {
     match op {
-        BooleanOp::Unite => "Unite",
-        BooleanOp::MinusFront => "Minus Front",
-        BooleanOp::Intersect => "Intersect",
-        BooleanOp::Exclude => "Exclude",
+        BooleanOp::Unite => "op-unite",
+        BooleanOp::MinusFront => "op-minus-front",
+        BooleanOp::Intersect => "op-intersect",
+        BooleanOp::Exclude => "op-exclude",
     }
 }
 
@@ -29,9 +32,13 @@ impl Workspace {
     pub fn combine_block(&self) -> Option<&'static str> {
         let objects = self.selected_objects();
         if let Some(problem) = objects.iter().find_map(operand_problem) {
-            return Some(problem);
+            return Some(match problem {
+                OperandProblem::OpenLine => "reason-combine-open-line",
+                OperandProblem::Text => "reason-combine-text",
+                OperandProblem::Image => "reason-combine-image",
+            });
         }
-        (objects.len() < 2).then_some("Select at least two shapes to combine.")
+        (objects.len() < 2).then_some("reason-select-two-shapes")
     }
 
     /// Combines the selection into one path (one undo step), or shows why
@@ -45,11 +52,11 @@ impl Workspace {
             Ok(data) => data,
             Err(err) => {
                 let text = match (err, op) {
-                    (BooleanError::Empty, BooleanOp::MinusFront) => "Nothing would remain.",
-                    (BooleanError::Empty, _) => "The shapes don't overlap.",
-                    (BooleanError::Failed, _) => "These shapes couldn't be combined.",
+                    (BooleanError::Empty, BooleanOp::MinusFront) => "hint-nothing-remains",
+                    (BooleanError::Empty, _) => "hint-no-overlap",
+                    (BooleanError::Failed, _) => "hint-combine-failed",
                 };
-                self.show_hint(text, now);
+                self.show_hint(tr(text), now);
                 return;
             }
         };
@@ -148,7 +155,7 @@ mod tests {
         );
         assert_eq!(objects[1].id, above);
         assert_eq!(ws.selection, vec![cut]);
-        assert_eq!(ws.history.undo_label(), Some("Minus Front"));
+        assert_eq!(ws.history.undo_label(), Some("op-minus-front"));
         ws.undo();
         let ids: Vec<ObjectId> = ws.project.surface().objects.iter().map(|o| o.id).collect();
         assert_eq!(
@@ -191,7 +198,7 @@ mod tests {
         let mut ws = ws();
         let a = rect(&mut ws, 0.0, 0.0, 10.0, 10.0, Rgba::rgb(1, 1, 1), "A");
         ws.selection = vec![a];
-        assert!(ws.combine_block().unwrap().contains("two shapes"));
+        assert_eq!(ws.combine_block(), Some("reason-select-two-shapes"));
         let mut t = Object::new(
             ObjectId(0),
             ShapeKind::Text,
@@ -200,7 +207,7 @@ mod tests {
         t.text = Some(tp_core::document::TextBlock::new("A", Default::default()));
         let t = ws.project.add(t);
         ws.selection = vec![a, t];
-        assert!(ws.combine_block().unwrap().contains("Create Outlines"));
+        assert_eq!(ws.combine_block(), Some("reason-combine-text"));
     }
 
     #[test]
@@ -217,7 +224,11 @@ mod tests {
             ],
         );
         ws.selection = vec![b];
-        ws.apply_paint(crate::workspace::ColorTarget::Fill, Paint::Gradient(g), "x");
+        ws.apply_paint(
+            crate::workspace::ColorTarget::Fill,
+            Paint::Gradient(g),
+            "undo-change-fill",
+        );
         ws.commit_pending(1.0);
         let top = ws.project.surface().get(b).unwrap().clone();
         let before = top.fill.gradient().unwrap().document_points(&top.frame);

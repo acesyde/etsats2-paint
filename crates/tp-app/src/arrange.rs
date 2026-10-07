@@ -21,9 +21,9 @@ impl AlignTo {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Selection => "Selection",
-            Self::Artboard => "Artboard",
-            Self::KeyObject => "Key object",
+            Self::Selection => "align-to-selection",
+            Self::Artboard => "align-to-artboard",
+            Self::KeyObject => "align-to-key-object",
         }
     }
 }
@@ -31,22 +31,22 @@ impl AlignTo {
 /// Undo label of an align command.
 pub fn align_label(edge: Edge) -> &'static str {
     match edge {
-        Edge::Left => "Align Left",
-        Edge::HCenter => "Align Horizontal Centers",
-        Edge::Right => "Align Right",
-        Edge::Top => "Align Top",
-        Edge::VCenter => "Align Vertical Centers",
-        Edge::Bottom => "Align Bottom",
+        Edge::Left => "op-align-left",
+        Edge::HCenter => "op-align-horizontal-centers",
+        Edge::Right => "op-align-right",
+        Edge::Top => "op-align-top",
+        Edge::VCenter => "op-align-vertical-centers",
+        Edge::Bottom => "op-align-bottom",
     }
 }
 
 /// Undo label of a distribute command.
 pub fn distribute_label(axis: DistributeAxis, mode: DistributeMode) -> &'static str {
     match (axis, mode) {
-        (DistributeAxis::Horizontal, DistributeMode::Centers) => "Distribute Horizontal Centers",
-        (DistributeAxis::Vertical, DistributeMode::Centers) => "Distribute Vertical Centers",
-        (DistributeAxis::Horizontal, DistributeMode::Spacing) => "Distribute Horizontal Spacing",
-        (DistributeAxis::Vertical, DistributeMode::Spacing) => "Distribute Vertical Spacing",
+        (DistributeAxis::Horizontal, DistributeMode::Centers) => "op-distribute-horizontal-centers",
+        (DistributeAxis::Vertical, DistributeMode::Centers) => "op-distribute-vertical-centers",
+        (DistributeAxis::Horizontal, DistributeMode::Spacing) => "op-distribute-horizontal-spacing",
+        (DistributeAxis::Vertical, DistributeMode::Spacing) => "op-distribute-vertical-spacing",
     }
 }
 
@@ -166,7 +166,7 @@ mod tests {
         let top = |ws: &Workspace, id| ws.project.surface().get(id).unwrap().bounding_box().y0;
         assert_eq!(top(&ws, ids[1]), 250.0);
         assert_eq!(top(&ws, ids[0]), 250.0);
-        assert_eq!(ws.history.undo_label(), Some("Align Top"));
+        assert_eq!(ws.history.undo_label(), Some("op-align-top"));
         ws.undo();
         assert_eq!(top(&ws, ids[0]), 50.0);
     }

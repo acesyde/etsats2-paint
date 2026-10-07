@@ -12,7 +12,7 @@ mod transform;
 pub mod tree;
 
 pub use align::{DistributeAxis, DistributeMode, Edge, align, distribute};
-pub use boolean::{BooleanError, BooleanOp, combine, operand_problem};
+pub use boolean::{BooleanError, BooleanOp, OperandProblem, combine, operand_problem};
 pub use color::{DEFAULT_FILL, Hsla, Hsva, Rgba};
 pub use history::{COALESCE_WINDOW, DEFAULT_MAX_STEPS, History};
 pub use object::{

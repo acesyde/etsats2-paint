@@ -8,6 +8,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+tp-i18n.workspace = true
 egui.workspace = true
 egui-phosphor.workspace = true
 

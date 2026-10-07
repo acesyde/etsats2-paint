@@ -79,7 +79,7 @@ fn center_a_logo_on_the_texture() {
     assert_eq!(bounds(&h, logo).y0, 500.0, "only x moved");
     assert_eq!(
         ws(&h).history.undo_label(),
-        Some("Align Horizontal Centers")
+        Some("op-align-horizontal-centers")
     );
 }
 
@@ -131,7 +131,7 @@ fn equal_spacing_shortcut() {
     assert_eq!(bounds(&h, ids[2]).x0, 900.0);
     assert_eq!(
         ws(&h).history.undo_label(),
-        Some("Distribute Horizontal Spacing")
+        Some("op-distribute-horizontal-spacing")
     );
 }
 
@@ -190,7 +190,7 @@ fn align_from_the_panel() {
     h.run();
     assert_eq!(bounds(&h, a).y0, 100.0);
     assert_eq!(bounds(&h, b).y0, 100.0);
-    assert_eq!(ws(&h).history.undo_label(), Some("Align Top"));
+    assert_eq!(ws(&h).history.undo_label(), Some("op-align-top"));
     // Two objects: the distribute buttons are disabled.
     let distribute = h.get_by_label("Distribute Horizontal Spacing");
     assert!(distribute.accesskit_node().is_disabled());

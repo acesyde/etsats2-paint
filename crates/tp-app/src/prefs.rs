@@ -66,6 +66,9 @@ pub struct Prefs {
     /// Recently applied colors as RGBA, most recent first.
     pub recent_colors: Vec<[u8; 4]>,
     pub view_aids: ViewAids,
+    /// Interface language chosen by the user (`en`, `fr`, `es`, `de`), or
+    /// `None` to follow the system.
+    pub language: Option<String>,
 }
 
 impl Default for Prefs {
@@ -78,11 +81,23 @@ impl Default for Prefs {
             recent: Vec::new(),
             recent_colors: Vec::new(),
             view_aids: ViewAids::default(),
+            language: None,
         }
     }
 }
 
 impl Prefs {
+    /// The language chosen by the user, if any (unknown codes are ignored).
+    pub fn language(&self) -> Option<tp_i18n::Language> {
+        self.language
+            .as_deref()
+            .and_then(tp_i18n::Language::from_code)
+    }
+
+    pub fn set_language(&mut self, language: Option<tp_i18n::Language>) {
+        self.language = language.map(|l| l.code().to_owned());
+    }
+
     pub fn theme(&self) -> ThemeSettings {
         ThemeSettings {
             ui_scale: self.ui_scale,
@@ -289,6 +304,29 @@ mod tests {
         assert_eq!(store.load().prefs.view_aids, prefs.view_aids);
         prefs.reset_scaling();
         assert_eq!(prefs.view_aids.grid_spacing, DEFAULT_GRID_SPACING);
+    }
+
+    #[test]
+    fn language_defaults_to_the_system_and_round_trips() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = PrefsStore::new(dir.path());
+        // A file written before languages existed follows the system.
+        fs::write(store.path(), "(version: 1, ui_scale: 1.25)").unwrap();
+        let loaded = store.load();
+        assert!(loaded.issue.is_none());
+        assert_eq!(loaded.prefs.language(), None);
+        let mut prefs = loaded.prefs;
+        prefs.set_language(Some(tp_i18n::Language::German));
+        store.save(&prefs).unwrap();
+        assert_eq!(
+            store.load().prefs.language(),
+            Some(tp_i18n::Language::German)
+        );
+        // Unknown codes (a newer version's language) fall back to the system.
+        prefs.language = Some("it".into());
+        assert_eq!(prefs.language(), None);
+        prefs.set_language(None);
+        assert_eq!(prefs.language, None);
     }
 
     #[test]

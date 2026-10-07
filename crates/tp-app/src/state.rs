@@ -82,6 +82,8 @@ pub struct AppState {
     /// Load the fonts installed on the computer (off in tests, so results
     /// do not depend on the machine).
     pub system_fonts: bool,
+    /// Language of the operating system (English unless detected).
+    pub system_language: tp_i18n::Language,
     /// Open / Save / Place dialogs (scripted in tests).
     pub dialogs: Box<dyn FileDialogs>,
     /// Background writer of project files and recovery copies.
@@ -137,6 +139,7 @@ impl AppState {
             title: String::new(),
             fonts: None,
             system_fonts: false,
+            system_language: tp_i18n::Language::English,
             // Tests never open real dialogs; `new` installs the native ones.
             dialogs: Box::new(crate::file_dialogs::ScriptedDialogs::default()),
             saver: None,
@@ -202,7 +205,13 @@ impl AppState {
     }
 
     /// Runs one frame of the whole application.
+    /// The interface language: the user's choice, else the system's.
+    pub fn language(&self) -> tp_i18n::Language {
+        self.prefs.language().unwrap_or(self.system_language)
+    }
+
     pub fn show(&mut self, ui: &mut Ui) {
+        tp_i18n::set_language(self.language());
         let ctx = ui.ctx().clone();
         if !self.fonts_installed {
             // Fonts registered now are only usable from the next pass.
@@ -450,7 +459,7 @@ impl AppState {
             CommandId::ShowGuides => self.prefs.view_aids.guides = !self.prefs.view_aids.guides,
             CommandId::Snapping => self.prefs.view_aids.snapping = !self.prefs.view_aids.snapping,
             CommandId::ClearGuides => self.with_workspace(|ws| {
-                ws.edit("Clear Guides", now, false, |project, _| {
+                ws.edit("cmd-clear-guides", now, false, |project, _| {
                     project.clear_guides()
                 });
             }),
@@ -478,7 +487,7 @@ impl AppState {
                 if id == CommandId::Cut
                     && let Some(ws) = self.workspace_mut()
                 {
-                    ws.edit("Cut", now, false, |project, selection| {
+                    ws.edit("cmd-cut", now, false, |project, selection| {
                         project.surface_mut().remove(selection);
                         selection.clear();
                     });
@@ -592,10 +601,7 @@ impl AppState {
                     );
                     match file.bytes() {
                         Ok(bytes) => crate::import::read_bytes(&name, bytes),
-                        Err(reason) => Err(crate::import::ImportError {
-                            file: name,
-                            reason: format!("cannot be read ({reason})"),
-                        }),
+                        Err(reason) => Err(crate::import::ImportError::unreadable(name, reason)),
                     }
                 })
                 .collect();
@@ -691,7 +697,7 @@ pub fn disabled_reason(id: CommandId) -> Option<&'static str> {
     match id.meta().availability {
         Availability::NotYet(reason) => Some(reason),
         Availability::When(_, reason) if !reason.is_empty() => Some(reason),
-        Availability::NeedsProject => Some("Open or create a project first."),
+        Availability::NeedsProject => Some("reason-no-project"),
         Availability::Always | Availability::When(..) => None,
     }
 }

@@ -120,7 +120,10 @@ fn outside_outline_in_one_click() {
     assert!(selected(&h, "Center stroke"));
     click(&mut h, "Outside stroke");
     assert_eq!(obj(&h, id).stroke.unwrap().align, StrokeAlign::Outside);
-    assert_eq!(ws(&h).history.undo_label(), Some("Change Stroke Alignment"));
+    assert_eq!(
+        ws(&h).history.undo_label(),
+        Some("undo-change-stroke-alignment")
+    );
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
     h.run();
     assert_eq!(obj(&h, id).stroke.unwrap().align, StrokeAlign::Center);
@@ -141,7 +144,10 @@ fn dotted_preset() {
         })
     );
     assert_eq!(line.cap, Cap::Round);
-    assert_eq!(ws(&h).history.undo_label(), Some("Change Stroke Dashes"));
+    assert_eq!(
+        ws(&h).history.undo_label(),
+        Some("undo-change-stroke-dashes")
+    );
 }
 
 #[test]
@@ -240,7 +246,7 @@ fn butt_ends_and_the_next_line() {
     assert!(selected(&h, "Round cap"));
     click(&mut h, "Butt cap");
     assert_eq!(obj(&h, id).path_data().unwrap().line_style.cap, Cap::Butt);
-    assert_eq!(ws(&h).history.undo_label(), Some("Change Line Caps"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-change-line-caps"));
     // The next line uses the last values.
     let next = add_line(&mut h);
     assert_eq!(obj(&h, next).path_data().unwrap().line_style.cap, Cap::Butt);

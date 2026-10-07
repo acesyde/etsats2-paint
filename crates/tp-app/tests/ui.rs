@@ -143,7 +143,7 @@ fn menus_are_in_order() {
         .iter()
         .map(|title| {
             // Menu titles sit in the top bar (a panel may share the label).
-            h.get_all_by_label(title)
+            h.get_all_by_label(&tp_i18n::tr(title))
                 .map(|n| n.rect())
                 .min_by(|a, b| a.top().total_cmp(&b.top()))
                 .unwrap()

@@ -14,6 +14,10 @@ impl TruckPaintApp {
         recovery_dir: Option<std::path::PathBuf>,
     ) -> Self {
         let mut state = AppState::new(store);
+        state.system_language = sys_locale::get_locale()
+            .map(|locale| tp_i18n::Language::from_locale(&locale))
+            .unwrap_or_default();
+        tracing::info!(language = state.system_language.code(), "system language");
         if let Some(dir) = recovery_dir {
             state.enable_recovery(&dir);
         }

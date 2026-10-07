@@ -5,6 +5,7 @@ use egui::{
     WidgetType,
 };
 use tp_core::document::Rgba;
+use tp_i18n::tr;
 use tp_render::DdsEncoding;
 use tp_ui::theme::{label_strong_style, title_style};
 use tp_ui::tokens::{color, space};
@@ -118,7 +119,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
                     .file_name()
                     .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
                 let now = ctx.input(|i| i.time);
-                ws.show_hint(format!("Exported {file}"), now);
+                ws.show_hint(tr!("export-done", file = file), now);
                 return false;
             }
             ExportOutcome::Cancelled => {}
@@ -127,8 +128,8 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
                     .file_name()
                     .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
                 state.modal = Some(Modal::Message {
-                    title: "Could not export".into(),
-                    text: format!("{file} could not be written ({reason})."),
+                    title: tr("export-failed-title"),
+                    text: tr!("export-failed", file = file, reason = reason),
                 });
                 return false;
             }
@@ -141,7 +142,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
     super::dialogs::modal("export_modal").show(ctx, |ui| {
         ui.set_width(660.0);
         ui.label(
-            RichText::new("Export Texture")
+            RichText::new(tr("dialog-export-texture"))
                 .text_style(title_style())
                 .color(color::TEXT_PRIMARY),
         );
@@ -149,7 +150,8 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
         ui.horizontal_top(|ui| {
             // Preview.
             let (rect, response) = ui.allocate_exact_size(Vec2::splat(PREVIEW), Sense::hover());
-            response.widget_info(|| WidgetInfo::labeled(WidgetType::Image, true, "Export preview"));
+            response
+                .widget_info(|| WidgetInfo::labeled(WidgetType::Image, true, tr("export-preview")));
             checkerboard(ui, rect);
             match &dialog.preview {
                 Some(texture) => {
@@ -192,9 +194,11 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
                         DdsEncoding::Rgba => "DDS (RGBA)",
                     },
                 };
-                let info = format!(
-                    "{size} × {size} px · {format} · {}",
-                    size_text(bytes, exact)
+                let info = tr!(
+                    "export-info",
+                    size = size.to_string(),
+                    format = format,
+                    bytes = size_text(bytes, exact)
                 );
                 let label = ui.label(RichText::new(&info).small().color(color::TEXT_SECONDARY));
                 label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &info));
@@ -206,10 +210,10 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
                 let file = path
                     .file_name()
                     .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
-                ui.add(egui::ProgressBar::new(*progress).text(format!("Exporting {file}…")));
+                ui.add(egui::ProgressBar::new(*progress).text(tr!("export-progress", file = file)));
                 ui.add_space(space::SM);
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.add(secondary_button("Cancel")).clicked()
+                    if ui.add(secondary_button(&tr("button-cancel"))).clicked()
                         && let Some(job) = &dialog.job
                     {
                         job.cancel();
@@ -218,8 +222,8 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
             }
             None => {
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    start_export |= ui.add(primary_button("Export…")).clicked();
-                    if ui.add(secondary_button("Cancel")).clicked() {
+                    start_export |= ui.add(primary_button(&tr("export-start"))).clicked();
+                    if ui.add(secondary_button(&tr("button-cancel"))).clicked() {
                         keep = false;
                     }
                 });
@@ -262,7 +266,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
 }
 
 fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
-    ui.label(RichText::new("Format").text_style(label_strong_style()));
+    ui.label(RichText::new(tr("export-format")).text_style(label_strong_style()));
     if let Some(format) = SegmentedControl::new()
         .segment(ExportFormat::Png, tp_ui::icons::IMAGE, "PNG", None)
         .segment(ExportFormat::Dds, tp_ui::icons::VEHICLE, "DDS", None)
@@ -273,8 +277,8 @@ fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
     if settings.format == ExportFormat::Dds {
         ui.add_space(space::XS);
         let label = |e: DdsEncoding| match e {
-            DdsEncoding::Bc3 => "BC3 / DXT5 (recommended)",
-            DdsEncoding::Rgba => "Uncompressed RGBA",
+            DdsEncoding::Bc3 => tr("export-dds-bc3"),
+            DdsEncoding::Rgba => tr("export-dds-rgba"),
         };
         let combo = egui::ComboBox::from_id_salt("dds_encoding")
             .width(220.0)
@@ -284,12 +288,12 @@ fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
                     ui.selectable_value(&mut settings.dds, e, label(e));
                 }
             });
-        combo
-            .response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, true, "DDS encoding"));
+        combo.response.widget_info(|| {
+            WidgetInfo::labeled(WidgetType::ComboBox, true, tr("export-dds-encoding"))
+        });
     }
     ui.add_space(space::MD);
-    ui.label(RichText::new("Size").text_style(label_strong_style()));
+    ui.label(RichText::new(tr("export-size")).text_style(label_strong_style()));
     ui.horizontal(|ui| {
         for divisor in [1, 2, 4] {
             let size = side / divisor;
@@ -297,10 +301,13 @@ fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
         }
     });
     ui.add_space(space::MD);
-    ui.label(RichText::new("Background").text_style(label_strong_style()));
+    ui.label(RichText::new(tr("export-background")).text_style(label_strong_style()));
     ui.horizontal(|ui| {
         let mut transparent = settings.background.is_none();
-        if ui.checkbox(&mut transparent, "Transparent").changed() {
+        if ui
+            .checkbox(&mut transparent, tr("export-transparent"))
+            .changed()
+        {
             settings.background = if transparent {
                 None
             } else {
@@ -311,7 +318,7 @@ fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
             let mut c = Color32::from_rgb(bg.r, bg.g, bg.b);
             let response = ui.color_edit_button_srgba(&mut c);
             response.widget_info(|| {
-                WidgetInfo::labeled(WidgetType::ColorButton, true, "Background color")
+                WidgetInfo::labeled(WidgetType::ColorButton, true, tr("export-background-color"))
             });
             if response.changed() {
                 *bg = Rgba::rgb(c.r(), c.g(), c.b());

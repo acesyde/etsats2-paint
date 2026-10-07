@@ -1,6 +1,7 @@
 //! Saving, opening, the unsaved-changes prompt and crash recovery.
 
 use std::path::{Path, PathBuf};
+use tp_i18n::tr;
 
 use egui::ViewportCommand;
 use tp_core::Project;
@@ -64,11 +65,8 @@ impl AppState {
         }
     }
 
-    fn message(&mut self, title: &str, text: String) {
-        self.modal = Some(Modal::Message {
-            title: title.to_owned(),
-            text,
-        });
+    fn message(&mut self, title: String, text: String) {
+        self.modal = Some(Modal::Message { title, text });
     }
 
     /// Runs `action`, first asking to save unsaved changes.
@@ -151,8 +149,8 @@ impl AppState {
             }
             None => {
                 self.message(
-                    "Could not save",
-                    format!("{} could not be saved.", file_name(&path)),
+                    tr("file-save-failed-title"),
+                    tr!("file-save-failed", file = file_name(&path)),
                 );
                 false
             }
@@ -200,10 +198,11 @@ impl AppState {
                 ws.save_queued = None;
                 self.after_save = None;
                 self.message(
-                    "Could not save",
-                    format!(
-                        "{} could not be saved ({reason}). Your changes are still open.",
-                        file_name(&pending.path)
+                    tr("file-save-failed-title"),
+                    tr!(
+                        "file-save-failed-reason",
+                        file = file_name(&pending.path),
+                        reason = reason.to_string()
                     ),
                 );
             }
@@ -235,7 +234,10 @@ impl AppState {
             Ok(opened) => opened,
             Err(err) => {
                 tracing::warn!(path = %path.display(), %err, "cannot open project");
-                self.message("Cannot open project", err.message(&file_name(path)));
+                self.message(
+                    tr("file-open-failed-title"),
+                    file_error(&err, &file_name(path)),
+                );
                 return;
             }
         };
@@ -341,7 +343,10 @@ impl AppState {
                 if let Some(r) = self.recovered.iter_mut().find(|r| r.session == session) {
                     r.meta = None;
                 }
-                self.message("Cannot restore project", err.message("The recovered copy"));
+                self.message(
+                    tr("file-restore-failed-title"),
+                    file_error(&err, &tr("file-recovered-copy")),
+                );
             }
         }
     }
@@ -368,5 +373,16 @@ impl AppState {
             ctx.send_viewport_cmd(ViewportCommand::CancelClose);
             self.modal = Some(Modal::UnsavedChanges(PendingAction::Quit));
         }
+    }
+}
+
+/// Why a project file could not be read or written, about `file`, in the
+/// current language.
+pub fn file_error(err: &tp_file::Error, file: &str) -> String {
+    match err {
+        tp_file::Error::NotAProject => tr!("file-not-a-project", file = file),
+        tp_file::Error::Damaged(_) => tr!("file-damaged", file = file),
+        tp_file::Error::NewerVersion { .. } => tr!("file-newer-version", file = file),
+        tp_file::Error::Io(e) => tr!("file-io", file = file, reason = e.to_string()),
     }
 }

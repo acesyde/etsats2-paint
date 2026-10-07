@@ -10,6 +10,7 @@ use tp_core::document::{
 };
 use tp_core::kurbo::Vec2;
 use tp_core::{Project, Snapshot};
+use tp_i18n::tr;
 
 use crate::geometry_cache::GeometryCache;
 use crate::gesture::Gesture;
@@ -260,6 +261,10 @@ impl Workspace {
     /// Records the change from `before` to the current state, unless nothing
     /// changed in the document.
     pub fn record(&mut self, label: &'static str, before: Snapshot, now: f64, coalesce: bool) {
+        debug_assert!(
+            tp_i18n::exists(label),
+            "undo label {label:?} is not a message id"
+        );
         let after = self.snapshot();
         if before.same_document(&after) {
             return;
@@ -288,6 +293,10 @@ impl Workspace {
         label: &'static str,
         edit: impl FnOnce(&mut Project, &mut Vec<ObjectId>),
     ) {
+        debug_assert!(
+            tp_i18n::exists(label),
+            "undo label {label:?} is not a message id"
+        );
         if self.pending.is_none() {
             self.pending = Some((label, self.snapshot()));
         }
@@ -398,6 +407,7 @@ impl Workspace {
     /// A shape with the current style.
     pub fn styled_shape(&self, kind: ShapeKind, frame: Frame) -> Object {
         let mut object = Object::new(ObjectId(0), kind, frame);
+        object.name = object_name(kind);
         object.fill = self.style.fill;
         object.stroke = self.style.stroke();
         object
@@ -413,15 +423,19 @@ impl Workspace {
     /// Adds `object` to the active layer, selects it, records it.
     pub fn create_object(&mut self, object: Object, now: f64) -> ObjectId {
         let label = match object.kind {
-            ShapeKind::Rectangle { .. } => "Create Rectangle",
-            ShapeKind::Ellipse => "Create Ellipse",
-            ShapeKind::Polygon { .. } => "Create Polygon",
-            ShapeKind::Path if object.name == "Line" => "Create Line",
-            ShapeKind::Path => "Create Path",
-            ShapeKind::Group => "Create Group",
-            ShapeKind::Text => "Create Text",
-            ShapeKind::Image { .. } => "Place",
+            ShapeKind::Rectangle { .. } => "undo-create-rectangle",
+            ShapeKind::Ellipse => "undo-create-ellipse",
+            ShapeKind::Polygon { .. } => "undo-create-polygon",
+            ShapeKind::Path => "undo-create-path",
+            ShapeKind::Group => "undo-create-group",
+            ShapeKind::Text => "undo-create-text",
+            ShapeKind::Image { .. } => "undo-place",
         };
+        self.create_object_as(object, label, now)
+    }
+
+    /// [`Self::create_object`] with an explicit undo label.
+    pub fn create_object_as(&mut self, object: Object, label: &'static str, now: f64) -> ObjectId {
         let layer = self.active_layer();
         if let Some(layer) = layer {
             self.panels.expanded.insert(layer);
@@ -436,14 +450,14 @@ impl Workspace {
     }
 
     pub fn delete_selection(&mut self, now: f64) {
-        self.edit("Delete", now, false, |project, selection| {
+        self.edit("cmd-delete", now, false, |project, selection| {
             project.surface_mut().remove(selection);
             selection.clear();
         });
     }
 
     pub fn duplicate_selection(&mut self, now: f64) {
-        self.edit("Duplicate", now, false, |project, selection| {
+        self.edit("cmd-duplicate", now, false, |project, selection| {
             *selection = project.duplicate(selection, Vec2::new(COPY_OFFSET, COPY_OFFSET));
         });
     }
@@ -451,19 +465,19 @@ impl Workspace {
     /// Inserts copies of `objects` with `offset`, selecting them.
     pub fn paste(&mut self, objects: &[Object], offset: f64, now: f64) {
         let layer = self.active_layer();
-        self.edit("Paste", now, false, |project, selection| {
+        self.edit("cmd-paste", now, false, |project, selection| {
             *selection = project.add_copies(objects, Vec2::new(offset, offset), layer);
         });
     }
 
     pub fn bring_forward(&mut self, now: f64) {
-        self.edit("Bring Forward", now, false, |project, selection| {
+        self.edit("cmd-bring-forward", now, false, |project, selection| {
             project.surface_mut().bring_forward(selection);
         });
     }
 
     pub fn send_backward(&mut self, now: f64) {
-        self.edit("Send Backward", now, false, |project, selection| {
+        self.edit("cmd-send-backward", now, false, |project, selection| {
             project.surface_mut().send_backward(selection);
         });
     }
@@ -472,15 +486,20 @@ impl Workspace {
     /// within a second are one undo step.
     pub fn nudge(&mut self, dx: f64, dy: f64, now: f64) {
         let moved = translate(&self.selected_objects(), Vec2::new(dx, dy), false);
-        self.edit("Nudge", now, true, |project, _| {
+        self.edit("undo-nudge", now, true, |project, _| {
             project.surface_mut().replace(&moved);
         });
     }
 
     /// Groups the selection (Cmd/Ctrl+G).
     pub fn group_selection(&mut self, now: f64) {
-        self.edit("Group", now, false, |project, selection| {
+        self.edit("cmd-group", now, false, |project, selection| {
             if let Some(group) = project.group(selection) {
+                if let Some(o) = project.surface().get(group) {
+                    let mut named = (**o).clone();
+                    named.name = object_name(ShapeKind::Group);
+                    project.surface_mut().replace(&[named]);
+                }
                 *selection = vec![group];
             }
         });
@@ -488,7 +507,7 @@ impl Workspace {
 
     /// Ungroups the selected groups (Cmd/Ctrl+Shift+G).
     pub fn ungroup_selection(&mut self, now: f64) {
-        self.edit("Ungroup", now, false, |project, selection| {
+        self.edit("cmd-ungroup", now, false, |project, selection| {
             let released = project.ungroup(selection);
             if !released.is_empty() {
                 *selection = released;
@@ -503,13 +522,13 @@ impl Workspace {
             .surface()
             .objects
             .iter()
-            .filter_map(|o| o.name.strip_prefix("Layer ")?.parse::<u32>().ok())
+            .filter_map(|o| layer_number(&o.name))
             .max()
             .unwrap_or(0)
             + 1;
-        self.edit("New Layer", now, false, |project, selection| {
+        self.edit("cmd-new-layer", now, false, |project, selection| {
             let mut layer = Object::group(ObjectId(0), Vec::new());
-            layer.name = format!("Layer {next}");
+            layer.name = tr!("object-layer-n", n = next);
             *selection = vec![project.add(layer)];
         });
     }
@@ -517,9 +536,9 @@ impl Workspace {
     /// Moves objects in the tree (Layers drag and drop).
     pub fn move_objects(&mut self, ids: &[ObjectId], placement: Placement, now: f64) {
         let label = if matches!(placement, Placement::IntoTop(_)) {
-            "Move to Group"
+            "undo-move-to-group"
         } else {
-            "Reorder"
+            "undo-reorder"
         };
         let ids = ids.to_vec();
         self.edit(label, now, false, |project, _| {
@@ -546,9 +565,9 @@ impl Workspace {
 
     pub fn rename(&mut self, id: ObjectId, name: &str, now: f64) {
         let trimmed = name.trim().to_owned();
-        self.edit_object(id, "Rename", now, |o| {
+        self.edit_object(id, "undo-rename", now, |o| {
             o.name = if trimmed.is_empty() {
-                o.kind.name().to_owned()
+                object_name(o.kind)
             } else {
                 trimmed
             };
@@ -557,7 +576,7 @@ impl Workspace {
 
     /// Shows or hides an object; hidden objects leave the selection.
     pub fn set_visible(&mut self, id: ObjectId, visible: bool, now: f64) {
-        let label = if visible { "Show" } else { "Hide" };
+        let label = if visible { "undo-show" } else { "undo-hide" };
         self.edit_object(id, label, now, |o| o.visible = visible);
         if !visible {
             self.drop_from_selection(id);
@@ -566,7 +585,7 @@ impl Workspace {
 
     /// Locks or unlocks an object; locked objects leave the selection.
     pub fn set_locked(&mut self, id: ObjectId, locked: bool, now: f64) {
-        let label = if locked { "Lock" } else { "Unlock" };
+        let label = if locked { "undo-lock" } else { "undo-unlock" };
         self.edit_object(id, label, now, |o| o.locked = locked);
         if locked {
             self.drop_from_selection(id);
@@ -607,15 +626,15 @@ impl Workspace {
                 stops[i].color = color;
                 g.set_stops(&stops);
                 let label = match target {
-                    ColorTarget::Fill => "Change Fill Gradient",
-                    ColorTarget::Stroke => "Change Stroke Gradient",
+                    ColorTarget::Fill => "undo-change-fill-gradient",
+                    ColorTarget::Stroke => "undo-change-stroke-gradient",
                 };
                 self.apply_paint(target, Paint::Gradient(g), label);
             }
             _ => {
                 let label = match target {
-                    ColorTarget::Fill => "Change Fill",
-                    ColorTarget::Stroke => "Change Stroke",
+                    ColorTarget::Fill => "undo-change-fill",
+                    ColorTarget::Stroke => "undo-change-stroke",
                 };
                 self.apply_paint(target, Paint::Solid(color), label);
             }
@@ -670,8 +689,8 @@ impl Workspace {
     /// stop's color when made solid.
     pub fn set_paint_kind(&mut self, target: ColorTarget, kind: PaintKind) {
         let label = match target {
-            ColorTarget::Fill => "Change Fill Type",
-            ColorTarget::Stroke => "Change Stroke Type",
+            ColorTarget::Fill => "undo-change-fill-type",
+            ColorTarget::Stroke => "undo-change-stroke-type",
         };
         self.panels.gradient_stop = 0;
         let fallback = self.style.stroke.paint;
@@ -689,7 +708,7 @@ impl Workspace {
             return;
         }
         let width = self.style.stroke.width;
-        self.map_selected_shapes("Swap Fill and Stroke", |o| match o.stroke {
+        self.map_selected_shapes("cmd-swap-fill-and-stroke", |o| match o.stroke {
             Some(mut stroke) => {
                 std::mem::swap(&mut o.fill, &mut stroke.paint);
                 o.stroke = Some(stroke);
@@ -711,7 +730,7 @@ impl Workspace {
             self.style = Style::default();
             return;
         }
-        self.map_selected_shapes("Default Colors", |o| {
+        self.map_selected_shapes("cmd-default-colors", |o| {
             o.fill = Paint::Solid(DEFAULT_FILL);
             o.stroke = None;
         });
@@ -784,6 +803,29 @@ pub fn convert_paint(paint: Paint, kind: PaintKind) -> Paint {
     }
 }
 
+/// Default name of a new object of `kind`, in the current language.
+pub fn object_name(kind: ShapeKind) -> String {
+    tr(match kind {
+        ShapeKind::Rectangle { .. } => "object-rectangle",
+        ShapeKind::Ellipse => "object-ellipse",
+        ShapeKind::Polygon { .. } => "object-polygon",
+        ShapeKind::Path => "object-path",
+        ShapeKind::Group => "object-group",
+        ShapeKind::Text => "object-text",
+        ShapeKind::Image { .. } => "object-image",
+    })
+}
+
+/// The number of a layer named like "Layer 3" in the current language.
+pub fn layer_number(name: &str) -> Option<u32> {
+    let template = tr!("object-layer-n", n = "\u{1}");
+    let (prefix, suffix) = template.split_once('\u{1}')?;
+    name.strip_prefix(prefix)?
+        .strip_suffix(suffix)?
+        .parse()
+        .ok()
+}
+
 #[cfg(test)]
 mod tests {
     use tp_core::TextureResolution;
@@ -803,7 +845,7 @@ mod tests {
     fn undo_creation_and_redo_restores_selection() {
         let mut ws = ws();
         let id = ws.create_shape(ShapeKind::rectangle(), frame(100.0), 0.0);
-        assert_eq!(ws.history.undo_label(), Some("Create Rectangle"));
+        assert_eq!(ws.history.undo_label(), Some("undo-create-rectangle"));
         ws.undo();
         assert!(ws.project.surface().objects.is_empty());
         assert!(ws.selection.is_empty());
@@ -838,7 +880,7 @@ mod tests {
         ws.create_shape(ShapeKind::rectangle(), frame(100.0), 0.0);
         let before = ws.snapshot();
         ws.deselect();
-        ws.record("Select", before, 1.0, false);
+        ws.record("undo-reorder", before, 1.0, false);
         assert_eq!(ws.history.len(), 1);
     }
 
@@ -851,7 +893,7 @@ mod tests {
         }
         ws.commit_pending(1.0);
         assert_eq!(ws.history.len(), 2);
-        assert_eq!(ws.history.undo_label(), Some("Change Fill"));
+        assert_eq!(ws.history.undo_label(), Some("undo-change-fill"));
         assert_eq!(
             ws.selected_objects()[0].fill,
             Paint::Solid(Rgba::rgb(200, 0, 0))
@@ -893,12 +935,12 @@ mod tests {
     fn color_goes_to_the_selected_stop_of_a_gradient() {
         let mut ws = ws();
         ws.create_shape(ShapeKind::rectangle(), frame(100.0), 0.0);
-        ws.apply_paint(ColorTarget::Fill, red_blue(), "Change Fill Type");
+        ws.apply_paint(ColorTarget::Fill, red_blue(), "undo-change-fill-type");
         ws.commit_pending(1.0);
         ws.panels.gradient_stop = 1;
         ws.apply_color(ColorTarget::Fill, Rgba::rgb(0, 255, 0));
         ws.commit_pending(2.0);
-        assert_eq!(ws.history.undo_label(), Some("Change Fill Gradient"));
+        assert_eq!(ws.history.undo_label(), Some("undo-change-fill-gradient"));
         let g = *ws.selected_objects()[0].fill.gradient().unwrap();
         assert_eq!(g.stops()[0].color, Rgba::rgb(255, 0, 0));
         assert_eq!(g.stops()[1].color, Rgba::rgb(0, 255, 0));
@@ -942,7 +984,7 @@ mod tests {
     fn swap_and_default_with_gradients() {
         let mut ws = ws();
         ws.create_shape(ShapeKind::rectangle(), frame(100.0), 0.0);
-        ws.apply_paint(ColorTarget::Fill, red_blue(), "Change Fill");
+        ws.apply_paint(ColorTarget::Fill, red_blue(), "undo-change-fill");
         ws.apply_color(ColorTarget::Stroke, Rgba::rgb(0, 0, 0));
         ws.commit_pending(1.0);
         ws.swap_fill_stroke(2.0);
@@ -960,13 +1002,55 @@ mod tests {
         let mut ws = ws();
         ws.create_shape(ShapeKind::rectangle(), frame(100.0), 0.0);
         ws.apply_color(ColorTarget::Stroke, Rgba::rgb(0, 0, 0));
-        ws.map_selected_shapes("x", |o| {
+        ws.map_selected_shapes("undo-change-stroke", |o| {
             o.stroke.as_mut().unwrap().align = tp_core::document::StrokeAlign::Inside;
         });
         ws.apply_color(ColorTarget::Stroke, Rgba::rgb(9, 9, 9));
         let s = ws.selected_objects()[0].stroke.unwrap();
         assert_eq!(s.align, tp_core::document::StrokeAlign::Inside);
         assert_eq!(s.paint, Paint::Solid(Rgba::rgb(9, 9, 9)));
+    }
+
+    #[test]
+    fn default_names_and_layer_numbers() {
+        tp_i18n::set_language(tp_i18n::Language::English);
+        let names: Vec<String> = [
+            ShapeKind::rectangle(),
+            ShapeKind::Ellipse,
+            ShapeKind::Polygon {
+                sides: 5,
+                star: Some(0.5),
+            },
+            ShapeKind::Path,
+            ShapeKind::Group,
+            ShapeKind::Text,
+            ShapeKind::Image {
+                asset: tp_core::document::AssetId(1),
+            },
+        ]
+        .into_iter()
+        .map(object_name)
+        .collect();
+        assert_eq!(
+            names,
+            [
+                "Rectangle",
+                "Ellipse",
+                "Polygon",
+                "Path",
+                "Group",
+                "Text",
+                "Image"
+            ]
+        );
+        assert_eq!(layer_number("Layer 12"), Some(12));
+        assert_eq!(layer_number("Layer x"), None);
+        assert_eq!(layer_number("Stripes"), None);
+        let mut ws = ws();
+        ws.new_layer(0.0);
+        ws.new_layer(1.0);
+        let top = ws.project.surface().objects.last().unwrap().name.clone();
+        assert_eq!(top, "Layer 2");
     }
 
     #[test]
@@ -991,7 +1075,7 @@ mod tests {
         let id = ws.create_shape(ShapeKind::rectangle(), frame(100.0), 0.0);
         ws.set_visible(id, false, 1.0);
         assert!(ws.selection.is_empty());
-        assert_eq!(ws.history.undo_label(), Some("Hide"));
+        assert_eq!(ws.history.undo_label(), Some("undo-hide"));
         ws.rename(id, "  ", 2.0);
         assert_eq!(ws.project.surface().get(id).unwrap().name, "Rectangle");
     }

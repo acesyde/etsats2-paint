@@ -2,6 +2,7 @@
 
 use tp_core::document::{AssetId, Frame, Object, ObjectId, ShapeKind};
 use tp_core::kurbo::{Point, Size};
+use tp_i18n::tr;
 
 use crate::import::{ImportError, ImportedFile};
 use crate::workspace::Workspace;
@@ -71,14 +72,14 @@ impl Workspace {
                 }
             }
             self.selection = placed;
-            self.record("Place", before, now, false);
+            self.record("undo-place", before, now, false);
         }
         if let Some(first) = errors.first() {
             let more = errors.len() - 1;
             let text = if more == 0 {
                 first.to_string()
             } else {
-                format!("{first} (and {more} more)")
+                tr!("hint-import-errors", first = first.to_string(), more = more)
             };
             self.show_hint(text, now);
         }
@@ -93,7 +94,7 @@ impl Workspace {
             return;
         };
         let layer = self.active_layer();
-        self.edit("Place", now, false, |project, selection| {
+        self.edit("undo-place", now, false, |project, selection| {
             *selection = vec![project.add_to(layer, object)];
         });
     }
@@ -103,13 +104,13 @@ impl Workspace {
         if name.is_empty() {
             return;
         }
-        self.edit("Rename Asset", now, false, |project, _| {
+        self.edit("undo-rename-asset", now, false, |project, _| {
             project.rename_asset(asset, &name);
         });
     }
 
     pub fn remove_asset(&mut self, asset: AssetId, now: f64) {
-        self.edit("Remove Asset", now, false, |project, _| {
+        self.edit("undo-remove-asset", now, false, |project, _| {
             project.remove_asset(asset);
         });
     }
@@ -126,7 +127,7 @@ impl Workspace {
                 o.frame.size = placement_size(a.size, surface);
             }
         }
-        self.edit("Reset Size", now, false, |project, _| {
+        self.edit("undo-reset-size", now, false, |project, _| {
             project.surface_mut().replace(&objects);
         });
     }
@@ -172,7 +173,7 @@ mod tests {
         let image = &ws.selected_objects()[0];
         assert_eq!(image.name, "logo");
         assert_eq!(image.frame.size, Size::new(80.0, 40.0));
-        assert_eq!(ws.history.undo_label(), Some("Place"));
+        assert_eq!(ws.history.undo_label(), Some("undo-place"));
 
         ws.place_files(vec![read_bytes("logo.png", png)], None, 1.0);
         assert_eq!(ws.project.assets.len(), 1);

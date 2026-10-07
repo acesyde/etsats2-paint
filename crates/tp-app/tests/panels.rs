@@ -613,7 +613,7 @@ fn picker_drag_is_one_named_undo_step() {
         square.right_top() + Vec2::new(-2.0, 2.0),
     );
     assert_ne!(obj(&h, a).fill, before);
-    assert_eq!(ws(&h).history.undo_label(), Some("Change Fill"));
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-change-fill"));
     h.get_by_label("Edit").click();
     h.run();
     h.get_by_label("Undo Change Fill").click();

@@ -1336,3 +1336,59 @@ fn canvas_matches_export_for_gradients() {
     }
     assert!(worst <= 2, "canvas and export differ by {worst} levels");
 }
+
+/// The main screens in every language at 100% and 200% (layout check for
+/// longer translations).
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_languages() {
+    use tp_app::layout::PanelKind;
+    use tp_app::state::Modal;
+    use tp_i18n::Language;
+    for language in Language::ALL {
+        for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+            let mut prefs = Prefs {
+                ui_scale: scale,
+                ..Prefs::default()
+            };
+            prefs.set_language(Some(language));
+            for slot in &mut prefs.layout.panels {
+                slot.collapsed = !matches!(slot.kind, PanelKind::Properties | PanelKind::Colors);
+            }
+            let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+            let code = language.code();
+            let mut h = common::wgpu_harness_with(prefs, size);
+            save(&mut h, &format!("lang_{code}_home_{suffix}"));
+            h.state_mut().modal = Some(Modal::NewProject(Default::default()));
+            save(&mut h, &format!("lang_{code}_new_project_{suffix}"));
+            h.state_mut().modal = None;
+            h.run();
+            // A project with a selected stroked text (Properties, Colors).
+            h.get_by_label(&tp_i18n::tr("home-new-project")).click();
+            h.run();
+            h.get_by_label(&tp_i18n::tr("button-create")).click();
+            h.run();
+            let (text, _) = gradient_scene(&mut h);
+            h.state_mut().workspace_mut().unwrap().selection = vec![text];
+            save(&mut h, &format!("lang_{code}_workspace_{suffix}"));
+            h.state_mut().modal = Some(Modal::Preferences);
+            save(&mut h, &format!("lang_{code}_preferences_{suffix}"));
+            h.state_mut().modal = None;
+            h.run();
+            h.state_mut().workspace_mut().unwrap().selection.clear();
+            for slot in &mut h.state_mut().prefs.layout.panels {
+                slot.collapsed = !matches!(slot.kind, PanelKind::Transform | PanelKind::Stroke);
+            }
+            let r = h
+                .state_mut()
+                .workspace_mut()
+                .unwrap()
+                .project
+                .surface()
+                .objects[0]
+                .id;
+            h.state_mut().workspace_mut().unwrap().selection = vec![r];
+            save(&mut h, &format!("lang_{code}_transform_{suffix}"));
+        }
+    }
+}

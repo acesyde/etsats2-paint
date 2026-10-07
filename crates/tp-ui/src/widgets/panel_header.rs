@@ -1,4 +1,5 @@
 use egui::{Align2, Rect, Response, Sense, Stroke, Ui, Vec2, WidgetInfo, WidgetType};
+use tp_i18n::tr;
 
 use super::{IconButton, paint_focus_ring};
 use crate::icons;
@@ -96,7 +97,7 @@ impl<'a> PanelHeader<'a> {
             ),
             Vec2::splat(size::HIT_MIN),
         );
-        let close_label = format!("Close {}", self.title);
+        let close_label = tr!("panel-close-named", title = self.title);
         let close = ui
             .put(close_rect, IconButton::new(icons::CLOSE, &close_label))
             .clicked();

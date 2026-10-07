@@ -3,6 +3,7 @@
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
+use tp_i18n::tr;
 
 use tp_core::Snapshot;
 use tp_core::document::{
@@ -125,7 +126,7 @@ impl Workspace {
         }
         let closed = closed && session.nodes.len() >= 3;
         let data = PathData::new(vec![Subpath::new(session.nodes, closed)]);
-        let object = self.styled_path(data, "Path");
+        let object = self.styled_path(data, &tr("object-path"));
         Some(self.create_object(object, now))
     }
 
@@ -136,9 +137,9 @@ impl Workspace {
             vec![Node::corner(a), Node::corner(b)],
             false,
         )]);
-        let mut object = self.styled_path(data, "Line");
+        let mut object = self.styled_path(data, &tr("object-line"));
         object.set_path_rotation(line_angle(a, b));
-        self.create_object(object, now)
+        self.create_object_as(object, "undo-create-line", now)
     }
 }
 
@@ -366,7 +367,7 @@ impl Workspace {
 
     /// Records a finished point or handle drag.
     pub fn finish_point_drag(&mut self, drag: PointDrag, now: f64) {
-        self.record("Move Points", drag.before, now, false);
+        self.record("undo-move-points", drag.before, now, false);
     }
 
     /// Selects the points of editable paths inside `rect` (added to `base`),
@@ -419,7 +420,9 @@ impl Workspace {
 
     /// Toggles a point between corner and smooth.
     pub fn toggle_point(&mut self, r: PointRef, now: f64) {
-        self.edit_one_path("Change Point", r.object, now, |p| p.toggle_smooth(r.node));
+        self.edit_one_path("undo-change-point", r.object, now, |p| {
+            p.toggle_smooth(r.node)
+        });
     }
 
     /// Inserts a point on a segment and selects it.
@@ -433,7 +436,7 @@ impl Workspace {
         if let Some(node) = inserted {
             self.points = BTreeSet::from([PointRef::new(id, node)]);
         }
-        self.record("Add Point", before, now, false);
+        self.record("undo-add-point", before, now, false);
     }
 
     /// Deletes the selected points; paths left empty are deleted.
@@ -462,7 +465,7 @@ impl Workspace {
         surface.replace(&edited);
         surface.remove(&emptied);
         self.selection.retain(|id| !emptied.contains(id));
-        self.record("Delete Points", before, now, false);
+        self.record("undo-delete-points", before, now, false);
     }
 
     /// Nudges the selected points (consecutive nudges are one step).
@@ -470,7 +473,7 @@ impl Workspace {
         let drag = self.point_drag(Point::ORIGIN);
         let before = drag.before.clone();
         self.drag_points(&drag, Point::new(dx, dy), false);
-        self.record("Nudge", before, now, true);
+        self.record("undo-nudge", before, now, true);
     }
 
     /// Converts the selected rectangles, ellipses and polygons (also inside
@@ -486,7 +489,7 @@ impl Workspace {
                 o
             })
             .collect();
-        self.edit("Convert to Path", now, false, |project, _| {
+        self.edit("cmd-convert-to-path", now, false, |project, _| {
             project.surface_mut().replace(&converted);
         });
     }
@@ -576,7 +579,7 @@ mod tests {
         assert_eq!(o.name, "Path");
         assert!(o.has_open_path());
         assert_eq!(ws.selection, vec![id]);
-        assert_eq!(ws.history.undo_label(), Some("Create Path"));
+        assert_eq!(ws.history.undo_label(), Some("undo-create-path"));
     }
 
     #[test]

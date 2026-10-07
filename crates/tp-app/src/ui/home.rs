@@ -4,6 +4,7 @@ use egui::{
     Align, Align2, CentralPanel, CornerRadius, Frame, Layout, Margin, Panel, RichText, ScrollArea,
     Sense, Ui, Vec2, WidgetInfo, WidgetType,
 };
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::{display_style, label_strong_style, title_style};
 use tp_ui::tokens::{color, radius, size, space};
@@ -83,15 +84,12 @@ fn recovered_list(ui: &mut Ui, recovered: &[Recovered]) -> Option<(String, bool)
     ui.horizontal(|ui| {
         ui.label(icons::rich(icons::WARNING).size(20.0).color(color::WARNING));
         ui.label(
-            RichText::new("Recovered projects")
+            RichText::new(tr("home-recovered"))
                 .text_style(title_style())
                 .color(color::TEXT_PRIMARY),
         );
     });
-    ui.label(
-        RichText::new("TruckPaint closed unexpectedly. These projects had unsaved changes.")
-            .color(color::TEXT_SECONDARY),
-    );
+    ui.label(RichText::new(tr("home-recovered-hint")).color(color::TEXT_SECONDARY));
     ui.add_space(space::SM);
     let now = now_unix();
     let mut chosen = None;
@@ -110,17 +108,15 @@ fn recovered_list(ui: &mut Ui, recovered: &[Recovered]) -> Option<(String, bool)
                                 meta.name.clone(),
                                 format!(
                                     "{} · {}",
-                                    meta.original
-                                        .as_ref()
-                                        .map_or("Never saved".to_owned(), |p| p
-                                            .display()
-                                            .to_string()),
+                                    meta.original.as_ref().map_or(tr("home-never-saved"), |p| p
+                                        .display()
+                                        .to_string()),
                                     relative_time(now, meta.saved_at)
                                 ),
                             ),
                             None => (
-                                "Damaged recovery copy".to_owned(),
-                                "This copy cannot be restored.".to_owned(),
+                                tr("home-recovery-damaged"),
+                                tr("home-recovery-damaged-hint"),
                             ),
                         };
                         let label = ui.label(
@@ -132,16 +128,17 @@ fn recovered_list(ui: &mut Ui, recovered: &[Recovered]) -> Option<(String, bool)
                             WidgetInfo::labeled(
                                 WidgetType::Label,
                                 true,
-                                format!("Recovered {title}"),
+                                tr!("home-recovered-item", name = title.as_str()),
                             )
                         });
                         ui.label(RichText::new(detail).small().color(color::TEXT_SECONDARY));
                     });
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if r.meta.is_some() && ui.add(primary_button("Restore")).clicked() {
+                        if r.meta.is_some() && ui.add(primary_button(&tr("home-restore"))).clicked()
+                        {
                             chosen = Some((r.session.clone(), true));
                         }
-                        if ui.add(secondary_button("Discard")).clicked() {
+                        if ui.add(secondary_button(&tr("home-discard"))).clicked() {
                             chosen = Some((r.session.clone(), false));
                         }
                     });
@@ -167,19 +164,16 @@ fn sidebar(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
                 .color(color::TEXT_PRIMARY),
         );
     });
-    ui.label(
-        RichText::new("Livery editor for Euro Truck Simulator 2 and American Truck Simulator")
-            .color(color::TEXT_SECONDARY),
-    );
+    ui.label(RichText::new(tr("app-tagline")).color(color::TEXT_SECONDARY));
     ui.add_space(space::XXL);
 
     let full = Vec2::new(ui.available_width(), 34.0);
     let new_tip = cmds.shortcuts.command(CommandId::NewProject);
     let response = ui
-        .add(primary_button("New Project").min_size(full))
-        .on_hover_text(format!(
-            "Create a new livery project ({})",
-            new_tip.unwrap_or_default()
+        .add(primary_button(&tr("home-new-project")).min_size(full))
+        .on_hover_text(tr!(
+            "home-new-project-tip",
+            shortcut = new_tip.unwrap_or_default()
         ));
     if response.clicked() {
         cmds.push(CommandId::NewProject);
@@ -189,9 +183,13 @@ fn sidebar(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
     let response = ui
         .add_enabled(
             open_enabled,
-            secondary_button("Open Project…").min_size(full),
+            secondary_button(&tr("cmd-open-project")).min_size(full),
         )
-        .on_disabled_hover_text(disabled_reason(CommandId::OpenProject).unwrap_or_default());
+        .on_disabled_hover_text(
+            disabled_reason(CommandId::OpenProject)
+                .map(tr)
+                .unwrap_or_default(),
+        );
     if response.clicked() {
         cmds.push(CommandId::OpenProject);
     }
@@ -199,7 +197,7 @@ fn sidebar(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
     ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
         ui.horizontal(|ui| {
             cmds.icon_button(ui, CommandId::Preferences, false);
-            ui.label(RichText::new("Preferences").color(color::TEXT_SECONDARY));
+            ui.label(RichText::new(tr("home-preferences")).color(color::TEXT_SECONDARY));
         });
     });
 }
@@ -211,7 +209,7 @@ fn recent_list(
     available: &[bool],
 ) -> Option<(usize, RowAction)> {
     ui.label(
-        RichText::new("Recent projects")
+        RichText::new(tr("home-recent"))
             .text_style(title_style())
             .color(color::TEXT_PRIMARY),
     );
@@ -221,8 +219,8 @@ fn recent_list(
         ui.allocate_ui(Vec2::new(ui.available_width().min(520.0), 200.0), |ui| {
             EmptyState::new(
                 icons::RECENT,
-                "No recent projects",
-                "Projects you open will appear here. Start by creating a new project.",
+                &tr("home-recent-empty"),
+                &tr("home-recent-empty-hint"),
             )
             .show(ui);
         });
@@ -257,7 +255,7 @@ fn recent_row(ui: &mut Ui, project: &RecentProject, exists: bool, now: u64) -> O
     let label = if exists {
         project.name.clone()
     } else {
-        format!("{} (file not found)", project.name)
+        tr!("home-recent-missing-item", name = project.name.as_str())
     };
     response
         .widget_info(|| WidgetInfo::labeled(WidgetType::Button, open_enabled && exists, &label));
@@ -321,13 +319,13 @@ fn recent_row(ui: &mut Ui, project: &RecentProject, exists: bool, now: u64) -> O
         removed = ui
             .put(
                 button_rect,
-                IconButton::new(icons::REMOVE, "Remove from list"),
+                IconButton::new(icons::REMOVE, &tr("home-remove-recent")),
             )
             .clicked();
         let text_rect = ui.painter().text(
             egui::pos2(button_rect.left() - space::SM, rect.center().y),
             Align2::RIGHT_CENTER,
-            "File not found",
+            tr("home-file-not-found"),
             egui::TextStyle::Small.resolve(ui.style()),
             color::WARNING,
         );
@@ -344,12 +342,15 @@ fn recent_row(ui: &mut Ui, project: &RecentProject, exists: bool, now: u64) -> O
         return Some(RowAction::Remove);
     }
     if exists && open_enabled {
-        let response = response.on_hover_text(format!("Open {}", project.path.display()));
+        let response = response.on_hover_text(tr!(
+            "home-open-recent",
+            path = project.path.display().to_string()
+        ));
         if response.clicked() {
             return Some(RowAction::Open);
         }
     } else if !exists {
-        response.on_hover_text("This project's file was moved or deleted.");
+        response.on_hover_text(tr("home-file-moved"));
     }
     None
 }
@@ -357,21 +358,15 @@ fn recent_row(ui: &mut Ui, project: &RecentProject, exists: bool, now: u64) -> O
 /// Human-friendly "time ago" text.
 pub fn relative_time(now: u64, then: u64) -> String {
     let secs = now.saturating_sub(then);
-    let plural = |n: u64, unit: &str| {
-        if n == 1 {
-            format!("1 {unit} ago")
-        } else {
-            format!("{n} {unit}s ago")
-        }
-    };
+    let ago = |id: &str, n: u64| tr!(id, count = n);
     match secs {
-        0..60 => "Just now".to_owned(),
-        60..3_600 => plural(secs / 60, "minute"),
-        3_600..86_400 => plural(secs / 3_600, "hour"),
-        86_400..172_800 => "Yesterday".to_owned(),
-        172_800..2_592_000 => plural(secs / 86_400, "day"),
-        2_592_000..31_536_000 => plural(secs / 2_592_000, "month"),
-        _ => plural(secs / 31_536_000, "year"),
+        0..60 => tr("time-just-now"),
+        60..3_600 => ago("time-ago-minutes", secs / 60),
+        3_600..86_400 => ago("time-ago-hours", secs / 3_600),
+        86_400..172_800 => tr("time-yesterday"),
+        172_800..2_592_000 => ago("time-ago-days", secs / 86_400),
+        2_592_000..31_536_000 => ago("time-ago-months", secs / 2_592_000),
+        _ => ago("time-ago-years", secs / 31_536_000),
     }
 }
 

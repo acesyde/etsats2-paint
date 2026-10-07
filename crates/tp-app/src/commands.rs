@@ -2,6 +2,7 @@
 //! shortcut) is a [`CommandId`] with metadata and a single dispatch path.
 
 use egui::{Key, KeyboardShortcut, Modifiers};
+use tp_i18n::tr;
 use tp_ui::icons;
 
 use tp_core::document::{BooleanOp, DistributeAxis, DistributeMode, Edge};
@@ -192,9 +193,9 @@ const ALT_SHIFT: Modifiers = Modifiers::ALT.plus(Modifiers::SHIFT);
 const NONE: Modifiers = Modifiers::NONE;
 const SHIFT: Modifiers = Modifiers::SHIFT;
 
-const NEEDS_SELECTION: &str = "Select one or more objects first.";
-const SOON_VEHICLES: &str = "Vehicle templates are not available yet.";
-const SOON_EXPORT: &str = "Game mods need vehicle templates, which are not available yet.";
+const NEEDS_SELECTION: &str = "reason-no-selection";
+const SOON_VEHICLES: &str = "reason-soon-vehicles";
+const SOON_EXPORT: &str = "reason-soon-mods";
 
 impl CommandId {
     /// Every command, including each parameterized variant.
@@ -278,122 +279,122 @@ impl CommandId {
         };
         match self {
             NewProject => m(
-                "New Project…",
+                "cmd-new-project",
                 Some(icons::NEW_PROJECT),
                 const { &[sc(CMD, Key::N)] },
                 Global,
                 Always,
             ),
             OpenProject => m(
-                "Open Project…",
+                "cmd-open-project",
                 Some(icons::OPEN_PROJECT),
                 const { &[sc(CMD, Key::O)] },
                 Global,
                 When(|c| !c.gesture_active, ""),
             ),
             Save => m(
-                "Save",
+                "cmd-save",
                 Some(icons::SAVE),
                 const { &[sc(CMD, Key::S)] },
                 Global,
-                When(
-                    |c| c.has_project && !c.gesture_active,
-                    "Open or create a project first.",
-                ),
+                When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
             ),
             SaveAs => m(
-                "Save As…",
+                "cmd-save-as",
                 None,
                 const { &[sc(CMD_SHIFT, Key::S)] },
                 Global,
-                When(
-                    |c| c.has_project && !c.gesture_active,
-                    "Open or create a project first.",
-                ),
+                When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
             ),
             Place => m(
-                "Place…",
+                "cmd-place",
                 Some(icons::IMAGE),
                 const { &[sc(CMD_SHIFT, Key::P)] },
                 Workspace,
                 When(|c| c.has_project && !c.gesture_active, ""),
             ),
             CloseProject => m(
-                "Close",
+                "cmd-close",
                 None,
                 const { &[sc(CMD, Key::W)] },
                 Global,
                 NeedsProject,
             ),
             Preferences => m(
-                "Preferences…",
+                "cmd-preferences",
                 Some(icons::SETTINGS),
                 const { &[sc(CMD, Key::Comma)] },
                 Global,
                 Always,
             ),
-            Quit => m("Quit", None, const { &[sc(CMD, Key::Q)] }, Global, Always),
+            Quit => m(
+                "cmd-quit",
+                None,
+                const { &[sc(CMD, Key::Q)] },
+                Global,
+                Always,
+            ),
 
             Undo => m(
-                "Undo",
+                "cmd-undo",
                 None,
                 const { &[sc(CMD, Key::Z)] },
                 Workspace,
                 When(
                     |c| c.has_project && (c.can_undo || c.editing_text) && !c.gesture_active,
-                    "Nothing to undo.",
+                    "reason-nothing-to-undo",
                 ),
             ),
             Redo => m(
-                "Redo",
+                "cmd-redo",
                 None,
                 const { &[sc(CMD_SHIFT, Key::Z), sc(CMD, Key::Y)] },
                 Workspace,
                 When(
                     |c| c.has_project && (c.can_redo || c.editing_text) && !c.gesture_active,
-                    "Nothing to redo.",
+                    "reason-nothing-to-redo",
                 ),
             ),
             Cut => m(
-                "Cut",
+                "cmd-cut",
                 None,
                 const { &[sc(CMD, Key::X)] },
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
             ),
             Copy => m(
-                "Copy",
+                "cmd-copy",
                 None,
                 const { &[sc(CMD, Key::C)] },
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
             ),
             Paste => m(
-                "Paste",
+                "cmd-paste",
                 None,
                 const { &[sc(CMD, Key::V)] },
                 Workspace,
                 When(
                     |c| c.has_project && c.has_clipboard && !c.gesture_active,
-                    "The clipboard is empty.",
+                    "reason-clipboard-empty",
                 ),
             ),
             Duplicate => m(
-                "Duplicate",
+                "cmd-duplicate",
                 None,
                 const { &[sc(CMD, Key::D)] },
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
             ),
             Delete => m(
-                "Delete",
+                "cmd-delete",
                 Some(icons::REMOVE),
                 const { &[sc(NONE, Key::Delete), sc(NONE, Key::Backspace)] },
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
             ),
             SelectAll => m(
-                "Select All",
+                "cmd-select-all",
                 None,
                 const { &[sc(CMD, Key::A)] },
                 Workspace,
@@ -401,50 +402,50 @@ impl CommandId {
             ),
 
             EditText => m(
-                "Edit Text",
+                "cmd-edit-text",
                 Some(icons::TEXT),
                 const { &[sc(NONE, Key::Enter)] },
                 Workspace,
                 When(
                     |c| c.single_text && !c.gesture_active,
-                    "Select one text first.",
+                    "reason-select-one-text",
                 ),
             ),
             Group => m(
-                "Group",
+                "cmd-group",
                 Some(icons::GROUP),
                 const { &[sc(CMD, Key::G)] },
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
             ),
             Ungroup => m(
-                "Ungroup",
+                "cmd-ungroup",
                 Some(icons::UNGROUP),
                 const { &[sc(CMD_SHIFT, Key::G)] },
                 Workspace,
                 When(
                     |c| editable_selection(c) && c.selection_has_group,
-                    "Select a group first.",
+                    "reason-select-group",
                 ),
             ),
             ConvertToPath => m(
-                "Convert to Path",
+                "cmd-convert-to-path",
                 Some(icons::PEN),
                 &[],
                 Workspace,
                 When(
                     |c| editable_selection(c) && c.selection_has_convertible,
-                    "Select a rectangle, ellipse or polygon first.",
+                    "reason-select-convertible",
                 ),
             ),
             CreateOutlines => m(
-                "Create Outlines",
+                "cmd-create-outlines",
                 Some(icons::TEXT),
                 const { &[sc(CMD_SHIFT, Key::O)] },
                 Workspace,
                 When(
                     |c| editable_selection(c) && c.selection_has_text,
-                    "Select a text first.",
+                    "reason-select-text",
                 ),
             ),
             Combine(op) => m(
@@ -463,7 +464,7 @@ impl CommandId {
                 Workspace,
                 When(
                     |c| editable_selection(c) && !c.editing_text && c.combine_block.is_none(),
-                    "Select at least two shapes to combine.",
+                    "reason-select-two-shapes",
                 ),
             ),
             Align(edge) => m(
@@ -485,10 +486,7 @@ impl CommandId {
                     Edge::Bottom => const { &[sc(ALT, Key::S)] },
                 },
                 Workspace,
-                When(
-                    can_align,
-                    "Select an object (two with Align to: Key object).",
-                ),
+                When(can_align, "reason-select-to-align"),
             ),
             Distribute(axis, mode) => m(
                 crate::arrange::distribute_label(axis, mode),
@@ -516,24 +514,24 @@ impl CommandId {
                     _ => &[],
                 },
                 Workspace,
-                When(can_distribute, "Select three objects or more."),
+                When(can_distribute, "reason-select-three"),
             ),
             BringForward => m(
-                "Bring Forward",
+                "cmd-bring-forward",
                 None,
                 const { &[sc(CMD, Key::CloseBracket)] },
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
             ),
             SendBackward => m(
-                "Send Backward",
+                "cmd-send-backward",
                 None,
                 const { &[sc(CMD, Key::OpenBracket)] },
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
             ),
             MirrorToOtherSide => m(
-                "Mirror to Other Side",
+                "cmd-mirror-to-other-side",
                 None,
                 &[],
                 Workspace,
@@ -541,21 +539,21 @@ impl CommandId {
             ),
 
             NewLayer => m(
-                "New Layer",
+                "cmd-new-layer",
                 Some(icons::NEW_LAYER),
                 const { &[sc(CMD_SHIFT, Key::N)] },
                 Workspace,
                 When(|c| c.has_project && !c.gesture_active, ""),
             ),
             DuplicateLayer => m(
-                "Duplicate Layer",
+                "cmd-duplicate-layer",
                 None,
                 &[],
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
             ),
             DeleteLayer => m(
-                "Delete Layer",
+                "cmd-delete-layer",
                 None,
                 &[],
                 Workspace,
@@ -563,56 +561,56 @@ impl CommandId {
             ),
 
             ZoomIn => m(
-                "Zoom In",
+                "cmd-zoom-in",
                 None,
                 const { &[sc(CMD, Key::Equals), sc(CMD, Key::Plus)] },
                 Workspace,
                 NeedsProject,
             ),
             ZoomOut => m(
-                "Zoom Out",
+                "cmd-zoom-out",
                 None,
                 const { &[sc(CMD, Key::Minus)] },
                 Workspace,
                 NeedsProject,
             ),
             FitToScreen => m(
-                "Fit to Screen",
+                "cmd-fit-to-screen",
                 None,
                 const { &[sc(CMD, Key::Num0)] },
                 Workspace,
                 NeedsProject,
             ),
             ActualSize => m(
-                "Actual Size (100%)",
+                "cmd-actual-size-100pct",
                 None,
                 const { &[sc(CMD, Key::Num1)] },
                 Workspace,
                 NeedsProject,
             ),
             SetViewMode(ViewMode::TwoD) => m(
-                "2D Canvas",
+                "cmd-2d-canvas",
                 Some(icons::VIEW_2D),
                 const { &[sc(CMD_ALT, Key::Num1)] },
                 Workspace,
                 NeedsProject,
             ),
             SetViewMode(ViewMode::ThreeD) => m(
-                "3D Preview",
+                "cmd-3d-preview",
                 Some(icons::VIEW_3D),
                 const { &[sc(CMD_ALT, Key::Num2)] },
                 Workspace,
                 NeedsProject,
             ),
             SetViewMode(ViewMode::Split) => m(
-                "Split View",
+                "cmd-split-view",
                 Some(icons::VIEW_SPLIT),
                 const { &[sc(CMD_ALT, Key::Num3)] },
                 Workspace,
                 NeedsProject,
             ),
             TogglePreview => m(
-                "Show 3D Preview",
+                "cmd-show-3d-preview",
                 Some(icons::PREVIEW_3D),
                 &[],
                 Workspace,
@@ -631,54 +629,54 @@ impl CommandId {
                 NeedsProject,
             ),
             ResetWorkspace => m(
-                "Reset Workspace",
+                "cmd-reset-workspace",
                 Some(icons::RESET),
                 &[],
                 Workspace,
                 NeedsProject,
             ),
             ShowGrid => m(
-                "Show Grid",
+                "cmd-show-grid",
                 None,
                 const { &[sc(CMD, Key::Quote)] },
                 Workspace,
                 NeedsProject,
             ),
             ShowGuides => m(
-                "Show Guides",
+                "cmd-show-guides",
                 None,
                 const { &[sc(CMD, Key::Semicolon)] },
                 Workspace,
                 NeedsProject,
             ),
             ClearGuides => m(
-                "Clear Guides",
+                "cmd-clear-guides",
                 None,
                 &[],
                 Workspace,
                 When(
                     |c| c.has_project && c.has_guides && !c.gesture_active,
-                    "The texture has no guides.",
+                    "reason-no-guides",
                 ),
             ),
             Snapping => m(
-                "Snapping",
+                "cmd-snapping",
                 None,
                 const { &[sc(CMD_SHIFT, Key::Semicolon)] },
                 Workspace,
                 NeedsProject,
             ),
-            DesignGallery => m("Design System Gallery", None, &[], App, Always),
+            DesignGallery => m("cmd-design-system-gallery", None, &[], App, Always),
 
             ChooseVehicle => m(
-                "Choose Vehicle…",
+                "cmd-choose-vehicle",
                 Some(icons::VEHICLE),
                 &[],
                 Workspace,
                 NotYet(SOON_VEHICLES),
             ),
             VehicleInfo => m(
-                "Vehicle Information",
+                "cmd-vehicle-information",
                 None,
                 &[],
                 Workspace,
@@ -686,17 +684,14 @@ impl CommandId {
             ),
 
             ExportTexture => m(
-                "Export Texture…",
+                "cmd-export-texture",
                 Some(icons::EXPORT),
                 const { &[sc(CMD, Key::E)] },
                 Workspace,
-                When(
-                    |c| c.has_project && !c.gesture_active,
-                    "Open or create a project first.",
-                ),
+                When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
             ),
             ExportMod => m(
-                "Export Mod…",
+                "cmd-export-mod",
                 None,
                 const { &[sc(CMD_SHIFT, Key::E)] },
                 Workspace,
@@ -704,37 +699,37 @@ impl CommandId {
             ),
 
             KeyboardShortcuts => m(
-                "Keyboard Shortcuts",
+                "cmd-keyboard-shortcuts",
                 None,
                 const { &[sc(CMD, Key::Slash)] },
                 App,
                 Always,
             ),
-            About => m("About TruckPaint", None, &[], App, Always),
+            About => m("cmd-about-truckpaint", None, &[], App, Always),
 
             SwapColorTarget => m(
-                "Switch Fill/Stroke Target",
+                "cmd-switch-fill-stroke-target",
                 None,
                 const { &[sc(NONE, Key::X)] },
                 Workspace,
                 NeedsProject,
             ),
             SwapFillStroke => m(
-                "Swap Fill and Stroke",
+                "cmd-swap-fill-and-stroke",
                 None,
                 const { &[sc(SHIFT, Key::X)] },
                 Workspace,
                 NeedsProject,
             ),
             DefaultColors => m(
-                "Default Colors",
+                "cmd-default-colors",
                 None,
                 const { &[sc(NONE, Key::D)] },
                 Workspace,
                 NeedsProject,
             ),
             Deselect => m(
-                "Deselect",
+                "cmd-deselect",
                 None,
                 const { &[sc(NONE, Key::Escape)] },
                 Workspace,
@@ -742,14 +737,14 @@ impl CommandId {
             ),
             Nudge(direction, big) => m(
                 match (direction, big) {
-                    (Direction::Left, false) => "Nudge Left",
-                    (Direction::Right, false) => "Nudge Right",
-                    (Direction::Up, false) => "Nudge Up",
-                    (Direction::Down, false) => "Nudge Down",
-                    (Direction::Left, true) => "Nudge Left ×10",
-                    (Direction::Right, true) => "Nudge Right ×10",
-                    (Direction::Up, true) => "Nudge Up ×10",
-                    (Direction::Down, true) => "Nudge Down ×10",
+                    (Direction::Left, false) => "cmd-nudge-left",
+                    (Direction::Right, false) => "cmd-nudge-right",
+                    (Direction::Up, false) => "cmd-nudge-up",
+                    (Direction::Down, false) => "cmd-nudge-down",
+                    (Direction::Left, true) => "cmd-nudge-left-10",
+                    (Direction::Right, true) => "cmd-nudge-right-10",
+                    (Direction::Up, true) => "cmd-nudge-up-10",
+                    (Direction::Down, true) => "cmd-nudge-down-10",
                 },
                 None,
                 nudge_shortcut(direction, big),
@@ -820,31 +815,44 @@ pub fn format_shortcut(shortcut: &KeyboardShortcut, is_mac: bool, symbols: bool)
         ];
         if symbols {
             let mut s: String = parts.iter().filter(|p| p.0).map(|p| p.1).collect();
-            s.push_str(key);
+            s.push_str(&key);
             s
         } else {
             let mut names: Vec<&str> = parts.iter().filter(|p| p.0).map(|p| p.2).collect();
-            names.push(key);
+            names.push(&key);
             names.join("+")
         }
     } else {
+        // Windows and Linux: modifier names of the current language.
         let mut names = Vec::new();
         if m.ctrl || m.command {
-            names.push("Ctrl");
+            names.push(tr("key-ctrl"));
         }
         if m.alt {
-            names.push("Alt");
+            names.push(tr("key-alt"));
         }
         if m.shift {
-            names.push("Shift");
+            names.push(tr("key-shift"));
         }
-        names.push(key);
+        names.push(key.into_owned());
         names.join("+")
     }
 }
 
-fn key_label(key: Key) -> &'static str {
-    match key {
+fn key_label(key: Key) -> std::borrow::Cow<'static, str> {
+    let named = match key {
+        Key::Delete => "key-delete",
+        Key::Escape => "key-escape",
+        Key::Enter => "key-enter",
+        Key::Backspace => "key-backspace",
+        Key::Space => "key-space",
+        Key::Tab => "key-tab",
+        _ => "",
+    };
+    if !named.is_empty() {
+        return tr(named).into();
+    }
+    std::borrow::Cow::Borrowed(match key {
         Key::Comma => ",",
         Key::Slash => "/",
         Key::Backslash => "\\",
@@ -855,10 +863,8 @@ fn key_label(key: Key) -> &'static str {
         Key::Equals => "=",
         Key::Minus => "-",
         Key::Plus => "+",
-        Key::Delete => "Del",
-        Key::Escape => "Esc",
         other => other.symbol_or_name(),
-    }
+    })
 }
 
 /// Glyphs needed to display macOS modifier symbols.

@@ -12,6 +12,8 @@ name = "truckpaint"
 path = "src/main.rs"
 
 [dependencies]
+tp-i18n.workspace = true
+sys-locale.workspace = true
 tp-core.workspace = true
 tp-ui.workspace = true
 tp-text.workspace = true

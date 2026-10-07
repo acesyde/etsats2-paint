@@ -3,6 +3,7 @@
 
 use std::collections::HashSet;
 use std::sync::Arc;
+use tp_i18n::tr;
 
 use egui::{
     Align2, CornerRadius, Margin, Pos2, Rect, Sense, Stroke, StrokeKind, TextEdit, Ui, Vec2,
@@ -91,12 +92,7 @@ fn reveal_selection(env: &mut PanelEnv<'_>) {
 
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     if env.ws.project.surface().objects.is_empty() {
-        EmptyState::new(
-            icons::LAYERS,
-            "No layers yet",
-            "Shapes you draw and layers you add appear here.",
-        )
-        .show(ui);
+        EmptyState::new(icons::LAYERS, &tr("empty-layers"), &tr("layers-empty-hint")).show(ui);
         footer(ui, cmds);
         return;
     }
@@ -167,9 +163,9 @@ fn row_ui(
             Rect::from_center_size(Pos2::new(x + 6.0, rect.center().y), Vec2::splat(18.0));
         let caret = ui.interact(caret_rect, ui.id().with(("caret", row.id)), Sense::click());
         let name = if row.expanded {
-            format!("Collapse {}", object.name)
+            tr!("layers-collapse", name = object.name.as_str())
         } else {
-            format!("Expand {}", object.name)
+            tr!("layers-expand", name = object.name.as_str())
         };
         caret.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, &name));
         ui.painter().text(
@@ -249,8 +245,8 @@ fn row_ui(
             visible,
             icons::VISIBLE,
             icons::HIDDEN,
-            &format!("Hide {}", object.name),
-            &format!("Show {}", object.name),
+            &tr!("layers-hide", name = object.name.as_str()),
+            &tr!("layers-show", name = object.name.as_str()),
         );
     });
     ui.scope_builder(egui::UiBuilder::new().max_rect(lock_rect), |ui| {
@@ -259,8 +255,8 @@ fn row_ui(
             unlocked,
             icons::UNLOCKED,
             icons::LOCKED,
-            &format!("Lock {}", object.name),
-            &format!("Unlock {}", object.name),
+            &tr!("layers-lock", name = object.name.as_str()),
+            &tr!("layers-unlock", name = object.name.as_str()),
         );
     });
     if eye_clicked {
@@ -290,7 +286,7 @@ fn row_ui(
         env.ws.panels.layers_drag = Some(dragged);
     }
     response.context_menu(|ui| {
-        if ui.add(MenuRow::new("Rename")).clicked() {
+        if ui.add(MenuRow::new(&tr("undo-rename"))).clicked() {
             env.ws.panels.renaming = Some((row.id, object.name.clone()));
             ui.close();
         }
@@ -354,7 +350,7 @@ fn rename_editor(ui: &mut Ui, env: &mut PanelEnv<'_>, id: ObjectId, rect: Rect) 
             .id(edit_id)
             .margin(Margin::symmetric(4, 1)),
     );
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, "Layer name"));
+    response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, tr("layers-name")));
     if !response.has_focus() && !response.lost_focus() {
         response.request_focus();
     }

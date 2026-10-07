@@ -5,6 +5,7 @@ use tp_core::document::{
     Frame, Handle, Object, ResizeOptions, resize, rotate, selection_frame, translate,
 };
 use tp_core::kurbo::{Point, Vec2};
+use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::space;
 use tp_ui::widgets::{EmptyState, NumericField, toggle_icon_button};
@@ -39,7 +40,9 @@ fn move_center(ws: &mut Workspace, x: Option<f64>, y: Option<f64>) {
         y.map_or(0.0, |y| y - bounds.center.y),
     );
     let moved = translate(&objects, delta, false);
-    ws.live_edit("Move", |project, _| project.surface_mut().replace(&moved));
+    ws.live_edit("tool-move", |project, _| {
+        project.surface_mut().replace(&moved)
+    });
 }
 
 fn set_rotation(ws: &mut Workspace, degrees: f64) {
@@ -63,7 +66,7 @@ fn set_rotation(ws: &mut Workspace, degrees: f64) {
             })
             .collect(),
     };
-    ws.live_edit("Rotate", |project, _| {
+    ws.live_edit("undo-rotate", |project, _| {
         project.surface_mut().replace(&rotated)
     });
 }
@@ -82,8 +85,8 @@ pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv
     let Some(bounds): Option<Frame> = selection_frame(&objects) else {
         EmptyState::new(
             icons::TRANSFORM,
-            "Nothing to transform",
-            "Select an object to edit position, size and rotation.",
+            &tr("empty-transform"),
+            &tr("empty-transform-hint"),
         )
         .show(ui);
         return;
@@ -95,53 +98,57 @@ pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv
         .num_columns(3)
         .spacing([space::SM, space::XS + 2.0])
         .show(ui, |ui| {
-            let e = NumericField::new("X", "X position", Some(bounds.center.x))
+            let e = NumericField::new("X", &tr("transform-x"), Some(bounds.center.x))
                 .suffix("px")
                 .show(ui);
             apply_field(env, e, |ws, v| move_center(ws, Some(v), None));
             ui.label("");
-            let e = NumericField::new("Y", "Y position", Some(bounds.center.y))
+            let e = NumericField::new("Y", &tr("transform-y"), Some(bounds.center.y))
                 .suffix("px")
                 .show(ui);
             apply_field(env, e, |ws, v| move_center(ws, None, Some(v)));
             ui.end_row();
 
-            let e = NumericField::new("W", "Width", Some(w))
+            let e = NumericField::new(&tr("field-w"), &tr("field-width"), Some(w))
                 .suffix("px")
                 .range(1.0..=100_000.0)
                 .show(ui);
             apply_field(env, e, |ws, v| {
                 let sx = v / w;
-                scale_selection(ws, "Resize", sx, if locked { sx } else { 1.0 });
+                scale_selection(ws, "undo-resize", sx, if locked { sx } else { 1.0 });
             });
             if toggle_icon_button(
                 ui,
                 locked,
                 icons::LINKED,
                 icons::UNLINKED,
-                "Unlock proportions",
-                "Lock proportions",
+                &tr("transform-unlock-proportions"),
+                &tr("transform-lock-proportions"),
             ) {
                 env.ws.panels.lock_proportions = !locked;
             }
-            let e = NumericField::new("H", "Height", Some(h))
+            let e = NumericField::new(&tr("field-h"), &tr("field-height"), Some(h))
                 .suffix("px")
                 .range(1.0..=100_000.0)
                 .show(ui);
             apply_field(env, e, |ws, v| {
                 let sy = v / h;
-                scale_selection(ws, "Resize", if locked { sy } else { 1.0 }, sy);
+                scale_selection(ws, "undo-resize", if locked { sy } else { 1.0 }, sy);
             });
             ui.end_row();
 
-            let e = NumericField::new("R", "Rotation", common_rotation(&objects))
-                .suffix("°")
-                .decimals(1)
-                .range(-360.0..=360.0)
-                .show(ui);
+            let e = NumericField::new(
+                &tr("field-r"),
+                &tr("transform-rotation"),
+                common_rotation(&objects),
+            )
+            .suffix("°")
+            .decimals(1)
+            .range(-360.0..=360.0)
+            .show(ui);
             apply_field(env, e, set_rotation);
             ui.label("");
-            let e = NumericField::new("S", "Scale", Some(100.0))
+            let e = NumericField::new(&tr("field-s"), &tr("transform-scale"), Some(100.0))
                 .suffix("%")
                 .range(1.0..=10_000.0)
                 .show(ui);
@@ -153,7 +160,7 @@ pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv
             };
             apply_field(env, e, |ws, v| {
                 let s = v / 100.0;
-                scale_selection(ws, "Scale", s, s);
+                scale_selection(ws, "transform-scale", s, s);
             });
             ui.end_row();
         });
@@ -177,14 +184,14 @@ fn align_rows(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelE
         let current = env.ws.panels.align_to;
         let combo = egui::ComboBox::from_id_salt("align_to")
             .width(88.0)
-            .selected_text(current.label())
+            .selected_text(tr(current.label()))
             .show_ui(ui, |ui| {
                 for to in AlignTo::ALL {
-                    ui.selectable_value(&mut env.ws.panels.align_to, to, to.label());
+                    ui.selectable_value(&mut env.ws.panels.align_to, to, tr(to.label()));
                 }
             });
         combo.response.widget_info(|| {
-            egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Align to")
+            egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, tr("transform-align-to"))
         });
     });
     ui.horizontal(|ui| {
