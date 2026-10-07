@@ -423,6 +423,52 @@ mod tests {
     }
 
     #[test]
+    fn sample_vehicle_update_exercises_every_change() {
+        let read = |version: &str| {
+            let path = format!(
+                "{}/../../examples/vehicles/community.truckpaint.sample_truck-{version}.tpv",
+                env!("CARGO_MANIFEST_DIR")
+            );
+            Package::read(&std::fs::read(path).unwrap()).unwrap()
+        };
+        let (v1, v2) = (read("1.0.0"), read("1.1.0"));
+        let project = vehicle_project("Sample", &v1, "standard").unwrap();
+        let p = plan(&project, &v2).unwrap();
+        assert_eq!(
+            p.changes,
+            [
+                TextureChange::Replaced {
+                    name: "Cabin".into(),
+                    layout_changed: true,
+                    resized: None
+                },
+                TextureChange::Replaced {
+                    name: "Chassis".into(),
+                    layout_changed: false,
+                    resized: Some((2048.0, 4096.0))
+                },
+                TextureChange::Replaced {
+                    name: "Accessories".into(),
+                    layout_changed: false,
+                    resized: None
+                },
+                TextureChange::Added {
+                    name: "Side skirts".into()
+                },
+            ]
+        );
+        // The High roof cabin layout is unchanged.
+        let high = vehicle_project("Sample", &v1, "high_roof").unwrap();
+        assert!(matches!(
+            plan(&high, &v2).unwrap().changes[0],
+            TextureChange::Replaced {
+                layout_changed: false,
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn dismiss_a_layout_change() {
         let v1 = package("1.2.0", &[tex("cabin", "Cabin", 1024, 1)]);
         let mut ws = Workspace::new(vehicle_project("T", &v1, "standard").unwrap());

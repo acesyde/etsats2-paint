@@ -84,8 +84,23 @@ Logs are written to stderr and to a daily file in the application data directory
 | `tp-core`  | Domain types. No UI, filesystem or threads.                          |
 | `tp-ui`    | Design system: tokens, theme, embedded fonts/icons, widgets.         |
 | `tp-app`   | The desktop application: screens, commands, layout, preferences.     |
+| `tp-vehicles` | Vehicle packages (`.tpv`): manifest, validation, templates.       |
+| `tp-pack`  | The `tpv` command: builds and checks vehicle packages.               |
 
 Planned changes are tracked with OpenSpec in `openspec/`.
+
+### Vehicle packages
+
+Vehicles come as packages (`.tpv`), described in
+[docs/vehicle-package-format.md](docs/vehicle-package-format.md). The repository
+ships a sample, **TruckPaint Sample Truck**, in [examples/vehicles/](examples/vehicles/)
+(versions 1.0.0 and 1.1.0, to try Update Template); the app also offers to install it
+while no vehicle is installed.
+
+```sh
+mise run pack <folder> [-o file.tpv]   # pack a folder (PNG, SVG or DDS templates)
+mise run sample-vehicles               # rebuild the sample packages
+```
 
 ## Licenses
 

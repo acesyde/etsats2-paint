@@ -149,6 +149,17 @@ pub fn install_named(
         .collect()
 }
 
+/// Installs the built-in sample vehicle; returns its result line.
+pub fn install_sample(state: &mut AppState) -> Vec<Result<String, String>> {
+    install_named(
+        state,
+        vec![(
+            crate::vehicles::SAMPLE_FILE.to_owned(),
+            Ok(crate::vehicles::SAMPLE.to_vec()),
+        )],
+    )
+}
+
 /// State of the Vehicle Library dialog.
 #[derive(Clone, Debug, Default)]
 pub struct LibraryDialog {
@@ -163,6 +174,7 @@ pub struct LibraryDialog {
 pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDialog) -> bool {
     let mut keep = true;
     let mut install_clicked = false;
+    let mut sample_clicked = false;
     let mut remove = None;
     super::dialogs::modal("vehicle_library_modal").show(ctx, |ui| {
         ui.set_width(640.0);
@@ -186,6 +198,11 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
                 &tr("vehicles-empty-hint"),
             )
             .show(ui);
+            ui.vertical_centered(|ui| {
+                sample_clicked |= ui
+                    .add(primary_button(&tr("vehicles-install-sample")))
+                    .clicked();
+            });
         } else {
             dialog.filter.show(ui, "library");
             ui.add_space(space::SM);
@@ -263,6 +280,9 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
     });
     if let Some(r) = remove {
         dialog.confirm_remove = Some(r);
+    }
+    if sample_clicked {
+        dialog.messages = install_sample(state);
     }
     if install_clicked {
         let paths = state.dialogs.pick_packages();

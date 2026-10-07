@@ -1,0 +1,86 @@
+{
+  "format": 1,
+  "id": "community.truckpaint.sample_truck",
+  "version": "1.1.0",
+  "name": "TruckPaint Sample Truck",
+  "brand": "TruckPaint",
+  "kind": "truck",
+  "game": "ets2",
+  "game_versions": ">=1.56",
+  "authors": [
+    "TruckPaint contributors"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/acesyde/etsats2-paint",
+  "description": "A fictional truck with original templates, to try TruckPaint and as an example for package authors. Not a game vehicle.",
+  "variants": [
+    {
+      "id": "standard",
+      "name": "Standard cab",
+      "textures": [
+        {
+          "id": "cabin",
+          "name": "Cabin",
+          "size": 4096,
+          "template": "templates/standard_cabin.svg",
+          "layout_version": 2
+        },
+        {
+          "id": "chassis",
+          "name": "Chassis",
+          "size": 4096,
+          "template": "templates/chassis.svg",
+          "layout_version": 1
+        },
+        {
+          "id": "accessories",
+          "name": "Accessories",
+          "size": 1024,
+          "template": "templates/accessories.svg",
+          "layout_version": 1
+        },
+        {
+          "id": "side_skirts",
+          "name": "Side skirts",
+          "size": 1024,
+          "template": "templates/side_skirts.svg",
+          "layout_version": 1
+        }
+      ]
+    },
+    {
+      "id": "high_roof",
+      "name": "High roof",
+      "textures": [
+        {
+          "id": "cabin",
+          "name": "Cabin",
+          "size": 4096,
+          "template": "templates/high_roof_cabin.svg",
+          "layout_version": 1
+        },
+        {
+          "id": "chassis",
+          "name": "Chassis",
+          "size": 4096,
+          "template": "templates/chassis.svg",
+          "layout_version": 1
+        },
+        {
+          "id": "accessories",
+          "name": "Accessories",
+          "size": 1024,
+          "template": "templates/accessories.svg",
+          "layout_version": 1
+        },
+        {
+          "id": "side_skirts",
+          "name": "Side skirts",
+          "size": 1024,
+          "template": "templates/side_skirts.svg",
+          "layout_version": 1
+        }
+      ]
+    }
+  ]
+}

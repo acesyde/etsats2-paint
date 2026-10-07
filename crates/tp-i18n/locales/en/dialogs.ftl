@@ -140,6 +140,7 @@ vehicles-remove-version = Remove { $name } { $version }
 vehicles-remove-confirm = Remove { $name } from the library? Projects keep their templates.
 vehicles-remove = Remove
 vehicles-install = Install…
+vehicles-install-sample = Install the sample vehicle
 update-versions = { $name }: version { $from } → { $to }
 update-replaced = { $name }: template replaced
 update-layout-changed = { $name }: layout changed, check the artwork
@@ -153,6 +154,7 @@ update-apply = Update
 
 new-project-step-vehicle = Vehicle
 new-project-blank = Blank texture
+new-project-no-vehicles-hint = No vehicle yet? Try the sample truck, or install a package.
 new-project-textures = Textures
 button-next = Next
 button-back = Back

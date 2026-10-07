@@ -139,6 +139,7 @@ vehicles-remove-version = Supprimer { $name } { $version }
 vehicles-remove-confirm = Supprimer { $name } de la bibliothèque ? Les projets conservent leurs gabarits.
 vehicles-remove = Supprimer
 vehicles-install = Installer…
+vehicles-install-sample = Installer le véhicule d’exemple
 update-versions = { $name } : version { $from } → { $to }
 update-replaced = { $name } : gabarit remplacé
 update-layout-changed = { $name } : disposition modifiée, vérifiez le motif
@@ -152,6 +153,7 @@ update-apply = Mettre à jour
 
 new-project-step-vehicle = Véhicule
 new-project-blank = Texture vierge
+new-project-no-vehicles-hint = Pas encore de véhicule ? Essayez le camion d’exemple, ou installez un paquet.
 new-project-textures = Textures
 button-next = Suivant
 button-back = Retour

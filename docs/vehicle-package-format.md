@@ -104,6 +104,42 @@ TruckPaint versions.
 - At most 512 MB uncompressed in total; template images at most 16384 px on a side.
 - Template images are drawn stretched to the texture's square size: make them square.
 
+## Packing a package
+
+The `tpv` command builds a package from a folder holding a `vehicle.json`
+and the files it references, and checks it exactly as TruckPaint does when
+installing. In this repository, run it through mise:
+
+```sh
+mise run pack my-truck/                 # writes <id>-<version>.tpv
+mise run pack my-truck/ -o my-truck.tpv
+cargo run -p tp-pack --bin tpv -- check my-truck.tpv
+```
+
+- **Only referenced files are packed:** the manifest, each texture's
+  `template` and the `preview`. Other files in the folder (notes, `.psd`
+  sources) are listed as ignored; hidden files are skipped silently.
+- **DDS templates are converted to PNG.** Point `template` at the DDS file
+  as SCS distributes it (`templates/cabin.dds`): the package gets
+  `templates/cabin.png` with the same pixels, and its manifest is updated.
+  Supported: BC1, BC2 and BC3 (DXT1/3/5, also with a DX10 header) and
+  uncompressed 24 or 32-bit RGB(A). Other formats are refused, naming the
+  texture. Your folder is never modified.
+- **Reproducible:** packing the same folder twice gives identical bytes.
+- **Exit status:** 0 on success, 1 on failure, with the reason and no file
+  written.
+
+Templates of the base games belong to SCS Software: pack them for your own
+use, but check the license before sharing a package.
+
+## Reference example
+
+[examples/vehicles/](../examples/vehicles/) holds **TruckPaint Sample Truck**
+(`community.truckpaint.sample_truck`), a fictional truck with original SVG
+templates: two variants, three textures, and versions 1.0.0 and 1.1.0. Version
+1.1.0 changes the Standard cab's cabin layout, enlarges the chassis and adds a
+texture, which shows how to version a package. Use it as a starting point.
+
 ## Versions and game updates
 
 When SCS updates a game and a vehicle's textures change:

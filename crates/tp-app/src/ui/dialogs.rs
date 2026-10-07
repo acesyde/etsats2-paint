@@ -13,7 +13,7 @@ use tp_ui::widgets::{StepIndicator, paint_focus_ring, primary_button, secondary_
 
 use crate::commands::{CommandId, ShortcutFormatter};
 use crate::state::{AppState, Modal, NewProjectDraft};
-use crate::vehicles::VehicleLibrary;
+use crate::vehicles::{SAMPLE_ID, VehicleLibrary};
 
 /// Titles of the New Project wizard steps. Vehicle steps will be inserted
 /// before "Name & resolution".
@@ -86,6 +86,26 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
                 let results = super::vehicle_dialogs::install(state, &paths);
                 if let Some(Modal::NewProject(draft)) = &mut state.modal {
                     draft.messages = results;
+                }
+                false
+            }
+            WizardOutcome::InstallSample => {
+                let results = super::vehicle_dialogs::install_sample(state);
+                let sample = results.first().is_some_and(Result::is_ok);
+                let pick = state
+                    .vehicles
+                    .vehicles()
+                    .iter()
+                    .find(|v| sample && v.newest().manifest.id == SAMPLE_ID)
+                    .map(|v| {
+                        let m = &v.newest().manifest;
+                        (v.id.clone(), m.version.clone(), m.variants[0].id.clone())
+                    });
+                if let Some(Modal::NewProject(draft)) = &mut state.modal {
+                    draft.messages = results;
+                    if pick.is_some() {
+                        draft.vehicle = pick;
+                    }
                 }
                 false
             }
@@ -234,10 +254,14 @@ enum WizardOutcome {
     },
     /// Install packages, then come back to the Vehicle step.
     Install,
+    /// Install the built-in sample vehicle and select it.
+    InstallSample,
 }
 
 /// Vehicle step: the installed vehicles (or a blank texture) and variants.
-fn vehicle_step(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary) {
+/// Returns true when Install the sample vehicle is clicked.
+fn vehicle_step(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary) -> bool {
+    let mut sample = false;
     draft.filter.show(ui, "wizard");
     ui.add_space(space::SM);
     for message in &draft.messages {
@@ -263,6 +287,17 @@ fn vehicle_step(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibra
             });
             if row.clicked() {
                 draft.vehicle = None;
+            }
+            if library.vehicles().is_empty() {
+                ui.add_space(space::SM);
+                ui.label(
+                    RichText::new(tr("new-project-no-vehicles-hint"))
+                        .small()
+                        .color(color::TEXT_SECONDARY),
+                );
+                sample |= ui
+                    .add(secondary_button(&tr("vehicles-install-sample")))
+                    .clicked();
             }
             for vehicle in super::vehicle_dialogs::filtered(library, &draft.filter) {
                 let newest = vehicle.newest();
@@ -300,6 +335,7 @@ fn vehicle_step(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibra
                 }
             }
         });
+    sample
 }
 
 /// The variant chosen in the draft, if it is installed.
@@ -337,8 +373,9 @@ fn new_project(
         StepIndicator::new(draft.step, &steps).show(ui);
         ui.add_space(space::LG);
 
+        let mut sample = false;
         if draft.step == 0 {
-            vehicle_step(ui, draft, library);
+            sample = vehicle_step(ui, draft, library);
         } else {
             ui.label(RichText::new(tr("new-project-name")).text_style(label_strong_style()));
             let hint = chosen(draft, library)
@@ -412,18 +449,20 @@ fn new_project(
         });
         // Enter confirms the current step (a focused button handles Enter as
         // its own click above).
-        if !cancel && !back && !install && ui.input(|i| i.key_pressed(Key::Enter)) {
+        if !cancel && !back && !install && !sample && ui.input(|i| i.key_pressed(Key::Enter)) {
             next = true;
         }
-        (cancel, next, back, install)
+        (cancel, next, back, install, sample)
     });
 
-    let (cancel, next, back, install) = response.inner;
+    let (cancel, next, back, install, sample) = response.inner;
     let escape = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::Escape));
     if cancel || escape {
         outcome = WizardOutcome::Cancel;
     } else if install {
         outcome = WizardOutcome::Install;
+    } else if sample {
+        outcome = WizardOutcome::InstallSample;
     } else if back {
         draft.step = draft.step.saturating_sub(1);
     } else if next && !last {

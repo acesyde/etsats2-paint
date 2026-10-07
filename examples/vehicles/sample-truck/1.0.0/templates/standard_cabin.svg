@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="4096" height="4096" viewBox="0 0 4096 4096">
+  <!-- TruckPaint sample template: original artwork, MIT licensed. -->
+  <rect x="8.0" y="8.0" width="4080.0" height="4080.0" fill="none" stroke="#1d2330" stroke-opacity="0.5" stroke-width="16.0"/>
+  <polygon points="120.0,420.0 1760.0,420.0 2020.0,760.0 2020.0,1620.0 120.0,1620.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0" stroke-linejoin="round"/>
+  <text x="610.0" y="1003.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">LEFT SIDE</text>
+  <rect x="1100.0" y="680.0" width="620.0" height="680.0" rx="30.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="1410.0" y="1233.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">DOOR</text>
+  <rect x="1160.0" y="720.0" width="500.0" height="380.0" rx="40.0" fill="#e0565b" fill-opacity="0.18" stroke="#e0565b" stroke-width="8.0" stroke-dasharray="40.0 24.0"/>
+  <text x="1410.0" y="931.0" font-family="sans-serif" font-size="60.0" font-weight="bold" fill="#e0565b" text-anchor="middle">WINDOW</text>
+  <rect x="1220.0" y="1400.0" width="380.0" height="140.0" rx="20.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="1410.0" y="1503.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">STEP</text>
+  <polygon points="2076.0,420.0 3716.0,420.0 3976.0,760.0 3976.0,1620.0 2076.0,1620.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0" stroke-linejoin="round"/>
+  <text x="3486.0" y="1003.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">RIGHT SIDE</text>
+  <rect x="2376.0" y="680.0" width="620.0" height="680.0" rx="30.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="2686.0" y="1233.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">DOOR</text>
+  <rect x="2436.0" y="720.0" width="500.0" height="380.0" rx="40.0" fill="#e0565b" fill-opacity="0.18" stroke="#e0565b" stroke-width="8.0" stroke-dasharray="40.0 24.0"/>
+  <text x="2686.0" y="931.0" font-family="sans-serif" font-size="60.0" font-weight="bold" fill="#e0565b" text-anchor="middle">WINDOW</text>
+  <rect x="2496.0" y="1400.0" width="380.0" height="140.0" rx="20.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="2686.0" y="1503.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">STEP</text>
+  <rect x="120.0" y="1760.0" width="1900.0" height="1500.0" rx="60.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="1070.0" y="3233.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">FRONT</text>
+  <rect x="320.0" y="1840.0" width="1500.0" height="520.0" rx="40.0" fill="#e0565b" fill-opacity="0.18" stroke="#e0565b" stroke-width="8.0" stroke-dasharray="40.0 24.0"/>
+  <text x="1070.0" y="2121.0" font-family="sans-serif" font-size="60.0" font-weight="bold" fill="#e0565b" text-anchor="middle">WINDSHIELD</text>
+  <rect x="420.0" y="2420.0" width="1300.0" height="600.0" rx="30.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="1070.0" y="2753.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">GRILLE</text>
+  <rect x="170.0" y="2480.0" width="220.0" height="260.0" rx="20.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="280.0" y="2631.0" font-family="sans-serif" font-size="60.0" font-weight="bold" fill="#1d2330" text-anchor="middle">LAMP</text>
+  <rect x="1750.0" y="2480.0" width="220.0" height="260.0" rx="20.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="1860.0" y="2631.0" font-family="sans-serif" font-size="60.0" font-weight="bold" fill="#1d2330" text-anchor="middle">LAMP</text>
+  <rect x="2076.0" y="1760.0" width="1900.0" height="900.0" rx="60.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="3026.0" y="2243.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">ROOF</text>
+  <rect x="2076.0" y="2780.0" width="1900.0" height="900.0" rx="60.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="3026.0" y="3263.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">REAR WALL</text>
+  <rect x="120.0" y="3400.0" width="1900.0" height="280.0" rx="30.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="1070.0" y="3573.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">BUMPER</text>
+  <text x="4040.0" y="4040.0" font-family="sans-serif" font-size="72.0" fill="#1d2330" fill-opacity="0.7" text-anchor="end">TruckPaint Sample Truck - Cabin, Standard cab - layout 1</text>
+</svg>

@@ -3877,6 +3877,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tp-pack"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "semver",
+ "serde_json",
+ "tempfile",
+ "texpresso",
+ "tp-vehicles",
+ "zip",
+]
+
+[[package]]
 name = "tp-render"
 version = "0.1.0"
 dependencies = [

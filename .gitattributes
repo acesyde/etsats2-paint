@@ -42,5 +42,6 @@ Cargo.lock      linguist-generated=true -diff
 *.otf   binary
 *.zip   binary
 *.scs   binary
+*.tpv   binary
 *.wasm  binary
 *.pdf   binary
