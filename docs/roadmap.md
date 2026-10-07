@@ -21,10 +21,13 @@ Illustrator or Inkscape is not a goal.
 The blank-texture project goes away. New Project starts by choosing a vehicle.
 
 When no package exists for a vehicle (a truck just released, or a community
-mod nobody has packaged), the player will use **Custom vehicle…** (next
-change, `custom-vehicle`):
+mod nobody has packaged), the player will use **Custom vehicle…**
+(`custom-vehicle`, after `paint-job-model`):
 1. drop the template files (DDS or PNG);
-2. name each texture and pick the game.
+2. pick the game and the kind (truck or trailer), and describe the paint job
+   the way the game does (see "A paint job is a main texture plus
+   accessories" below): cabins and their main textures for a truck, the main
+   texture for a trailer, and the accessory textures.
 
 TruckPaint builds a local package from them, with the same packing and
 validation as `tpv`. That package can later be exported as a `.tpv` and
@@ -33,13 +36,49 @@ shared.
 Trying the app without game files is covered by the built-in sample vehicle.
 
 ### A project is a fleet
-A project holds **several trucks with the variants the player chooses, and
+A project holds **several trucks with the cabins the player chooses, and
 several trailers**: the fleet of one company. It exports as one mod. A player
 who drives two or three trucks and owns five trailers designs the identity
 once, not once per vehicle.
 
-Painting every variant of a truck is not required. Variants left out simply
-don't get the paint job.
+Painting every cabin of a truck is not required. Cabins left out simply don't
+get the paint job.
+
+### A paint job is a main texture plus accessories
+This is how ETS2 and ATS structure paint jobs (studied in Paintjob Packer,
+MIT, `Carsmaniac/paintjob-packer`). A paint job is **one main texture plus
+one texture per accessory group**, shipped together; the game uses whichever
+applies to the vehicle as configured.
+
+| | Truck | Owned trailer |
+|---|---|---|
+| Main texture | One **per cabin** when cabins have different layouts (`separate_paint_jobs`), else **one for every cabin** | **One** ("Base") |
+| Accessory textures (deflectors, sideskirts, mirrors… / bodies, lengths, bumpers…) | One per group, **shared by every cabin** | One per group. Body types and lengths are accessory groups, **not variants** |
+| What the player picks | Which cabins to paint | Nothing: everything ships together |
+| In the mod | `def/vehicle/truck/<path>/paint_job/…`, `suitable_for` = cabin internal names | `def/vehicle/trailer_owned/<path>/paint_job/…` |
+
+So TruckPaint's "variant" is really a **truck cabin**. Trailers have no
+variants, and accessory textures belong to the vehicle, not to a cabin.
+
+The vehicle model that fits both:
+
+```
+vehicle { game, kind (truck | trailer), game path (e.g. "scania.r_2016"),
+          name, mod author?, alt_uv, colour_picker }
+  cabins[]              trucks only: name, internal names (cabins sharing one
+                        layout), and their main texture, or one shared main
+                        texture when every cabin has the same layout
+  main texture          trailers
+  accessory groups[]    name, game accessory ids, texture
+texture { id, name, size, template }
+```
+
+**Data the mod export will need, recorded in packages from now on:** the game
+path, the kind, cabin internal names, accessory ids, `alt_uv` (some ATS
+trucks) and `colour_picker` (mostly bus mods). Without them a mod can't write
+`def/vehicle/…`, `suitable_for` or `acc_list`. Paintjob Packer's vehicle
+database (MIT) lists them for about 180 SCS and community vehicles and can
+prefill them later; its templates belong to SCS and are never shipped.
 
 ### What is shared: elements, not placement
 Texture layouts (UVs) are fixed by each vehicle's 3D model and differ from one
@@ -65,19 +104,18 @@ fleets in both games has two projects (sharing a symbol library, later).
 - **Scale:** a fleet can reach 30 to 40 textures, mostly 4096². The canvas is
   vector-based and only draws the active texture, and its caches drop what is
   not shown, so no on-demand loading is needed.
-- **Navigation:** the Vehicles panel shows a tree (vehicle → variant →
-  texture); the tabs above the canvas list the active variant's textures.
+- **Navigation:** the sidebar on the left shows the project and a tree
+  (vehicle → variant → texture), the only place to switch textures, with
+  Next/Previous Texture on the keyboard; the template settings are in the
+  Properties panel.
 - **Update Template:** works per vehicle, since each vehicle in a project has
   its own package version.
 
 ## Open questions
 
-- **Textures shared between variants:** in ETS2, some cabins of a truck use
-  the same texture (same layout) and others don't (Paintjob Packer's
-  `separate_paint_jobs`). The package format can't express a texture shared
-  by several variants yet, so the player would paint the same texture several
-  times. This must be settled before packages are published on the
-  marketplace.
+- **Project version and game versions:** the sidebar's Project section shows
+  them empty and read only; a later feature stores and edits them (they will
+  feed the mod's manifest).
 - **Symbol library across projects:** reusing a logo in several projects, or
   in projects for both games. Probably after `brand-kit`.
 
@@ -85,10 +123,10 @@ fleets in both games has two projects (sharing a symbol library, later).
 
 | # | Change | What it does | Why now |
 |---|---|---|---|
-| 1 | `custom-vehicle` | Custom vehicle… in New Project and Add Vehicle…: drop template files (DDS or PNG), name the textures and pick the game; TruckPaint packs a local package, which can be exported as a `.tpv`. | The escape hatch for vehicles without a package, now that every project needs a vehicle. |
-| 2 | `shared-textures` | Variants can share a texture in the package format. | Fixes the format before others publish packages. |
-| 3 | `brand-kit` | Project palette, symbols with instances, shared styles, copy from variant. | Makes a fleet a shared identity rather than separate drawings. |
-| 4 | `mod-export` | Exports the whole fleet as one ready-to-install mod. | The deliverable of the app. Needs the fleet model and shared textures. |
+| 1 | `paint-job-model` | Packages and projects follow the game's paint job structure: trucks have cabins (each with its main texture, or one shared main texture), trailers have a main texture, and both have accessory textures shared by the whole vehicle. Packages record the data the mod export needs (game path, cabin internal names, accessory ids, `alt_uv`, `colour_picker`). Projects check cabins for trucks; trailers need no choice. The sample vehicle is redone. Replaces the former `shared-textures`. | `custom-vehicle` and `mod-export` build on it, and the format must be right before others publish packages. |
+| 2 | `custom-vehicle` | Custom vehicle… in New Project and Add Vehicle…: pick the game and the kind (truck or trailer), describe cabins or the main texture and the accessories, drop template files (DDS or PNG); TruckPaint packs a local package, which can be exported as a `.tpv`. | The escape hatch for vehicles without a package, now that every project needs a vehicle. |
+| 3 | `brand-kit` | Project palette, symbols with instances, shared styles, copy from cabin. | Makes a fleet a shared identity rather than separate drawings. |
+| 4 | `mod-export` | Exports the whole fleet as one ready-to-install mod. | The deliverable of the app. Needs the paint job model. |
 | 5 | `vehicle-marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once the format is stable. |
 | 6 | `distribution` | Release builds and installers. | Once a player can go from vehicle to mod. |
 
