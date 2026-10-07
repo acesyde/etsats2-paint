@@ -1,14 +1,15 @@
 //! Properties panel: selection summary, opacity, corner radius, polygon
-//! settings, line width and fill/stroke swatches.
+//! settings, line width, dashes, caps and joins, and fill/stroke swatches.
 
 use egui::{RichText, Slider, Ui, WidgetInfo, WidgetType};
 use tp_core::AssetKind;
-use tp_core::document::{Object, ShapeKind};
+use tp_core::document::{LineStyle, Object, ShapeKind};
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, space};
 use tp_ui::widgets::{ColorSwatch, NumericField, SwatchColor, secondary_button};
 
+use super::line_style::{Change, LineEdit};
 use super::{PanelEnv, apply_field, reveal};
 use crate::layout::{PanelKind, WorkspaceLayout};
 use crate::workspace::{ColorTarget, Workspace};
@@ -122,6 +123,21 @@ fn set_line_width(ws: &mut Workspace, width: f64) {
     }
     ws.line_width = width;
     ws.live_edit("Change Line Width", |project, _| {
+        project.surface_mut().replace(&objects)
+    });
+}
+
+/// Applies a dash, cap or join change to the selected lines; the result
+/// also becomes the line style for new lines.
+fn edit_line_style(ws: &mut Workspace, edit: LineEdit) {
+    let mut objects = ws.selected_objects();
+    for o in &mut objects {
+        if o.has_open_path() {
+            o.edit_path(|p| edit.apply(&mut p.line_style));
+        }
+    }
+    edit.apply(&mut ws.line_style);
+    ws.live_edit(edit.label(true), |project, _| {
         project.surface_mut().replace(&objects)
     });
 }
@@ -312,6 +328,21 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
             .range(0.5..=1000.0)
             .show(ui);
         apply_field(env, e, set_line_width);
+        let styles: Vec<LineStyle> = objects
+            .iter()
+            .filter_map(|o| o.path_data().map(|p| p.line_style))
+            .collect();
+        match super::line_style::controls(ui, &styles, env.ws.last_dash) {
+            Some(Change::Apply { edit, commit }) => {
+                super::stroke::remember_dash(env.ws, edit, &styles);
+                edit_line_style(env.ws, edit);
+                if commit {
+                    env.ws.commit_pending(env.now);
+                }
+            }
+            Some(Change::Revert) => env.ws.cancel_pending(),
+            None => {}
+        }
     }
 
     if let [single] = objects.as_slice()

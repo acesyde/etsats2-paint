@@ -8,7 +8,7 @@ use resvg::tiny_skia::{
     PixmapPaint, Stroke, Transform,
 };
 use resvg::usvg;
-use tp_core::document::{AssetId, Object, Rgba, ShapeKind, tree};
+use tp_core::document::{AssetId, LineStyle, Object, Rgba, ShapeKind, stroke_region, tree};
 use tp_core::kurbo::{Affine, BezPath, PathEl, Rect, Shape, Vec2};
 use tp_core::{Asset, AssetKind, Project};
 use tp_text::{FontLibrary, GlyphCache, layout_to_doc};
@@ -94,56 +94,117 @@ impl Outline {
     }
 }
 
-/// Draws a shape, `scale` mapping to pixels: the fill, then the lines of
-/// open subpaths (fill color, outlined by the stroke), then the stroke.
-fn draw_path(pixmap: &mut Pixmap, outline: &Outline, object: &Object, opacity: f32, scale: f64) {
-    let to_px = |p: &BezPath| to_skia(&(Affine::scale(scale) * p.clone()));
+/// Flattening tolerance of stroke regions, in output pixels.
+const REGION_TOLERANCE: f64 = 0.05;
+
+fn paint(c: Color) -> Paint<'static> {
     let mut paint = Paint {
         anti_alias: true,
         ..Paint::default()
     };
-    let mut stroke_with = |pixmap: &mut Pixmap, path: &tiny_skia::Path, c: Color, width: f64| {
-        paint.set_color(c);
-        let stroke = Stroke {
-            width: (width * scale) as f32,
-            line_join: LineJoin::MiterClip,
-            line_cap: LineCap::Round,
-            miter_limit: 4.0,
-            ..Stroke::default()
-        };
-        pixmap.stroke_path(path, &paint, &stroke, Transform::identity(), None);
-    };
-    let stroke = object.stroke.filter(|s| s.width > 0.0 && s.color.a > 0);
-    if object.fill.a > 0
-        && let Some(path) = to_px(&outline.fill)
-    {
-        let mut fill = Paint {
-            anti_alias: true,
-            ..Paint::default()
-        };
-        fill.set_color(color(object.fill, opacity));
-        pixmap.fill_path(&path, &fill, FillRule::Winding, Transform::identity(), None);
+    paint.set_color(c);
+    paint
+}
+
+/// Fills `path` (document space, `scale` mapping to pixels), non-zero.
+fn fill_with(pixmap: &mut Pixmap, path: &BezPath, c: Color, scale: f64) {
+    if let Some(path) = to_skia(&(Affine::scale(scale) * path.clone())) {
+        pixmap.fill_path(
+            &path,
+            &paint(c),
+            FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
     }
-    // Lines: a casing in the stroke color, then the line narrowed by the
-    // stroke width, so the stroke is centered on the line's edges.
-    if let Some((lines, width)) = &outline.lines
-        && let Some(path) = to_px(lines)
-    {
-        let inner = match stroke {
+}
+
+/// A centered stroke `width` wide along `path`: tiny-skia for the default
+/// style, the filled expanded outline otherwise.
+fn stroke_with(
+    pixmap: &mut Pixmap,
+    path: &BezPath,
+    c: Color,
+    width: f64,
+    line: &LineStyle,
+    scale: f64,
+) {
+    if !line.is_default() {
+        let region = stroke_region::expand(path, width, line, REGION_TOLERANCE / scale);
+        fill_with(pixmap, &region, c, scale);
+        return;
+    }
+    let Some(path) = to_skia(&(Affine::scale(scale) * path.clone())) else {
+        return;
+    };
+    let stroke = Stroke {
+        width: (width * scale) as f32,
+        line_join: LineJoin::MiterClip,
+        line_cap: LineCap::Round,
+        miter_limit: 4.0,
+        ..Stroke::default()
+    };
+    pixmap.stroke_path(&path, &paint(c), &stroke, Transform::identity(), None);
+}
+
+/// Draws a shape, `scale` mapping to pixels: the fill, then the lines of
+/// open subpaths (fill color, outlined by the stroke), then the stroke.
+fn draw_path(pixmap: &mut Pixmap, outline: &Outline, object: &Object, opacity: f32, scale: f64) {
+    let stroke = object.stroke.filter(|s| s.width > 0.0 && s.color.a > 0);
+    if object.fill.a > 0 {
+        fill_with(pixmap, &outline.fill, color(object.fill, opacity), scale);
+    }
+    // Lines: a casing in the stroke color, then the line body in the fill
+    // color, their widths set by the stroke's alignment; both follow the
+    // line's own dash, caps and joins.
+    if let Some((lines, width)) = &outline.lines {
+        let line = object
+            .path
+            .as_ref()
+            .map(|p| p.line_style)
+            .unwrap_or_default();
+        let body = match stroke {
             Some(s) => {
-                stroke_with(pixmap, &path, color(s.color, opacity), width + s.width);
-                width - s.width
+                let (casing, body) = stroke_region::line_widths(*width, s.width, s.align);
+                if casing > 0.0 {
+                    stroke_with(pixmap, lines, color(s.color, opacity), casing, &line, scale);
+                }
+                body
             }
             None => *width,
         };
-        if inner > 0.0 && object.fill.a > 0 {
-            stroke_with(pixmap, &path, color(object.fill, opacity), inner);
+        if body > 0.0 && object.fill.a > 0 {
+            stroke_with(
+                pixmap,
+                lines,
+                color(object.fill, opacity),
+                body,
+                &line,
+                scale,
+            );
         }
     }
-    if let Some(s) = stroke
-        && let Some(path) = to_px(&outline.stroke)
-    {
-        stroke_with(pixmap, &path, color(s.color, opacity), s.width);
+    if let Some(s) = stroke {
+        let c = color(s.color, opacity);
+        match stroke_region(
+            &outline.stroke,
+            Some(&outline.fill),
+            s.width,
+            s.align,
+            &s.line,
+            REGION_TOLERANCE / scale,
+        ) {
+            Some(region) if !region.elements().is_empty() => fill_with(pixmap, &region, c, scale),
+            // Default stroke, or a degenerate region: a centered stroke.
+            _ => stroke_with(
+                pixmap,
+                &outline.stroke,
+                c,
+                s.width,
+                &LineStyle::default(),
+                scale,
+            ),
+        }
     }
 }
 

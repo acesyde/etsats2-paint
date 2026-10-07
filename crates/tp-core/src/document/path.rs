@@ -162,6 +162,8 @@ pub struct PathData {
     /// Width of the lines open subpaths are drawn as (fill color), in
     /// texture pixels. Not scaled by resizes.
     pub line_width: f64,
+    /// Dashes, caps and joins of those lines (and of their outline).
+    pub line_style: super::object::LineStyle,
 }
 
 impl Default for PathData {
@@ -175,6 +177,7 @@ impl PathData {
         Self {
             subpaths,
             line_width: DEFAULT_LINE_WIDTH,
+            line_style: super::object::LineStyle::default(),
         }
     }
 

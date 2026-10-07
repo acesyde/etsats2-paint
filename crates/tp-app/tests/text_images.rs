@@ -388,6 +388,7 @@ fn outlined_lettering() {
     o.stroke = Some(StrokeStyle {
         color: Rgba::rgb(0, 0, 0),
         width: 6.0,
+        ..Default::default()
     });
     ws_mut(&mut h).project.surface_mut().replace(&[o]);
     settle(&mut h);
@@ -724,6 +725,17 @@ fn pick_a_color_from_a_logo() {
 #[test]
 #[ignore = "performance check; run with --release -- --ignored"]
 fn pan_with_50_texts_stays_fast() {
+    pan_with_50_texts(tp_core::document::StrokeAlign::Center);
+}
+
+/// The same with outside strokes (stroke regions clipped by the letters).
+#[test]
+#[ignore = "performance check; run with --release -- --ignored"]
+fn pan_with_50_outside_stroked_texts_stays_fast() {
+    pan_with_50_texts(tp_core::document::StrokeAlign::Outside);
+}
+
+fn pan_with_50_texts(align: tp_core::document::StrokeAlign) {
     use tp_core::document::{CharStyle, TextBlock};
     let mut h = open();
     {
@@ -741,12 +753,20 @@ fn pan_with_50_texts_stays_fast() {
             o.stroke = Some(StrokeStyle {
                 color: Rgba::rgb(0, 0, 0),
                 width: 6.0,
+                align,
+                ..Default::default()
             });
             o.frame.rotation_deg = f64::from(i % 7) * 5.0;
             ws.text.place_at(&mut o, anchor);
             ws.project.add(o);
         }
     }
+    let first = std::time::Instant::now();
+    h.step();
+    println!(
+        "{align:?}: first frame (meshes built): {:?}",
+        first.elapsed()
+    );
     settle(&mut h);
     let frames = 60;
     let start = std::time::Instant::now();
@@ -760,7 +780,7 @@ fn pan_with_50_texts_stays_fast() {
         h.step();
     }
     let per_frame = start.elapsed() / frames;
-    println!("average frame: {per_frame:?}");
+    println!("{align:?}: average frame: {per_frame:?}");
     assert!(
         per_frame < std::time::Duration::from_millis(16),
         "{per_frame:?}"

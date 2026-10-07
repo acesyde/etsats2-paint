@@ -122,6 +122,7 @@ fn export_difference(stroke: bool) -> (u8, usize) {
             text.stroke = Some(StrokeStyle {
                 color: Rgba::rgb(0, 0, 0),
                 width: 12.0,
+                ..Default::default()
             });
         }
         text.frame.rotation_deg = -12.0;

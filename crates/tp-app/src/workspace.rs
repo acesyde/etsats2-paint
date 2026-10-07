@@ -82,6 +82,7 @@ impl Default for Style {
             stroke: StrokeStyle {
                 color: Rgba::rgb(0, 0, 0),
                 width: DEFAULT_STROKE_WIDTH,
+                ..Default::default()
             },
             stroke_enabled: false,
         }
@@ -178,6 +179,10 @@ pub struct Workspace {
     pub polygon_style: crate::path_edit::PolygonStyle,
     /// Line width for new open paths (lines).
     pub line_width: f64,
+    /// Dash pattern, caps and joins for new lines.
+    pub line_style: tp_core::document::LineStyle,
+    /// Dash lengths last used, restored when Dashed is turned back on.
+    pub last_dash: tp_core::document::Dash,
     /// Grid, guides and snapping settings (copied from preferences).
     pub aids: crate::prefs::ViewAids,
     /// Guides should be shown (a guide was created while hidden).
@@ -225,6 +230,8 @@ impl Workspace {
             pen: None,
             polygon_style: Default::default(),
             line_width: tp_core::document::DEFAULT_LINE_WIDTH,
+            line_style: Default::default(),
+            last_dash: crate::ui::workspace::panels::line_style::DASHED,
             aids: Default::default(),
             request_show_guides: false,
             snapper: None,
@@ -591,7 +598,11 @@ impl Workspace {
             ColorTarget::Fill => o.fill = color,
             ColorTarget::Stroke => {
                 let w = o.stroke.map_or(width, |s| s.width);
-                o.stroke = Some(StrokeStyle { color, width: w });
+                o.stroke = Some(StrokeStyle {
+                    color,
+                    width: w,
+                    ..Default::default()
+                });
             }
         });
     }
@@ -614,6 +625,7 @@ impl Workspace {
                 o.stroke = Some(StrokeStyle {
                     color: o.fill,
                     width,
+                    ..Default::default()
                 })
             }
         });

@@ -20,6 +20,7 @@ eframe = { version = "0.36.2", default-features = false, features = ["wgpu", "de
 egui = "0.36.2"
 kurbo = "0.13.1"
 flo_curves = "0.8.1"
+i_overlay = "9.0.0"
 cosmic-text = { version = "0.19.0", default-features = false, features = ["std", "fontconfig"] }
 lyon_tessellation = "1.0.22"
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }

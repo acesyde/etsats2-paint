@@ -11,6 +11,8 @@ pub struct Segment<'a, T> {
     pub value: T,
     pub icon: &'a str,
     pub label: &'a str,
+    /// Accessible name and tooltip (the label unless set).
+    pub name: &'a str,
     pub shortcut: Option<String>,
 }
 
@@ -40,7 +42,21 @@ impl<'a, T: Copy + PartialEq> SegmentedControl<'a, T> {
             value,
             icon,
             label,
+            name: label,
             shortcut,
+        });
+        self
+    }
+
+    /// A segment whose accessible name and tooltip differ from its label
+    /// (e.g. "Round cap" and "Round join" both labelled "Round").
+    pub fn named_segment(mut self, value: T, icon: &'a str, label: &'a str, name: &'a str) -> Self {
+        self.segments.push(Segment {
+            value,
+            icon,
+            label,
+            name,
+            shortcut: None,
         });
         self
     }
@@ -82,12 +98,12 @@ impl<'a, T: Copy + PartialEq> SegmentedControl<'a, T> {
                 Vec2::new(width, height - 4.0),
             );
             x += width;
-            let id = ui.id().with(("segment", segment.label));
+            let id = ui.id().with(("segment", segment.name));
             let response = ui.interact(rect, id, Sense::click());
             let selected = segment.value == current;
             let enabled = ui.is_enabled();
             response.widget_info(|| {
-                WidgetInfo::selected(WidgetType::RadioButton, enabled, selected, segment.label)
+                WidgetInfo::selected(WidgetType::RadioButton, enabled, selected, segment.name)
             });
             let painter = ui.painter();
             if selected {
@@ -127,7 +143,7 @@ impl<'a, T: Copy + PartialEq> SegmentedControl<'a, T> {
             paint_focus_ring(ui, rect, &response, radius::SM);
             let response = name_and_shortcut_tooltip(
                 response,
-                segment.label,
+                segment.name,
                 segment.shortcut.as_deref(),
                 None,
             );

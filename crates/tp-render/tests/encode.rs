@@ -143,6 +143,7 @@ fn export_timings() {
             t.stroke = Some(StrokeStyle {
                 color: Rgba::rgb(0, 0, 0),
                 width: 6.0,
+                ..Default::default()
             });
             p.add(t);
         }

@@ -558,6 +558,7 @@ fn none_removes_stroke() {
     o.stroke = Some(StrokeStyle {
         color: Rgba::rgb(0, 0, 0),
         width: 8.0,
+        ..Default::default()
     });
     ws_mut(&mut h).project.surface_mut().replace(&[o]);
     select(&mut h, &[a]);

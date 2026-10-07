@@ -131,6 +131,7 @@ fn demo_scene(
         Some(StrokeStyle {
             color: Rgba::rgb(0x20, 0x20, 0x20),
             width: 24.0,
+            ..Default::default()
         }),
         1.0,
     );
@@ -254,6 +255,7 @@ fn livery_tree(
     logo.stroke = Some(StrokeStyle {
         color: Rgba::rgb(0x20, 0x20, 0x20),
         width: 24.0,
+        ..Default::default()
     });
     let logo = ws.project.add(logo);
     let mut name = shape(
@@ -363,6 +365,7 @@ fn lettering_scene(
         Some(StrokeStyle {
             color: black,
             width: 14.0,
+            ..Default::default()
         }),
     );
     let phone = add_text(
@@ -690,6 +693,7 @@ fn vector_scene(
     star.stroke = Some(StrokeStyle {
         color: Rgba::rgb(255, 255, 255),
         width: 24.0,
+        ..Default::default()
     });
     add(star);
     add(base(
@@ -743,6 +747,7 @@ fn vector_scene(
             line.stroke = Some(StrokeStyle {
                 color: Rgba::rgb(0, 0, 0),
                 width: 12.0,
+                ..Default::default()
             });
         }
         line.name = "Line".into();
@@ -1017,5 +1022,123 @@ fn render_combine() {
             ws.selection = vec![a, b];
         }
         save(&mut h, &format!("combine_{suffix}"));
+    }
+}
+
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_stroke_options() {
+    use tp_app::layout::PanelKind;
+    use tp_core::document::{
+        Cap, CharStyle, Dash, Frame, Join, LineStyle, Node, Object, ObjectId, PathData, Rgba,
+        ShapeKind, StrokeAlign, StrokeStyle, Subpath,
+    };
+    use tp_core::kurbo::Point;
+    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+        let mut prefs = Prefs {
+            ui_scale: scale,
+            ..Prefs::default()
+        };
+        for slot in &mut prefs.layout.panels {
+            match slot.kind {
+                PanelKind::Stroke => {
+                    slot.open = true;
+                    slot.collapsed = false;
+                }
+                PanelKind::Colors | PanelKind::Layers | PanelKind::Transform => {
+                    slot.collapsed = true;
+                }
+                _ => {}
+            }
+        }
+        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        common::create_project(&mut h);
+        let (text, line) = {
+            let ws = h.state_mut().workspace_mut().unwrap();
+            // A burgundy base with an inside border.
+            let mut base = Object::new(
+                ObjectId(0),
+                ShapeKind::rectangle(),
+                Frame::new(Point::new(2048.0, 2048.0), (3400.0, 2200.0).into(), 0.0),
+            );
+            base.fill = Rgba::rgb(0x7A, 0x1F, 0x2B);
+            base.stroke = Some(StrokeStyle {
+                color: Rgba::rgb(0xF0, 0xB4, 0x4C),
+                width: 40.0,
+                align: StrokeAlign::Inside,
+                line: LineStyle {
+                    join: Join::Round,
+                    ..LineStyle::default()
+                },
+            });
+            ws.project.add(base);
+            // Outside-outlined lettering.
+            let text = add_text(
+                ws,
+                "ACE",
+                CharStyle {
+                    family: "Barlow Condensed".into(),
+                    weight: 700,
+                    size: 900.0,
+                    ..CharStyle::default()
+                },
+                (900.0, 1300.0),
+                Rgba::rgb(255, 255, 255),
+                Some(StrokeStyle {
+                    color: Rgba::rgb(0x11, 0x11, 0x11),
+                    width: 30.0,
+                    align: StrokeAlign::Outside,
+                    line: LineStyle {
+                        join: Join::Round,
+                        ..LineStyle::default()
+                    },
+                }),
+            );
+            // A dashed pinstripe and a dotted line under the lettering.
+            let mut stripe = |y: f64, dash: Dash, cap: Cap, width: f64| {
+                let mut data = PathData::new(vec![Subpath::new(
+                    vec![
+                        Node::corner(Point::new(700.0, y)),
+                        Node::corner(Point::new(3400.0, y)),
+                    ],
+                    false,
+                )]);
+                data.line_width = width;
+                data.line_style = LineStyle {
+                    dash: Some(dash),
+                    cap,
+                    ..LineStyle::default()
+                };
+                let mut o = Object::from_path(ObjectId(0), data);
+                o.name = "Pinstripe".into();
+                o.fill = Rgba::rgb(0xF0, 0xB4, 0x4C);
+                ws.project.add(o)
+            };
+            let line = stripe(
+                2700.0,
+                Dash {
+                    dash: 120.0,
+                    gap: 60.0,
+                },
+                Cap::Butt,
+                36.0,
+            );
+            stripe(
+                2900.0,
+                Dash {
+                    dash: 0.0,
+                    gap: 60.0,
+                },
+                Cap::Round,
+                30.0,
+            );
+            ws.selection = vec![text];
+            (text, line)
+        };
+        let _ = text;
+        save(&mut h, &format!("stroke_options_text_{suffix}"));
+        h.state_mut().workspace_mut().unwrap().selection = vec![line];
+        save(&mut h, &format!("stroke_options_line_{suffix}"));
     }
 }

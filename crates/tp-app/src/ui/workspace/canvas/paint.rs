@@ -620,7 +620,7 @@ fn draw_gesture_feedback(
 fn draw_preview(painter: &Painter, object: &Object, map: &ScreenMap) {
     let tol = map.doc_len(0.25);
     let opacity = 0.6;
-    if uses_mesh(object.kind) {
+    if uses_mesh(object) {
         draw_mesh_object(painter, object, opacity, &shape_mesh(object, tol), map);
     } else {
         let points = object

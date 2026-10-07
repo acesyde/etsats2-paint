@@ -206,7 +206,7 @@ impl TextEngine {
             stroke: object
                 .stroke
                 .filter(|s| s.width > 0.0)
-                .map(|s| mesh::stroke(&outline, s.width, tolerance)),
+                .map(|s| crate::geometry_cache::stroke_mesh(&outline, &outline, &s, tolerance)),
         });
         self.meshes.insert(
             object.id,
@@ -322,6 +322,7 @@ mod tests {
         stroked.stroke = Some(StrokeStyle {
             color: tp_core::document::Rgba::rgb(0, 0, 0),
             width: 6.0,
+            ..Default::default()
         });
         let m = engine.mesh(&Arc::new(stroked), 0, 0.1);
         assert!(m.stroke.as_ref().is_some_and(|s| !s.is_empty()));

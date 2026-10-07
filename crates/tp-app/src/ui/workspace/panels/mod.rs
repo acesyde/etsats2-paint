@@ -4,6 +4,7 @@ mod assets;
 mod character;
 mod colors;
 mod layers;
+pub mod line_style;
 mod properties;
 mod stroke;
 mod transform;

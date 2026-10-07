@@ -245,6 +245,7 @@ fn line_uses_the_current_stroke_as_an_outline() {
         style.stroke = StrokeStyle {
             color: tp_core::document::Rgba::rgb(0, 0, 0),
             width: 4.0,
+            ..Default::default()
         };
     }
     set_tool(&mut h, Tool::Line);
@@ -833,6 +834,7 @@ fn pan_with_stars_and_paths_stays_fast() {
         star.stroke = Some(StrokeStyle {
             color: tp_core::document::Rgba::rgb(0, 0, 0),
             width: 6.0,
+            ..Default::default()
         });
         ws_mut(&mut h).project.add(star);
         // A wavy closed path of 40 smooth points.
@@ -850,6 +852,7 @@ fn pan_with_stars_and_paths_stays_fast() {
         path.stroke = Some(StrokeStyle {
             color: tp_core::document::Rgba::rgb(0, 0, 0),
             width: 4.0,
+            ..Default::default()
         });
         ws_mut(&mut h).project.add(path);
     }
