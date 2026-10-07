@@ -5,8 +5,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tp_core::document::{
-    Cap, CharStyle, Dash, Frame, Join, LineStyle, Node, Object, ObjectId, PathData, Rgba,
-    ShapeKind, StrokeAlign, StrokeStyle, Subpath, TextAlign, TextBlock,
+    Cap, CharStyle, ColorStop, Dash, Frame, Gradient, GradientKind, Join, LineStyle, Node, Object,
+    ObjectId, Paint, PathData, Rgba, ShapeKind, StrokeAlign, StrokeStyle, Subpath, TextAlign,
+    TextBlock,
 };
 use tp_core::kurbo::{Point, Size, Vec2};
 use tp_core::{AssetKind, Project, TextureResolution};
@@ -32,9 +33,9 @@ fn rich_project() -> Project {
         1000.0,
     );
     base.name = "Burgundy base".into();
-    base.fill = Rgba::rgb(0x7A, 0x1F, 0x2B);
+    base.fill = Paint::Solid(Rgba::rgb(0x7A, 0x1F, 0x2B));
     base.stroke = Some(StrokeStyle {
-        color: Rgba::rgb(0, 0, 0),
+        paint: Paint::Solid(Rgba::rgb(0, 0, 0)),
         width: 6.0,
         align: StrokeAlign::Outside,
         line: LineStyle {
@@ -94,7 +95,7 @@ fn rich_project() -> Project {
         p.add(image);
     }
     p.add_to_palette(Rgba::rgb(0xF0, 0xB4, 0x4C));
-    for o in vector_objects() {
+    for o in vector_objects().into_iter().chain(gradient_objects()) {
         p.add(o);
     }
     p.add_guide(tp_core::Guide::new(tp_core::Axis::Vertical, 2048.0));
@@ -137,7 +138,7 @@ fn vector_objects() -> Vec<Object> {
     );
     let mut swoosh = Object::from_path(ObjectId(0), PathData::new(vec![outer, hole]));
     swoosh.frame.rotation_deg = -20.0;
-    swoosh.fill = Rgba::rgb(0x10, 0x60, 0xA0);
+    swoosh.fill = Paint::Solid(Rgba::rgb(0x10, 0x60, 0xA0));
     let mut line = Object::from_path(
         ObjectId(0),
         PathData::new(vec![Subpath::new(
@@ -146,7 +147,7 @@ fn vector_objects() -> Vec<Object> {
         )]),
     );
     line.name = "Line".into();
-    line.fill = Rgba::rgb(255, 255, 255);
+    line.fill = Paint::Solid(Rgba::rgb(255, 255, 255));
     line.edit_path(|p| {
         p.line_width = 30.0;
         p.line_style.dash = Some(Dash {
@@ -155,6 +156,48 @@ fn vector_objects() -> Vec<Object> {
         });
     });
     vec![star, swoosh, line]
+}
+
+fn stops3() -> Vec<ColorStop> {
+    vec![
+        ColorStop::new(0.0, Rgba::rgb(0xF0, 0xB4, 0x4C)),
+        ColorStop::new(0.4, Rgba::with_alpha(0x7A, 0x1F, 0x2B, 200)),
+        ColorStop::new(1.0, Rgba::with_alpha(0x7A, 0x1F, 0x2B, 0)),
+    ]
+}
+
+/// A rectangle with a linear fill, an ellipse with a skewed radial fill and
+/// a line with a gradient outline (format 3).
+fn gradient_objects() -> Vec<Object> {
+    let frame = |x: f64| Frame::new(Point::new(x, 3800.0), Size::new(600.0, 200.0), 8.0);
+    let mut fade = Object::new(ObjectId(0), ShapeKind::rectangle(), frame(500.0));
+    fade.name = "Fade".into();
+    let mut linear = Gradient::new(GradientKind::Linear, &stops3());
+    linear.start = Point::new(0.1, 0.2);
+    linear.end = Point::new(0.9, 0.7);
+    fade.fill = Paint::Gradient(linear);
+    let mut glow = Object::new(ObjectId(0), ShapeKind::Ellipse, frame(1500.0));
+    glow.name = "Glow".into();
+    let mut radial = Gradient::new(GradientKind::Radial, &stops3());
+    radial.minor = Point::new(0.6, 0.9);
+    glow.fill = Paint::Gradient(radial);
+    let mut line = Object::from_path(
+        ObjectId(0),
+        PathData::new(vec![Subpath::new(
+            vec![
+                Node::corner(Point::new(2000.0, 3800.0)),
+                Node::corner(Point::new(2600.0, 3900.0)),
+            ],
+            false,
+        )]),
+    );
+    line.name = "Gradient line".into();
+    line.stroke = Some(StrokeStyle {
+        paint: Paint::Gradient(Gradient::new(GradientKind::Linear, &stops3())),
+        width: 4.0,
+        ..StrokeStyle::default()
+    });
+    vec![fade, glow, line]
 }
 
 fn assert_same_document(a: &Project, b: &Project) {
@@ -334,6 +377,13 @@ fn v2_fixture_opens() {
         }),
         "a dotted line"
     );
+    // Colors became solid paints.
+    assert_eq!(objects[5].fill, Paint::Solid(Rgba::rgb(0x10, 0x60, 0xA0)));
+    let graphics = &objects[0];
+    assert_eq!(
+        graphics.children[0].stroke.unwrap().paint,
+        Paint::Solid(Rgba::rgb(0, 0, 0))
+    );
     // The fixture holds exactly what the test project builds.
     let expected = vector_objects();
     for (got, want) in objects[4..].iter().zip(&expected) {
@@ -349,7 +399,7 @@ fn v2_document_without_guides_opens() {
         surfaces: [(name: "Main texture", size: 2048.0)])"#;
     let opened = tp_file::from_bytes(&zip_with(doc)).unwrap();
     assert!(opened.project.surface().guides.is_empty());
-    assert!(!opened.migrated);
+    assert!(opened.migrated);
 }
 
 #[test]
@@ -378,7 +428,7 @@ fn every_stroke_option_round_trips() {
             Frame::new(Point::new(100.0, 100.0), Size::new(50.0, 50.0), 0.0),
         );
         o.stroke = Some(StrokeStyle {
-            color: Rgba::rgb(1, 2, 3),
+            paint: Paint::Solid(Rgba::rgb(1, 2, 3)),
             width: 5.0,
             align: aligns[i],
             line,
@@ -426,14 +476,14 @@ fn v2_document_without_stroke_options_opens_with_defaults() {
 }
 
 #[test]
-fn format_3_is_newer() {
-    let err = tp_file::from_bytes(&zip_with("(format: 3, name: \"x\")")).unwrap_err();
+fn format_4_is_newer() {
+    let err = tp_file::from_bytes(&zip_with("(format: 4, name: \"x\")")).unwrap_err();
     assert!(
         matches!(
             err,
             Error::NewerVersion {
-                found: 3,
-                supported: 2
+                found: 4,
+                supported: 3
             }
         ),
         "{err:?}"
@@ -476,4 +526,46 @@ fn v1_fixture_opens() {
         .find(|a| a.kind == AssetKind::Svg)
         .unwrap();
     assert_eq!(&*svg.bytes, SVG);
+}
+
+#[test]
+fn v3_fixture_opens() {
+    let opened = tp_file::read(&fixture(3)).unwrap();
+    assert!(!opened.migrated);
+    assert_same_document(&opened.project, &rich_project());
+    let objects = &opened.project.surface().objects;
+    assert_eq!(objects.len(), 10);
+    let fade = objects[7].fill.gradient().unwrap();
+    assert_eq!(fade.kind, GradientKind::Linear);
+    assert_eq!(fade.stops(), stops3().as_slice());
+    assert_eq!(fade.end, Point::new(0.9, 0.7));
+    assert_eq!(
+        objects[8].fill.gradient().unwrap().minor,
+        Point::new(0.6, 0.9)
+    );
+    assert!(objects[9].stroke.unwrap().paint.gradient().is_some());
+}
+
+#[test]
+fn gradients_round_trip() {
+    let mut p = Project::new("x", TextureResolution::R2048);
+    for o in gradient_objects() {
+        p.add(o);
+    }
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap()).unwrap();
+    assert_eq!(opened.project.surfaces, p.surfaces);
+}
+
+#[test]
+fn gradient_with_one_stop_is_damaged() {
+    let doc = r#"(format: 3, name: "x", resolution: 2048, active_surface: 0,
+        surfaces: [(name: "Main texture", size: 2048.0, objects: [
+            (id: 1, name: "Box", kind: Rectangle(corner_radius: 0.0), center: (100.0, 100.0),
+             size: (50.0, 50.0), rotation: 0.0,
+             fill: Linear(start: (0.0, 0.5), end: (1.0, 0.5),
+                          stops: [(offset: 0.0, color: (255, 0, 0, 255))]),
+             opacity: 1.0, visible: true, locked: false),
+        ])])"#;
+    let err = tp_file::from_bytes(&zip_with(doc)).unwrap_err();
+    assert!(matches!(err, Error::Damaged(_)), "{err:?}");
 }

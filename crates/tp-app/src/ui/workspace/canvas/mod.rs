@@ -1,6 +1,7 @@
 //! Interactive canvas: navigation, tools, selection and transforms.
 
 pub mod aids;
+mod gradient_tool;
 mod paint;
 
 use egui::{
@@ -8,7 +9,7 @@ use egui::{
     Ui, Vec2, WidgetInfo, WidgetType,
 };
 use tp_core::document::{
-    Frame, Handle, ObjectId, ResizeOptions, Rgba, ShapeKind, angle_around, resize, rotate,
+    Frame, Handle, ObjectId, Paint, ResizeOptions, Rgba, ShapeKind, angle_around, resize, rotate,
     selection_frame, translate,
 };
 use tp_core::kurbo;
@@ -93,6 +94,7 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     ws.geometry.prune();
     ws.text.prune();
     ws.images.prune();
+    ws.gradients.prune();
 
     // An asset dragged from the Assets panel and dropped here.
     if let Some(asset) = response.dnd_release_payload::<tp_core::document::AssetId>() {
@@ -634,6 +636,7 @@ fn start_gesture(
                 direct_press(ws, doc, map, modifiers)
             }
         }
+        Tool::Gradient => gradient_tool::press(ws, map, origin, doc),
         Tool::Eyedropper | Tool::Text | Tool::Image => Gesture::Idle,
     };
 }
@@ -737,6 +740,10 @@ fn update_gesture(
             if let Some(view) = ws.viewport.as_mut() {
                 view.pan(ppp, drag_delta);
             }
+        }
+        Gesture::Gradient(drag) => {
+            let drag = drag.clone();
+            gradient_tool::update(ws, &drag, doc, modifiers.shift);
         }
         Gesture::Moving(base) => {
             let (originals, start) = (base.originals.clone(), base.start);
@@ -881,6 +888,10 @@ fn finish_gesture(
     ws.snap_hits.clear();
     match gesture {
         Gesture::Moving(base) => ws.record("Move", base.before, now, false),
+        Gesture::Gradient(drag) => {
+            let label = gradient_tool::label(ws.panels.color_target);
+            ws.record(label, drag.before, now, false);
+        }
         Gesture::Resizing { base, .. } => ws.record("Resize", base.before, now, false),
         Gesture::Rotating { base, .. } => ws.record("Rotate", base.before, now, false),
         Gesture::Drawing { kind, start, .. } => {
@@ -942,6 +953,7 @@ fn cancel_gesture(ws: &mut Workspace) {
             before,
             ..
         } => ws.restore(&before),
+        Gesture::Gradient(drag) => ws.restore(&drag.before),
         Gesture::PointMarquee {
             base, base_objects, ..
         } => {
@@ -989,19 +1001,21 @@ fn click(
             }
         },
         Tool::Image => ws.place_request = Some(Some(doc)),
-        Tool::Select | Tool::Move => match click_target(ws, doc, map, modifiers.command) {
-            Some(id) if modifiers.shift => {
-                if let Some(i) = ws.selection.iter().position(|s| *s == id) {
-                    ws.selection.remove(i);
-                } else {
-                    ws.selection.push(id);
-                    ws.normalize_selection();
+        Tool::Select | Tool::Move | Tool::Gradient => {
+            match click_target(ws, doc, map, modifiers.command) {
+                Some(id) if modifiers.shift => {
+                    if let Some(i) = ws.selection.iter().position(|s| *s == id) {
+                        ws.selection.remove(i);
+                    } else {
+                        ws.selection.push(id);
+                        ws.normalize_selection();
+                    }
                 }
+                Some(id) => ws.selection = vec![id],
+                None if !modifiers.shift => ws.selection.clear(),
+                None => {}
             }
-            Some(id) => ws.selection = vec![id],
-            None if !modifiers.shift => ws.selection.clear(),
-            None => {}
-        },
+        }
         Tool::Zoom => {
             if let Some(view) = ws.viewport.as_mut() {
                 let direction = if modifiers.alt { -1 } else { 1 };
@@ -1031,7 +1045,7 @@ fn eyedropper(ws: &mut Workspace, doc: kurbo::Point, map: &ScreenMap, now: f64) 
     let sampled =
         tp_core::document::tree::sample(&ws.project.surface().objects, doc, hit_tolerance(map));
     let background = Rgba::rgb(artboard.r(), artboard.g(), artboard.b());
-    let color = match sampled {
+    let paint = match sampled {
         Some(object) => match object.kind {
             ShapeKind::Image { asset } => {
                 // The pixel under the pointer, opaque.
@@ -1039,18 +1053,27 @@ fn eyedropper(ws: &mut Workspace, doc: kurbo::Point, map: &ScreenMap, now: f64) 
                 let size = object.frame.size;
                 let uv = [local.x / size.width + 0.5, local.y / size.height + 0.5];
                 match ws.images.sample(asset, uv) {
-                    Some(c) if c.a > 0 => Rgba::rgb(c.r, c.g, c.b),
-                    _ => background,
+                    Some(c) if c.a > 0 => Paint::Solid(Rgba::rgb(c.r, c.g, c.b)),
+                    _ => Paint::Solid(background),
                 }
             }
+            // The whole paint, gradients included (placed relative to each
+            // target's own frame).
             _ => match target {
-                ColorTarget::Stroke => object.stroke.map_or(object.fill, |s| s.color),
+                ColorTarget::Stroke => object.stroke.map_or(object.fill, |s| s.paint),
                 ColorTarget::Fill => object.fill,
             },
         },
-        None => background,
+        None => Paint::Solid(background),
     };
-    ws.apply_color(target, color);
+    if let Paint::Solid(c) = paint {
+        ws.recent_candidate = Some(c);
+    }
+    let label = match target {
+        ColorTarget::Fill => "Change Fill",
+        ColorTarget::Stroke => "Change Stroke",
+    };
+    ws.apply_paint(target, paint, label);
     ws.commit_pending(now);
 }
 
@@ -1127,7 +1150,7 @@ fn set_cursor(
         Gesture::Moving(_) => Ok(CursorIcon::Move),
         Gesture::Resizing { handle, bounds, .. } => Ok(resize_cursor(*handle, bounds.rotation_deg)),
         Gesture::Rotating { .. } => Err(ROTATE_CURSOR),
-        Gesture::Drawing { .. } => Ok(CursorIcon::Crosshair),
+        Gesture::Drawing { .. } | Gesture::Gradient(_) => Ok(CursorIcon::Crosshair),
         Gesture::Marquee { .. } => Ok(CursorIcon::Default),
         Gesture::ZoomRect { .. } => Ok(CursorIcon::ZoomIn),
         Gesture::TextSelect => Ok(CursorIcon::Text),
@@ -1144,9 +1167,12 @@ fn set_cursor(
                 Tool::Zoom if modifiers.alt => Ok(CursorIcon::ZoomOut),
                 Tool::Zoom => Ok(CursorIcon::ZoomIn),
                 Tool::Eyedropper => Err(EYEDROPPER_CURSOR),
-                Tool::Rectangle | Tool::Ellipse | Tool::Polygon | Tool::Line | Tool::Image => {
-                    Ok(CursorIcon::Crosshair)
-                }
+                Tool::Rectangle
+                | Tool::Ellipse
+                | Tool::Polygon
+                | Tool::Line
+                | Tool::Image
+                | Tool::Gradient => Ok(CursorIcon::Crosshair),
                 Tool::Pen => Err(PEN_CURSOR),
 
                 Tool::Text => Ok(CursorIcon::Text),

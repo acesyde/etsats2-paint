@@ -53,7 +53,7 @@ fn shape(h: &mut H, kind: ShapeKind, x0: f64, y0: f64, w: f64, hh: f64, fill: Rg
             0.0,
         ),
     );
-    o.fill = fill;
+    o.fill = fill.into();
     let id = ws_mut(h).project.add(o);
     h.run();
     id
@@ -107,7 +107,7 @@ fn unite_two_overlapping_squares() {
     from_combine_menu(&mut h, "Unite");
     let r = only_object(&h);
     assert_eq!(r.kind, ShapeKind::Path);
-    assert_eq!(r.fill, RED, "the topmost style");
+    assert_eq!(r.fill, RED.into(), "the topmost style");
     assert_eq!(
         r.path_data().unwrap().subpaths.len(),
         1,
@@ -142,7 +142,7 @@ fn cut_a_notch_with_the_shortcut_and_undo() {
     h.key_press_modifiers(Modifiers::COMMAND | Modifiers::SHIFT, Key::Minus);
     h.run();
     let r = only_object(&h);
-    assert_eq!(r.fill, BLUE, "the bottom style for Minus Front");
+    assert_eq!(r.fill, BLUE.into(), "the bottom style for Minus Front");
     assert!(r.contains(Point::new(1000.0, 1150.0), 0.0));
     assert!(!r.contains(Point::new(2080.0, 1150.0), 0.0), "the notch");
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);

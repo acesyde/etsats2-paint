@@ -298,8 +298,10 @@ impl AppState {
     }
 
     fn handle_keyboard(&mut self, ctx: &egui::Context) {
-        let field_focused =
-            ctx.text_edit_focused() || self.text_focus_last_frame || self.modal.is_some();
+        let field_focused = ctx.text_edit_focused()
+            || self.text_focus_last_frame
+            || self.modal.is_some()
+            || tp_ui::widgets::keyboard_claimed(ctx);
         let now = ctx.input(|i| i.time);
         let mut editing_text = false;
         if let Some(ws) = self.workspace_mut()

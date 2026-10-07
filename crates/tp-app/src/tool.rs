@@ -16,13 +16,14 @@ pub enum Tool {
     Text,
     Image,
     Eyedropper,
+    Gradient,
     Zoom,
     Hand,
 }
 
 impl Tool {
     /// Tool bar order.
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::Select,
         Self::DirectSelect,
         Self::Move,
@@ -34,6 +35,7 @@ impl Tool {
         Self::Text,
         Self::Image,
         Self::Eyedropper,
+        Self::Gradient,
         Self::Zoom,
         Self::Hand,
     ];
@@ -51,6 +53,7 @@ impl Tool {
             Self::Text => "Text",
             Self::Image => "Image",
             Self::Eyedropper => "Eyedropper",
+            Self::Gradient => "Gradient",
             Self::Zoom => "Zoom",
             Self::Hand => "Hand",
         }
@@ -69,6 +72,7 @@ impl Tool {
             Self::Text => icons::TEXT,
             Self::Image => icons::IMAGE,
             Self::Eyedropper => icons::EYEDROPPER,
+            Self::Gradient => icons::GRADIENT_TOOL,
             Self::Zoom => icons::ZOOM,
             Self::Hand => icons::HAND,
         }

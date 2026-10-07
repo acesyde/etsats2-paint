@@ -5,8 +5,8 @@ use std::collections::HashSet;
 use egui::Rect;
 use tp_core::document::tree::{self, Placement};
 use tp_core::document::{
-    CharStyle, DEFAULT_FILL, Frame, History, Object, ObjectId, Rgba, ShapeKind, StrokeStyle,
-    translate,
+    CharStyle, DEFAULT_FILL, Frame, Gradient, GradientKind, History, Object, ObjectId, Paint,
+    PaintKind, Rgba, ShapeKind, StrokeStyle, translate,
 };
 use tp_core::kurbo::Vec2;
 use tp_core::{Project, Snapshot};
@@ -70,7 +70,7 @@ pub enum ColorModel {
 /// Fill and stroke used for new shapes (not part of the document history).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Style {
-    pub fill: Rgba,
+    pub fill: Paint,
     pub stroke: StrokeStyle,
     pub stroke_enabled: bool,
 }
@@ -78,9 +78,9 @@ pub struct Style {
 impl Default for Style {
     fn default() -> Self {
         Self {
-            fill: DEFAULT_FILL,
+            fill: Paint::Solid(DEFAULT_FILL),
             stroke: StrokeStyle {
-                color: Rgba::rgb(0, 0, 0),
+                paint: Paint::Solid(Rgba::rgb(0, 0, 0)),
                 width: DEFAULT_STROKE_WIDTH,
                 ..Default::default()
             },
@@ -99,6 +99,8 @@ impl Style {
 #[derive(Debug, Default)]
 pub struct PanelState {
     pub color_target: ColorTarget,
+    /// Selected stop of the gradient being edited (clamped on use).
+    pub gradient_stop: usize,
     pub color_model: ColorModel,
     /// Last color shown in the picker with its HSV, so hue survives at zero
     /// saturation or value.
@@ -170,6 +172,8 @@ pub struct Workspace {
     pub text_session: Option<TextSession>,
     /// Display textures of image assets.
     pub images: ImageCache,
+    /// Ramp textures of the gradients drawn on the canvas.
+    pub gradients: crate::gradient_textures::GradientTextures,
     /// The file dialog should open to place images, at a point or the view
     /// center (Place command, Image tool).
     pub place_request: Option<Option<tp_core::kurbo::Point>>,
@@ -226,6 +230,7 @@ impl Workspace {
             text_style: CharStyle::default(),
             text_session: None,
             images: ImageCache::default(),
+            gradients: Default::default(),
             place_request: None,
             pen: None,
             polygon_style: Default::default(),
@@ -575,55 +580,123 @@ impl Workspace {
             .retain(|s| *s != id && !tree::is_ancestor(objects, id, *s));
     }
 
-    /// Applies a color to the selection's fills or strokes (live), or to the
-    /// current style when nothing is selected.
+    /// The paint being edited for `target`: the current style's with no
+    /// selection, else the first selected shape's (the first stroked one
+    /// for strokes). `None` when no selected shape has a stroke.
+    pub fn edited_paint(&self, target: ColorTarget) -> Option<Paint> {
+        if self.selection.is_empty() {
+            return Some(match target {
+                ColorTarget::Fill => self.style.fill,
+                ColorTarget::Stroke => self.style.stroke.paint,
+            });
+        }
+        self.selected_shapes()
+            .iter()
+            .find_map(|o| paint_of(o, target))
+    }
+
+    /// Applies a color (live): to the selected stop when the edited paint
+    /// is a gradient (the whole gradient then goes to every selected shape),
+    /// else as a solid color. With nothing selected, to the current style.
     pub fn apply_color(&mut self, target: ColorTarget, color: Rgba) {
         self.recent_candidate = Some(color);
+        match self.edited_paint(target) {
+            Some(Paint::Gradient(mut g)) => {
+                let i = self.panels.gradient_stop.min(g.stops().len() - 1);
+                let mut stops = g.stops().to_vec();
+                stops[i].color = color;
+                g.set_stops(&stops);
+                let label = match target {
+                    ColorTarget::Fill => "Change Fill Gradient",
+                    ColorTarget::Stroke => "Change Stroke Gradient",
+                };
+                self.apply_paint(target, Paint::Gradient(g), label);
+            }
+            _ => {
+                let label = match target {
+                    ColorTarget::Fill => "Change Fill",
+                    ColorTarget::Stroke => "Change Stroke",
+                };
+                self.apply_paint(target, Paint::Solid(color), label);
+            }
+        }
+    }
+
+    /// Sets the paint of `target` (live) on every selected shape, or on the
+    /// current style. Shapes without a stroke get one (current width).
+    pub fn apply_paint(&mut self, target: ColorTarget, paint: Paint, label: &'static str) {
+        self.map_paints(target, label, |_, _| paint);
+    }
+
+    /// Replaces the paint of `target` (live) with `f(current, frame)` on
+    /// every selected shape (`current` is `None` for a missing stroke, which
+    /// then gets one at the current width), or on the current style (with
+    /// a unit frame).
+    pub fn map_paints(
+        &mut self,
+        target: ColorTarget,
+        label: &'static str,
+        mut f: impl FnMut(Option<Paint>, &Frame) -> Paint,
+    ) {
         if self.selection.is_empty() {
+            let unit = Frame::from_rect(tp_core::kurbo::Rect::new(0.0, 0.0, 1.0, 1.0));
             match target {
-                ColorTarget::Fill => self.style.fill = color,
+                ColorTarget::Fill => self.style.fill = f(Some(self.style.fill), &unit),
                 ColorTarget::Stroke => {
-                    self.style.stroke.color = color;
+                    self.style.stroke.paint = f(Some(self.style.stroke.paint), &unit);
                     self.style.stroke_enabled = true;
                 }
             }
             return;
         }
-        let label = match target {
-            ColorTarget::Fill => "Change Fill",
-            ColorTarget::Stroke => "Change Stroke",
-        };
         let width = self.style.stroke.width;
         self.map_selected_shapes(label, |o| match target {
-            ColorTarget::Fill => o.fill = color,
+            ColorTarget::Fill => o.fill = f(Some(o.fill), &o.frame),
             ColorTarget::Stroke => {
-                let w = o.stroke.map_or(width, |s| s.width);
-                o.stroke = Some(StrokeStyle {
-                    color,
-                    width: w,
+                let paint = f(o.stroke.map(|s| s.paint), &o.frame);
+                let mut stroke = o.stroke.unwrap_or(StrokeStyle {
+                    width,
                     ..Default::default()
                 });
+                stroke.paint = paint;
+                o.stroke = Some(stroke);
             }
         });
     }
 
-    /// Swaps fill and stroke colors (Shift+X). Shapes without a stroke get
-    /// one in their fill color.
+    /// Changes the kind of paint of `target` (live): a solid color becomes
+    /// a gradient from that color to transparent, a gradient keeps its stops
+    /// when switching between linear and radial and becomes its first
+    /// stop's color when made solid.
+    pub fn set_paint_kind(&mut self, target: ColorTarget, kind: PaintKind) {
+        let label = match target {
+            ColorTarget::Fill => "Change Fill Type",
+            ColorTarget::Stroke => "Change Stroke Type",
+        };
+        self.panels.gradient_stop = 0;
+        let fallback = self.style.stroke.paint;
+        self.map_paints(target, label, |paint, _| {
+            convert_paint(paint.unwrap_or(fallback), kind)
+        });
+    }
+
+    /// Swaps fill and stroke paints (Shift+X). Shapes without a stroke get
+    /// one in their fill paint.
     pub fn swap_fill_stroke(&mut self, now: f64) {
         if self.selection.is_empty() {
             let style = &mut self.style;
-            std::mem::swap(&mut style.fill, &mut style.stroke.color);
+            std::mem::swap(&mut style.fill, &mut style.stroke.paint);
             return;
         }
         let width = self.style.stroke.width;
         self.map_selected_shapes("Swap Fill and Stroke", |o| match o.stroke {
             Some(mut stroke) => {
-                std::mem::swap(&mut o.fill, &mut stroke.color);
+                std::mem::swap(&mut o.fill, &mut stroke.paint);
                 o.stroke = Some(stroke);
             }
             None => {
                 o.stroke = Some(StrokeStyle {
-                    color: o.fill,
+                    paint: o.fill,
                     width,
                     ..Default::default()
                 })
@@ -639,7 +712,7 @@ impl Workspace {
             return;
         }
         self.map_selected_shapes("Default Colors", |o| {
-            o.fill = DEFAULT_FILL;
+            o.fill = Paint::Solid(DEFAULT_FILL);
             o.stroke = None;
         });
         self.commit_pending(now);
@@ -684,6 +757,30 @@ impl Workspace {
             text: text.into(),
             until: now + 2.5,
         });
+    }
+}
+
+/// The paint of `target` on `o` (`None`: no stroke).
+pub fn paint_of(o: &Object, target: ColorTarget) -> Option<Paint> {
+    match target {
+        ColorTarget::Fill => Some(o.fill),
+        ColorTarget::Stroke => o.stroke.map(|s| s.paint),
+    }
+}
+
+/// `paint` turned into `kind` (see [`Workspace::set_paint_kind`]).
+pub fn convert_paint(paint: Paint, kind: PaintKind) -> Paint {
+    let gradient_kind = match kind {
+        PaintKind::Solid => return Paint::Solid(paint.first_color()),
+        PaintKind::Linear => GradientKind::Linear,
+        PaintKind::Radial => GradientKind::Radial,
+    };
+    match paint {
+        Paint::Solid(c) => Paint::Gradient(Gradient::from_color(gradient_kind, c)),
+        Paint::Gradient(mut g) => {
+            g.set_kind(gradient_kind);
+            Paint::Gradient(g)
+        }
     }
 }
 
@@ -755,11 +852,17 @@ mod tests {
         ws.commit_pending(1.0);
         assert_eq!(ws.history.len(), 2);
         assert_eq!(ws.history.undo_label(), Some("Change Fill"));
-        assert_eq!(ws.selected_objects()[0].fill, Rgba::rgb(200, 0, 0));
+        assert_eq!(
+            ws.selected_objects()[0].fill,
+            Paint::Solid(Rgba::rgb(200, 0, 0))
+        );
 
         ws.apply_color(ColorTarget::Fill, Rgba::rgb(0, 255, 0));
         ws.cancel_pending();
-        assert_eq!(ws.selected_objects()[0].fill, Rgba::rgb(200, 0, 0));
+        assert_eq!(
+            ws.selected_objects()[0].fill,
+            Paint::Solid(Rgba::rgb(200, 0, 0))
+        );
         assert_eq!(ws.history.len(), 2);
     }
 
@@ -772,8 +875,98 @@ mod tests {
         assert!(!ws.has_pending());
         ws.create_shape(ShapeKind::Ellipse, frame(100.0), 0.0);
         let o = &ws.selected_objects()[0];
-        assert_eq!(o.fill, Rgba::rgb(255, 255, 255));
+        assert_eq!(o.fill, Paint::Solid(Rgba::rgb(255, 255, 255)));
         assert_eq!(o.stroke.unwrap().width, 8.0);
+    }
+
+    fn red_blue() -> Paint {
+        Paint::Gradient(Gradient::new(
+            GradientKind::Linear,
+            &[
+                tp_core::document::ColorStop::new(0.0, Rgba::rgb(255, 0, 0)),
+                tp_core::document::ColorStop::new(1.0, Rgba::rgb(0, 0, 255)),
+            ],
+        ))
+    }
+
+    #[test]
+    fn color_goes_to_the_selected_stop_of_a_gradient() {
+        let mut ws = ws();
+        ws.create_shape(ShapeKind::rectangle(), frame(100.0), 0.0);
+        ws.apply_paint(ColorTarget::Fill, red_blue(), "Change Fill Type");
+        ws.commit_pending(1.0);
+        ws.panels.gradient_stop = 1;
+        ws.apply_color(ColorTarget::Fill, Rgba::rgb(0, 255, 0));
+        ws.commit_pending(2.0);
+        assert_eq!(ws.history.undo_label(), Some("Change Fill Gradient"));
+        let g = *ws.selected_objects()[0].fill.gradient().unwrap();
+        assert_eq!(g.stops()[0].color, Rgba::rgb(255, 0, 0));
+        assert_eq!(g.stops()[1].color, Rgba::rgb(0, 255, 0));
+        assert_eq!(ws.recent_candidate, Some(Rgba::rgb(0, 255, 0)));
+    }
+
+    #[test]
+    fn paint_kind_changes() {
+        let mut ws = ws();
+        ws.create_shape(ShapeKind::rectangle(), frame(100.0), 0.0);
+        ws.apply_color(ColorTarget::Fill, Rgba::rgb(255, 0, 0));
+        ws.commit_pending(1.0);
+        ws.set_paint_kind(ColorTarget::Fill, PaintKind::Linear);
+        ws.commit_pending(2.0);
+        let g = *ws.selected_objects()[0].fill.gradient().unwrap();
+        assert_eq!(g.kind, GradientKind::Linear);
+        assert_eq!(g.stops()[0].color, Rgba::rgb(255, 0, 0));
+        assert_eq!(g.stops()[1].color, Rgba::with_alpha(255, 0, 0, 0));
+        // Linear → radial keeps the stops.
+        ws.set_paint_kind(ColorTarget::Fill, PaintKind::Radial);
+        ws.commit_pending(3.0);
+        let r = *ws.selected_objects()[0].fill.gradient().unwrap();
+        assert_eq!((r.kind, r.stops()), (GradientKind::Radial, g.stops()));
+        // Gradient → solid: the first stop.
+        ws.set_paint_kind(ColorTarget::Fill, PaintKind::Solid);
+        ws.commit_pending(4.0);
+        assert_eq!(
+            ws.selected_objects()[0].fill,
+            Paint::Solid(Rgba::rgb(255, 0, 0))
+        );
+        ws.undo();
+        ws.undo();
+        ws.undo();
+        assert_eq!(
+            ws.selected_objects()[0].fill,
+            Paint::Solid(Rgba::rgb(255, 0, 0))
+        );
+    }
+
+    #[test]
+    fn swap_and_default_with_gradients() {
+        let mut ws = ws();
+        ws.create_shape(ShapeKind::rectangle(), frame(100.0), 0.0);
+        ws.apply_paint(ColorTarget::Fill, red_blue(), "Change Fill");
+        ws.apply_color(ColorTarget::Stroke, Rgba::rgb(0, 0, 0));
+        ws.commit_pending(1.0);
+        ws.swap_fill_stroke(2.0);
+        let o = &ws.selected_objects()[0];
+        assert_eq!(o.fill, Paint::Solid(Rgba::rgb(0, 0, 0)));
+        assert_eq!(o.stroke.unwrap().paint, red_blue());
+        ws.default_colors(3.0);
+        let o = &ws.selected_objects()[0];
+        assert_eq!(o.fill, Paint::Solid(DEFAULT_FILL));
+        assert!(o.stroke.is_none());
+    }
+
+    #[test]
+    fn recoloring_a_stroke_keeps_its_style() {
+        let mut ws = ws();
+        ws.create_shape(ShapeKind::rectangle(), frame(100.0), 0.0);
+        ws.apply_color(ColorTarget::Stroke, Rgba::rgb(0, 0, 0));
+        ws.map_selected_shapes("x", |o| {
+            o.stroke.as_mut().unwrap().align = tp_core::document::StrokeAlign::Inside;
+        });
+        ws.apply_color(ColorTarget::Stroke, Rgba::rgb(9, 9, 9));
+        let s = ws.selected_objects()[0].stroke.unwrap();
+        assert_eq!(s.align, tp_core::document::StrokeAlign::Inside);
+        assert_eq!(s.paint, Paint::Solid(Rgba::rgb(9, 9, 9)));
     }
 
     #[test]

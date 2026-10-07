@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use tp_core::document::{
-    CharStyle, Frame, Node, Object, ObjectId, PathData, Rgba, ShapeKind, StrokeStyle, Subpath,
-    TextBlock,
+    CharStyle, ColorStop, Frame, Gradient, GradientKind, Node, Object, ObjectId, Paint, PathData,
+    Rgba, ShapeKind, StrokeAlign, StrokeStyle, Subpath, TextBlock,
 };
 use tp_core::kurbo::{Point, Shape, Size};
 use tp_core::{AssetKind, Project, TextureResolution};
@@ -25,7 +25,7 @@ fn shape(kind: ShapeKind, c: (f64, f64), s: (f64, f64), rot: f64, fill: Rgba) ->
         kind,
         Frame::new(Point::new(c.0, c.1), Size::new(s.0, s.1), rot),
     );
-    o.fill = fill;
+    o.fill = fill.into();
     o
 }
 
@@ -169,7 +169,7 @@ fn text_counter_is_empty_and_stroke_covers_outline() {
     let layout = tp_text::layout(&mut fonts, "O", &block.style);
     block.layout_size = layout.size;
     let mut text = Object::text(ObjectId(0), block, Point::new(1000.0, 1000.0));
-    text.fill = Rgba::rgb(0, 0, 0);
+    text.fill = Rgba::rgb(0, 0, 0).into();
     let mut p = project(TextureResolution::R2048);
     let id = p.add(text.clone());
     let placed = (**p.surface().get(id).unwrap()).clone();
@@ -184,7 +184,7 @@ fn text_counter_is_empty_and_stroke_covers_outline() {
 
     let mut stroked = placed;
     stroked.stroke = Some(StrokeStyle {
-        color: RED,
+        paint: RED.into(),
         width: 10.0,
         ..Default::default()
     });
@@ -308,7 +308,7 @@ fn red_v(line_width: f64) -> Object {
             false,
         )]),
     );
-    v.fill = RED;
+    v.fill = RED.into();
     v.edit_path(|p| p.line_width = line_width);
     v
 }
@@ -336,7 +336,7 @@ fn outlined_line() {
     let mut p = project(TextureResolution::R2048);
     let mut v = red_v(40.0);
     v.stroke = Some(StrokeStyle {
-        color: BLACK,
+        paint: BLACK.into(),
         width: 8.0,
         ..Default::default()
     });
@@ -382,7 +382,7 @@ fn hole_shows_the_background() {
             ),
         ]),
     );
-    o.fill = BLUE;
+    o.fill = BLUE.into();
     p.add(o);
     let img = draw(&p, 2048, None);
     assert_eq!(px(&img, 150, 150), [0, 0, 255, 255]);
@@ -427,7 +427,7 @@ fn mirrored_path_renders_mirrored() {
         ResizeOptions::default(),
     )
     .remove(0);
-    flipped.fill = RED;
+    flipped.fill = RED.into();
     // Now spans x -100..100 with the right angle at the bottom-right: move it
     // back on the surface.
     flipped.translate_deep(tp_core::kurbo::Vec2::new(300.0, 0.0));
@@ -444,11 +444,11 @@ fn mirrored_path_renders_mirrored() {
 
 // Stroke options.
 
-use tp_core::document::{Cap, Dash, LineStyle, StrokeAlign};
+use tp_core::document::{Cap, Dash, LineStyle};
 
 fn black_stroke(width: f64, align: StrokeAlign) -> Option<StrokeStyle> {
     Some(StrokeStyle {
-        color: BLACK,
+        paint: BLACK.into(),
         width,
         align,
         ..Default::default()
@@ -482,7 +482,7 @@ fn outside_outline_never_covers_the_letters() {
     let layout = tp_text::layout(&mut fonts, "OA", &block.style);
     block.layout_size = layout.size;
     let mut text = Object::text(ObjectId(0), block, Point::new(1000.0, 1000.0));
-    text.fill = RED;
+    text.fill = RED.into();
     let mut p = project(TextureResolution::R2048);
     let id = p.add(text);
     let plain = draw(&p, 2048, Some(WHITE));
@@ -518,7 +518,7 @@ fn horizontal_line(width: f64, line_style: LineStyle) -> Object {
         ObjectId(0),
         PathData::new(vec![polyline(&[(100.0, 500.0), (300.0, 500.0)], false)]),
     );
-    l.fill = RED;
+    l.fill = RED.into();
     l.edit_path(|p| {
         p.line_width = width;
         p.line_style = line_style;
@@ -613,4 +613,151 @@ fn line_outline_alignment_sets_the_widths() {
     // Inside: outline 6..10, nothing past 10.
     let i = column(StrokeAlign::Inside);
     assert_eq!((i[5], i[7], i[9], i[11]), (red, black, black, [255; 4]));
+}
+
+fn two_stops(kind: GradientKind, a: Rgba, b: Rgba) -> Gradient {
+    Gradient::new(kind, &[ColorStop::new(0.0, a), ColorStop::new(1.0, b)])
+}
+
+#[test]
+fn linear_gradient_across_the_surface() {
+    let mut p = project(TextureResolution::R2048);
+    let black = Rgba::rgb(0, 0, 0);
+    let mut o = shape(
+        ShapeKind::rectangle(),
+        (1024.0, 1024.0),
+        (2048.0, 2048.0),
+        0.0,
+        WHITE,
+    );
+    o.fill = Paint::Gradient(two_stops(GradientKind::Linear, black, WHITE));
+    p.add(o);
+    let img = draw(&p, 1024, None);
+    let mut prev = 0;
+    for x in 0..1024 {
+        let c = px(&img, x, 512);
+        assert_eq!((c[0], c[1], c[3]), (c[2], c[2], 255), "gray at {x}");
+        assert!(c[0] >= prev, "non-decreasing at {x}");
+        prev = c[0];
+    }
+    assert!(px(&img, 0, 512)[0] <= 1 && px(&img, 1023, 512)[0] >= 254);
+    assert!(px(&img, 512, 512)[0].abs_diff(128) <= 1);
+}
+
+#[test]
+fn radial_gradient_center_and_edge() {
+    let mut p = project(TextureResolution::R2048);
+    let mut o = shape(
+        ShapeKind::rectangle(),
+        (1024.0, 1024.0),
+        (1024.0, 1024.0),
+        0.0,
+        WHITE,
+    );
+    o.fill = Paint::Gradient(two_stops(GradientKind::Radial, RED, BLUE));
+    p.add(o);
+    let img = draw(&p, 2048, Some(WHITE));
+    assert!(
+        close(px(&img, 1024, 1024), [255, 0, 0, 255], 2),
+        "red center"
+    );
+    // Halfway along the radius (256 px): the 50% mix.
+    assert!(close(px(&img, 1280, 1024), [128, 0, 128, 255], 2));
+    assert!(close(px(&img, 1024, 768), [128, 0, 128, 255], 2));
+    // Beyond the radius (corners of the square): the last stop.
+    assert!(
+        close(px(&img, 530, 530), [0, 0, 255, 255], 1),
+        "blue corner"
+    );
+}
+
+#[test]
+fn gradient_follows_rotation() {
+    let mut p = project(TextureResolution::R2048);
+    let mut o = shape(
+        ShapeKind::rectangle(),
+        (1024.0, 1024.0),
+        (1000.0, 400.0),
+        90.0,
+        WHITE,
+    );
+    o.fill = Paint::Gradient(two_stops(GradientKind::Linear, RED, BLUE));
+    p.add(o);
+    let img = draw(&p, 2048, Some(WHITE));
+    // Turned 90° clockwise: the left edge (red) is now at the top.
+    assert!(close(px(&img, 1024, 530), [255, 0, 0, 255], 4), "red top");
+    assert!(
+        close(px(&img, 1024, 1518), [0, 0, 255, 255], 4),
+        "blue bottom"
+    );
+}
+
+#[test]
+fn outside_stroke_with_a_gradient() {
+    let mut p = project(TextureResolution::R2048);
+    let mut o = shape(
+        ShapeKind::rectangle(),
+        (1024.0, 1024.0),
+        (1000.0, 1000.0),
+        0.0,
+        WHITE,
+    );
+    o.stroke = Some(StrokeStyle {
+        paint: Paint::Gradient(two_stops(GradientKind::Linear, RED, BLUE)),
+        width: 40.0,
+        align: StrokeAlign::Outside,
+        ..StrokeStyle::default()
+    });
+    p.add(o);
+    let img = draw(&p, 2048, Some(Rgba::rgb(0, 255, 0)));
+    // Left of the shape: before the start, the first stop.
+    assert!(close(px(&img, 504, 1024), [255, 0, 0, 255], 2), "red left");
+    assert!(
+        close(px(&img, 1544, 1024), [0, 0, 255, 255], 2),
+        "blue right"
+    );
+    // On the top band, at the middle: the 50% mix.
+    assert!(close(px(&img, 1024, 504), [128, 0, 128, 255], 2));
+    // Inside the shape: the white fill, not the stroke.
+    assert_eq!(px(&img, 1024, 1024), [255; 4]);
+}
+
+#[test]
+fn degenerate_gradient_paints_the_last_stop() {
+    let mut p = project(TextureResolution::R2048);
+    let mut o = shape(
+        ShapeKind::rectangle(),
+        (1024.0, 1024.0),
+        (400.0, 400.0),
+        0.0,
+        WHITE,
+    );
+    let mut g = two_stops(GradientKind::Linear, RED, BLUE);
+    g.end = g.start;
+    o.fill = Paint::Gradient(g);
+    p.add(o);
+    let img = draw(&p, 2048, Some(WHITE));
+    assert_eq!(px(&img, 1024, 1024), [0, 0, 255, 255]);
+}
+
+#[test]
+fn gradient_opacity_and_transparent_stops() {
+    let mut p = project(TextureResolution::R2048);
+    let mut o = shape(
+        ShapeKind::rectangle(),
+        (1024.0, 1024.0),
+        (2048.0, 2048.0),
+        0.0,
+        WHITE,
+    );
+    o.fill = Paint::Gradient(Gradient::from_color(GradientKind::Linear, RED));
+    o.opacity = 0.5;
+    p.add(o);
+    let img = draw(&p, 1024, None);
+    let left = px(&img, 0, 512);
+    assert_eq!((left[0], left[1], left[2]), (255, 0, 0), "never darkened");
+    assert!(left[3].abs_diff(127) <= 2, "half opacity: {left:?}");
+    let mid = px(&img, 512, 512);
+    assert_eq!((mid[0], mid[1], mid[2]), (255, 0, 0), "never darkened");
+    assert!(mid[3].abs_diff(64) <= 2, "{mid:?}");
 }

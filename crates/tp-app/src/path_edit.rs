@@ -593,7 +593,7 @@ mod tests {
     #[test]
     fn new_lines_use_the_current_style_and_line_width() {
         let mut ws = ws();
-        ws.style.fill = tp_core::document::Rgba::rgb(255, 0, 0);
+        ws.style.fill = tp_core::document::Rgba::rgb(255, 0, 0).into();
         let id = ws.create_line(Point::new(0.0, 0.0), Point::new(10.0, 0.0), 1.0);
         let line = ws.project.surface().get(id).unwrap();
         assert_eq!(line.fill, ws.style.fill);

@@ -320,7 +320,7 @@ mod tests {
         assert_eq!(engine.mesh_misses, 1);
         let mut stroked = (*o).clone();
         stroked.stroke = Some(StrokeStyle {
-            color: tp_core::document::Rgba::rgb(0, 0, 0),
+            paint: tp_core::document::Rgba::rgb(0, 0, 0).into(),
             width: 6.0,
             ..Default::default()
         });

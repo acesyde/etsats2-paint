@@ -3,7 +3,7 @@
 
 use egui::{RichText, Slider, Ui, WidgetInfo, WidgetType};
 use tp_core::AssetKind;
-use tp_core::document::{LineStyle, Object, ShapeKind};
+use tp_core::document::{GradientKind, LineStyle, Object, Paint, ShapeKind};
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, space};
@@ -32,9 +32,22 @@ pub fn common<T: PartialEq + Copy>(mut values: impl Iterator<Item = T>) -> Optio
     values.all(|v| v == first).then_some(first)
 }
 
-fn swatch_of(color: Option<tp_core::document::Rgba>) -> SwatchColor {
-    match color {
-        Some(c) => SwatchColor::Solid(egui::Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a)),
+/// The preview of a gradient for swatches and the gradient bar.
+pub fn gradient_preview(g: &tp_core::document::Gradient) -> tp_ui::widgets::GradientPreview {
+    let stops: Vec<(f32, [u8; 4])> = g
+        .stops()
+        .iter()
+        .map(|s| (s.offset, [s.color.r, s.color.g, s.color.b, s.color.a]))
+        .collect();
+    tp_ui::widgets::GradientPreview::new(g.kind == GradientKind::Radial, &stops)
+}
+
+fn swatch_of(paint: Option<Paint>) -> SwatchColor {
+    match paint {
+        Some(Paint::Solid(c)) => {
+            SwatchColor::Solid(egui::Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a))
+        }
+        Some(Paint::Gradient(g)) => SwatchColor::Gradient(gradient_preview(&g)),
         None => SwatchColor::Mixed,
     }
 }
@@ -45,14 +58,14 @@ pub fn selection_swatches(ws: &Workspace) -> (SwatchColor, SwatchColor) {
     if shapes.is_empty() && ws.selection.is_empty() {
         let fill = swatch_of(Some(ws.style.fill));
         let stroke = match ws.style.stroke() {
-            Some(s) => swatch_of(Some(s.color)),
+            Some(s) => swatch_of(Some(s.paint)),
             None => SwatchColor::None,
         };
         return (fill, stroke);
     }
     let fill = swatch_of(common(shapes.iter().map(|o| o.fill)));
-    let stroke = match common(shapes.iter().map(|o| o.stroke.map(|s| s.color))) {
-        Some(Some(c)) => swatch_of(Some(c)),
+    let stroke = match common(shapes.iter().map(|o| o.stroke.map(|s| s.paint))) {
+        Some(Some(p)) => swatch_of(Some(p)),
         Some(None) => SwatchColor::None,
         None => SwatchColor::Mixed,
     };

@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use tp_core::document::{Object, ObjectId, PathData, ShapeKind};
+use tp_core::kurbo::Affine;
 
 use crate::workspace::Workspace;
 
@@ -25,7 +26,8 @@ pub fn group_name(content: &str) -> String {
 
 impl Workspace {
     /// The letter paths of a text, in reading order (empty without visible
-    /// letters). Each letter keeps the text's rotation, fill and stroke.
+    /// letters). Each letter keeps the text's rotation, fill and stroke
+    /// (gradients at the same place in the document).
     pub fn text_letters(&mut self, text: &Object) -> Vec<Object> {
         let Some(block) = &text.text else {
             return Vec::new();
@@ -42,6 +44,8 @@ impl Workspace {
                 letter.name = content.get(g.range).unwrap_or("?").to_owned();
                 letter.fill = text.fill;
                 letter.stroke = text.stroke;
+                // Gradients span the word as they did, not each letter.
+                letter.remap_paints(&text.frame, Affine::IDENTITY);
                 letter
             })
             .collect()

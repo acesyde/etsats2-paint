@@ -384,9 +384,9 @@ fn outlined_lettering() {
     let mut h = open();
     let id = create_text(&mut h, 800.0, 900.0, "ACE");
     let mut o = obj(&h, id);
-    o.fill = Rgba::rgb(255, 255, 255);
+    o.fill = Rgba::rgb(255, 255, 255).into();
     o.stroke = Some(StrokeStyle {
-        color: Rgba::rgb(0, 0, 0),
+        paint: Rgba::rgb(0, 0, 0).into(),
         width: 6.0,
         ..Default::default()
     });
@@ -718,7 +718,10 @@ fn pick_a_color_from_a_logo() {
     set_tool(&mut h, Tool::Eyedropper);
     let p = screen(&h, 2500.0, 2500.0);
     click_at(&mut h, p, Modifiers::NONE);
-    assert_eq!(obj(&h, text).fill, Rgba::rgb(BLUE[0], BLUE[1], BLUE[2]));
+    assert_eq!(
+        obj(&h, text).fill,
+        tp_core::document::Paint::from(Rgba::rgb(BLUE[0], BLUE[1], BLUE[2]))
+    );
 }
 
 /// Frame-time budget with 50 stroked texts while panning (release only).
@@ -735,8 +738,20 @@ fn pan_with_50_outside_stroked_texts_stays_fast() {
     pan_with_50_texts(tp_core::document::StrokeAlign::Outside);
 }
 
+/// The same with gradient fills and strokes (ramp textures).
+#[test]
+#[ignore = "performance check; run with --release -- --ignored"]
+fn pan_with_50_gradient_texts_stays_fast() {
+    pan_with_50_texts_with(tp_core::document::StrokeAlign::Outside, true);
+}
+
 fn pan_with_50_texts(align: tp_core::document::StrokeAlign) {
+    pan_with_50_texts_with(align, false);
+}
+
+fn pan_with_50_texts_with(align: tp_core::document::StrokeAlign, gradients: bool) {
     use tp_core::document::{CharStyle, TextBlock};
+    use tp_core::document::{ColorStop, Gradient, GradientKind, Paint};
     let mut h = open();
     {
         let ws = ws_mut(&mut h);
@@ -751,16 +766,29 @@ fn pan_with_50_texts(align: tp_core::document::StrokeAlign) {
                 anchor,
             );
             o.stroke = Some(StrokeStyle {
-                color: Rgba::rgb(0, 0, 0),
+                paint: Rgba::rgb(0, 0, 0).into(),
                 width: 6.0,
                 align,
                 ..Default::default()
             });
             o.frame.rotation_deg = f64::from(i % 7) * 5.0;
             ws.text.place_at(&mut o, anchor);
+            if gradients {
+                // Five distinct gradients: five ramp textures of each kind.
+                let tint = (i % 5) as u8 * 40;
+                let stops = [
+                    ColorStop::new(0.0, Rgba::rgb(255, tint, 0)),
+                    ColorStop::new(1.0, Rgba::rgb(0, tint, 255)),
+                ];
+                o.fill = Paint::Gradient(Gradient::new(GradientKind::Radial, &stops));
+                if let Some(s) = &mut o.stroke {
+                    s.paint = Paint::Gradient(Gradient::new(GradientKind::Linear, &stops));
+                }
+            }
             ws.project.add(o);
         }
     }
+    let align = (align, gradients);
     let first = std::time::Instant::now();
     h.step();
     println!(

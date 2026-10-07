@@ -3,6 +3,7 @@
 mod buttons;
 mod color_widgets;
 mod empty_state;
+mod gradient_bar;
 mod menu_row;
 mod numeric_field;
 mod panel_header;
@@ -12,10 +13,11 @@ mod tool_button;
 
 pub use buttons::{IconButton, primary_button, secondary_button, toggle_icon_button};
 pub use color_widgets::{
-    ColorSwatch, FillOrStroke, FillStrokeSwatches, Hsv, SwatchColor, alpha_slider, hue_slider,
-    paint_checkerboard, sv_square,
+    ColorSwatch, FillOrStroke, FillStrokeSwatches, GradientPreview, Hsv, PREVIEW_STOPS,
+    SwatchColor, alpha_slider, hue_slider, paint_checkerboard, sv_square,
 };
 pub use empty_state::EmptyState;
+pub use gradient_bar::{GradientBar, GradientBarEvent, keyboard_claimed};
 pub use menu_row::MenuRow;
 pub use numeric_field::{FieldEvent, NumericField, parse_number, remember_escape, take_escape};
 pub use panel_header::{PanelHeader, PanelHeaderResponse};

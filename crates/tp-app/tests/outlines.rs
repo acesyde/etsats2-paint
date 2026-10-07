@@ -117,10 +117,10 @@ fn export_difference(stroke: bool) -> (u8, usize) {
     {
         let ws = ws_mut(&mut h);
         let mut text = (**ws.project.surface().get(id).unwrap()).clone();
-        text.fill = Rgba::rgb(200, 30, 40);
+        text.fill = Rgba::rgb(200, 30, 40).into();
         if stroke {
             text.stroke = Some(StrokeStyle {
-                color: Rgba::rgb(0, 0, 0),
+                paint: Rgba::rgb(0, 0, 0).into(),
                 width: 12.0,
                 ..Default::default()
             });
@@ -275,4 +275,45 @@ fn outlined_text_round_trips_through_a_file() {
     let bytes = tp_file::to_bytes(&project).unwrap();
     let opened = tp_file::from_bytes(&bytes).unwrap().project;
     assert_eq!(opened.surfaces, project.surfaces);
+}
+
+#[test]
+fn outlined_gradient_text_keeps_the_gradient_in_place() {
+    use tp_core::document::{ColorStop, Gradient, GradientKind, Paint};
+    let mut h = open();
+    let id = add_text(&mut h, "ROAD", Point::new(1500.0, 1500.0));
+    let gradient = Gradient::new(
+        GradientKind::Linear,
+        &[
+            ColorStop::new(0.0, Rgba::rgb(240, 180, 76)),
+            ColorStop::new(1.0, Rgba::rgb(122, 31, 43)),
+        ],
+    );
+    let text = {
+        let ws = ws_mut(&mut h);
+        let mut text = (**ws.project.surface().get(id).unwrap()).clone();
+        text.fill = Paint::Gradient(gradient);
+        text.frame.rotation_deg = -12.0;
+        ws.project.surface_mut().replace(&[text.clone()]);
+        ws.selection = vec![id];
+        text
+    };
+    h.run();
+    let want = gradient.document_points(&text.frame);
+    ws_mut(&mut h).create_outlines(1.0);
+    h.run();
+    let group = object(&h, id);
+    assert_eq!(group.children.len(), 4);
+    for letter in &group.children {
+        let got = letter
+            .fill
+            .gradient()
+            .unwrap()
+            .document_points(&letter.frame);
+        assert!(
+            (got.0 - want.0).hypot() < 1e-6 && (got.1 - want.1).hypot() < 1e-6,
+            "{} {got:?} {want:?}",
+            letter.name
+        );
+    }
 }

@@ -14,7 +14,7 @@ fn scene(size: u32) -> Pixmap {
         ShapeKind::Ellipse,
         Frame::new(Point::new(1024.0, 1024.0), Size::new(1200.0, 800.0), 20.0),
     );
-    o.fill = Rgba::rgb(200, 30, 40);
+    o.fill = Rgba::rgb(200, 30, 40).into();
     p.add(o);
     render(
         &p,
@@ -122,7 +122,7 @@ fn export_timings() {
                     f,
                 ),
             );
-            o.fill = Rgba::rgb((i * 7 % 255) as u8, 80, 160);
+            o.fill = Rgba::rgb((i * 7 % 255) as u8, 80, 160).into();
             o.opacity = 0.8;
             p.add(o);
         }
@@ -141,7 +141,7 @@ fn export_timings() {
                 Point::new(side / 2.0, f64::from(i) * side / 30.0 + 50.0),
             );
             t.stroke = Some(StrokeStyle {
-                color: Rgba::rgb(0, 0, 0),
+                paint: Rgba::rgb(0, 0, 0).into(),
                 width: 6.0,
                 ..Default::default()
             });
