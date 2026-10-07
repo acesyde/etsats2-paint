@@ -100,6 +100,34 @@ struct Header {
     format: u32,
 }
 
+/// What development builds wrote in format 1 before it was released:
+/// projects without a vehicle (blank textures), a single `vehicle`, or
+/// vehicles with `variants`. Read before the full document, which they
+/// don't match.
+fn is_development_v1(text: &str) -> bool {
+    /// True when the field is present, whatever its value.
+    fn present<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
+        serde::de::IgnoredAny::deserialize(d).map(|_| true)
+    }
+    #[derive(Deserialize)]
+    struct Vehicle {
+        #[serde(default, deserialize_with = "present")]
+        variants: bool,
+    }
+    #[derive(Deserialize)]
+    struct Markers {
+        #[serde(default)]
+        vehicles: Vec<Vehicle>,
+        #[serde(default, deserialize_with = "present")]
+        vehicle: bool,
+    }
+    match ron_options().from_str::<Markers>(text) {
+        Ok(m) => m.vehicles.is_empty() || m.vehicle || m.vehicles.iter().any(|v| v.variants),
+        // Not even the markers parse: the full parse reports the damage.
+        Err(_) => false,
+    }
+}
+
 fn ron_options() -> ron::Options {
     ron::Options::default()
 }
@@ -160,14 +188,12 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Opened, Error> {
     let header: Header = ron_options()
         .from_str(&text)
         .map_err(|e| Error::Damaged(e.to_string()))?;
-    let (document, migrated) = migrate(header.format, &text)?;
-    // Blank-texture projects of development builds: every project has a
-    // vehicle now.
-    if !document.has_vehicle() {
+    if header.format == 1 && is_development_v1(&text) {
         return Err(Error::Unsupported {
             found: header.format,
         });
     }
+    let (document, migrated) = migrate(header.format, &text)?;
     let project = current::into_project(&document, |entry| {
         let mut out = Vec::new();
         zip.by_name(entry).ok()?.read_to_end(&mut out).ok()?;

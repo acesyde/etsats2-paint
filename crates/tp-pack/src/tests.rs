@@ -5,8 +5,18 @@ use tp_vehicles::sample;
 
 use super::*;
 
-/// A manifest of one variant with `templates` as (id, size, path).
+/// A truck manifest whose first `(id, size, path)` is its main texture and
+/// the others accessories.
 fn manifest(templates: &[(&str, u32, &str)]) -> Value {
+    let part = |(id, size, path): &(&str, u32, &str), game_ids: Vec<String>| {
+        json!({
+            "id": id,
+            "name": id,
+            "game_ids": game_ids,
+            "texture": { "size": size, "template": path, "layout_version": 1 },
+            "future_part_field": {"kept": true},
+        })
+    };
     json!({
         "format": 1,
         "id": "community.jdoe.my_truck",
@@ -14,21 +24,15 @@ fn manifest(templates: &[(&str, u32, &str)]) -> Value {
         "name": "My Truck",
         "brand": "Jdoe",
         "kind": "truck",
-        "game": "ets2",
-        "game_versions": ">=1.50",
+        "game": { "id": "ets2", "versions": ">=1.50", "path": "jdoe.my_truck" },
         "future_field": {"kept": true},
-        "variants": [{
-            "id": "standard",
-            "name": "Standard",
-            "textures": templates.iter().map(|(id, size, path)| json!({
-                "id": id,
-                "name": id,
-                "size": size,
-                "template": path,
-                "layout_version": 1,
-                "export": {"def": id},
-            })).collect::<Vec<_>>(),
-        }],
+        "paint_job": {
+            "main": templates[..1].iter().map(|t| part(t, Vec::new())).collect::<Vec<_>>(),
+            "accessories": templates[1..]
+                .iter()
+                .map(|t| part(t, vec![format!("{}.acc", t.0)]))
+                .collect::<Vec<_>>(),
+        },
     })
 }
 
@@ -68,10 +72,13 @@ fn packs_referenced_files_reproducibly() {
     let zip = zip::ZipArchive::new(Cursor::new(&a.bytes)).unwrap();
     let names: Vec<&str> = zip.file_names().collect();
     assert_eq!(names, [MANIFEST, "templates/cabin.png"]);
-    // Unknown and export fields are kept.
+    // Unknown fields are kept, at every level.
     let m = packaged_manifest(&a.bytes);
     assert_eq!(m["future_field"]["kept"], true);
-    assert_eq!(m["variants"][0]["textures"][1]["export"]["def"], "chassis");
+    assert_eq!(
+        m["paint_job"]["accessories"][0]["future_part_field"]["kept"],
+        true
+    );
 }
 
 #[test]
@@ -155,16 +162,17 @@ fn dds_templates_become_png() {
         ]
     );
     let m = packaged_manifest(&packed.bytes);
+    // A main texture and an accessory are both rewritten.
     assert_eq!(
-        m["variants"][0]["textures"][0]["template"],
+        m["paint_job"]["main"][0]["texture"]["template"],
         "templates/cabin.png"
     );
     assert_eq!(
-        m["variants"][0]["textures"][1]["template"],
+        m["paint_job"]["accessories"][0]["texture"]["template"],
         "templates/chassis.png"
     );
     let package = Package::read(&packed.bytes).unwrap();
-    let chassis = package.template("standard", "chassis").unwrap();
+    let chassis = package.template("chassis").unwrap();
     assert_eq!((chassis.width, chassis.height), (16.0, 16.0));
     let decoded = image::load_from_memory(&chassis.bytes).unwrap().to_rgba8();
     assert_eq!(decoded, image, "uncompressed DDS converts exactly");
@@ -213,9 +221,17 @@ fn check_and_summary() {
     let m = check(&bytes).unwrap();
     let text = summary(&m);
     assert!(text.starts_with("scs.sample.truck 1.2.0"), "{text}");
-    assert!(text.contains("variant standard (Standard cabin)"), "{text}");
+    assert!(text.contains("game path: sample.vehicle"), "{text}");
+    assert!(text.contains("  main textures:\n"), "{text}");
     assert!(
-        text.contains("cabin (Cabin): 4096×4096, layout 1"),
+        text.contains("cabin (Cabin): 4096×4096, layout 1, templates/cabin.png [whole vehicle]"),
+        "{text}"
+    );
+    assert!(text.contains("  accessories:\n"), "{text}");
+    assert!(
+        text.contains(
+            "chassis (Chassis): 2048×2048, layout 1, templates/chassis.png [chassis.sample]"
+        ),
         "{text}"
     );
     assert!(matches!(

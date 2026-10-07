@@ -31,5 +31,5 @@
   <text x="3026.0" y="3253.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">REAR WALL</text>
   <rect x="120.0" y="3460.0" width="1900.0" height="260.0" rx="30.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
   <text x="1070.0" y="3623.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">BUMPER</text>
-  <text x="4040.0" y="4040.0" font-family="sans-serif" font-size="72.0" fill="#1d2330" fill-opacity="0.7" text-anchor="end">TruckPaint Sample Truck - Cabin, High roof - layout 1</text>
+  <text x="4040.0" y="4040.0" font-family="sans-serif" font-size="72.0" fill="#1d2330" fill-opacity="0.7" text-anchor="end">TruckPaint Sample Truck - High roof - layout 1</text>
 </svg>

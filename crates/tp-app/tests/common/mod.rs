@@ -14,15 +14,15 @@ pub const SIZE: Vec2 = Vec2::new(1440.0, 900.0);
 pub const SAMPLE: &str = "TruckPaint Sample Truck";
 
 /// A vehicle library in a temporary folder (kept for the whole test run)
-/// with the built-in sample vehicle installed.
+/// with the built-in sample truck and trailer installed.
 pub fn sample_library() -> VehicleLibrary {
     let dir = tempfile::tempdir().expect("temporary folder").keep();
     let mut library = VehicleLibrary::open(&dir);
-    library.install_sample().expect("sample vehicle");
+    library.install_samples().expect("sample vehicles");
     library
 }
 
-/// The application with in-memory preferences and the sample vehicle
+/// The application with in-memory preferences and the sample vehicles
 /// installed.
 fn state(prefs: Prefs) -> AppState {
     let mut state = AppState::with_prefs(prefs, None);
@@ -49,8 +49,10 @@ pub fn wgpu_harness_with(prefs: Prefs, size: Vec2) -> Harness<'static, AppState>
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state(prefs))
 }
 
-/// Opens a project for the sample vehicle's Standard cab, as New Project
-/// would make it: its 4096 px Cabin is active. Its templates are hidden:
+/// Opens a project for the sample truck with its default textures, as New
+/// Project would make it: the Standard cab (4096 px), Chassis, Cab
+/// accessories and Side skirts; the Standard cab is active. Its templates
+/// are hidden:
 /// the sample's SVG templates render in a background thread whose repaints
 /// would make editing tests depend on timing (tests/vehicles.rs covers
 /// templates and the wizard).
@@ -63,9 +65,10 @@ pub fn create_project(harness: &mut Harness<'static, AppState>) {
     if !has_sample {
         harness.state_mut().vehicles = sample_library();
     }
-    let package = Package::read(tp_app::vehicles::SAMPLE).expect("sample package");
-    let mut project = tp_app::vehicle_project::vehicle_project(SAMPLE, &package, "standard")
-        .expect("sample variant");
+    let package = Package::read(tp_app::vehicles::SAMPLES[0].bytes).expect("sample package");
+    let textures = tp_app::vehicle_project::default_textures(&package.manifest);
+    let mut project = tp_app::vehicle_project::fleet_project(SAMPLE, &package, &textures)
+        .expect("sample textures");
     for surface in &mut project.surfaces {
         if let Some(t) = surface.template.as_mut() {
             t.visible = false;

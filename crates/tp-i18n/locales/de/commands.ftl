@@ -149,7 +149,7 @@ reason-no-template = Diese Textur hat keine Vorlage.
 
 cmd-add-vehicle = Fahrzeug hinzufügen…
 reason-last-vehicle = Ein Projekt behält mindestens ein Fahrzeug.
-reason-choose-vehicle = Wählen Sie ein Fahrzeug und mindestens eine Variante.
+reason-choose-vehicle = Wählen Sie ein Fahrzeug und mindestens eine Haupttextur.
 
 ## Textures
 

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048">
+  <!-- TruckPaint sample template: original artwork, MIT licensed. -->
+  <rect x="4.0" y="4.0" width="2040.0" height="2040.0" fill="none" stroke="#1d2330" stroke-opacity="0.5" stroke-width="8.0"/>
+  <rect x="60.0" y="100.0" width="1928.0" height="210.0" rx="30.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="5.0"/>
+  <text x="1024.0" y="188.2" font-family="sans-serif" font-size="48.0" font-weight="bold" fill="#1d2330" text-anchor="middle">CHASSIS FRAME</text>
+  <text x="1024.0" y="248.2" font-family="sans-serif" font-size="28.8" fill="#1d2330" text-anchor="middle">left</text>
+  <rect x="60.0" y="380.0" width="1928.0" height="210.0" rx="30.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="5.0"/>
+  <text x="1024.0" y="468.2" font-family="sans-serif" font-size="48.0" font-weight="bold" fill="#1d2330" text-anchor="middle">CHASSIS FRAME</text>
+  <text x="1024.0" y="528.2" font-family="sans-serif" font-size="28.8" fill="#1d2330" text-anchor="middle">right</text>
+  <rect x="90.0" y="700.0" width="880.0" height="550.0" rx="20.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="5.0"/>
+  <text x="530.0" y="991.8" font-family="sans-serif" font-size="48.0" font-weight="bold" fill="#1d2330" text-anchor="middle">FRONT WALL</text>
+  <rect x="1080.0" y="700.0" width="880.0" height="550.0" rx="20.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="5.0"/>
+  <text x="1520.0" y="991.8" font-family="sans-serif" font-size="48.0" font-weight="bold" fill="#1d2330" text-anchor="middle">TOOL BOX</text>
+  <rect x="90.0" y="1380.0" width="880.0" height="250.0" rx="20.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="5.0"/>
+  <text x="530.0" y="1488.2" font-family="sans-serif" font-size="48.0" font-weight="bold" fill="#1d2330" text-anchor="middle">LANDING GEAR</text>
+  <text x="530.0" y="1548.2" font-family="sans-serif" font-size="28.8" fill="#1d2330" text-anchor="middle">left</text>
+  <rect x="1080.0" y="1380.0" width="880.0" height="250.0" rx="20.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="5.0"/>
+  <text x="1520.0" y="1488.2" font-family="sans-serif" font-size="48.0" font-weight="bold" fill="#1d2330" text-anchor="middle">LANDING GEAR</text>
+  <text x="1520.0" y="1548.2" font-family="sans-serif" font-size="28.8" fill="#1d2330" text-anchor="middle">right</text>
+  <rect x="90.0" y="1730.0" width="1870.0" height="200.0" rx="15.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="5.0"/>
+  <text x="1025.0" y="1846.8" font-family="sans-serif" font-size="48.0" font-weight="bold" fill="#1d2330" text-anchor="middle">REAR BUMPER</text>
+  <text x="2020.0" y="2020.0" font-family="sans-serif" font-size="36.0" fill="#1d2330" fill-opacity="0.7" text-anchor="end">TruckPaint Sample Trailer - Base - layout 1</text>
+</svg>

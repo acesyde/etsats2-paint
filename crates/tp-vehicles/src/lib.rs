@@ -62,24 +62,81 @@ pub struct Requirement {
     pub version: Option<String>,
 }
 
+/// What a part's template looks like on the texture.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Texture {
-    pub id: String,
-    pub name: String,
+    /// Square side in pixels (one of [`SIZES`]).
     pub size: u32,
     /// Path of the template image inside the package.
     pub template: String,
     pub layout_version: u32,
-    /// Data for the mod export, kept as-is.
-    #[serde(default)]
-    pub export: Option<serde_json::Value>,
 }
 
+/// A paintable part of the vehicle: one texture, and what it covers in the
+/// game (cabin internal names for a main texture, accessory ids for an
+/// accessory).
 #[derive(Clone, Debug, PartialEq, Deserialize)]
-pub struct Variant {
+pub struct Part {
     pub id: String,
     pub name: String,
-    pub textures: Vec<Texture>,
+    #[serde(default)]
+    pub game_ids: Vec<String>,
+    pub texture: Texture,
+}
+
+/// Whether a part is a main texture or an accessory.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Role {
+    Main,
+    Accessory,
+}
+
+/// The vehicle's paint job: main textures (one per cabin layout, or one for
+/// the whole vehicle) and accessory textures shared by the whole vehicle.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct PaintJob {
+    #[serde(default)]
+    pub main: Vec<Part>,
+    #[serde(default)]
+    pub accessories: Vec<Part>,
+}
+
+impl PaintJob {
+    /// Every part in package order: main textures, then accessories.
+    pub fn parts(&self) -> impl Iterator<Item = (Role, &Part)> {
+        self.main
+            .iter()
+            .map(|p| (Role::Main, p))
+            .chain(self.accessories.iter().map(|p| (Role::Accessory, p)))
+    }
+
+    /// The part `id` and its role.
+    pub fn part(&self, id: &str) -> Option<(Role, &Part)> {
+        self.parts().find(|(_, p)| p.id == id)
+    }
+
+    /// Position of part `id` in package order.
+    pub fn position(&self, id: &str) -> Option<usize> {
+        self.parts().position(|(_, p)| p.id == id)
+    }
+}
+
+/// What the package targets in the game.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct GameTarget {
+    pub id: Game,
+    /// The game versions the package is made for.
+    pub versions: semver::VersionReq,
+    /// The vehicle's path in the game's definitions (`scania.r_2016`).
+    pub path: String,
+    /// The paint job uses the vehicle's alternate UV set.
+    #[serde(default)]
+    pub alt_uv: bool,
+    /// The paint job lets the player pick a base color.
+    #[serde(default)]
+    pub colour_picker: bool,
+    #[serde(default)]
+    pub requires: Vec<Requirement>,
 }
 
 /// The `vehicle.json` manifest (unknown fields are ignored).
@@ -91,8 +148,6 @@ pub struct Manifest {
     pub name: String,
     pub brand: String,
     pub kind: Kind,
-    pub game: Game,
-    pub game_versions: semver::VersionReq,
     #[serde(default)]
     pub authors: Vec<String>,
     #[serde(default)]
@@ -103,15 +158,8 @@ pub struct Manifest {
     pub description: Option<String>,
     #[serde(default)]
     pub preview: Option<String>,
-    #[serde(default)]
-    pub requires: Vec<Requirement>,
-    pub variants: Vec<Variant>,
-}
-
-impl Manifest {
-    pub fn variant(&self, id: &str) -> Option<&Variant> {
-        self.variants.iter().find(|v| v.id == id)
-    }
+    pub game: GameTarget,
+    pub paint_job: PaintJob,
 }
 
 /// Why a package is refused. Messages are built by the application.
@@ -123,13 +171,17 @@ pub enum PackageError {
     BadManifest(String),
     NewerFormat(u32),
     BadId(String),
-    NoVariant,
-    EmptyVariant(String),
-    DuplicateTexture {
-        variant: String,
-        texture: String,
-    },
-    DuplicateVariant(String),
+    BadGamePath(String),
+    NoMainTexture,
+    /// Two parts share an id.
+    DuplicatePart(String),
+    /// An accessory, or one of several main textures, has no game id
+    /// (the part's name).
+    MissingGameIds(String),
+    BadGameId(String),
+    /// A game id appears twice among the main textures or among the
+    /// accessories.
+    DuplicateGameId(String),
     BadSize {
         texture: String,
         size: u32,
@@ -174,22 +226,18 @@ pub struct TemplateImage {
     pub height: f64,
 }
 
-/// A validated package: its manifest and every template, in variant and
-/// texture order.
+/// A validated package: its manifest and every template, in package order.
 #[derive(Clone, Debug)]
 pub struct Package {
     pub manifest: Manifest,
-    /// `(variant id, texture id, image)`.
-    pub templates: Vec<(String, String, TemplateImage)>,
+    /// `(part id, image)`.
+    pub templates: Vec<(String, TemplateImage)>,
 }
 
 impl Package {
-    /// The template of a texture of a variant.
-    pub fn template(&self, variant: &str, texture: &str) -> Option<&TemplateImage> {
-        self.templates
-            .iter()
-            .find(|(v, t, _)| v == variant && t == texture)
-            .map(|(_, _, i)| i)
+    /// The template of part `id`.
+    pub fn template(&self, id: &str) -> Option<&TemplateImage> {
+        self.templates.iter().find(|(p, _)| p == id).map(|(_, i)| i)
     }
 
     /// Reads and fully validates a package.
@@ -199,11 +247,9 @@ impl Package {
         let manifest = parse_manifest(&mut zip)?;
         validate(&manifest)?;
         let mut templates = Vec::new();
-        for variant in &manifest.variants {
-            for texture in &variant.textures {
-                let image = read_template(&mut zip, texture)?;
-                templates.push((variant.id.clone(), texture.id.clone(), image));
-            }
+        for (_, part) in manifest.paint_job.parts() {
+            let image = read_template(&mut zip, part)?;
+            templates.push((part.id.clone(), image));
         }
         Ok(Package {
             manifest,
@@ -293,6 +339,16 @@ pub fn is_valid_id(id: &str) -> bool {
         })
 }
 
+/// Words of a–z, 0–9 and `_` separated by dots (the game's unit names;
+/// no length limit, real accessory ids exceed the 12 characters of a token).
+pub fn is_valid_game_name(name: &str) -> bool {
+    name.split('.').all(|w| {
+        !w.is_empty()
+            && w.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    })
+}
+
 fn validate(m: &Manifest) -> Result<(), PackageError> {
     if m.format > FORMAT {
         return Err(PackageError::NewerFormat(m.format));
@@ -300,33 +356,53 @@ fn validate(m: &Manifest) -> Result<(), PackageError> {
     if !is_valid_id(&m.id) {
         return Err(PackageError::BadId(m.id.clone()));
     }
-    if m.variants.is_empty() {
-        return Err(PackageError::NoVariant);
+    if !is_valid_game_name(&m.game.path) {
+        return Err(PackageError::BadGamePath(m.game.path.clone()));
     }
-    let mut variant_ids = HashSet::new();
-    for v in &m.variants {
-        if !variant_ids.insert(&v.id) {
-            return Err(PackageError::DuplicateVariant(v.id.clone()));
+    let job = &m.paint_job;
+    if job.main.is_empty() {
+        return Err(PackageError::NoMainTexture);
+    }
+    let mut ids = HashSet::new();
+    for (_, part) in job.parts() {
+        if !ids.insert(&part.id) {
+            return Err(PackageError::DuplicatePart(part.id.clone()));
         }
-        if v.textures.is_empty() {
-            return Err(PackageError::EmptyVariant(v.name.clone()));
+        validate_part(part)?;
+    }
+    // Several main textures each say which cabins they are for; an
+    // accessory always says which accessories it covers.
+    validate_game_ids(&job.main, job.main.len() > 1)?;
+    validate_game_ids(&job.accessories, true)
+}
+
+fn validate_part(part: &Part) -> Result<(), PackageError> {
+    if !SIZES.contains(&part.texture.size) {
+        return Err(PackageError::BadSize {
+            texture: part.name.clone(),
+            size: part.texture.size,
+        });
+    }
+    if !is_safe_path(&part.texture.template) {
+        return Err(PackageError::UnsafePath(part.texture.template.clone()));
+    }
+    Ok(())
+}
+
+/// Game ids of a list of parts: well formed, unique in the list, and
+/// present on each part when `required`.
+fn validate_game_ids(parts: &[Part], required: bool) -> Result<(), PackageError> {
+    let mut seen = HashSet::new();
+    for part in parts {
+        if required && part.game_ids.is_empty() {
+            return Err(PackageError::MissingGameIds(part.name.clone()));
         }
-        let mut ids = HashSet::new();
-        for t in &v.textures {
-            if !ids.insert(&t.id) {
-                return Err(PackageError::DuplicateTexture {
-                    variant: v.name.clone(),
-                    texture: t.id.clone(),
-                });
+        for id in &part.game_ids {
+            if !is_valid_game_name(id) {
+                return Err(PackageError::BadGameId(id.clone()));
             }
-            if !SIZES.contains(&t.size) {
-                return Err(PackageError::BadSize {
-                    texture: t.name.clone(),
-                    size: t.size,
-                });
-            }
-            if !is_safe_path(&t.template) {
-                return Err(PackageError::UnsafePath(t.template.clone()));
+            if !seen.insert(id) {
+                return Err(PackageError::DuplicateGameId(id.clone()));
             }
         }
     }
@@ -346,13 +422,14 @@ fn size_only_options() -> resvg::usvg::Options<'static> {
     }
 }
 
-fn read_template(zip: &mut Zip<'_>, t: &Texture) -> Result<TemplateImage, PackageError> {
+fn read_template(zip: &mut Zip<'_>, part: &Part) -> Result<TemplateImage, PackageError> {
+    let t = &part.texture;
     let bytes = read_entry(zip, &t.template).ok_or_else(|| PackageError::MissingTemplate {
-        texture: t.name.clone(),
+        texture: part.name.clone(),
         path: t.template.clone(),
     })?;
     let bad = || PackageError::BadTemplate {
-        texture: t.name.clone(),
+        texture: part.name.clone(),
         path: t.template.clone(),
     };
     let lower = t.template.to_ascii_lowercase();
@@ -361,7 +438,7 @@ fn read_template(zip: &mut Zip<'_>, t: &Texture) -> Result<TemplateImage, Packag
         let (w, h) = reader.into_dimensions().map_err(|_| bad())?;
         if w > MAX_IMAGE_SIDE || h > MAX_IMAGE_SIDE {
             return Err(PackageError::TemplateTooLarge {
-                texture: t.name.clone(),
+                texture: part.name.clone(),
             });
         }
         (ImageKind::Png, f64::from(w), f64::from(h))

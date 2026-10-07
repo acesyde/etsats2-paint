@@ -243,7 +243,9 @@ vehicle-panel-opacity-name = Deckkraft der Vorlage
 ## Fleet
 
 vehicle-panel-update-named = Vorlage von { $name } aktualisieren
-vehicles-variants = Varianten…
+vehicles-textures = Texturen…
+vehicles-main-textures = Haupttexturen
+vehicles-accessories = Zubehör
 vehicles-remove-from-project = Aus dem Projekt entfernen
 
 ## Vehicles sidebar

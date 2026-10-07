@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "id": "community.truckpaint.sample_trailer",
+  "version": "1.0.0",
+  "name": "TruckPaint Sample Trailer",
+  "brand": "TruckPaint",
+  "kind": "trailer",
+  "authors": [
+    "TruckPaint contributors"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/acesyde/etsats2-paint",
+  "description": "A fictional curtainsider trailer with original templates, to try TruckPaint and as an example for package authors. Not a game vehicle.",
+  "game": {
+    "id": "ets2",
+    "versions": ">=1.56",
+    "path": "truckpaint.sample_trailer"
+  },
+  "paint_job": {
+    "main": [
+      {
+        "id": "base",
+        "name": "Base",
+        "texture": {
+          "size": 2048,
+          "template": "templates/base.svg",
+          "layout_version": 1
+        }
+      }
+    ],
+    "accessories": [
+      {
+        "id": "body_13_6",
+        "name": "Curtain body 13.6 m",
+        "game_ids": [
+          "body.sample_136"
+        ],
+        "texture": {
+          "size": 4096,
+          "template": "templates/body_13_6.svg",
+          "layout_version": 1
+        }
+      },
+      {
+        "id": "body_10_5",
+        "name": "Curtain body 10.5 m",
+        "game_ids": [
+          "body.sample_105"
+        ],
+        "texture": {
+          "size": 4096,
+          "template": "templates/body_10_5.svg",
+          "layout_version": 1
+        }
+      },
+      {
+        "id": "mudflaps",
+        "name": "Mudflaps",
+        "game_ids": [
+          "r_mudflap.sample"
+        ],
+        "texture": {
+          "size": 512,
+          "template": "templates/mudflaps.svg",
+          "layout_version": 1
+        }
+      }
+    ]
+  }
+}

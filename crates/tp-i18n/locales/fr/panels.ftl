@@ -243,7 +243,9 @@ vehicle-panel-opacity-name = Opacité du gabarit
 ## Fleet
 
 vehicle-panel-update-named = Mettre à jour le gabarit de { $name }
-vehicles-variants = Variantes…
+vehicles-textures = Textures…
+vehicles-main-textures = Textures principales
+vehicles-accessories = Accessoires
 vehicles-remove-from-project = Retirer du projet
 
 ## Vehicles sidebar

@@ -76,5 +76,5 @@ undo-dismiss-layout = Dismiss Layout Change
 ## Fleet
 
 undo-add-vehicle = Add Vehicle
-undo-change-variants = Change Variants
+undo-change-textures = Change Textures
 undo-remove-vehicle = Remove Vehicle

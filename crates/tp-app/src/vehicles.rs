@@ -7,13 +7,33 @@ use tp_core::ProjectVehicle;
 use tp_i18n::tr;
 use tp_vehicles::{Manifest, Package, PackageError};
 
-/// Id of the built-in sample vehicle.
+/// Id of the built-in sample truck (picked after installing the samples).
 pub const SAMPLE_ID: &str = "community.truckpaint.sample_truck";
-/// File name of the built-in sample vehicle (its newest version).
-pub const SAMPLE_FILE: &str = "community.truckpaint.sample_truck-1.1.0.tpv";
-/// The built-in sample vehicle, offered while the library is empty.
-pub const SAMPLE: &[u8] =
-    include_bytes!("../../../examples/vehicles/community.truckpaint.sample_truck-1.1.0.tpv");
+/// Id of the built-in sample trailer.
+pub const SAMPLE_TRAILER_ID: &str = "community.truckpaint.sample_trailer";
+
+/// A built-in sample vehicle: its file name and bytes (newest version).
+#[derive(Clone, Copy, Debug)]
+pub struct Sample {
+    pub file: &'static str,
+    pub bytes: &'static [u8],
+}
+
+/// The built-in sample vehicles, offered while the library is empty.
+pub const SAMPLES: [Sample; 2] = [
+    Sample {
+        file: "community.truckpaint.sample_truck-1.1.0.tpv",
+        bytes: include_bytes!(
+            "../../../examples/vehicles/community.truckpaint.sample_truck-1.1.0.tpv"
+        ),
+    },
+    Sample {
+        file: "community.truckpaint.sample_trailer-1.0.0.tpv",
+        bytes: include_bytes!(
+            "../../../examples/vehicles/community.truckpaint.sample_trailer-1.0.0.tpv"
+        ),
+    },
+];
 
 /// One installed version of a vehicle.
 #[derive(Clone, Debug)]
@@ -67,14 +87,14 @@ pub fn install_error_message(err: &InstallError, file: &str) -> String {
             PackageError::BadManifest(why) => tr!("pkg-bad-manifest", reason = why.as_str()),
             PackageError::NewerFormat(_) => tr("pkg-newer-format"),
             PackageError::BadId(id) => tr!("pkg-bad-id", id = id.as_str()),
-            PackageError::NoVariant => tr("pkg-no-variant"),
-            PackageError::EmptyVariant(v) => tr!("pkg-empty-variant", variant = v.as_str()),
-            PackageError::DuplicateVariant(v) => {
-                tr!("pkg-duplicate-variant", variant = v.as_str())
+            PackageError::BadGamePath(path) => tr!("pkg-bad-game-path", path = path.as_str()),
+            PackageError::NoMainTexture => tr("pkg-no-main-texture"),
+            PackageError::DuplicatePart(id) => tr!("pkg-duplicate-part", id = id.as_str()),
+            PackageError::MissingGameIds(name) => {
+                tr!("pkg-missing-game-ids", texture = name.as_str())
             }
-            PackageError::DuplicateTexture { texture, .. } => {
-                tr!("pkg-duplicate-texture", texture = texture.as_str())
-            }
+            PackageError::BadGameId(id) => tr!("pkg-bad-game-id", id = id.as_str()),
+            PackageError::DuplicateGameId(id) => tr!("pkg-duplicate-game-id", id = id.as_str()),
             PackageError::BadSize { texture, size } => {
                 tr!("pkg-bad-size", texture = texture.as_str(), size = *size)
             }
@@ -179,9 +199,12 @@ impl VehicleLibrary {
         Ok(m)
     }
 
-    /// Installs the built-in sample vehicle.
-    pub fn install_sample(&mut self) -> Result<Manifest, InstallError> {
-        self.install_bytes(SAMPLE)
+    /// Installs the built-in sample vehicles.
+    pub fn install_samples(&mut self) -> Result<Vec<Manifest>, InstallError> {
+        SAMPLES
+            .iter()
+            .map(|s| self.install_bytes(s.bytes))
+            .collect()
     }
 
     pub fn install_file(&mut self, path: &Path) -> Result<Manifest, InstallError> {
@@ -220,7 +243,7 @@ impl VehicleLibrary {
     }
 
     /// The newest installed version newer than the one a project's vehicle
-    /// records (variants it no longer has are reported by the update plan).
+    /// records (textures it no longer has are reported by the update plan).
     pub fn update_for(&self, vehicle: &ProjectVehicle) -> Option<&InstalledVersion> {
         let current = semver::Version::parse(&vehicle.version).ok()?;
         self.get(&vehicle.package_id)?
@@ -288,28 +311,46 @@ mod tests {
         assert!(!dir.path().join("scs.sample.truck").exists());
     }
 
-    fn example(version: &str) -> Vec<u8> {
+    fn example(file: &str) -> Vec<u8> {
         let path = format!(
-            "{}/../../examples/vehicles/community.truckpaint.sample_truck-{version}.tpv",
+            "{}/../../examples/vehicles/{file}",
             env!("CARGO_MANIFEST_DIR")
         );
         std::fs::read(path).unwrap()
     }
 
     #[test]
-    fn sample_vehicle_installs() {
+    fn sample_vehicles_install() {
         let dir = tempfile::tempdir().unwrap();
         let mut lib = VehicleLibrary::open(dir.path());
-        let m = lib.install_sample().unwrap();
+        let installed: Vec<(String, String)> = lib
+            .install_samples()
+            .unwrap()
+            .iter()
+            .map(|m| (m.id.clone(), m.version.to_string()))
+            .collect();
         assert_eq!(
-            (m.id.as_str(), m.version.to_string().as_str()),
-            ("community.truckpaint.sample_truck", "1.1.0")
+            installed,
+            [
+                (SAMPLE_ID.to_owned(), "1.1.0".to_owned()),
+                (SAMPLE_TRAILER_ID.to_owned(), "1.0.0".to_owned())
+            ]
         );
-        assert_eq!(SAMPLE, example("1.1.0").as_slice());
-        lib.install_bytes(&example("1.0.0")).unwrap();
-        let v = lib.get("community.truckpaint.sample_truck").unwrap();
+        // The embedded bytes are the committed packages.
+        for sample in SAMPLES {
+            assert_eq!(
+                sample.bytes,
+                example(sample.file).as_slice(),
+                "{}",
+                sample.file
+            );
+        }
+        lib.install_bytes(&example("community.truckpaint.sample_truck-1.0.0.tpv"))
+            .unwrap();
+        let v = lib.get(SAMPLE_ID).unwrap();
         assert_eq!(v.versions.len(), 2);
         assert_eq!(v.newest().manifest.name, "TruckPaint Sample Truck");
+        assert_eq!(lib.vehicles().len(), 2);
     }
 
     #[test]
@@ -339,10 +380,6 @@ mod tests {
         let mut vehicle = ProjectVehicle {
             package_id: "scs.sample.truck".into(),
             version: "1.2.0".into(),
-            variants: vec![tp_core::VariantRef {
-                id: "standard".into(),
-                name: "Standard cabin".into(),
-            }],
             name: "Sample Truck".into(),
             brand: "Sample".into(),
             kind: "truck".into(),
@@ -362,10 +399,6 @@ mod tests {
             lib.recorded(&vehicle).unwrap().manifest.version.to_string(),
             "1.2.0"
         );
-        // A variant the new version lacks does not hide the update: the
-        // plan reports its textures as removed.
-        vehicle.variants[0].id = "other".into();
-        assert!(lib.update_for(&vehicle).is_some());
         vehicle.version = "1.3.0".into();
         assert!(lib.update_for(&vehicle).is_none());
     }

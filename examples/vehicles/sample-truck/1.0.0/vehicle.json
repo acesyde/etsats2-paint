@@ -5,68 +5,73 @@
   "name": "TruckPaint Sample Truck",
   "brand": "TruckPaint",
   "kind": "truck",
-  "game": "ets2",
-  "game_versions": ">=1.50, <1.56",
   "authors": [
     "TruckPaint contributors"
   ],
   "license": "MIT",
   "homepage": "https://github.com/acesyde/etsats2-paint",
   "description": "A fictional truck with original templates, to try TruckPaint and as an example for package authors. Not a game vehicle.",
-  "variants": [
-    {
-      "id": "standard",
-      "name": "Standard cab",
-      "textures": [
-        {
-          "id": "cabin",
-          "name": "Cabin",
+  "game": {
+    "id": "ets2",
+    "versions": ">=1.50, <1.56",
+    "path": "truckpaint.sample"
+  },
+  "paint_job": {
+    "main": [
+      {
+        "id": "standard",
+        "name": "Standard cab",
+        "game_ids": [
+          "standard"
+        ],
+        "texture": {
           "size": 4096,
           "template": "templates/standard_cabin.svg",
           "layout_version": 1
-        },
-        {
-          "id": "chassis",
-          "name": "Chassis",
-          "size": 2048,
-          "template": "templates/chassis.svg",
-          "layout_version": 1
-        },
-        {
-          "id": "accessories",
-          "name": "Accessories",
-          "size": 1024,
-          "template": "templates/accessories.svg",
-          "layout_version": 1
         }
-      ]
-    },
-    {
-      "id": "high_roof",
-      "name": "High roof",
-      "textures": [
-        {
-          "id": "cabin",
-          "name": "Cabin",
+      },
+      {
+        "id": "high_roof",
+        "name": "High roof",
+        "game_ids": [
+          "high_roof"
+        ],
+        "texture": {
           "size": 4096,
           "template": "templates/high_roof_cabin.svg",
           "layout_version": 1
-        },
-        {
-          "id": "chassis",
-          "name": "Chassis",
+        }
+      }
+    ],
+    "accessories": [
+      {
+        "id": "chassis",
+        "name": "Chassis",
+        "game_ids": [
+          "chassis.sample"
+        ],
+        "texture": {
           "size": 2048,
           "template": "templates/chassis.svg",
           "layout_version": 1
-        },
-        {
-          "id": "accessories",
-          "name": "Accessories",
+        }
+      },
+      {
+        "id": "cab_accessories",
+        "name": "Cab accessories",
+        "game_ids": [
+          "sunshld.sample",
+          "mirror.sample",
+          "lightbar.sample",
+          "f_guard.sample",
+          "horn.sample"
+        ],
+        "texture": {
           "size": 1024,
           "template": "templates/accessories.svg",
           "layout_version": 1
         }
-      ]
-    }
-  ]
+      }
+    ]
+  }
 }

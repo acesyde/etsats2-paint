@@ -28,7 +28,7 @@ fn svg_templates_with_text_log_no_warning() {
         "/../../examples/vehicles/community.truckpaint.sample_truck-1.1.0.tpv"
     );
     let package = tp_vehicles::Package::read(&std::fs::read(path).unwrap()).unwrap();
-    let cabin = package.template("standard", "cabin").unwrap();
+    let cabin = package.template("standard").unwrap();
     assert_eq!((cabin.width, cabin.height), (4096.0, 4096.0));
     assert_eq!(WARNINGS.load(Ordering::SeqCst), 0);
 }

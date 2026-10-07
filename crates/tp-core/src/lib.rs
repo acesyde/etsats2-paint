@@ -9,6 +9,6 @@ mod project;
 pub use kurbo;
 pub use project::{
     Asset, AssetKind, Axis, DEFAULT_PROJECT_NAME, Guide, MAIN_SURFACE_NAME, Project,
-    ProjectVehicle, Snapshot, Surface, SurfaceTemplate, TemplateStatus, TextureKey,
-    TextureResolution, VariantRef,
+    ProjectVehicle, Snapshot, Surface, SurfaceTemplate, TemplateStatus, TextureKey, TexturePart,
+    TextureResolution,
 };

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="4096" height="4096" viewBox="0 0 4096 4096">
+  <!-- TruckPaint sample template: original artwork, MIT licensed. -->
+  <rect x="8.0" y="8.0" width="4080.0" height="4080.0" fill="none" stroke="#1d2330" stroke-opacity="0.5" stroke-width="16.0"/>
+  <rect x="120.0" y="160.0" width="3856.0" height="1200.0" rx="60.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="2048.0" y="726.4" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">CURTAIN</text>
+  <text x="2048.0" y="846.4" font-family="sans-serif" font-size="57.6" fill="#1d2330" text-anchor="middle">left, 13.6 m</text>
+  <rect x="120.0" y="1480.0" width="3856.0" height="1200.0" rx="60.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="2048.0" y="2046.4" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">CURTAIN</text>
+  <text x="2048.0" y="2166.4" font-family="sans-serif" font-size="57.6" fill="#1d2330" text-anchor="middle">right, 13.6 m</text>
+  <rect x="120.0" y="2820.0" width="1300.0" height="1100.0" rx="30.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="770.0" y="3753.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">REAR DOORS</text>
+  <rect x="1560.0" y="2820.0" width="1300.0" height="1100.0" rx="30.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="2210.0" y="3403.6" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">FRONT BULKHEAD</text>
+  <rect x="3000.0" y="2820.0" width="976.0" height="1100.0" rx="30.0" fill="#9aa4b8" fill-opacity="0.22" stroke="#1d2330" stroke-width="10.0"/>
+  <text x="3488.0" y="3336.4" font-family="sans-serif" font-size="96.0" font-weight="bold" fill="#1d2330" text-anchor="middle">ROOF</text>
+  <text x="3488.0" y="3456.4" font-family="sans-serif" font-size="57.6" fill="#1d2330" text-anchor="middle">edge</text>
+  <line x1="553.0" y1="2880.0" x2="553.0" y2="3560.0" stroke="#1d2330" stroke-width="8.0" stroke-dasharray="30.0 20.0"/>
+  <line x1="987.0" y1="2880.0" x2="987.0" y2="3560.0" stroke="#1d2330" stroke-width="8.0" stroke-dasharray="30.0 20.0"/>
+  <text x="4040.0" y="4040.0" font-family="sans-serif" font-size="72.0" fill="#1d2330" fill-opacity="0.7" text-anchor="end">TruckPaint Sample Trailer - Curtain body 13.6 m - layout 1</text>
+</svg>

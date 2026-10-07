@@ -75,5 +75,5 @@ undo-dismiss-layout = Layoutänderung verwerfen
 ## Fleet
 
 undo-add-vehicle = Fahrzeug hinzufügen
-undo-change-variants = Varianten ändern
+undo-change-textures = Texturen ändern
 undo-remove-vehicle = Fahrzeug entfernen

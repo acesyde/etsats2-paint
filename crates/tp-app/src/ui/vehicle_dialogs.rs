@@ -1,17 +1,17 @@
-//! Vehicle Library, Update Template, Add Vehicle, Variants and Remove from
-//! Project dialogs, and the vehicle list shared with the New Project
-//! wizard.
+//! Vehicle Library, Update Template, Add Vehicle, Textures and Remove from
+//! Project dialogs, and the vehicle list and texture checkboxes shared with
+//! the New Project wizard.
 
-use egui::{Align, Layout, RichText, ScrollArea, TextEdit, Ui, WidgetInfo, WidgetType};
+use egui::{Align, Checkbox, Layout, RichText, ScrollArea, TextEdit, Ui, WidgetInfo, WidgetType};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::{label_strong_style, title_style};
 use tp_ui::tokens::{color, space};
 use tp_ui::widgets::{EmptyState, IconButton, primary_button, secondary_button};
-use tp_vehicles::{Game, Kind, Manifest, Package};
+use tp_vehicles::{Game, Kind, Manifest, Package, Part};
 
 use crate::state::AppState;
-use crate::vehicle_project::{TextureChange, UpdatePlan};
+use crate::vehicle_project::{TextureChange, UpdatePlan, default_textures, is_always_painted};
 use crate::vehicles::{InstalledVehicle, VehicleLibrary};
 
 /// Search and filters of a vehicle list.
@@ -28,7 +28,7 @@ impl VehicleFilter {
     pub fn matches(&self, m: &Manifest) -> bool {
         let q = self.query.trim().to_lowercase();
         (q.is_empty() || m.name.to_lowercase().contains(&q) || m.brand.to_lowercase().contains(&q))
-            && self.game.is_none_or(|g| g == m.game)
+            && self.game.is_none_or(|g| g == m.game.id)
             && self.kind.is_none_or(|k| k == m.kind)
     }
 
@@ -98,7 +98,7 @@ pub fn summary(m: &Manifest) -> String {
         "{} · {} · {} · {}",
         m.brand,
         kind_label(m.kind),
-        game_label(m.game),
+        game_label(m.game.id),
         m.version
     )
 }
@@ -115,59 +115,98 @@ pub fn filtered<'a>(
         .collect()
 }
 
-/// A vehicle and the variants checked for it.
+/// A vehicle and the textures checked for it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct VehicleChoice {
     pub id: String,
     pub version: semver::Version,
-    pub variants: Vec<String>,
+    /// Checked main textures and accessories (part ids).
+    pub textures: Vec<String>,
 }
 
 impl VehicleChoice {
-    /// The newest version of `vehicle` with its first variant checked.
+    /// The newest version of `vehicle` with its default textures checked.
     pub fn of(vehicle: &InstalledVehicle) -> Self {
         let m = &vehicle.newest().manifest;
         Self {
             id: vehicle.id.clone(),
             version: m.version.clone(),
-            variants: m
-                .variants
-                .first()
-                .map(|v| v.id.clone())
-                .into_iter()
-                .collect(),
+            textures: default_textures(m),
         }
     }
 
-    /// Ready to create or add: at least one variant checked.
-    pub fn is_complete(&self) -> bool {
-        !self.variants.is_empty()
+    /// The chosen version's manifest.
+    pub fn manifest<'a>(&self, library: &'a VehicleLibrary) -> Option<&'a Manifest> {
+        library
+            .get(&self.id)?
+            .versions
+            .iter()
+            .find(|v| v.manifest.version == self.version)
+            .map(|v| &v.manifest)
+    }
+
+    /// Ready to create or add: a main texture painted.
+    pub fn is_complete(&self, library: &VehicleLibrary) -> bool {
+        self.manifest(library).is_some_and(|m| {
+            m.paint_job
+                .main
+                .iter()
+                .any(|p| self.textures.contains(&p.id) || is_always_painted(m, &p.id))
+        })
+    }
+
+    /// The textures that will be painted, in package order, with their
+    /// sizes.
+    pub fn painted<'a>(&self, m: &'a Manifest) -> Vec<&'a Part> {
+        m.paint_job
+            .parts()
+            .map(|(_, p)| p)
+            .filter(|p| self.textures.contains(&p.id) || is_always_painted(m, &p.id))
+            .collect()
     }
 }
 
-/// Checkboxes for `variants` of `m`, keeping the package's order.
-pub fn variant_checkboxes(ui: &mut Ui, m: &Manifest, variants: &mut Vec<String>) {
-    for variant in &m.variants {
-        let mut on = variants.contains(&variant.id);
-        let textures: Vec<String> = variant.textures.iter().map(|t| t.name.clone()).collect();
-        let response = ui.checkbox(&mut on, &variant.name);
+/// Checkboxes for the main textures and accessories of `m`, keeping the
+/// package's order in `chosen`. A single main texture is always painted,
+/// and the last checked main texture can't be unchecked.
+pub fn texture_checkboxes(ui: &mut Ui, m: &Manifest, chosen: &mut Vec<String>) {
+    let job = &m.paint_job;
+    let checked_main = job.main.iter().filter(|p| chosen.contains(&p.id)).count();
+    let order: Vec<&str> = job.parts().map(|(_, p)| p.id.as_str()).collect();
+    let mut toggle = |ui: &mut Ui, part: &Part, locked: bool| {
+        let always = is_always_painted(m, &part.id);
+        let mut on = always || chosen.contains(&part.id);
+        let enabled = !always && !(locked && on);
+        let response = ui.add_enabled(enabled, Checkbox::new(&mut on, &part.name));
         response
-            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, true, on, &variant.name));
-        let response = response.on_hover_text(textures.join(", "));
+            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, enabled, on, &part.name));
+        let response = response.on_hover_text(format!("{0} × {0}", part.texture.size));
         if response.changed() {
             if on {
-                variants.push(variant.id.clone());
-                let order: Vec<&str> = m.variants.iter().map(|v| v.id.as_str()).collect();
-                variants.sort_by_key(|v| order.iter().position(|o| o == v));
+                chosen.push(part.id.clone());
+                chosen.sort_by_key(|id| order.iter().position(|o| o == id));
             } else {
-                variants.retain(|v| *v != variant.id);
+                chosen.retain(|id| *id != part.id);
             }
+        }
+    };
+    let heading = |ui: &mut Ui, text: String| {
+        ui.label(RichText::new(text).small().color(color::TEXT_SECONDARY));
+    };
+    heading(ui, tr("vehicles-main-textures"));
+    for part in &job.main {
+        toggle(ui, part, checked_main <= 1);
+    }
+    if !job.accessories.is_empty() {
+        heading(ui, tr("vehicles-accessories"));
+        for part in &job.accessories {
+            toggle(ui, part, false);
         }
     }
 }
 
 /// The installed vehicles passing `filter` (minus `exclude`), one row each;
-/// the chosen one shows its variants as checkboxes.
+/// the chosen one shows its textures as checkboxes.
 pub fn vehicle_list(
     ui: &mut Ui,
     library: &VehicleLibrary,
@@ -188,8 +227,8 @@ pub fn vehicle_list(
             *choice = Some(VehicleChoice::of(vehicle));
         }
         if selected && let Some(c) = choice.as_mut() {
-            ui.indent(("variants", &vehicle.id), |ui| {
-                variant_checkboxes(ui, m, &mut c.variants);
+            ui.indent(("textures", &vehicle.id), |ui| {
+                texture_checkboxes(ui, m, &mut c.textures);
             });
         }
     }
@@ -234,14 +273,14 @@ pub fn install_named(
         .collect()
 }
 
-/// Installs the built-in sample vehicle; returns its result line.
-pub fn install_sample(state: &mut AppState) -> Vec<Result<String, String>> {
+/// Installs the built-in sample vehicles; returns their result lines.
+pub fn install_samples(state: &mut AppState) -> Vec<Result<String, String>> {
     install_named(
         state,
-        vec![(
-            crate::vehicles::SAMPLE_FILE.to_owned(),
-            Ok(crate::vehicles::SAMPLE.to_vec()),
-        )],
+        crate::vehicles::SAMPLES
+            .iter()
+            .map(|s| (s.file.to_owned(), Ok(s.bytes.to_vec())))
+            .collect(),
     )
 }
 
@@ -300,12 +339,14 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
                             .small()
                             .color(color::TEXT_SECONDARY),
                     );
-                    let variants: Vec<&str> = m.variants.iter().map(|v| v.name.as_str()).collect();
+                    let main: Vec<&str> =
+                        m.paint_job.main.iter().map(|p| p.name.as_str()).collect();
                     ui.label(
                         RichText::new(tr!(
                             "vehicles-details",
-                            versions = m.game_versions.to_string(),
-                            variants = variants.join(", ")
+                            versions = m.game.versions.to_string(),
+                            main = main.join(", "),
+                            accessories = m.paint_job.accessories.len()
                         ))
                         .small()
                         .color(color::TEXT_SECONDARY),
@@ -367,7 +408,7 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
         dialog.confirm_remove = Some(r);
     }
     if sample_clicked {
-        dialog.messages = install_sample(state);
+        dialog.messages = install_samples(state);
     }
     if install_clicked {
         let paths = state.dialogs.pick_packages();
@@ -391,6 +432,25 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
 pub struct UpdateDialog {
     pub package: Box<Package>,
     pub plan: UpdatePlan,
+    /// New textures checked to be added.
+    pub added: Vec<String>,
+}
+
+impl UpdateDialog {
+    /// The dialog for `plan`, with the new textures checked by default.
+    pub fn new(package: Package, plan: UpdatePlan) -> Self {
+        let added = plan
+            .new
+            .iter()
+            .filter(|n| n.checked_by_default())
+            .map(|n| n.id.clone())
+            .collect();
+        Self {
+            package: Box::new(package),
+            plan,
+            added,
+        }
+    }
 }
 
 /// One line describing a change.
@@ -410,13 +470,12 @@ pub fn change_text(change: &TextureChange) -> String {
             (true, None) => tr!("update-layout-changed", name = name.as_str()),
             (false, None) => tr!("update-replaced", name = name.as_str()),
         },
-        TextureChange::Added { name } => tr!("update-added", name = name.as_str()),
         TextureChange::Removed { name } => tr!("update-removed", name = name.as_str()),
     }
 }
 
 /// Shows the Update Template dialog; returns false once it is closed.
-pub fn update(ctx: &egui::Context, state: &mut AppState, dialog: &UpdateDialog) -> bool {
+pub fn update(ctx: &egui::Context, state: &mut AppState, dialog: &mut UpdateDialog) -> bool {
     let mut keep = true;
     let mut apply = false;
     super::dialogs::modal("update_template_modal").show(ctx, |ui| {
@@ -437,6 +496,24 @@ pub fn update(ctx: &egui::Context, state: &mut AppState, dialog: &UpdateDialog) 
         for change in &dialog.plan.changes {
             ui.label(RichText::new(format!("• {}", change_text(change))).small());
         }
+        if !dialog.plan.new.is_empty() {
+            ui.add_space(space::SM);
+            ui.label(RichText::new(tr("update-new-textures")).small());
+            for new in &dialog.plan.new {
+                let mut on = new.always || dialog.added.contains(&new.id);
+                let response = ui.add_enabled(!new.always, Checkbox::new(&mut on, &new.name));
+                response.widget_info(|| {
+                    WidgetInfo::selected(WidgetType::Checkbox, !new.always, on, &new.name)
+                });
+                if response.changed() {
+                    if on {
+                        dialog.added.push(new.id.clone());
+                    } else {
+                        dialog.added.retain(|id| *id != new.id);
+                    }
+                }
+            }
+        }
         ui.add_space(space::SM);
         ui.label(
             RichText::new(tr("update-artwork-kept"))
@@ -452,7 +529,7 @@ pub fn update(ctx: &egui::Context, state: &mut AppState, dialog: &UpdateDialog) 
     if apply {
         let now = ctx.input(|i| i.time);
         if let Some(ws) = state.workspace_mut() {
-            ws.apply_update(&dialog.package, now);
+            ws.apply_update(&dialog.package, &dialog.added, now);
         }
         keep = false;
     }
@@ -529,9 +606,10 @@ pub fn add_vehicle(
             .iter()
             .any(|v| !exclude.contains(&v.id));
         if available {
+            // A fixed height, as in the New Project wizard.
             ScrollArea::vertical()
                 .max_height(320.0)
-                .auto_shrink([false, true])
+                .auto_shrink([false, false])
                 .show(ui, |ui| {
                     vehicle_list(
                         ui,
@@ -553,7 +631,7 @@ pub fn add_vehicle(
             let ready = dialog
                 .choice
                 .as_ref()
-                .is_some_and(VehicleChoice::is_complete);
+                .is_some_and(|c| c.is_complete(&state.vehicles));
             add |= ui
                 .add_enabled(ready, primary_button(&tr("add-vehicle-add")))
                 .clicked();
@@ -572,7 +650,7 @@ pub fn add_vehicle(
         match state.vehicles.load(&choice.id, &choice.version) {
             Ok(package) => {
                 if let Some(ws) = state.workspace_mut() {
-                    match ws.add_vehicle(&package, &choice.variants, now) {
+                    match ws.add_vehicle(&package, &choice.textures, now) {
                         Ok(()) => keep = false,
                         Err(err) => dialog.messages = vec![Err(fleet_error_message(err))],
                     }
@@ -598,38 +676,43 @@ pub fn fleet_error_message(err: crate::vehicle_project::FleetError) -> String {
     tr(match err {
         FleetError::OtherGame => "fleet-error-other-game",
         FleetError::AlreadyThere => "fleet-error-already-there",
-        FleetError::BadVariants => "fleet-error-variants",
+        FleetError::BadTextures => "fleet-error-textures",
         FleetError::WrongVersion => "fleet-error-version",
         FleetError::LastVehicle => "reason-last-vehicle",
         FleetError::Unknown => "fleet-error-unknown",
     })
 }
 
-/// State of the Variants dialog of a project's vehicle.
+/// State of the Textures dialog of a project's vehicle.
 #[derive(Clone, Debug)]
-pub struct VariantsDialog {
+pub struct TexturesDialog {
     pub package_id: String,
     pub name: String,
     pub version: String,
+    /// The textures the vehicle paints (part ids).
     pub checked: Vec<String>,
-    /// Variants with artwork about to be removed: asks for confirmation.
+    /// Textures with artwork about to be removed: asks for confirmation.
     pub confirm: Option<Vec<String>>,
 }
 
-impl VariantsDialog {
-    pub fn new(vehicle: &tp_core::ProjectVehicle) -> Self {
+impl TexturesDialog {
+    pub fn new(project: &tp_core::Project, vehicle: &tp_core::ProjectVehicle) -> Self {
+        let checked = project.surfaces[project.vehicle_range(&vehicle.package_id)]
+            .iter()
+            .filter_map(|s| s.template.as_ref().map(|t| t.texture_id.clone()))
+            .collect();
         Self {
             package_id: vehicle.package_id.clone(),
             name: vehicle.name.clone(),
             version: vehicle.version.clone(),
-            checked: vehicle.variants.iter().map(|v| v.id.clone()).collect(),
+            checked,
             confirm: None,
         }
     }
 }
 
-/// Shows the Variants dialog; returns false once it is closed.
-pub fn variants(ctx: &egui::Context, state: &mut AppState, dialog: &mut VariantsDialog) -> bool {
+/// Shows the Textures dialog; returns false once it is closed.
+pub fn textures(ctx: &egui::Context, state: &mut AppState, dialog: &mut TexturesDialog) -> bool {
     let mut keep = true;
     let mut apply = false;
     let mut update = false;
@@ -638,10 +721,10 @@ pub fn variants(ctx: &egui::Context, state: &mut AppState, dialog: &mut Variants
         .and_then(|ws| ws.project.vehicle(&dialog.package_id))
         .and_then(|v| state.vehicles.recorded(v))
         .map(|i| i.manifest.clone());
-    super::dialogs::modal("variants_modal").show(ctx, |ui| {
+    super::dialogs::modal("textures_modal").show(ctx, |ui| {
         ui.set_width(440.0);
         ui.label(
-            RichText::new(tr!("variants-title", name = dialog.name.as_str()))
+            RichText::new(tr!("textures-title", name = dialog.name.as_str()))
                 .text_style(title_style())
                 .color(color::TEXT_PRIMARY),
         );
@@ -649,13 +732,13 @@ pub fn variants(ctx: &egui::Context, state: &mut AppState, dialog: &mut Variants
         match &installed {
             Some(m) => {
                 if dialog.confirm.is_none() {
-                    variant_checkboxes(ui, m, &mut dialog.checked);
+                    texture_checkboxes(ui, m, &mut dialog.checked);
                 }
             }
             None => {
                 ui.label(
                     RichText::new(tr!(
-                        "variants-missing-version",
+                        "textures-missing-version",
                         version = dialog.version.as_str()
                     ))
                     .color(color::WARNING),
@@ -664,7 +747,7 @@ pub fn variants(ctx: &egui::Context, state: &mut AppState, dialog: &mut Variants
         }
         if let Some(names) = &dialog.confirm {
             ui.label(
-                RichText::new(tr!("variants-remove-confirm", variants = names.join(", ")))
+                RichText::new(tr!("textures-remove-confirm", textures = names.join(", ")))
                     .color(color::WARNING),
             );
         }
@@ -674,13 +757,11 @@ pub fn variants(ctx: &egui::Context, state: &mut AppState, dialog: &mut Variants
             |ui| match &installed {
                 Some(_) => {
                     let label = if dialog.confirm.is_some() {
-                        tr("variants-remove")
+                        tr("textures-remove")
                     } else {
-                        tr("variants-apply")
+                        tr("textures-apply")
                     };
-                    apply |= ui
-                        .add_enabled(!dialog.checked.is_empty(), primary_button(&label))
-                        .clicked();
+                    apply |= ui.add(primary_button(&label)).clicked();
                     keep &= !ui.add(secondary_button(&tr("button-cancel"))).clicked();
                 }
                 None => {
@@ -691,22 +772,22 @@ pub fn variants(ctx: &egui::Context, state: &mut AppState, dialog: &mut Variants
         );
     });
     if apply && let Some(m) = &installed {
-        // Variants with artwork being removed ask first.
+        // Textures with artwork being removed ask first.
         let removed_with_art: Vec<String> = state
             .workspace()
-            .and_then(|ws| {
-                let v = ws.project.vehicle(&dialog.package_id)?;
-                Some(
-                    v.variants
-                        .iter()
-                        .filter(|x| !dialog.checked.contains(&x.id))
-                        .filter(|x| {
-                            ws.project
-                                .has_artwork(ws.project.variant_range(&dialog.package_id, &x.id))
-                        })
-                        .map(|x| x.name.clone())
-                        .collect(),
-                )
+            .map(|ws| {
+                let p = &ws.project;
+                p.surfaces[p.vehicle_range(&dialog.package_id)]
+                    .iter()
+                    .filter(|s| {
+                        s.template.as_ref().is_some_and(|t| {
+                            m.paint_job.part(&t.texture_id).is_some()
+                                && !dialog.checked.contains(&t.texture_id)
+                                && !is_always_painted(m, &t.texture_id)
+                        }) && !s.objects.is_empty()
+                    })
+                    .map(|s| s.name.clone())
+                    .collect()
             })
             .unwrap_or_default();
         if dialog.confirm.is_none() && !removed_with_art.is_empty() {
@@ -715,7 +796,7 @@ pub fn variants(ctx: &egui::Context, state: &mut AppState, dialog: &mut Variants
             let now = ctx.input(|i| i.time);
             let loaded = state.vehicles.load(&m.id, &m.version);
             if let (Ok(package), Some(ws)) = (loaded, state.workspace_mut()) {
-                let _ = ws.set_variants(&package, &dialog.checked, now);
+                let _ = ws.set_textures(&package, &dialog.checked, now);
             }
             keep = false;
         }

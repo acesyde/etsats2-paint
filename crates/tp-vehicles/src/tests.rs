@@ -30,37 +30,83 @@ fn err(bytes: &[u8]) -> PackageError {
 #[test]
 fn reads_a_valid_package() {
     let p = Package::read(&ok_package()).unwrap();
-    assert_eq!(p.manifest.id, "scs.sample.truck");
-    assert_eq!(p.manifest.version, semver::Version::new(1, 2, 0));
-    assert_eq!(p.manifest.kind, Kind::Truck);
-    assert_eq!(p.manifest.game, Game::Ets2);
-    assert!(
-        p.manifest
-            .game_versions
-            .matches(&semver::Version::new(1, 53, 0))
+    let m = &p.manifest;
+    assert_eq!(m.id, "scs.sample.truck");
+    assert_eq!(m.version, semver::Version::new(1, 2, 0));
+    assert_eq!(m.kind, Kind::Truck);
+    assert_eq!(m.game.id, Game::Ets2);
+    assert_eq!(m.game.path, "sample.vehicle");
+    assert!(!m.game.alt_uv && !m.game.colour_picker);
+    assert!(m.game.versions.matches(&semver::Version::new(1, 53, 0)));
+    assert!(!m.game.versions.matches(&semver::Version::new(1, 60, 0)));
+    let roles: Vec<(Role, &str)> = m
+        .paint_job
+        .parts()
+        .map(|(r, p)| (r, p.id.as_str()))
+        .collect();
+    assert_eq!(
+        roles,
+        [
+            (Role::Main, "cabin"),
+            (Role::Accessory, "chassis"),
+            (Role::Accessory, "accessories")
+        ]
     );
-    assert!(
-        !p.manifest
-            .game_versions
-            .matches(&semver::Version::new(1, 60, 0))
-    );
-    let v = &p.manifest.variants[0];
-    assert_eq!(v.textures.len(), 3);
-    let cabin = p.template("standard", "cabin").unwrap();
+    assert_eq!(m.paint_job.position("chassis"), Some(1));
+    let cabin = p.template("cabin").unwrap();
     assert_eq!((cabin.kind, cabin.width), (ImageKind::Png, 64.0));
     assert_eq!(Package::read_manifest(&ok_package()).unwrap(), p.manifest);
+}
+
+#[test]
+fn trucks_with_several_main_textures_and_trailers() {
+    let tex = |id, name| SampleTexture {
+        id,
+        name,
+        size: 4096,
+        layout: 1,
+    };
+    let truck = sample::package_with(
+        "a.truck",
+        "Truck",
+        "1.0.0",
+        "truck",
+        &[
+            tex("standard", "Standard cab"),
+            tex("high_roof", "High roof"),
+        ],
+        &[tex("chassis", "Chassis")],
+    );
+    let p = Package::read(&truck).unwrap();
+    assert_eq!(p.manifest.paint_job.main.len(), 2);
+    assert_eq!(p.manifest.paint_job.main[1].game_ids, ["high_roof"]);
+    let trailer = sample::package_with(
+        "a.trailer",
+        "Trailer",
+        "1.0.0",
+        "trailer",
+        &[tex("base", "Base")],
+        &[tex("body", "Body 13.6 m"), tex("mudflaps", "Mudflaps")],
+    );
+    let p = Package::read(&trailer).unwrap();
+    assert_eq!(p.manifest.kind, Kind::Trailer);
+    assert!(p.manifest.paint_job.main[0].game_ids.is_empty());
+    assert_eq!(p.templates.len(), 3);
 }
 
 #[test]
 fn unknown_fields_and_optional_data() {
     let bytes = with_manifest(|m| {
         m["mirror"] = json!({ "axis": "x" });
-        m["requires"] = json!([{ "name": "Some mod", "version": ">=2" }]);
-        m["variants"][0]["textures"][0]["export"] = json!({ "def": "/def/vehicle/x.sii" });
+        m["game"]["requires"] = json!([{ "name": "Some mod", "version": ">=2" }]);
+        m["game"]["alt_uv"] = json!(true);
+        m["paint_job"]["main"][0]["texture"]["mask"] = json!("later");
+        // Real accessory ids can be longer than a 12-character token.
+        m["paint_job"]["accessories"][0]["game_ids"] = json!(["fenders_a.parlok_small_p"]);
     });
     let p = Package::read(&bytes).unwrap();
-    assert_eq!(p.manifest.requires[0].name, "Some mod");
-    assert!(p.manifest.variants[0].textures[0].export.is_some());
+    assert_eq!(p.manifest.game.requires[0].name, "Some mod");
+    assert!(p.manifest.game.alt_uv);
 }
 
 #[test]
@@ -73,10 +119,10 @@ fn svg_templates() {
         layout: 1,
     }];
     let mut m = sample::manifest("a.b", "A", "1.0.0", &t);
-    m["variants"][0]["textures"][0]["template"] = json!("templates/cabin.svg");
+    m["paint_job"]["main"][0]["texture"]["template"] = json!("templates/cabin.svg");
     let bytes = sample::zip(&m, &[("templates/cabin.svg".into(), svg.to_vec())]);
     let p = Package::read(&bytes).unwrap();
-    let i = p.template("standard", "cabin").unwrap();
+    let i = p.template("cabin").unwrap();
     assert_eq!((i.kind, i.width, i.height), (ImageKind::Svg, 300.0, 200.0));
 }
 
@@ -87,28 +133,30 @@ fn invalid_packages_are_refused() {
         err(&sample::zip_without_manifest()),
         PackageError::NoManifest
     );
-    assert!(matches!(
-        err(&with_manifest(|m| m["name"] = json!(3))),
-        PackageError::BadManifest(_)
-    ));
-    assert!(matches!(
-        err(&with_manifest(|m| {
+    for edit in [
+        (|m: &mut serde_json::Value| m["name"] = json!(3)) as fn(&mut serde_json::Value),
+        |m| {
             m.as_object_mut().unwrap().remove("game");
-        })),
-        PackageError::BadManifest(_)
-    ));
-    assert!(matches!(
-        err(&with_manifest(|m| m["version"] = json!("1.2"))),
-        PackageError::BadManifest(_)
-    ));
-    assert!(matches!(
-        err(&with_manifest(|m| m["game_versions"] = json!("about 1.5"))),
-        PackageError::BadManifest(_)
-    ));
-    assert!(matches!(
-        err(&with_manifest(|m| m["kind"] = json!("boat"))),
-        PackageError::BadManifest(_)
-    ));
+        },
+        |m| {
+            m["game"].as_object_mut().unwrap().remove("path");
+        },
+        |m| m["version"] = json!("1.2"),
+        |m| m["game"]["versions"] = json!("about 1.5"),
+        |m| m["game"]["id"] = json!("fs22"),
+        |m| m["kind"] = json!("boat"),
+        |m| {
+            m["paint_job"]["accessories"][0]
+                .as_object_mut()
+                .unwrap()
+                .remove("texture");
+        },
+    ] {
+        assert!(matches!(
+            err(&with_manifest(edit)),
+            PackageError::BadManifest(_)
+        ));
+    }
     assert_eq!(
         err(&with_manifest(|m| m["format"] = json!(2))),
         PackageError::NewerFormat(2)
@@ -118,22 +166,65 @@ fn invalid_packages_are_refused() {
         PackageError::BadId("Volvo".into())
     );
     assert_eq!(
-        err(&with_manifest(|m| m["variants"] = json!([]))),
-        PackageError::NoVariant
+        err(&with_manifest(|m| m["game"]["path"] = json!("Scania.R"))),
+        PackageError::BadGamePath("Scania.R".into())
     );
     assert_eq!(
-        err(&with_manifest(|m| m["variants"][0]["textures"] = json!([]))),
-        PackageError::EmptyVariant("Standard cabin".into())
+        err(&with_manifest(|m| m["paint_job"]["main"] = json!([]))),
+        PackageError::NoMainTexture
     );
-    assert!(matches!(
+    assert_eq!(
+        err(&with_manifest(|m| {
+            m["paint_job"].as_object_mut().unwrap().remove("main");
+        })),
+        PackageError::NoMainTexture
+    );
+    assert_eq!(
         err(&with_manifest(
-            |m| m["variants"][0]["textures"][1]["id"] = json!("cabin")
+            |m| m["paint_job"]["accessories"][0]["id"] = json!("cabin")
         )),
-        PackageError::DuplicateTexture { .. }
-    ));
+        PackageError::DuplicatePart("cabin".into())
+    );
     assert_eq!(
         err(&with_manifest(
-            |m| m["variants"][0]["textures"][0]["size"] = json!(3000)
+            |m| m["paint_job"]["accessories"][1]["game_ids"] = json!([])
+        )),
+        PackageError::MissingGameIds("Accessories".into())
+    );
+    // Two main textures: each says which cabins it is for.
+    assert_eq!(
+        err(&with_manifest(|m| {
+            let mut second = m["paint_job"]["main"][0].clone();
+            second["id"] = json!("high_roof");
+            second["name"] = json!("High roof");
+            m["paint_job"]["main"][0]["game_ids"] = json!(["standard"]);
+            m["paint_job"]["main"].as_array_mut().unwrap().push(second);
+        })),
+        PackageError::MissingGameIds("High roof".into())
+    );
+    assert_eq!(
+        err(&with_manifest(
+            |m| m["paint_job"]["accessories"][0]["game_ids"] = json!(["Mirror.painted"])
+        )),
+        PackageError::BadGameId("Mirror.painted".into())
+    );
+    assert_eq!(
+        err(&with_manifest(
+            |m| m["paint_job"]["accessories"][1]["game_ids"] = json!(["chassis.sample"])
+        )),
+        PackageError::DuplicateGameId("chassis.sample".into())
+    );
+    // The same id among main textures and among accessories is fine: they
+    // are different things in the game.
+    assert!(
+        Package::read(&with_manifest(|m| {
+            m["paint_job"]["main"][0]["game_ids"] = json!(["chassis.sample"]);
+        }))
+        .is_ok()
+    );
+    assert_eq!(
+        err(&with_manifest(
+            |m| m["paint_job"]["main"][0]["texture"]["size"] = json!(3000)
         )),
         PackageError::BadSize {
             texture: "Cabin".into(),
@@ -142,7 +233,8 @@ fn invalid_packages_are_refused() {
     );
     assert_eq!(
         err(&with_manifest(
-            |m| m["variants"][0]["textures"][1]["template"] = json!("templates/missing.png")
+            |m| m["paint_job"]["accessories"][0]["texture"]["template"] =
+                json!("templates/missing.png")
         )),
         PackageError::MissingTemplate {
             texture: "Chassis".into(),
@@ -151,10 +243,12 @@ fn invalid_packages_are_refused() {
     );
     assert!(matches!(
         err(&with_manifest(
-            |m| m["variants"][0]["textures"][0]["template"] = json!("templates/cabin.jpg")
+            |m| m["paint_job"]["main"][0]["texture"]["template"] = json!("templates/cabin.jpg")
         )),
         PackageError::MissingTemplate { .. } | PackageError::BadTemplate { .. }
     ));
+    assert!(is_valid_game_name("scania.r_2016") && is_valid_game_name("highline"));
+    assert!(!is_valid_game_name("") && !is_valid_game_name("a..b") && !is_valid_game_name("a-b"));
 }
 
 #[test]
@@ -208,11 +302,17 @@ fn ids() {
 }
 
 #[test]
-fn documented_example_manifest_is_valid() {
+fn documented_example_manifests_are_valid() {
     let doc = include_str!("../../../docs/vehicle-package-format.md");
-    let start = doc.find("```json\n").expect("json example") + "```json\n".len();
-    let end = start + doc[start..].find("```").expect("end of example");
-    let manifest: Manifest = serde_json::from_str(&doc[start..end]).expect("parses");
-    validate(&manifest).expect("valid");
-    assert_eq!(manifest.variants[0].textures.len(), 3);
+    let mut count = 0;
+    for block in doc.split("```json\n").skip(1) {
+        let json = &block[..block.find("```").expect("end of example")];
+        let manifest: Manifest = serde_json::from_str(json).expect("parses");
+        validate(&manifest).expect("valid");
+        count += 1;
+    }
+    assert!(
+        count >= 3,
+        "a truck with several layouts, one layout, a trailer"
+    );
 }

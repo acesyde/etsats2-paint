@@ -310,12 +310,10 @@ pub fn file_stem_safe(name: &str) -> String {
 }
 
 /// The proposed name of an export of the active surface:
-/// "<project> - <vehicle> - <variant> - <texture>".
+/// "<project> - <vehicle> - <texture>".
 pub fn export_name(project: &Project) -> String {
     let name = match project.surface_names(project.active_surface) {
-        Some((vehicle, variant, texture)) => {
-            format!("{} - {vehicle} - {variant} - {texture}", project.name)
-        }
+        Some((vehicle, texture)) => format!("{} - {vehicle} - {texture}", project.name),
         None => project.name.clone(),
     };
     file_stem_safe(&name)

@@ -88,12 +88,18 @@ pub fn describe(e: &PackageError) -> String {
         PackageError::BadId(id) => {
             format!("invalid id \"{id}\": use lowercase words separated by dots, at least two")
         }
-        PackageError::NoVariant => "the manifest has no variant".into(),
-        PackageError::EmptyVariant(v) => format!("the variant \"{v}\" has no texture"),
-        PackageError::DuplicateVariant(v) => format!("two variants have the id \"{v}\""),
-        PackageError::DuplicateTexture { variant, texture } => {
-            format!("two textures of \"{variant}\" have the id \"{texture}\"")
+        PackageError::BadGamePath(path) => {
+            format!("invalid game path \"{path}\": use words of a-z, 0-9 and _ separated by dots")
         }
+        PackageError::NoMainTexture => "the paint job has no main texture".into(),
+        PackageError::DuplicatePart(id) => format!("two parts have the id \"{id}\""),
+        PackageError::MissingGameIds(name) => {
+            format!("\"{name}\" has no game id (an accessory, or one of several main textures)")
+        }
+        PackageError::BadGameId(id) => {
+            format!("invalid game id \"{id}\": use words of a-z, 0-9 and _ separated by dots")
+        }
+        PackageError::DuplicateGameId(id) => format!("the game id \"{id}\" is listed twice"),
         PackageError::BadSize { texture, size } => format!(
             "the {texture} texture size {size} is not one of {:?}",
             tp_vehicles::SIZES
@@ -162,14 +168,12 @@ pub fn pack_folder(folder: &Path) -> Result<Packed, PackError> {
     let manifest: Manifest =
         serde_json::from_value(value.clone()).map_err(|e| PackError::BadManifest(e.to_string()))?;
 
-    // Referenced files, each with the texture it is first used by.
+    // Referenced files, each with the part it is first used by.
     let mut referenced: BTreeMap<String, String> = BTreeMap::new();
-    for variant in &manifest.variants {
-        for texture in &variant.textures {
-            referenced
-                .entry(texture.template.clone())
-                .or_insert_with(|| texture.name.clone());
-        }
+    for (_, part) in manifest.paint_job.parts() {
+        referenced
+            .entry(part.texture.template.clone())
+            .or_insert_with(|| part.name.clone());
     }
     if let Some(preview) = &manifest.preview {
         referenced
@@ -235,15 +239,15 @@ pub fn pack_folder(folder: &Path) -> Result<Packed, PackError> {
 
 /// Points the converted templates at their PNG.
 fn rewrite_templates(value: &mut Value, converted: &[(String, String)]) {
-    let Some(variants) = value.get_mut("variants").and_then(Value::as_array_mut) else {
-        return;
-    };
-    for variant in variants {
-        let Some(textures) = variant.get_mut("textures").and_then(Value::as_array_mut) else {
+    for list in ["main", "accessories"] {
+        let Some(parts) = value
+            .pointer_mut(&format!("/paint_job/{list}"))
+            .and_then(Value::as_array_mut)
+        else {
             continue;
         };
-        for texture in textures {
-            if let Some(template) = texture.get_mut("template")
+        for part in parts {
+            if let Some(template) = part.pointer_mut("/texture/template")
                 && let Some((_, png)) = converted
                     .iter()
                     .find(|(dds, _)| template.as_str() == Some(dds.as_str()))
@@ -321,22 +325,42 @@ pub fn check(bytes: &[u8]) -> Result<Manifest, PackError> {
 
 /// A readable summary of a manifest.
 pub fn summary(m: &Manifest) -> String {
+    let g = &m.game;
     let mut out = format!(
-        "{} {}\n  {} ({} {}, {})\n  game versions: {}\n",
+        "{} {}\n  {} ({} {}, {})\n  game path: {}\n  game versions: {}\n",
         m.id,
         m.version,
         m.name,
         m.brand,
         m.kind.code(),
-        m.game.code(),
-        m.game_versions
+        g.id.code(),
+        g.path,
+        g.versions
     );
-    for variant in &m.variants {
-        out.push_str(&format!("  variant {} ({})\n", variant.id, variant.name));
-        for t in &variant.textures {
+    if g.alt_uv {
+        out.push_str("  alternate UV set\n");
+    }
+    if g.colour_picker {
+        out.push_str("  colour picker\n");
+    }
+    for (title, parts) in [
+        ("main textures", &m.paint_job.main),
+        ("accessories", &m.paint_job.accessories),
+    ] {
+        if parts.is_empty() {
+            continue;
+        }
+        out.push_str(&format!("  {title}:\n"));
+        for p in parts {
+            let t = &p.texture;
+            let covers = if p.game_ids.is_empty() {
+                "whole vehicle".to_owned()
+            } else {
+                p.game_ids.join(", ")
+            };
             out.push_str(&format!(
-                "    {} ({}): {}×{}, layout {}, {}\n",
-                t.id, t.name, t.size, t.size, t.layout_version, t.template
+                "    {} ({}): {}×{}, layout {}, {} [{}]\n",
+                p.id, p.name, t.size, t.size, t.layout_version, t.template, covers
             ));
         }
     }

@@ -150,7 +150,7 @@ reason-no-template = This texture has no template.
 
 cmd-add-vehicle = Add Vehicle…
 reason-last-vehicle = A project keeps at least one vehicle.
-reason-choose-vehicle = Choose a vehicle and at least one variant.
+reason-choose-vehicle = Choose a vehicle and at least one main texture.
 
 ## Textures
 

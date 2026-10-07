@@ -59,11 +59,11 @@ pub fn show(ui: &mut Ui, ws: &Workspace, view_mode: ViewMode) {
         );
         item(ui, position);
         divider(ui);
-        // "Vehicle › Variant › Texture", shortened when too long.
+        // "Vehicle › Texture", shortened when too long.
         let active = ws.project.active_surface;
         let name = ws.project.surface_names(active).map_or_else(
             || ws.project.surface().name.clone(),
-            |(v, x, t)| format!("{v} › {x} › {t}"),
+            |(v, t)| format!("{v} › {t}"),
         );
         let label =
             egui::Label::new(RichText::new(&name).small().color(color::TEXT_SECONDARY)).truncate();
