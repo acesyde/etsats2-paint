@@ -5,7 +5,7 @@
 
 use egui::collapsing_header::CollapsingState;
 use egui::{Align, Layout, RichText, Slider, TextEdit, Ui, WidgetInfo, WidgetType};
-use tp_core::{ProjectVehicle, TemplateStatus};
+use tp_core::{ProjectVehicle, TemplateStatus, TexturePart};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
@@ -94,7 +94,8 @@ fn vehicles_section(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_
         });
 }
 
-/// A vehicle: its name groups its variants; actions in its ⋯ menu.
+/// A vehicle: its name groups its textures under Main textures and
+/// Accessories; actions in its ⋯ menu.
 fn vehicle_group(ui: &mut Ui, env: &mut PanelEnv<'_>, vehicle: &ProjectVehicle, last: bool) {
     let id = ui.make_persistent_id(("fleet_vehicle", &vehicle.package_id));
     let active = env
@@ -116,8 +117,8 @@ fn vehicle_group(ui: &mut Ui, env: &mut PanelEnv<'_>, vehicle: &ProjectVehicle, 
             ui.label(RichText::new(&vehicle.name).text_style(label_strong_style()));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 let menu = ui.menu_button(icons::rich(icons::MORE), |ui| {
-                    if ui.button(tr("vehicles-variants")).clicked() {
-                        request = Some(VehicleRequest::Variants(vehicle.package_id.clone()));
+                    if ui.button(tr("vehicles-textures")).clicked() {
+                        request = Some(VehicleRequest::Textures(vehicle.package_id.clone()));
                         ui.close();
                     }
                     if update.is_some() && ui.button(tr("cmd-update-template")).clicked() {
@@ -172,7 +173,7 @@ fn vehicle_group(ui: &mut Ui, env: &mut PanelEnv<'_>, vehicle: &ProjectVehicle, 
                 Some(i) => tr!(
                     "vehicle-panel-package",
                     version = vehicle.version.as_str(),
-                    games = i.manifest.game_versions.to_string()
+                    games = i.manifest.game.versions.to_string()
                 ),
                 None => tr!(
                     "vehicle-panel-package-missing",
@@ -185,8 +186,23 @@ fn vehicle_group(ui: &mut Ui, env: &mut PanelEnv<'_>, vehicle: &ProjectVehicle, 
                     .color(color::TEXT_SECONDARY),
             )
             .on_hover_text(package);
-            for variant in &vehicle.variants {
-                variant_group(ui, env, vehicle, &variant.id, &variant.name);
+            // Surfaces are ordered main textures first, then accessories: a
+            // heading before the first of each.
+            let mut heading = None;
+            for i in env.ws.project.vehicle_range(&vehicle.package_id) {
+                let part = env.ws.project.surfaces[i]
+                    .template
+                    .as_ref()
+                    .map_or(TexturePart::Main, |t| t.part);
+                if heading != Some(part) {
+                    heading = Some(part);
+                    let title = match part {
+                        TexturePart::Main => tr("vehicles-main-textures"),
+                        TexturePart::Accessory => tr("vehicles-accessories"),
+                    };
+                    ui.label(RichText::new(title).small().color(color::TEXT_SECONDARY));
+                }
+                texture_row(ui, env, i);
             }
         });
     if request.is_some() {
@@ -202,39 +218,6 @@ fn flagged(status: Option<TemplateStatus>) -> bool {
     )
 }
 
-/// A variant and its textures; ⚠ when one of them needs checking.
-fn variant_group(
-    ui: &mut Ui,
-    env: &mut PanelEnv<'_>,
-    vehicle: &ProjectVehicle,
-    id: &str,
-    name: &str,
-) {
-    let range = env.ws.project.variant_range(&vehicle.package_id, id);
-    let active = range.contains(&env.ws.project.active_surface);
-    let warn = env.ws.project.surfaces[range.clone()]
-        .iter()
-        .any(|s| flagged(s.template.as_ref().map(|t| t.status)));
-    let state_id = ui.make_persistent_id(("fleet_variant", &vehicle.package_id, id));
-    let mut state = CollapsingState::load_with_default_open(ui.ctx(), state_id, true);
-    if active {
-        state.set_open(true);
-    }
-    state
-        .show_header(ui, |ui| {
-            ui.label(name);
-            if warn {
-                ui.label(icons::rich(icons::WARNING).color(color::WARNING))
-                    .on_hover_text(tr("vehicle-panel-needs-check"));
-            }
-        })
-        .body(|ui| {
-            for i in range {
-                texture_row(ui, env, i);
-            }
-        });
-}
-
 /// A texture: name and size; clicking makes it active.
 fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     let active = env.ws.project.active_surface == i;
@@ -246,7 +229,7 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
         .ws
         .project
         .surface_names(i)
-        .map_or_else(|| name.clone(), |(v, x, t)| format!("{v} › {x} › {t}"));
+        .map_or_else(|| name.clone(), |(v, t)| format!("{v} › {t}"));
     ui.horizontal(|ui| {
         let row = ui.selectable_label(active, &name);
         row.widget_info(|| {
@@ -267,7 +250,8 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
                     .color(color::TEXT_SECONDARY),
             );
             if warn {
-                ui.label(icons::rich(icons::WARNING).color(color::WARNING));
+                ui.label(icons::rich(icons::WARNING).color(color::WARNING))
+                    .on_hover_text(tr("vehicle-panel-needs-check"));
             }
         });
     });
@@ -284,7 +268,7 @@ pub fn texture_section(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         .ws
         .project
         .surface_names(index)
-        .map_or_else(String::new, |(v, x, t)| format!("{v} › {x} › {t}"));
+        .map_or_else(String::new, |(v, t)| format!("{v} › {t}"));
     let version = env
         .ws
         .project

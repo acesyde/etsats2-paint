@@ -35,7 +35,7 @@ pub struct NewProjectDraft {
     pub step: usize,
     pub name: String,
     pub focus_requested: bool,
-    /// The chosen vehicle and its checked variants.
+    /// The chosen vehicle and its checked textures.
     pub vehicle: Option<crate::ui::vehicle_dialogs::VehicleChoice>,
     pub filter: crate::ui::vehicle_dialogs::VehicleFilter,
     /// Results of installing packages from the wizard.
@@ -62,8 +62,8 @@ pub enum Modal {
     UpdateTemplate(Box<crate::ui::vehicle_dialogs::UpdateDialog>),
     /// Add Vehicle dialog.
     AddVehicle(crate::ui::vehicle_dialogs::AddVehicleDialog),
-    /// The variants of a project's vehicle.
-    Variants(crate::ui::vehicle_dialogs::VariantsDialog),
+    /// The textures a project's vehicle paints.
+    Textures(crate::ui::vehicle_dialogs::TexturesDialog),
     /// Confirmation before removing a vehicle with artwork from the project.
     RemoveVehicle {
         package_id: String,
@@ -75,7 +75,7 @@ pub enum Modal {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VehicleRequest {
     Update(String),
-    Variants(String),
+    Textures(String),
     Remove(String),
 }
 
@@ -269,10 +269,7 @@ impl AppState {
             Ok(package) => {
                 if let Some(plan) = crate::vehicle_project::plan(&ws.project, &package) {
                     self.modal = Some(Modal::UpdateTemplate(Box::new(
-                        crate::ui::vehicle_dialogs::UpdateDialog {
-                            package: Box::new(package),
-                            plan,
-                        },
+                        crate::ui::vehicle_dialogs::UpdateDialog::new(package, plan),
                     )));
                 }
             }
@@ -290,16 +287,17 @@ impl AppState {
     pub fn handle_vehicle_request(&mut self, request: VehicleRequest, now: f64) {
         match request {
             VehicleRequest::Update(id) => self.open_update_dialog(Some(&id)),
-            VehicleRequest::Variants(id) => {
-                let Some(vehicle) = self
-                    .workspace()
-                    .and_then(|ws| ws.project.vehicle(&id).cloned())
-                else {
+            VehicleRequest::Textures(id) => {
+                let Some(dialog) = self.workspace().and_then(|ws| {
+                    let vehicle = ws.project.vehicle(&id)?;
+                    Some(crate::ui::vehicle_dialogs::TexturesDialog::new(
+                        &ws.project,
+                        vehicle,
+                    ))
+                }) else {
                     return;
                 };
-                self.modal = Some(Modal::Variants(
-                    crate::ui::vehicle_dialogs::VariantsDialog::new(&vehicle),
-                ));
+                self.modal = Some(Modal::Textures(dialog));
             }
             VehicleRequest::Remove(id) => {
                 let Some(ws) = self.workspace() else {

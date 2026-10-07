@@ -61,10 +61,10 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         return;
     }
     if matches!(state.modal, Some(Modal::UpdateTemplate(_))) {
-        let Some(Modal::UpdateTemplate(dialog)) = state.modal.take() else {
+        let Some(Modal::UpdateTemplate(mut dialog)) = state.modal.take() else {
             unreachable!()
         };
-        if super::vehicle_dialogs::update(ctx, state, &dialog) && state.modal.is_none() {
+        if super::vehicle_dialogs::update(ctx, state, &mut dialog) && state.modal.is_none() {
             state.modal = Some(Modal::UpdateTemplate(dialog));
         }
         return;
@@ -78,12 +78,12 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         }
         return;
     }
-    if matches!(state.modal, Some(Modal::Variants(_))) {
-        let Some(Modal::Variants(mut dialog)) = state.modal.take() else {
+    if matches!(state.modal, Some(Modal::Textures(_))) {
+        let Some(Modal::Textures(mut dialog)) = state.modal.take() else {
             unreachable!()
         };
-        if super::vehicle_dialogs::variants(ctx, state, &mut dialog) && state.modal.is_none() {
-            state.modal = Some(Modal::Variants(dialog));
+        if super::vehicle_dialogs::textures(ctx, state, &mut dialog) && state.modal.is_none() {
+            state.modal = Some(Modal::Textures(dialog));
         }
         return;
     }
@@ -114,7 +114,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
                 false
             }
             WizardOutcome::InstallSample => {
-                let results = super::vehicle_dialogs::install_sample(state);
+                let results = super::vehicle_dialogs::install_samples(state);
                 let sample = results.first().is_some_and(Result::is_ok);
                 let pick = state
                     .vehicles
@@ -133,13 +133,13 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
             WizardOutcome::CreateVehicle { name, choice } => {
                 let loaded = state.vehicles.load(&choice.id, &choice.version);
                 match loaded
-                    .map(|p| crate::vehicle_project::fleet_project(&name, &p, &choice.variants))
+                    .map(|p| crate::vehicle_project::fleet_project(&name, &p, &choice.textures))
                 {
-                    Ok(Some(project)) => {
+                    Ok(Ok(project)) => {
                         state.open_project(project);
                         true
                     }
-                    Ok(None) => true,
+                    Ok(Err(_)) => true,
                     Err(err) => {
                         state.modal = Some(Modal::Message {
                             title: tr("home-new-project"),
@@ -158,7 +158,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         | Modal::VehicleLibrary(_)
         | Modal::UpdateTemplate(_)
         | Modal::AddVehicle(_)
-        | Modal::Variants(_)
+        | Modal::Textures(_)
         | Modal::RemoveVehicle { .. } => {
             unreachable!("handled above")
         }
@@ -302,9 +302,11 @@ fn vehicle_step(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibra
             .clicked();
         return sample;
     }
+    // A fixed height: the dialog doesn't resize (over several frames) when
+    // a vehicle's texture checkboxes appear.
     egui::ScrollArea::vertical()
         .max_height(280.0)
-        .auto_shrink([false, true])
+        .auto_shrink([false, false])
         .show(ui, |ui| {
             super::vehicle_dialogs::vehicle_list(
                 ui,
@@ -317,25 +319,15 @@ fn vehicle_step(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibra
     sample
 }
 
-/// The vehicle chosen in the draft, if it is installed, with its checked
-/// variants in package order.
+/// The vehicle chosen in the draft, if it is installed and ready, with the
+/// textures it will paint in package order.
 fn chosen<'a>(
     draft: &NewProjectDraft,
     library: &'a VehicleLibrary,
-) -> Option<(&'a tp_vehicles::Manifest, Vec<&'a tp_vehicles::Variant>)> {
+) -> Option<(&'a tp_vehicles::Manifest, Vec<&'a tp_vehicles::Part>)> {
     let choice = draft.vehicle.as_ref()?;
-    let installed = library
-        .get(&choice.id)?
-        .versions
-        .iter()
-        .find(|v| v.manifest.version == choice.version)?;
-    let m = &installed.manifest;
-    let variants: Vec<_> = m
-        .variants
-        .iter()
-        .filter(|v| choice.variants.contains(&v.id))
-        .collect();
-    (!variants.is_empty()).then_some((m, variants))
+    let m = choice.manifest(library)?;
+    choice.is_complete(library).then(|| (m, choice.painted(m)))
 }
 
 fn new_project(
@@ -379,18 +371,16 @@ fn new_project(
                 draft.focus_requested = true;
             }
             ui.add_space(space::LG);
-            if let Some((_, variants)) = chosen(draft, library) {
+            if let Some((_, parts)) = chosen(draft, library) {
                 ui.label(
                     RichText::new(tr("new-project-textures")).text_style(label_strong_style()),
                 );
-                for variant in variants {
-                    ui.label(RichText::new(&variant.name).color(color::TEXT_PRIMARY));
-                    for t in &variant.textures {
-                        ui.label(
-                            RichText::new(format!("    {} · {} × {} px", t.name, t.size, t.size))
-                                .color(color::TEXT_SECONDARY),
-                        );
-                    }
+                for part in parts {
+                    let size = part.texture.size;
+                    ui.label(
+                        RichText::new(format!("{} · {size} × {size} px", part.name))
+                            .color(color::TEXT_SECONDARY),
+                    );
                 }
             }
         }

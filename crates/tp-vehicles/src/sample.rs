@@ -4,7 +4,7 @@ use std::io::{Cursor, Write};
 
 use serde_json::{Value, json};
 
-/// A texture of a sample package: id, name, size, layout version.
+/// A part of a sample package: id, name, texture size, layout version.
 #[derive(Clone, Debug)]
 pub struct SampleTexture {
     pub id: &'static str,
@@ -13,7 +13,8 @@ pub struct SampleTexture {
     pub layout: u32,
 }
 
-/// Cabin 4096, Chassis 2048 and Accessories 1024, layout 1.
+/// Main texture Cabin 4096, accessories Chassis 2048 and Accessories 1024,
+/// layout 1.
 pub fn truck_textures() -> Vec<SampleTexture> {
     vec![
         SampleTexture {
@@ -37,30 +38,57 @@ pub fn truck_textures() -> Vec<SampleTexture> {
     ]
 }
 
-/// The manifest of a one-variant truck with `textures`.
-pub fn manifest(id: &str, name: &str, version: &str, textures: &[SampleTexture]) -> Value {
+/// The JSON of a part: game ids `[id]` for a main texture when there are
+/// several, `["<id>.sample"]` for an accessory.
+fn part(t: &SampleTexture, game_ids: Vec<String>) -> Value {
+    json!({
+        "id": t.id,
+        "name": t.name,
+        "game_ids": game_ids,
+        "texture": {
+            "size": t.size,
+            "template": format!("templates/{}.png", t.id),
+            "layout_version": t.layout,
+        },
+    })
+}
+
+/// The manifest of a vehicle of `kind` with main textures `main` and
+/// accessories `accessories`.
+pub fn manifest_with(
+    id: &str,
+    name: &str,
+    version: &str,
+    kind: &str,
+    main: &[SampleTexture],
+    accessories: &[SampleTexture],
+) -> Value {
+    let several = main.len() > 1;
     json!({
         "format": 1,
         "id": id,
         "version": version,
         "name": name,
         "brand": "Sample",
-        "kind": "truck",
-        "game": "ets2",
-        "game_versions": ">=1.50, <1.60",
+        "kind": kind,
         "authors": ["TruckPaint tests"],
-        "variants": [{
-            "id": "standard",
-            "name": "Standard cabin",
-            "textures": textures.iter().map(|t| json!({
-                "id": t.id,
-                "name": t.name,
-                "size": t.size,
-                "template": format!("templates/{}.png", t.id),
-                "layout_version": t.layout,
-            })).collect::<Vec<_>>(),
-        }],
+        "game": {
+            "id": "ets2",
+            "versions": ">=1.50, <1.60",
+            "path": "sample.vehicle",
+        },
+        "paint_job": {
+            "main": main.iter().map(|t| part(t, if several { vec![t.id.to_owned()] } else { Vec::new() })).collect::<Vec<_>>(),
+            "accessories": accessories.iter().map(|t| part(t, vec![format!("{}.sample", t.id)])).collect::<Vec<_>>(),
+        },
     })
+}
+
+/// The manifest of a truck whose first texture is its single main texture
+/// and the others its accessories.
+pub fn manifest(id: &str, name: &str, version: &str, textures: &[SampleTexture]) -> Value {
+    let (main, accessories) = textures.split_at(textures.len().min(1));
+    manifest_with(id, name, version, "truck", main, accessories)
 }
 
 /// A small template-like PNG (outline and diagonals on transparency).
@@ -101,13 +129,33 @@ pub fn zip(manifest: &Value, files: &[(String, Vec<u8>)]) -> Vec<u8> {
     out
 }
 
-/// A complete valid package of a truck with `textures`.
-pub fn package(id: &str, name: &str, version: &str, textures: &[SampleTexture]) -> Vec<u8> {
-    let files: Vec<(String, Vec<u8>)> = textures
+/// The template files of `textures` (small PNGs).
+pub fn templates(textures: &[SampleTexture]) -> Vec<(String, Vec<u8>)> {
+    textures
         .iter()
         .map(|t| (format!("templates/{}.png", t.id), png(64)))
-        .collect();
-    zip(&manifest(id, name, version, textures), &files)
+        .collect()
+}
+
+/// A complete valid package of a truck with `textures` (see [`manifest`]).
+pub fn package(id: &str, name: &str, version: &str, textures: &[SampleTexture]) -> Vec<u8> {
+    zip(&manifest(id, name, version, textures), &templates(textures))
+}
+
+/// A complete valid package of a vehicle of `kind` (see [`manifest_with`]).
+pub fn package_with(
+    id: &str,
+    name: &str,
+    version: &str,
+    kind: &str,
+    main: &[SampleTexture],
+    accessories: &[SampleTexture],
+) -> Vec<u8> {
+    let all: Vec<SampleTexture> = main.iter().chain(accessories).cloned().collect();
+    zip(
+        &manifest_with(id, name, version, kind, main, accessories),
+        &templates(&all),
+    )
 }
 
 /// A ZIP with a template but no manifest.

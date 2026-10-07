@@ -52,12 +52,12 @@ dir = "{{cwd}}"
 run = "cargo run -q --manifest-path {{config_root}}/Cargo.toml -p tp-pack --bin tpv -- pack"
 
 [tasks.sample-vehicles]
-description = "Rebuild the committed sample vehicle packages from examples/vehicles/sample-truck"
+description = "Rebuild the committed sample vehicle packages from examples/vehicles/<sample>/<version>"
 run = """
 set -e
-for src in examples/vehicles/sample-truck/*/; do
-  version=$(basename "$src")
-  cargo run -q -p tp-pack --bin tpv -- pack "$src" -o "examples/vehicles/community.truckpaint.sample_truck-$version.tpv"
+cd examples/vehicles
+for src in */*/; do
+  cargo run -q --manifest-path ../../Cargo.toml -p tp-pack --bin tpv -- pack "$src"
 done
 """
 

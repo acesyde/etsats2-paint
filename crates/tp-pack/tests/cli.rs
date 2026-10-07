@@ -56,6 +56,43 @@ fn pack_writes_the_default_file_and_check_reads_it() {
 }
 
 #[test]
+fn check_describes_a_trailer() {
+    let dir = tempfile::tempdir().unwrap();
+    let tex = |id, name, size| sample::SampleTexture {
+        id,
+        name,
+        size,
+        layout: 1,
+    };
+    let bytes = sample::package_with(
+        "community.jdoe.trailer",
+        "Trailer",
+        "1.0.0",
+        "trailer",
+        &[tex("base", "Base", 2048)],
+        &[
+            tex("body", "Body 13.6 m", 4096),
+            tex("mudflaps", "Mudflaps", 512),
+        ],
+    );
+    std::fs::write(dir.path().join("t.tpv"), bytes).unwrap();
+    let out = tpv(dir.path(), &["check", "t.tpv"]);
+    assert!(out.status.success(), "{}", text(&out.stderr));
+    let stdout = text(&out.stdout);
+    assert!(
+        stdout.contains("Trailer (Sample trailer, ets2)"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("base (Base): 2048×2048"), "{stdout}");
+    assert!(stdout.contains("[whole vehicle]"), "{stdout}");
+    assert!(
+        stdout
+            .contains("body (Body 13.6 m): 4096×4096, layout 1, templates/body.png [body.sample]"),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn failed_pack_writes_nothing() {
     let dir = tempfile::tempdir().unwrap();
     source(dir.path());

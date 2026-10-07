@@ -1400,8 +1400,8 @@ fn render_languages() {
     }
 }
 
-/// A vehicle project (tabs, template overlay, Vehicle panel with an update)
-/// and the New Project vehicle step, in English and German.
+/// A vehicle project (template overlay, sidebar with an update) and the New
+/// Project vehicle step, in English and German.
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_vehicle_screens() {
@@ -1443,7 +1443,7 @@ fn render_vehicle_screens() {
             d.vehicle = Some(tp_app::ui::vehicle_dialogs::VehicleChoice {
                 id: "scs.sample.truck".into(),
                 version: "1.3.0".parse().unwrap(),
-                variants: vec!["standard".into()],
+                textures: vec!["chassis".into(), "accessories".into()],
             });
         }
         save(&mut h, &format!("vehicle_wizard_{code}"));
@@ -1454,15 +1454,16 @@ fn render_vehicle_screens() {
             .vehicles
             .load("scs.sample.truck", &"1.2.0".parse().unwrap())
             .unwrap();
+        let textures = tp_app::vehicle_project::default_textures(&package.manifest);
         let project =
-            tp_app::vehicle_project::vehicle_project("Sample Truck", &package, "standard").unwrap();
+            tp_app::vehicle_project::fleet_project("Sample Truck", &package, &textures).unwrap();
         h.state_mut().open_project(project);
         save(&mut h, &format!("vehicle_project_{code}"));
     }
 }
 
-/// The empty New Project vehicle step and Vehicle Library with the sample
-/// button, then projects on the sample's templates, in English and French.
+/// The empty New Project vehicle step and Vehicle Library with the samples
+/// button, then projects on the samples' templates, in English and French.
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_sample_vehicle() {
@@ -1480,31 +1481,47 @@ fn render_sample_vehicle() {
         h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
         save(&mut h, &format!("sample_library_empty_{code}"));
         h.state_mut().modal = None;
-        h.state_mut().vehicles.install_sample().unwrap();
-        let package = h
+        h.state_mut().vehicles.install_samples().unwrap();
+        let truck = h
             .state()
             .vehicles
             .load(tp_app::vehicles::SAMPLE_ID, &"1.1.0".parse().unwrap())
             .unwrap();
-        for variant in ["standard", "high_roof"] {
+        let trailer = h
+            .state()
+            .vehicles
+            .load(
+                tp_app::vehicles::SAMPLE_TRAILER_ID,
+                &"1.0.0".parse().unwrap(),
+            )
+            .unwrap();
+        for (name, package, main) in [
+            ("standard", &truck, "standard"),
+            ("high_roof", &truck, "high_roof"),
+            ("trailer", &trailer, "base"),
+        ] {
+            let mut textures = tp_app::vehicle_project::default_textures(&package.manifest);
+            textures[0] = main.to_owned();
             let project =
-                tp_app::vehicle_project::vehicle_project("Sample", &package, variant).unwrap();
+                tp_app::vehicle_project::fleet_project("Sample", package, &textures).unwrap();
             h.state_mut().open_project(project);
             h.run();
-            save(&mut h, &format!("sample_{variant}_{code}"));
+            save(&mut h, &format!("sample_{name}_{code}"));
         }
     }
 }
 
-/// A fleet: the sample truck's two cabs and a trailer, with the Vehicles
-/// panel tree, the Add Vehicle and Variants dialogs and the wizard's
-/// variant checkboxes, in English and German.
+/// A fleet: the sample truck's two main textures and the sample trailer,
+/// with the sidebar tree, the Add Vehicle and Textures dialogs, the Update
+/// Template dialog and the wizard's texture checkboxes, in English and
+/// German.
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_fleet_screens() {
     use tp_app::layout::PanelKind;
     use tp_app::state::Modal;
-    use tp_app::ui::vehicle_dialogs::{AddVehicleDialog, VariantsDialog, VehicleChoice};
+    use tp_app::ui::vehicle_dialogs::{AddVehicleDialog, TexturesDialog, VehicleChoice};
+    use tp_app::vehicles::{SAMPLE_ID, SAMPLE_TRAILER_ID};
     for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
         let mut prefs = Prefs::default();
         prefs.set_language(Some(language));
@@ -1513,59 +1530,48 @@ fn render_fleet_screens() {
         }
         let code = language.code();
         let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
-        // A trailer package next to the sample.
-        let mut m = tp_vehicles::sample::manifest(
-            "scs.krone.cool_liner",
-            "Krone Cool Liner",
-            "1.0.0",
-            &tp_vehicles::sample::truck_textures()[..1],
-        );
-        m["kind"] = "trailer".into();
-        let trailer = tp_vehicles::sample::zip(
-            &m,
-            &[("templates/cabin.png".into(), tp_vehicles::sample::png(64))],
-        );
-        h.state_mut().vehicles.install_bytes(&trailer).unwrap();
-        // Wizard with both cabs checked.
-        let sample = tp_app::vehicles::SAMPLE_ID;
+        // Wizard with both main textures checked.
+        let both = vec![
+            "standard".to_owned(),
+            "high_roof".to_owned(),
+            "chassis".to_owned(),
+            "cab_accessories".to_owned(),
+            "side_skirts".to_owned(),
+        ];
         h.state_mut().modal = Some(Modal::NewProject(Default::default()));
         if let Some(Modal::NewProject(d)) = &mut h.state_mut().modal {
             d.vehicle = Some(VehicleChoice {
-                id: sample.into(),
+                id: SAMPLE_ID.into(),
                 version: "1.1.0".parse().unwrap(),
-                variants: vec!["standard".into(), "high_roof".into()],
+                textures: both.clone(),
             });
         }
         save(&mut h, &format!("fleet_wizard_{code}"));
-        // The fleet project.
-        let package = h
-            .state()
-            .vehicles
-            .load(sample, &"1.1.0".parse().unwrap())
-            .unwrap();
-        let project = tp_app::vehicle_project::fleet_project(
-            "ACE Logistics",
-            &package,
-            &["standard".into(), "high_roof".into()],
-        )
-        .unwrap();
+        // The fleet project: the truck and the trailer.
+        let load =
+            |h: &egui_kittest::Harness<'static, tp_app::AppState>, id: &str, version: &str| {
+                h.state()
+                    .vehicles
+                    .load(id, &version.parse().unwrap())
+                    .unwrap()
+            };
+        let truck = load(&h, SAMPLE_ID, "1.1.0");
+        let project =
+            tp_app::vehicle_project::fleet_project("ACE Logistics", &truck, &both).unwrap();
         h.state_mut().modal = None;
         h.state_mut().open_project(project);
-        let krone = h
-            .state()
-            .vehicles
-            .load("scs.krone.cool_liner", &"1.0.0".parse().unwrap())
-            .unwrap();
+        let trailer = load(&h, SAMPLE_TRAILER_ID, "1.0.0");
+        let all = tp_app::vehicle_project::default_textures(&trailer.manifest);
         h.state_mut()
             .workspace_mut()
             .unwrap()
-            .add_vehicle(&krone, &["standard".into()], 1.0)
+            .add_vehicle(&trailer, &all, 1.0)
             .unwrap();
         let ws = h.state_mut().workspace_mut().unwrap();
-        ws.set_active_surface(5);
+        ws.set_active_surface(2);
         // A texture flagged by an update: ⚠ in the tree, the notice in
         // Properties.
-        ws.project.surfaces[5].template.as_mut().unwrap().status =
+        ws.project.surfaces[2].template.as_mut().unwrap().status =
             tp_core::TemplateStatus::LayoutChanged;
         for _ in 0..20 {
             h.step();
@@ -1573,8 +1579,11 @@ fn render_fleet_screens() {
         save(&mut h, &format!("fleet_project_{code}"));
         h.state_mut().modal = Some(Modal::AddVehicle(AddVehicleDialog::for_game(Some("ets2"))));
         save(&mut h, &format!("fleet_add_vehicle_{code}"));
-        let vehicle = h.state().workspace().unwrap().project.vehicles[0].clone();
-        h.state_mut().modal = Some(Modal::Variants(VariantsDialog::new(&vehicle)));
-        save(&mut h, &format!("fleet_variants_{code}"));
+        let dialog = {
+            let p = &h.state().workspace().unwrap().project;
+            TexturesDialog::new(p, &p.vehicles[0])
+        };
+        h.state_mut().modal = Some(Modal::Textures(dialog));
+        save(&mut h, &format!("fleet_textures_{code}"));
     }
 }

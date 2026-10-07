@@ -90,11 +90,19 @@ pub enum TemplateStatus {
     Removed,
 }
 
-/// Which texture of which variant of which vehicle a surface paints.
+/// Whether a vehicle texture is a main texture (a cabin layout, or the
+/// whole vehicle) or an accessory.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum TexturePart {
+    #[default]
+    Main,
+    Accessory,
+}
+
+/// Which texture of which vehicle a surface paints.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TextureKey {
     pub package_id: String,
-    pub variant_id: String,
     pub texture_id: String,
 }
 
@@ -104,10 +112,10 @@ pub struct TextureKey {
 pub struct SurfaceTemplate {
     /// The vehicle package the texture comes from.
     pub package_id: String,
-    /// The variant of that vehicle.
-    pub variant_id: String,
-    /// The package texture it comes from.
+    /// The package part (texture) it comes from.
     pub texture_id: String,
+    /// Whether that texture is a main texture or an accessory.
+    pub part: TexturePart,
     /// The image, stored with the project's assets.
     pub asset: AssetId,
     pub layout_version: u32,
@@ -126,14 +134,13 @@ impl SurfaceTemplate {
     pub fn key(&self) -> TextureKey {
         TextureKey {
             package_id: self.package_id.clone(),
-            variant_id: self.variant_id.clone(),
             texture_id: self.texture_id.clone(),
         }
     }
 
-    /// Whether it belongs to `variant` of `package`.
-    pub fn is_of(&self, package: &str, variant: &str) -> bool {
-        self.package_id == package && self.variant_id == variant
+    /// Whether it is texture `texture` of `package`.
+    pub fn is_of(&self, package: &str, texture: &str) -> bool {
+        self.package_id == package && self.texture_id == texture
     }
 
     /// Whether it should be drawn (shown and still in the package).
@@ -143,11 +150,11 @@ impl SurfaceTemplate {
 
     /// The same template ignoring opacity and visibility (undo compares
     /// templates this way).
-    fn document_part(&self) -> (&str, &str, &str, AssetId, u32, TemplateStatus) {
+    fn document_part(&self) -> (&str, &str, TexturePart, AssetId, u32, TemplateStatus) {
         (
             &self.package_id,
-            &self.variant_id,
             &self.texture_id,
+            self.part,
             self.asset,
             self.layout_version,
             self.status,
@@ -155,34 +162,19 @@ impl SurfaceTemplate {
     }
 }
 
-/// A variant of a vehicle chosen in a project.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct VariantRef {
-    pub id: String,
-    pub name: String,
-}
-
 /// A vehicle of a project: the package and version its templates come
-/// from, and the variants painted.
+/// from. What it paints is its surfaces (see [`Project::vehicle_range`]).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProjectVehicle {
     pub package_id: String,
     /// Semantic version of the package.
     pub version: String,
-    /// Chosen variants, in the order their surfaces appear.
-    pub variants: Vec<VariantRef>,
     pub name: String,
     pub brand: String,
     /// `truck` or `trailer`.
     pub kind: String,
     /// `ets2` or `ats`.
     pub game: String,
-}
-
-impl ProjectVehicle {
-    pub fn variant(&self, id: &str) -> Option<&VariantRef> {
-        self.variants.iter().find(|v| v.id == id)
-    }
 }
 
 impl Surface {
@@ -381,26 +373,6 @@ impl Project {
         self.vehicle(&t.package_id)
     }
 
-    /// The surfaces of `variant` of `package`: a contiguous range (empty,
-    /// at the end of the vehicle's surfaces, when it has none).
-    pub fn variant_range(&self, package: &str, variant: &str) -> std::ops::Range<usize> {
-        let of = |s: &Surface| {
-            s.template
-                .as_ref()
-                .is_some_and(|t| t.is_of(package, variant))
-        };
-        match self.surfaces.iter().position(of) {
-            Some(start) => {
-                let len = self.surfaces[start..].iter().take_while(|s| of(s)).count();
-                start..start + len
-            }
-            None => {
-                let end = self.vehicle_range(package).end;
-                end..end
-            }
-        }
-    }
-
     /// The surfaces of the vehicle `package`: a contiguous range (empty at
     /// the end of the project when it has none).
     pub fn vehicle_range(&self, package: &str) -> std::ops::Range<usize> {
@@ -414,17 +386,15 @@ impl Project {
         }
     }
 
-    /// Vehicle, variant and texture names of surface `index`, falling back
-    /// to the ids when the vehicle is unknown.
-    pub fn surface_names(&self, index: usize) -> Option<(String, String, String)> {
+    /// Vehicle and texture names of surface `index`, falling back to the
+    /// package id when the vehicle is unknown.
+    pub fn surface_names(&self, index: usize) -> Option<(String, String)> {
         let surface = self.surfaces.get(index)?;
         let t = surface.template.as_ref()?;
-        let vehicle = self.vehicle(&t.package_id);
-        let vehicle_name = vehicle.map_or_else(|| t.package_id.clone(), |v| v.name.clone());
-        let variant_name = vehicle
-            .and_then(|v| v.variant(&t.variant_id))
-            .map_or_else(|| t.variant_id.clone(), |v| v.name.clone());
-        Some((vehicle_name, variant_name, surface.name.clone()))
+        let vehicle_name = self
+            .vehicle(&t.package_id)
+            .map_or_else(|| t.package_id.clone(), |v| v.name.clone());
+        Some((vehicle_name, surface.name.clone()))
     }
 
     /// Whether any surface in `range` holds artwork.
@@ -1114,14 +1084,14 @@ mod tests {
     }
 
     fn template(texture: &str, asset: AssetId) -> SurfaceTemplate {
-        keyed("a.b", "standard", texture, asset)
+        keyed("a.b", texture, TexturePart::Main, asset)
     }
 
-    fn keyed(package: &str, variant: &str, texture: &str, asset: AssetId) -> SurfaceTemplate {
+    fn keyed(package: &str, texture: &str, part: TexturePart, asset: AssetId) -> SurfaceTemplate {
         SurfaceTemplate {
             package_id: package.into(),
-            variant_id: variant.into(),
             texture_id: texture.into(),
+            part,
             asset,
             layout_version: 1,
             opacity: SurfaceTemplate::DEFAULT_OPACITY,
@@ -1145,7 +1115,7 @@ mod tests {
         let mut chassis = Surface::new("Chassis", 1024.0);
         chassis.template = Some(template("chassis", asset));
         p.surfaces.push(chassis);
-        p.vehicles = vec![vehicle("a.b", &["standard"])];
+        p.vehicles = vec![vehicle("a.b")];
         assert!(!before.same_document(&p.snapshot(&[])));
         p.restore(&before);
         assert_eq!(p.surfaces.len(), 1);
@@ -1179,17 +1149,10 @@ mod tests {
         assert_eq!((t.opacity, t.visible), (0.2, false));
     }
 
-    fn vehicle(package: &str, variants: &[&str]) -> ProjectVehicle {
+    fn vehicle(package: &str) -> ProjectVehicle {
         ProjectVehicle {
             package_id: package.into(),
             version: "1.0.0".into(),
-            variants: variants
-                .iter()
-                .map(|v| VariantRef {
-                    id: (*v).into(),
-                    name: v.to_uppercase(),
-                })
-                .collect(),
             name: format!("Vehicle {package}"),
             brand: "B".into(),
             kind: "truck".into(),
@@ -1197,8 +1160,8 @@ mod tests {
         }
     }
 
-    /// A fleet: truck a.b (standard: cabin, chassis; high: cabin) and
-    /// trailer c.d (body: body).
+    /// A fleet: truck a.b (main standard and high, accessory chassis) and
+    /// trailer c.d (main base, accessory chassis).
     fn fleet() -> Project {
         let mut p = Project::new("F", TextureResolution::R2048);
         let (asset, _) = p.add_asset(
@@ -1208,22 +1171,20 @@ mod tests {
             Size::new(8.0, 8.0),
         );
         p.surfaces = [
-            ("a.b", "standard", "cabin"),
-            ("a.b", "standard", "chassis"),
-            ("a.b", "high", "cabin"),
-            ("c.d", "body", "body"),
+            ("a.b", "standard", TexturePart::Main),
+            ("a.b", "high", TexturePart::Main),
+            ("a.b", "chassis", TexturePart::Accessory),
+            ("c.d", "base", TexturePart::Main),
+            ("c.d", "chassis", TexturePart::Accessory),
         ]
         .iter()
-        .map(|(pkg, var, tex)| {
+        .map(|(pkg, tex, part)| {
             let mut s = Surface::new(*tex, 1024.0);
-            s.template = Some(keyed(pkg, var, tex, asset));
+            s.template = Some(keyed(pkg, tex, *part, asset));
             s
         })
         .collect();
-        p.vehicles = vec![
-            vehicle("a.b", &["standard", "high"]),
-            vehicle("c.d", &["body"]),
-        ];
+        p.vehicles = vec![vehicle("a.b"), vehicle("c.d")];
         p
     }
 
@@ -1231,19 +1192,22 @@ mod tests {
     fn fleet_ranges_names_and_artwork() {
         let mut p = fleet();
         assert_eq!(p.game(), Some("ets2"));
-        assert_eq!(p.variant_range("a.b", "standard"), 0..2);
-        assert_eq!(p.variant_range("a.b", "high"), 2..3);
-        assert_eq!(p.variant_range("c.d", "body"), 3..4);
         assert_eq!(p.vehicle_range("a.b"), 0..3);
-        // A variant without surfaces sits at the end of its vehicle.
-        assert_eq!(p.variant_range("a.b", "other"), 3..3);
-        assert_eq!(p.vehicle_range("x.y"), 4..4);
+        assert_eq!(p.vehicle_range("c.d"), 3..5);
+        assert_eq!(p.vehicle_range("x.y"), 5..5);
         assert_eq!(p.vehicle_of(3).unwrap().package_id, "c.d");
         assert_eq!(
-            p.surface_names(2),
-            Some(("Vehicle a.b".into(), "HIGH".into(), "cabin".into()))
+            p.surface_names(1),
+            Some(("Vehicle a.b".into(), "high".into()))
         );
-        assert!(!p.has_artwork(0..4));
+        assert!(
+            p.surfaces[4]
+                .template
+                .as_ref()
+                .unwrap()
+                .is_of("c.d", "chassis")
+        );
+        assert!(!p.has_artwork(0..5));
         p.active_surface = 2;
         p.add(rect_at(10.0, 10.0));
         assert!(p.has_artwork(2..3));
@@ -1252,18 +1216,21 @@ mod tests {
     }
 
     #[test]
-    fn same_texture_in_two_variants_keeps_its_own_settings() {
+    fn same_texture_id_in_two_vehicles_keeps_its_own_settings() {
         let mut p = fleet();
         let before = p.snapshot(&[]);
         p.add(rect_at(10.0, 10.0));
-        p.surfaces[0].template.as_mut().unwrap().opacity = 0.1;
-        p.surfaces[2].template.as_mut().unwrap().opacity = 0.9;
+        p.surfaces[2].template.as_mut().unwrap().opacity = 0.1;
+        p.surfaces[4].template.as_mut().unwrap().opacity = 0.9;
         p.restore(&before);
-        assert_eq!(p.surfaces[0].template.as_ref().unwrap().opacity, 0.1);
-        assert_eq!(p.surfaces[2].template.as_ref().unwrap().opacity, 0.9);
-        // Vehicles are part of the document.
+        assert_eq!(p.surfaces[2].template.as_ref().unwrap().opacity, 0.1);
+        assert_eq!(p.surfaces[4].template.as_ref().unwrap().opacity, 0.9);
+        // Vehicles and texture parts are part of the document.
         let mut q = p.clone();
         q.vehicles[0].version = "2.0.0".into();
+        assert!(!p.snapshot(&[]).same_document(&q.snapshot(&[])));
+        let mut q = p.clone();
+        q.surfaces[2].template.as_mut().unwrap().part = TexturePart::Main;
         assert!(!p.snapshot(&[]).same_document(&q.snapshot(&[])));
     }
 }

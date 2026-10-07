@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Makes a project the paint job of a fleet: one or more vehicles of one game, each with its chosen variants, and one surface per texture of each variant with its template shown as a locked overlay. It records which package version each vehicle's templates come from, so each vehicle can move to a newer package version after a game update.
+Makes a project the paint job of a fleet: one or more vehicles of one game, each painting the main textures and accessories chosen for it, with one surface per texture and its template shown as a locked overlay. It records which package version each vehicle's templates come from, so each vehicle can move to a newer package version after a game update.
 
 ## Requirements
 

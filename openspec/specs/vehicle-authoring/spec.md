@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines how vehicle packages are authored: a command-line packer that builds and checks `.tpv` files, including from the game's DDS templates, and a sample vehicle shipped with TruckPaint as the reference example and for end-to-end testing.
+Defines how vehicle packages are authored: a command-line packer that builds and checks `.tpv` files, including from the game's DDS templates, and the sample truck and trailer shipped with TruckPaint as reference examples and for end-to-end testing.
 
 ## Requirements
 

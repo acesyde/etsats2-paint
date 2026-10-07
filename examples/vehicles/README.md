@@ -1,45 +1,49 @@
-# Sample vehicle
+# Sample vehicles
 
-**TruckPaint Sample Truck** (`community.truckpaint.sample_truck`) is a
-fictional truck. It lets you try vehicle projects without game files, and it
-is the reference example for package authors. Its templates are original
-drawings, not game assets, and are MIT licensed like the rest of the
-repository.
+Two fictional vehicles let you try vehicle projects without game files. They are also the reference examples for package authors. Their templates are original drawings, not game assets, and are MIT licensed like the rest of the repository.
 
-| Version | Variants | Textures |
+**TruckPaint Sample Truck** (`community.truckpaint.sample_truck`) is a truck whose two cabins have different layouts. It has one main texture per cabin layout, and accessories:
+
+| Version | Main textures | Accessories |
 |---|---|---|
-| 1.0.0 | Standard cab, High roof | Cabin 4096, Chassis 2048, Accessories 1024 |
-| 1.1.0 | Standard cab, High roof | Cabin 4096 (Standard cab layout changed), Chassis 4096, Accessories 1024, Side skirts 1024 (new) |
+| 1.0.0 | Standard cab 4096, High roof 4096 | Chassis 2048, Cab accessories 1024 |
+| 1.1.0 | Standard cab 4096 (layout changed), High roof 4096 | Chassis 4096, Cab accessories 1024, Side skirts 1024 (new) |
+
+**TruckPaint Sample Trailer** (`community.truckpaint.sample_trailer`) is a curtainsider. It has a single main texture and its bodies as accessories:
+
+| Version | Main texture | Accessories |
+|---|---|---|
+| 1.0.0 | Base 2048 | Curtain body 13.6 m 4096, Curtain body 10.5 m 4096, Mudflaps 512 |
 
 The built packages sit next to their sources:
 
 ```
 community.truckpaint.sample_truck-1.0.0.tpv
 community.truckpaint.sample_truck-1.1.0.tpv
+community.truckpaint.sample_trailer-1.0.0.tpv
 sample-truck/<version>/vehicle.json
 sample-truck/<version>/templates/*.svg
+sample-trailer/<version>/vehicle.json
+sample-trailer/<version>/templates/*.svg
 ```
 
 ## Trying Update Template
 
-1. Install `community.truckpaint.sample_truck-1.0.0.tpv` (Vehicle › Vehicle
-   Library… › Install…, or drop it on the window).
-2. Create a project on the **Standard cab** and paint something.
-3. Install `community.truckpaint.sample_truck-1.1.0.tpv`, then run
-   **Vehicle › Update Template…**. The cabin is flagged "Layout changed", the
-   chassis artwork is scaled to 4096, and a Side skirts texture is added.
+1. Install `community.truckpaint.sample_truck-1.0.0.tpv` (Vehicle › Vehicle Library… › Install…, or drop it on the window).
+2. Create a project on the truck, keep the **Standard cab**, and paint something.
+3. Install `community.truckpaint.sample_truck-1.1.0.tpv`, then run **Vehicle › Update Template…**. The dialog:
+   - flags the Standard cab as "Layout changed";
+   - scales the Chassis artwork to 4096;
+   - offers the new **Side skirts** accessory, checked.
 
-TruckPaint also offers **Install the sample vehicle** (version 1.1.0) while
-no vehicle is installed.
+TruckPaint also offers **Install the sample vehicles** (the truck 1.1.0 and the trailer) while no vehicle is installed.
 
 ## Rebuilding
 
-After editing a source, rebuild both packages:
+After editing a source, rebuild the packages:
 
 ```sh
 mise run sample-vehicles
 ```
 
-The test suite fails if a committed package no longer matches its sources.
-See [the package format](../../docs/vehicle-package-format.md) to make your
-own.
+The test suite fails if a committed package no longer matches its sources. See [the package format](../../docs/vehicle-package-format.md) to make your own.

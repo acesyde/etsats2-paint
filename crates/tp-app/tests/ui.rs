@@ -89,7 +89,7 @@ fn new_project_defaults_to_the_vehicle_name() {
     h.run();
     let ws = h.state().workspace().unwrap();
     assert_eq!(ws.project.name, "TruckPaint Sample Truck");
-    assert_eq!(ws.project.surface().name, "Cabin");
+    assert_eq!(ws.project.surface().name, "Standard cab");
     assert_eq!(ws.project.surface().size, 4096.0);
     assert_eq!(h.state().title(), "TruckPaint Sample Truck — TruckPaint");
 }

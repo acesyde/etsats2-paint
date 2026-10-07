@@ -240,7 +240,9 @@ vehicle-panel-opacity-name = Opacidad de la plantilla
 ## Fleet
 
 vehicle-panel-update-named = Actualizar la plantilla de { $name }
-vehicles-variants = Variantes…
+vehicles-textures = Texturas…
+vehicles-main-textures = Texturas principales
+vehicles-accessories = Accesorios
 vehicles-remove-from-project = Quitar del proyecto
 
 ## Vehicles sidebar
