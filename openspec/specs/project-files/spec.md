@@ -16,10 +16,14 @@ A project SHALL be saved as one `.truckpaint` file containing everything needed 
 - each text's content and character style;
 - image references;
 - the guides of each surface;
-- the project palette;
+- the project palette: each swatch's identity, name and color;
+- the shared styles: each graphic style's identity, name, fill, stroke and opacity, and each text style's identity, name, character style, fill, stroke and opacity;
+- the links: for every solid fill, solid stroke and gradient stop, the swatch it is linked to; for every object, the graphic style and the text style it follows;
 - the bytes of every imported asset.
 
 Font families SHALL be stored by name only; font files SHALL NOT be embedded. Editor state that is not part of the document (selection, point selection, zoom, panel layout, grid and snapping settings, whether guides are shown, undo history) SHALL NOT be stored.
+
+A file written before swatches had names SHALL open with each palette color as a swatch named "Color 1", "Color 2"… in palette order, and nothing linked.
 
 #### Scenario: Round trip
 - **WHEN** the user saves a project with grouped shapes, an outlined text, a placed SVG logo, a star, a curved path with a hole and two guides, closes it and opens the file again
@@ -32,6 +36,14 @@ Font families SHALL be stored by name only; font files SHALL NOT be embedded. Ed
 #### Scenario: Vehicle project round trip
 - **WHEN** the user saves a project with a truck painting two main textures and two accessories and a trailer painting its Base texture, with one template hidden and one flagged "Layout changed", closes it and opens the file again
 - **THEN** the vehicles and their recorded versions, the surfaces with their main texture or accessory role, their templates, opacities, visibilities and flags are restored
+
+#### Scenario: Brand kit round trip
+- **WHEN** the user saves a project with the swatches "Company red" and "Company grey", a graphic style whose gradient has a stop linked to "Company red", a text style, a rectangle following the graphic style and a text following the text style with its fill linked to "Company grey", then closes and reopens it
+- **THEN** the swatches, the styles and every link are restored, and editing "Company red" still recolors the style and the rectangle
+
+#### Scenario: Palette of an earlier file
+- **WHEN** a file whose palette holds three colors without names is opened
+- **THEN** the palette shows the swatches "Color 1", "Color 2" and "Color 3" with those colors, and no object is linked
 
 ### Requirement: Versioned format
 Every project file SHALL record the version of the file format it was written with. The application SHALL open files of every format version it has ever written, converting them to the current format when opening; such a file SHALL open marked as having unsaved changes and SHALL be written in the current format at the next save (the original file is only replaced when the user saves). Files written with a newer format version than the application supports SHALL be refused (see Invalid files).

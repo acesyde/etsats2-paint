@@ -44,7 +44,9 @@ The canvas area SHALL occupy all space not used by bars and panels, SHALL show r
 - **THEN** the zoom stays at 200% and the document point that was at the center of the canvas area stays at its center
 
 ### Requirement: Right panel stack
-The workspace SHALL show a right-hand panel column containing the panels Properties, Layers, Colors, Stroke, Transform and Assets. Each panel SHALL have a header with its title, can be collapsed/expanded by clicking its header, and can be closed. Closed panels SHALL be reopenable from the View menu. The column width SHALL be resizable by dragging its edge within sensible bounds. Panels whose feature is not yet available SHALL show an explicit empty state.
+The workspace SHALL show a right-hand panel column containing the panels Properties, Layers, Colors, Styles, Stroke, Transform and Assets. Each panel SHALL have a header with its title, can be collapsed/expanded by clicking its header, and can be closed. Closed panels SHALL be reopenable from the View menu. The column width SHALL be resizable by dragging its edge within sensible bounds. Panels whose feature is not yet available SHALL show an explicit empty state.
+
+A panel layout saved before a panel existed SHALL get that panel at its default place, open and collapsed.
 
 #### Scenario: Collapsing a panel
 - **WHEN** the user clicks the header of the Layers panel
@@ -57,6 +59,10 @@ The workspace SHALL show a right-hand panel column containing the panels Propert
 #### Scenario: Resizing the panel column
 - **WHEN** the user drags the left edge of the panel column
 - **THEN** the column width changes live and is clamped between a minimum and a maximum width
+
+#### Scenario: Layout from before the Styles panel
+- **WHEN** the application starts with a panel layout saved before the Styles panel existed
+- **THEN** the Styles panel appears after Colors, collapsed, and the other panels keep their places and states
 
 ### Requirement: 3D preview panel placeholder
 The workspace SHALL include a 3D preview panel that can be shown, hidden and resized. Until 3D rendering exists, the panel SHALL display an explicit placeholder state.
