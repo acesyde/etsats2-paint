@@ -422,6 +422,24 @@ fn size_only_options() -> resvg::usvg::Options<'static> {
     }
 }
 
+/// The natural size of a PNG or SVG image in pixels, or `None` when it
+/// can't be read. Only the PNG header is read.
+pub fn image_size(kind: ImageKind, bytes: &[u8]) -> Option<(f64, f64)> {
+    match kind {
+        ImageKind::Png => {
+            let reader =
+                image::ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png);
+            let (w, h) = reader.into_dimensions().ok()?;
+            Some((f64::from(w), f64::from(h)))
+        }
+        ImageKind::Svg => {
+            let tree = resvg::usvg::Tree::from_data(bytes, &size_only_options()).ok()?;
+            let s = tree.size();
+            Some((f64::from(s.width()), f64::from(s.height())))
+        }
+    }
+}
+
 fn read_template(zip: &mut Zip<'_>, part: &Part) -> Result<TemplateImage, PackageError> {
     let t = &part.texture;
     let bytes = read_entry(zip, &t.template).ok_or_else(|| PackageError::MissingTemplate {
@@ -433,22 +451,21 @@ fn read_template(zip: &mut Zip<'_>, part: &Part) -> Result<TemplateImage, Packag
         path: t.template.clone(),
     };
     let lower = t.template.to_ascii_lowercase();
-    let (kind, width, height) = if lower.ends_with(".png") {
-        let reader = image::ImageReader::with_format(Cursor::new(&bytes), image::ImageFormat::Png);
-        let (w, h) = reader.into_dimensions().map_err(|_| bad())?;
-        if w > MAX_IMAGE_SIDE || h > MAX_IMAGE_SIDE {
-            return Err(PackageError::TemplateTooLarge {
-                texture: part.name.clone(),
-            });
-        }
-        (ImageKind::Png, f64::from(w), f64::from(h))
+    let kind = if lower.ends_with(".png") {
+        ImageKind::Png
     } else if lower.ends_with(".svg") {
-        let tree = resvg::usvg::Tree::from_data(&bytes, &size_only_options()).map_err(|_| bad())?;
-        let s = tree.size();
-        (ImageKind::Svg, f64::from(s.width()), f64::from(s.height()))
+        ImageKind::Svg
     } else {
         return Err(bad());
     };
+    let (width, height) = image_size(kind, &bytes).ok_or_else(bad)?;
+    if kind == ImageKind::Png
+        && (width > f64::from(MAX_IMAGE_SIDE) || height > f64::from(MAX_IMAGE_SIDE))
+    {
+        return Err(PackageError::TemplateTooLarge {
+            texture: part.name.clone(),
+        });
+    }
     Ok(TemplateImage {
         bytes,
         kind,

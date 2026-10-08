@@ -1,6 +1,7 @@
 //! Screens and UI pieces of the application.
 
 pub mod command_ui;
+pub mod custom_vehicle;
 pub mod dialogs;
 pub mod export_dialog;
 pub mod gallery;

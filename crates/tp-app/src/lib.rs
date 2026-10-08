@@ -4,6 +4,7 @@ pub mod app;
 pub mod arrange;
 pub mod combine;
 pub mod commands;
+pub mod custom_vehicles;
 pub mod export;
 pub mod file_dialogs;
 pub mod geometry_cache;

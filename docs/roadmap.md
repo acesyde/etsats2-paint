@@ -21,17 +21,26 @@ Illustrator or Inkscape is not a goal.
 The blank-texture project goes away. New Project starts by choosing a vehicle.
 
 When no package exists for a vehicle (a truck just released, or a community
-mod nobody has packaged), the player will use **Custom vehicle…**
-(`custom-vehicle`, the next change):
-1. drop the template files (DDS or PNG);
+mod nobody has packaged), the player uses **Custom vehicle…** (shipped in
+`custom-vehicle`):
+1. drop the template files (DDS, PNG or SVG);
 2. pick the game and the kind (truck or trailer), and describe the paint job
    the way the game does (see "A paint job is a main texture plus
    accessories" below): cabins and their main textures for a truck, the main
    texture for a trailer, and the accessory textures.
 
 TruckPaint builds a local package from them, with the same packing and
-validation as `tpv`. That package can later be exported as a `.tpv` and
-shared.
+validation as `tpv`. Export… in the Vehicle Library saves it as a `.tpv`,
+to share.
+
+- **The game data is required,** as `tpv` requires it: the game path, the
+  cabin internal names when there are several main textures, and the
+  accessory ids. A package without them couldn't be exported as a mod.
+  Prefilling them from Paintjob Packer's database would lift the burden
+  later.
+- **New Version…** makes the next version of a custom vehicle (id
+  `custom.<brand>.<name>`) after a game update: replacing a template raises
+  its layout version, so Update Template works as for any package.
 
 Trying the app without game files is covered by the built-in sample vehicle.
 
@@ -128,16 +137,19 @@ fleets in both games has two projects (sharing a symbol library, later).
 
 | # | Change | What it does | Why now |
 |---|---|---|---|
-| 1 | `custom-vehicle` | Custom vehicle… in New Project and Add Vehicle…: pick the game and the kind (truck or trailer), describe the main textures and the accessories, drop template files (DDS or PNG); TruckPaint packs a local package, which can be exported as a `.tpv`. | The escape hatch for vehicles without a package, now that every project needs a vehicle. |
-| 2 | `brand-kit` | Project palette, symbols with instances, shared styles, copy from cabin. | Makes a fleet a shared identity rather than separate drawings. |
-| 3 | `mod-export` | Exports the whole fleet as one ready-to-install mod. | The deliverable of the app. Needs the paint job model. |
-| 4 | `vehicle-marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once the format is stable. |
-| 5 | `distribution` | Release builds and installers. | Once a player can go from vehicle to mod. |
+| 1 | `brand-kit` | Project palette, symbols with instances, shared styles, copy from cabin. | Makes a fleet a shared identity rather than separate drawings. |
+| 2 | `mod-export` | Exports the whole fleet as one ready-to-install mod. | The deliverable of the app. Needs the paint job model. |
+| 3 | `vehicle-marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once the format is stable. |
+| 4 | `distribution` | Release builds and installers. | Once a player can go from vehicle to mod. |
 
 ## Shipped
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `custom-vehicle`: Custom vehicle… in New Project, Add Vehicle… and the
+  Vehicle Library builds and installs a package from template files (DDS,
+  PNG or SVG) and the paint job described by the player; New Version… for
+  custom vehicles; Export… of any installed version as a `.tpv`;
 - `paint-job-model`: packages and projects follow the game's paint job
   structure (`game` and `paint_job` with main textures and accessories, and
   the game data the mod export needs); projects check main textures and

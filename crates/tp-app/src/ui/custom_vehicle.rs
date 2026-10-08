@@ -1,0 +1,737 @@
+//! The Custom Vehicle dialog: a vehicle described from the game's template
+//! files, packed and installed like any package. Opened from New Project,
+//! Add Vehicle… and the Vehicle Library, it returns to the dialog it came
+//! from.
+
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use egui::{
+    Align, Checkbox, Frame, Layout, Margin, Rect, RichText, ScrollArea, TextEdit, Ui, WidgetInfo,
+    WidgetType,
+};
+use tp_i18n::tr;
+use tp_pack::custom::{CustomVehicle, Problem, TemplateFile, probe};
+use tp_ui::icons;
+use tp_ui::theme::{label_strong_style, title_style};
+use tp_ui::tokens::{color, radius, space};
+use tp_ui::widgets::{IconButton, primary_button, secondary_button};
+use tp_vehicles::{Game, Kind, Manifest, Package, Role, SIZES};
+
+use super::vehicle_dialogs::{AddVehicleDialog, LibraryDialog, VehicleChoice, VehicleFilter};
+use crate::custom_vehicles::{PackJob, PackOutcome};
+use crate::state::{AppState, Modal, NewProjectDraft};
+use crate::vehicles::{VehicleLibrary, pack_error_message, template_error_message};
+
+/// The dialog the Custom Vehicle dialog was opened from.
+pub enum Origin {
+    NewProject(NewProjectDraft),
+    AddVehicle(AddVehicleDialog),
+    Library(LibraryDialog),
+}
+
+impl Origin {
+    fn into_modal(self) -> Modal {
+        match self {
+            Origin::NewProject(draft) => Modal::NewProject(draft),
+            Origin::AddVehicle(dialog) => Modal::AddVehicle(dialog),
+            Origin::Library(dialog) => Modal::VehicleLibrary(dialog),
+        }
+    }
+
+    /// The game the origin shows, if any.
+    fn game(&self) -> Option<Game> {
+        match self {
+            Origin::NewProject(draft) => draft.filter.game,
+            Origin::AddVehicle(dialog) => dialog.filter.game,
+            Origin::Library(dialog) => dialog.filter.game,
+        }
+    }
+
+    /// Shows `m`, just installed: selected in New Project and Add Vehicle,
+    /// listed in the library, with a confirmation.
+    fn created(&mut self, library: &VehicleLibrary, m: &Manifest, message: String) {
+        let reveal = |filter: &mut VehicleFilter| {
+            if !filter.matches(m) {
+                filter.query.clear();
+                filter.kind = None;
+                if !filter.game_locked {
+                    filter.game = None;
+                }
+            }
+        };
+        let choice = library.get(&m.id).map(VehicleChoice::of);
+        match self {
+            Origin::NewProject(draft) => {
+                reveal(&mut draft.filter);
+                draft.messages = vec![Ok(message)];
+                draft.vehicle = choice;
+            }
+            Origin::AddVehicle(dialog) => {
+                reveal(&mut dialog.filter);
+                dialog.messages = vec![Ok(message)];
+                dialog.choice = choice;
+            }
+            Origin::Library(dialog) => {
+                reveal(&mut dialog.filter);
+                dialog.messages = vec![Ok(message)];
+            }
+        }
+    }
+}
+
+/// State of the Custom Vehicle dialog.
+pub struct CustomVehicleDialog {
+    pub form: CustomVehicle,
+    pub origin: Origin,
+    /// The game is the project's (Add Vehicle): it can't be changed.
+    pub game_locked: bool,
+    /// Files that couldn't be added, and why.
+    pub file_errors: Vec<String>,
+    /// Results of installing packages dropped on the dialog.
+    pub messages: Vec<Result<String, String>>,
+    /// Why the last build failed.
+    pub error: Option<String>,
+    /// Fields the player has left (their problems are shown).
+    touched: Vec<&'static str>,
+    job: Option<PackJob>,
+    /// Screen rectangles of the rows in the last frame (a file dropped on
+    /// a row replaces its template).
+    row_rects: Vec<Rect>,
+}
+
+impl CustomVehicleDialog {
+    fn with_form(form: CustomVehicle, origin: Origin, game_locked: bool) -> Self {
+        Self {
+            form,
+            origin,
+            game_locked,
+            file_errors: Vec::new(),
+            messages: Vec::new(),
+            error: None,
+            touched: Vec::new(),
+            job: None,
+            row_rects: Vec::new(),
+        }
+    }
+
+    /// An empty form, for the origin's game (locked in Add Vehicle).
+    pub fn new(origin: Origin) -> Self {
+        let locked = matches!(&origin, Origin::AddVehicle(d) if d.filter.game_locked);
+        let form = CustomVehicle::new(origin.game().unwrap_or(Game::Ets2));
+        Self::with_form(form, origin, locked)
+    }
+
+    /// A new version of an installed custom vehicle, filled in from it.
+    pub fn new_version(package: &Package, origin: Origin) -> Self {
+        Self::with_form(CustomVehicle::from_package(package), origin, true)
+    }
+
+    pub fn is_new_version(&self) -> bool {
+        self.form.base.is_some()
+    }
+
+    pub fn is_building(&self) -> bool {
+        self.job.is_some()
+    }
+
+    /// Adds files given by name and content; a single file dropped at
+    /// `at` over a row replaces that row's template.
+    pub fn add_files(
+        &mut self,
+        files: Vec<(String, Result<Vec<u8>, String>)>,
+        at: Option<egui::Pos2>,
+    ) {
+        if self.is_building() {
+            return;
+        }
+        let target = match (files.len(), at) {
+            (1, Some(p)) => self.row_rects.iter().position(|r| r.contains(p)),
+            _ => None,
+        };
+        self.file_errors.clear();
+        for (name, bytes) in files {
+            match read_template(&name, bytes) {
+                Ok(file) => match target.and_then(|i| self.form.rows.get_mut(i)) {
+                    Some(row) => row.replace(file),
+                    None => self.form.add(file),
+                },
+                Err(message) => self.file_errors.push(message),
+            }
+        }
+    }
+
+    /// Adds files from disk (Add Templates…); `replace` replaces that
+    /// row's template with the first file.
+    fn add_paths(&mut self, paths: &[PathBuf], replace: Option<usize>) {
+        let files: Vec<_> = paths
+            .iter()
+            .take(if replace.is_some() { 1 } else { usize::MAX })
+            .map(|path| {
+                let name = path.file_name().map_or_else(
+                    || path.display().to_string(),
+                    |n| n.to_string_lossy().into_owned(),
+                );
+                (name, std::fs::read(path).map_err(|e| e.to_string()))
+            })
+            .collect();
+        if let Some(i) = replace {
+            self.file_errors.clear();
+            for (name, bytes) in files {
+                match (read_template(&name, bytes), self.form.rows.get_mut(i)) {
+                    (Ok(file), Some(row)) => row.replace(file),
+                    (Err(message), _) => self.file_errors.push(message),
+                    (Ok(_), None) => {}
+                }
+            }
+        } else {
+            self.add_files(files, None);
+        }
+    }
+
+    fn touch(&mut self, field: &'static str) {
+        if !self.touched.contains(&field) {
+            self.touched.push(field);
+        }
+    }
+}
+
+/// A template from a file's content, or why it can't be one.
+fn read_template(name: &str, bytes: Result<Vec<u8>, String>) -> Result<TemplateFile, String> {
+    let bytes =
+        bytes.map_err(|reason| tr!("custom-file-io", file = name, reason = reason.as_str()))?;
+    probe(name, Arc::from(bytes)).map_err(|e| template_error_message(&e, name))
+}
+
+/// Every installed vehicle version (id, version).
+fn installed(library: &VehicleLibrary) -> Vec<(String, semver::Version)> {
+    library
+        .vehicles()
+        .iter()
+        .flat_map(|v| {
+            v.versions
+                .iter()
+                .map(|x| (v.id.clone(), x.manifest.version.clone()))
+        })
+        .collect()
+}
+
+/// A problem in the current language.
+pub fn problem_message(problem: &Problem) -> String {
+    match problem {
+        Problem::NameMissing => tr("custom-problem-name"),
+        Problem::BrandMissing => tr("custom-problem-brand"),
+        Problem::BadGamePath => tr("custom-problem-game-path"),
+        Problem::BadGameVersions => tr("custom-problem-game-versions"),
+        Problem::BadVersion => tr("custom-problem-version"),
+        Problem::VersionNotHigher(v) => {
+            tr!("custom-problem-version-not-higher", version = v.to_string())
+        }
+        Problem::AlreadyInstalled(id) => tr!("custom-problem-installed", id = id.as_str()),
+        Problem::NoMainTexture => tr("custom-problem-no-main"),
+        Problem::TrailerMainTextures => tr("custom-problem-trailer-main"),
+        Problem::TextureNameMissing(_) => tr("custom-problem-texture-name"),
+        Problem::MissingCabins(_) => tr("custom-problem-cabins"),
+        Problem::MissingAccessoryIds(_) => tr("custom-problem-accessory-ids"),
+        Problem::BadGameId(_, id) => tr!("custom-problem-game-id", id = id.as_str()),
+        Problem::DuplicateGameId(_, id) => {
+            tr!("custom-problem-duplicate-game-id", id = id.as_str())
+        }
+    }
+}
+
+fn problem_label(ui: &mut Ui, problem: &Problem) {
+    let text = problem_message(problem);
+    let label = ui.label(RichText::new(&text).small().color(color::ERROR));
+    label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+}
+
+/// A labelled single-line text field; returns whether it lost focus.
+fn text_field(ui: &mut Ui, label: &str, text: &mut String, hint: &str, enabled: bool) -> bool {
+    ui.label(RichText::new(label).color(color::TEXT_SECONDARY));
+    let response = ui.add_enabled(
+        enabled,
+        TextEdit::singleline(text)
+            .hint_text(hint)
+            .desired_width(f32::INFINITY),
+    );
+    response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, enabled, label));
+    ui.end_row();
+    response.lost_focus()
+}
+
+/// A labelled combo box over `choices`.
+fn combo<T: Copy + PartialEq>(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    label: &str,
+    value: &mut T,
+    choices: &[(T, String)],
+    enabled: bool,
+) {
+    let selected = choices
+        .iter()
+        .find(|(c, _)| c == value)
+        .map(|(_, t)| t.clone())
+        .unwrap_or_default();
+    let response = ui
+        .add_enabled_ui(enabled, |ui| {
+            egui::ComboBox::from_id_salt(id)
+                .selected_text(selected)
+                .show_ui(ui, |ui| {
+                    for (choice, text) in choices {
+                        ui.selectable_value(value, *choice, text);
+                    }
+                })
+                .response
+        })
+        .inner;
+    response.widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, enabled, label));
+}
+
+fn game_name(game: Game) -> String {
+    match game {
+        Game::Ets2 => "Euro Truck Simulator 2".into(),
+        Game::Ats => "American Truck Simulator".into(),
+    }
+}
+
+/// Shows the dialog; returns false once it is closed (the origin is then
+/// back in `state.modal`).
+pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicleDialog) -> bool {
+    let problems = dialog.form.problems(&installed(&state.vehicles));
+    let building = dialog.is_building();
+    let new_version = dialog.is_new_version();
+    let mut cancel = false;
+    let mut create = false;
+    let mut add_templates = false;
+    let mut replace = None;
+    let mut remove = None;
+    let mut lost_focus: Vec<&'static str> = Vec::new();
+    // The problems of each field: shown once the player has left it, or
+    // at once for the version of a new version.
+    let field_problems = |field: &'static str| -> Vec<Problem> {
+        let shown = dialog.touched.contains(&field);
+        problems
+            .iter()
+            .filter(|p| match (field, p) {
+                ("name", Problem::NameMissing)
+                | ("brand", Problem::BrandMissing)
+                | ("path", Problem::BadGamePath)
+                | ("versions", Problem::BadGameVersions) => shown,
+                ("version", Problem::BadVersion | Problem::VersionNotHigher(_)) => true,
+                _ => false,
+            })
+            .cloned()
+            .collect()
+    };
+    let fields: Vec<(&'static str, Vec<Problem>)> =
+        ["version", "name", "brand", "path", "versions"]
+            .into_iter()
+            .map(|f| (f, field_problems(f)))
+            .collect();
+    // Problem rows under a field of the grid.
+    let under = |ui: &mut Ui, field: &str| {
+        for (_, list) in fields.iter().filter(|(f, _)| *f == field) {
+            for problem in list {
+                ui.label("");
+                problem_label(ui, problem);
+                ui.end_row();
+            }
+        }
+    };
+
+    super::dialogs::modal("custom_vehicle_modal").show(ctx, |ui| {
+        ui.set_width(680.0);
+        let title = if new_version {
+            tr!("custom-new-version-title", name = dialog.form.name.as_str())
+        } else {
+            tr("custom-title")
+        };
+        ui.label(
+            RichText::new(title)
+                .text_style(title_style())
+                .color(color::TEXT_PRIMARY),
+        );
+        ui.add_space(space::SM);
+        for message in &dialog.messages {
+            let (text, tint) = match message {
+                Ok(text) => (text, color::SUCCESS),
+                Err(text) => (text, color::ERROR),
+            };
+            ui.label(RichText::new(text).small().color(tint));
+        }
+
+        ui.add_enabled_ui(!building, |ui| {
+            egui::Grid::new("custom_vehicle_fields")
+                .num_columns(2)
+                .spacing([space::MD, space::XS])
+                .min_col_width(120.0)
+                .show(ui, |ui| {
+                    let form = &mut dialog.form;
+                    ui.label(RichText::new(tr("custom-id")).color(color::TEXT_SECONDARY));
+                    let id = form.id();
+                    ui.label(RichText::new(&id).monospace())
+                        .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &id));
+                    ui.end_row();
+                    if new_version
+                        && text_field(ui, &tr("custom-version"), &mut form.version, "", true)
+                    {
+                        lost_focus.push("version");
+                    }
+                    if new_version {
+                        under(ui, "version");
+                    }
+                    if text_field(ui, &tr("custom-name"), &mut form.name, "", true) {
+                        lost_focus.push("name");
+                    }
+                    under(ui, "name");
+                    if text_field(ui, &tr("custom-brand"), &mut form.brand, "", true) {
+                        lost_focus.push("brand");
+                    }
+                    under(ui, "brand");
+                    ui.label(RichText::new(tr("custom-kind")).color(color::TEXT_SECONDARY));
+                    combo(
+                        ui,
+                        "custom_kind",
+                        &tr("custom-kind"),
+                        &mut form.kind,
+                        &[
+                            (Kind::Truck, tr("vehicles-truck")),
+                            (Kind::Trailer, tr("vehicles-trailer")),
+                        ],
+                        !new_version,
+                    );
+                    ui.end_row();
+                    ui.label(RichText::new(tr("custom-game")).color(color::TEXT_SECONDARY));
+                    combo(
+                        ui,
+                        "custom_game",
+                        &tr("custom-game"),
+                        &mut form.game,
+                        &[
+                            (Game::Ets2, game_name(Game::Ets2)),
+                            (Game::Ats, game_name(Game::Ats)),
+                        ],
+                        !dialog.game_locked,
+                    );
+                    ui.end_row();
+                    if text_field(
+                        ui,
+                        &tr("custom-game-path"),
+                        &mut form.path,
+                        &tr("custom-game-path-hint"),
+                        true,
+                    ) {
+                        lost_focus.push("path");
+                    }
+                    under(ui, "path");
+                    if text_field(
+                        ui,
+                        &tr("custom-game-versions"),
+                        &mut form.versions,
+                        &tr("custom-game-versions-hint"),
+                        true,
+                    ) {
+                        lost_focus.push("versions");
+                    }
+                    under(ui, "versions");
+                    ui.label("");
+                    ui.horizontal(|ui| {
+                        for (value, key) in [
+                            (&mut form.alt_uv, "custom-alt-uv"),
+                            (&mut form.colour_picker, "custom-colour-picker"),
+                        ] {
+                            let text = tr(key);
+                            let on = *value;
+                            ui.add(Checkbox::new(value, &text)).widget_info(|| {
+                                WidgetInfo::selected(WidgetType::Checkbox, true, on, &text)
+                            });
+                        }
+                    });
+                    ui.end_row();
+                });
+
+            ui.add_space(space::MD);
+            ui.horizontal(|ui| {
+                ui.label(RichText::new(tr("custom-textures")).text_style(label_strong_style()));
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    add_templates |= ui
+                        .add(secondary_button(&tr("custom-add-templates")))
+                        .clicked();
+                });
+            });
+            ui.label(
+                RichText::new(tr("custom-drop-hint"))
+                    .small()
+                    .color(color::TEXT_SECONDARY),
+            );
+            for error in &dialog.file_errors {
+                let label = ui.label(RichText::new(error).small().color(color::ERROR));
+                label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, error));
+            }
+            dialog.row_rects.clear();
+            let trailer = dialog.form.kind == Kind::Trailer;
+            let main_count = dialog
+                .form
+                .rows
+                .iter()
+                .filter(|r| r.role == Role::Main)
+                .count();
+            ScrollArea::vertical()
+                .max_height(300.0)
+                .auto_shrink([false, true])
+                .show(ui, |ui| {
+                    for (i, row) in dialog.form.rows.iter_mut().enumerate() {
+                        let n = i + 1;
+                        let frame = Frame::new()
+                            .fill(color::SURFACE_1)
+                            .corner_radius(radius::MD)
+                            .inner_margin(Margin::same(space::SM as i8))
+                            .show(ui, |ui| {
+                                ui.set_width(ui.available_width());
+                                ui.horizontal(|ui| {
+                                    let label = tr!("custom-row-name", n = n);
+                                    ui.add(
+                                        TextEdit::singleline(&mut row.name).desired_width(200.0),
+                                    )
+                                    .widget_info(|| {
+                                        WidgetInfo::labeled(WidgetType::TextEdit, true, &label)
+                                    });
+                                    combo(
+                                        ui,
+                                        ("custom_role", i),
+                                        &tr!("custom-row-role", n = n),
+                                        &mut row.role,
+                                        &[
+                                            (Role::Main, tr("custom-role-main")),
+                                            (Role::Accessory, tr("custom-role-accessory")),
+                                        ],
+                                        true,
+                                    );
+                                    let sizes: Vec<(u32, String)> =
+                                        SIZES.iter().map(|s| (*s, format!("{s} × {s}"))).collect();
+                                    combo(
+                                        ui,
+                                        ("custom_size", i),
+                                        &tr!("custom-row-size", n = n),
+                                        &mut row.size,
+                                        &sizes,
+                                        true,
+                                    );
+                                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                        if ui
+                                            .add(IconButton::new(
+                                                icons::REMOVE,
+                                                &tr!("custom-row-remove", n = n),
+                                            ))
+                                            .clicked()
+                                        {
+                                            remove = Some(i);
+                                        }
+                                        let name = tr!("custom-row-replace-name", n = n);
+                                        let button =
+                                            ui.add(secondary_button(&tr("custom-row-replace")));
+                                        button.widget_info(|| {
+                                            WidgetInfo::labeled(WidgetType::Button, true, &name)
+                                        });
+                                        if button.clicked() {
+                                            replace = Some(i);
+                                        }
+                                    });
+                                });
+                                let t = &row.template;
+                                ui.horizontal(|ui| {
+                                    let file = tr!(
+                                        "custom-file",
+                                        file = t.file_name.as_str(),
+                                        width = t.width.to_string(),
+                                        height = t.height.to_string()
+                                    );
+                                    ui.label(
+                                        RichText::new(&file).small().color(color::TEXT_SECONDARY),
+                                    );
+                                    if !t.is_square() {
+                                        let text = tr("custom-not-square");
+                                        ui.label(
+                                            RichText::new(format!("{} {text}", icons::WARNING))
+                                                .small()
+                                                .color(color::WARNING),
+                                        )
+                                        .widget_info(
+                                            || WidgetInfo::labeled(WidgetType::Label, true, &text),
+                                        );
+                                    }
+                                });
+                                let hint = match row.role {
+                                    Role::Main if main_count > 1 => tr("custom-hint-cabins"),
+                                    Role::Main => tr("custom-hint-cabins-optional"),
+                                    Role::Accessory => tr("custom-hint-accessories"),
+                                };
+                                let label = tr!("custom-row-game-ids", n = n);
+                                ui.add(
+                                    TextEdit::singleline(&mut row.game_ids)
+                                        .desired_width(f32::INFINITY),
+                                )
+                                .widget_info(|| {
+                                    WidgetInfo::labeled(WidgetType::TextEdit, true, &label)
+                                });
+                                ui.label(RichText::new(&hint).small().color(color::TEXT_SECONDARY));
+                                for problem in problems.iter().filter(|p| p.row() == Some(i)) {
+                                    problem_label(ui, problem);
+                                }
+                            });
+                        dialog.row_rects.push(frame.response.rect);
+                        ui.add_space(space::XS);
+                    }
+                });
+            if !dialog.form.rows.is_empty() {
+                for problem in &problems {
+                    if matches!(problem, Problem::NoMainTexture)
+                        || (trailer && matches!(problem, Problem::TrailerMainTextures))
+                    {
+                        problem_label(ui, problem);
+                    }
+                }
+            }
+            for problem in &problems {
+                if matches!(problem, Problem::AlreadyInstalled(_)) {
+                    problem_label(ui, problem);
+                }
+            }
+        });
+
+        ui.add_space(space::SM);
+        ui.label(
+            RichText::new(tr("custom-scs-reminder"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        );
+        if let Some(error) = &dialog.error {
+            let label = ui.label(RichText::new(error).color(color::ERROR));
+            label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, error));
+        }
+        if let Some(job) = &dialog.job {
+            let (done, total) = job.progress();
+            let text = if total > 0 {
+                tr!(
+                    "custom-building",
+                    done = done.to_string(),
+                    total = total.to_string()
+                )
+            } else {
+                tr("custom-building-plain")
+            };
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label(RichText::new(&text).color(color::TEXT_SECONDARY))
+                    .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+            });
+        }
+        ui.add_space(space::LG);
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let ready = problems.is_empty() && !building;
+            let button = ui
+                .add_enabled(ready, primary_button(&tr("custom-create")))
+                .on_disabled_hover_text(
+                    problems
+                        .first()
+                        .map(problem_message)
+                        .unwrap_or_else(|| tr("custom-building-plain")),
+                );
+            create |= button.clicked();
+            cancel |= ui.add(secondary_button(&tr("button-cancel"))).clicked();
+        });
+    });
+
+    for field in lost_focus {
+        dialog.touch(field);
+    }
+    if let Some(i) = remove
+        && i < dialog.form.rows.len()
+    {
+        dialog.form.rows.remove(i);
+    }
+    if add_templates || replace.is_some() {
+        let paths = state.dialogs.pick_templates();
+        if !paths.is_empty() {
+            dialog.add_paths(&paths, replace);
+        }
+    }
+    if create && problems.is_empty() && dialog.job.is_none() {
+        let ctx = ctx.clone();
+        dialog.error = None;
+        dialog.job = Some(PackJob::start(dialog.form.clone(), move || {
+            ctx.request_repaint();
+        }));
+    }
+    if let Some(outcome) = dialog.job.as_ref().and_then(PackJob::poll) {
+        dialog.job = None;
+        let name = dialog.form.name.trim().to_owned();
+        match outcome {
+            PackOutcome::Built(packed) => match state.vehicles.install_bytes(&packed.bytes) {
+                Ok(m) => {
+                    let message = tr!(
+                        "vehicles-installed",
+                        name = m.name.as_str(),
+                        version = m.version.to_string()
+                    );
+                    dialog.origin.created(&state.vehicles, &m, message);
+                    return false;
+                }
+                Err(err) => {
+                    dialog.error = Some(crate::vehicles::install_error_message(&err, &name));
+                }
+            },
+            PackOutcome::Failed(err) => dialog.error = Some(pack_error_message(&err, &name)),
+            PackOutcome::Stopped => dialog.error = Some(tr!("custom-build-stopped", name = name)),
+        }
+    }
+    let escape = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
+    !(cancel || escape)
+}
+
+/// Shows the Custom Vehicle modal held in `state.modal`, and puts the
+/// dialog it came from back once it closes.
+pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
+    let Some(Modal::CustomVehicle(mut dialog)) = state.modal.take() else {
+        return;
+    };
+    if show(ctx, state, &mut dialog) {
+        if state.modal.is_none() {
+            state.modal = Some(Modal::CustomVehicle(dialog));
+        }
+    } else {
+        state.modal = Some(dialog.origin.into_modal());
+    }
+}
+
+/// Opens the dialog over `origin`.
+pub fn open(state: &mut AppState, origin: Origin) {
+    state.modal = Some(Modal::CustomVehicle(Box::new(CustomVehicleDialog::new(
+        origin,
+    ))));
+}
+
+/// Opens New Version… of the installed vehicle `id` over the Vehicle
+/// Library.
+pub fn open_new_version(state: &mut AppState, id: &str, library: LibraryDialog) {
+    let newest = state
+        .vehicles
+        .get(id)
+        .map(|v| v.newest().manifest.version.clone());
+    let loaded = newest.map(|version| state.vehicles.load(id, &version));
+    match loaded {
+        Some(Ok(package)) => {
+            state.modal = Some(Modal::CustomVehicle(Box::new(
+                CustomVehicleDialog::new_version(&package, Origin::Library(library)),
+            )));
+        }
+        Some(Err(err)) => {
+            let mut library = library;
+            library.messages = vec![Err(crate::vehicles::install_error_message(&err, id))];
+            state.modal = Some(Modal::VehicleLibrary(library));
+        }
+        None => state.modal = Some(Modal::VehicleLibrary(library)),
+    }
+}

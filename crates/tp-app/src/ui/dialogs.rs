@@ -51,6 +51,10 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         }
         return;
     }
+    if matches!(state.modal, Some(Modal::CustomVehicle(_))) {
+        super::custom_vehicle::show_modal(ctx, state);
+        return;
+    }
     if matches!(state.modal, Some(Modal::VehicleLibrary(_))) {
         let Some(Modal::VehicleLibrary(mut dialog)) = state.modal.take() else {
             unreachable!()
@@ -113,6 +117,15 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
                 }
                 false
             }
+            WizardOutcome::CustomVehicle => {
+                if let Some(Modal::NewProject(draft)) = state.modal.take() {
+                    super::custom_vehicle::open(
+                        state,
+                        super::custom_vehicle::Origin::NewProject(draft),
+                    );
+                }
+                false
+            }
             WizardOutcome::InstallSample => {
                 let results = super::vehicle_dialogs::install_samples(state);
                 let sample = results.first().is_some_and(Result::is_ok);
@@ -159,6 +172,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         | Modal::UpdateTemplate(_)
         | Modal::AddVehicle(_)
         | Modal::Textures(_)
+        | Modal::CustomVehicle(_)
         | Modal::RemoveVehicle { .. } => {
             unreachable!("handled above")
         }
@@ -276,12 +290,20 @@ enum WizardOutcome {
     Install,
     /// Install the built-in sample vehicle and select it.
     InstallSample,
+    /// Open the Custom Vehicle dialog, then come back.
+    CustomVehicle,
 }
 
-/// Vehicle step: the installed vehicles, the chosen one's variants as
-/// checkboxes. Returns true when Install the sample vehicle is clicked.
-fn vehicle_step(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary) -> bool {
+/// Vehicle step: the installed vehicles, the chosen one's textures as
+/// checkboxes. Returns whether Install the sample vehicles and Custom
+/// vehicle… (in the empty state) were clicked.
+fn vehicle_step(
+    ui: &mut Ui,
+    draft: &mut NewProjectDraft,
+    library: &VehicleLibrary,
+) -> (bool, bool) {
     let mut sample = false;
+    let mut custom = false;
     draft.filter.show(ui, "wizard");
     ui.add_space(space::SM);
     for message in &draft.messages {
@@ -297,10 +319,13 @@ fn vehicle_step(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibra
                 .small()
                 .color(color::TEXT_SECONDARY),
         );
-        sample |= ui
-            .add(secondary_button(&tr("vehicles-install-sample")))
-            .clicked();
-        return sample;
+        ui.horizontal(|ui| {
+            sample |= ui
+                .add(secondary_button(&tr("vehicles-install-sample")))
+                .clicked();
+            custom |= ui.add(secondary_button(&tr("custom-open"))).clicked();
+        });
+        return (sample, custom);
     }
     // A fixed height: the dialog doesn't resize (over several frames) when
     // a vehicle's texture checkboxes appear.
@@ -316,7 +341,7 @@ fn vehicle_step(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibra
                 &mut draft.vehicle,
             );
         });
-    sample
+    (sample, custom)
 }
 
 /// The vehicle chosen in the draft, if it is installed and ready, with the
@@ -350,9 +375,9 @@ fn new_project(
         StepIndicator::new(draft.step, &steps).show(ui);
         ui.add_space(space::LG);
 
-        let mut sample = false;
+        let (mut sample, mut custom) = (false, false);
         if draft.step == 0 {
-            sample = vehicle_step(ui, draft, library);
+            (sample, custom) = vehicle_step(ui, draft, library);
         } else {
             ui.label(RichText::new(tr("new-project-name")).text_style(label_strong_style()));
             let hint = chosen(draft, library)
@@ -404,6 +429,9 @@ fn new_project(
             cancel |= ui.add(secondary_button(&tr("button-cancel"))).clicked();
             if draft.step == 0 {
                 install |= ui.add(secondary_button(&tr("vehicles-install"))).clicked();
+                if !library.vehicles().is_empty() {
+                    custom |= ui.add(secondary_button(&tr("custom-open"))).clicked();
+                }
             }
         });
         // Enter confirms the current step (a focused button handles Enter as
@@ -413,14 +441,15 @@ fn new_project(
             && !back
             && !install
             && !sample
+            && !custom
             && ui.input(|i| i.key_pressed(Key::Enter))
         {
             next = true;
         }
-        (cancel, next, back, install, sample)
+        (cancel, next, back, install, sample, custom)
     });
 
-    let (cancel, next, back, install, sample) = response.inner;
+    let (cancel, next, back, install, sample, custom) = response.inner;
     let escape = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::Escape));
     if cancel || escape {
         outcome = WizardOutcome::Cancel;
@@ -428,6 +457,8 @@ fn new_project(
         outcome = WizardOutcome::Install;
     } else if sample {
         outcome = WizardOutcome::InstallSample;
+    } else if custom {
+        outcome = WizardOutcome::CustomVehicle;
     } else if back {
         draft.step = draft.step.saturating_sub(1);
     } else if next && !last {

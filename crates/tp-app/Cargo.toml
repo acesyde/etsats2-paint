@@ -15,6 +15,7 @@ path = "src/main.rs"
 tp-i18n.workspace = true
 sys-locale.workspace = true
 tp-vehicles.workspace = true
+tp-pack.workspace = true
 semver.workspace = true
 tp-core.workspace = true
 tp-ui.workspace = true
@@ -38,6 +39,7 @@ tracing-appender.workspace = true
 egui_kittest.workspace = true
 tempfile.workspace = true
 zip.workspace = true
+texpresso.workspace = true
 
 [lints]
 workspace = true

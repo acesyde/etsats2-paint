@@ -1587,3 +1587,57 @@ fn render_fleet_screens() {
         save(&mut h, &format!("fleet_textures_{code}"));
     }
 }
+
+/// The Custom Vehicle dialog filled in, with a texture missing its game
+/// ids, then the Vehicle Library with the custom vehicle (New Version…,
+/// Export…), in English and French.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_custom_vehicle() {
+    use tp_app::state::Modal;
+    use tp_app::ui::custom_vehicle::{CustomVehicleDialog, Origin};
+    for language in [tp_i18n::Language::English, tp_i18n::Language::French] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut prefs = Prefs::default();
+        prefs.set_language(Some(language));
+        let code = language.code();
+        let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 1000.0));
+        h.state_mut().vehicles =
+            tp_app::vehicles::VehicleLibrary::open(&dir.path().join("library"));
+        let mut dialog = CustomVehicleDialog::new(Origin::NewProject(Default::default()));
+        dialog.form.name = "R 2024".into();
+        dialog.form.brand = "Scania".into();
+        dialog.form.path = "scania.r_2024".into();
+        let wide = {
+            let mut out = Vec::new();
+            image::RgbaImage::new(64, 32)
+                .write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
+                .unwrap();
+            out
+        };
+        dialog.add_files(
+            vec![
+                ("cabin.png".into(), Ok(tp_vehicles::sample::png(64))),
+                ("side_skirts.png".into(), Ok(tp_vehicles::sample::png(32))),
+                ("mirrors.png".into(), Ok(wide)),
+            ],
+            None,
+        );
+        dialog.form.rows[2].game_ids = "mirror.painted, s_mirror.painted".into();
+        h.state_mut().modal = Some(Modal::CustomVehicle(Box::new(dialog)));
+        save(&mut h, &format!("custom_vehicle_{code}"));
+
+        // Build it, then show the library.
+        let packed = match &h.state().modal {
+            Some(Modal::CustomVehicle(d)) => {
+                let mut form = d.form.clone();
+                form.rows[1].game_ids = "sideskirt.a".into();
+                form.pack(&mut || {}).unwrap()
+            }
+            _ => unreachable!(),
+        };
+        h.state_mut().vehicles.install_bytes(&packed.bytes).unwrap();
+        h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+        save(&mut h, &format!("custom_vehicle_library_{code}"));
+    }
+}

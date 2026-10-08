@@ -239,3 +239,49 @@ fn check_and_summary() {
         Err(PackError::Package(PackageError::NotAZip))
     ));
 }
+
+#[test]
+fn packs_from_memory() {
+    let image = dds::build::quadrants();
+    let files = BTreeMap::from([
+        (
+            "templates/cabin.dds".to_owned(),
+            dds::build::bc(&image, texpresso::Format::Bc3, b"DXT5"),
+        ),
+        ("templates/mirrors.png".to_owned(), sample::png(8)),
+        ("notes.txt".to_owned(), b"not referenced".to_vec()),
+    ]);
+    let mut count = 0;
+    let packed = pack_entries_with(
+        manifest(&[
+            ("cabin", 256, "templates/cabin.dds"),
+            ("mirrors", 256, "templates/mirrors.png"),
+        ]),
+        files,
+        &mut || count += 1,
+    )
+    .unwrap();
+    assert_eq!(count, 1, "one DDS converted");
+    assert!(packed.ignored.is_empty());
+    let zip = zip::ZipArchive::new(Cursor::new(&packed.bytes)).unwrap();
+    let names: Vec<&str> = zip.file_names().collect();
+    assert_eq!(
+        names,
+        [MANIFEST, "templates/cabin.png", "templates/mirrors.png"]
+    );
+    let m = packaged_manifest(&packed.bytes);
+    assert_eq!(
+        m["paint_job"]["main"][0]["texture"]["template"],
+        "templates/cabin.png"
+    );
+    let package = Package::read(&packed.bytes).unwrap();
+    let cabin = package.template("cabin").unwrap();
+    assert_eq!((cabin.width, cabin.height), (16.0, 16.0));
+
+    let err = pack_entries(
+        manifest(&[("cabin", 256, "templates/cabin.png")]),
+        BTreeMap::new(),
+    )
+    .unwrap_err();
+    assert!(matches!(err, PackError::MissingFile { .. }), "{err:?}");
+}

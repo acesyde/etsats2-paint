@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 
 use tp_core::ProjectVehicle;
 use tp_i18n::tr;
+use tp_pack::PackError;
+use tp_pack::custom::TemplateError;
 use tp_vehicles::{Manifest, Package, PackageError};
 
 /// Id of the built-in sample truck (picked after installing the samples).
@@ -81,37 +83,74 @@ pub fn install_error_message(err: &InstallError, file: &str) -> String {
     let reason = match err {
         InstallError::NoLibrary => tr("pkg-no-library"),
         InstallError::Io(e) => tr!("pkg-io", reason = e.to_string()),
-        InstallError::Package(e) => match e {
-            PackageError::NotAZip => tr("pkg-not-a-zip"),
-            PackageError::NoManifest => tr("pkg-no-manifest"),
-            PackageError::BadManifest(why) => tr!("pkg-bad-manifest", reason = why.as_str()),
-            PackageError::NewerFormat(_) => tr("pkg-newer-format"),
-            PackageError::BadId(id) => tr!("pkg-bad-id", id = id.as_str()),
-            PackageError::BadGamePath(path) => tr!("pkg-bad-game-path", path = path.as_str()),
-            PackageError::NoMainTexture => tr("pkg-no-main-texture"),
-            PackageError::DuplicatePart(id) => tr!("pkg-duplicate-part", id = id.as_str()),
-            PackageError::MissingGameIds(name) => {
-                tr!("pkg-missing-game-ids", texture = name.as_str())
-            }
-            PackageError::BadGameId(id) => tr!("pkg-bad-game-id", id = id.as_str()),
-            PackageError::DuplicateGameId(id) => tr!("pkg-duplicate-game-id", id = id.as_str()),
-            PackageError::BadSize { texture, size } => {
-                tr!("pkg-bad-size", texture = texture.as_str(), size = *size)
-            }
-            PackageError::UnsafePath(path) => tr!("pkg-unsafe-path", path = path.as_str()),
-            PackageError::TooLarge => tr("pkg-too-large"),
-            PackageError::MissingTemplate { texture, .. } => {
-                tr!("pkg-missing-template", texture = texture.as_str())
-            }
-            PackageError::BadTemplate { texture, .. } => {
-                tr!("pkg-bad-template", texture = texture.as_str())
-            }
-            PackageError::TemplateTooLarge { texture } => {
-                tr!("pkg-template-too-large", texture = texture.as_str())
-            }
-        },
+        InstallError::Package(e) => package_error_reason(e),
     };
     tr!("pkg-install-failed", file = file, reason = reason)
+}
+
+/// Why a package is invalid, in the current language ("it has no main
+/// texture.").
+pub fn package_error_reason(e: &PackageError) -> String {
+    match e {
+        PackageError::NotAZip => tr("pkg-not-a-zip"),
+        PackageError::NoManifest => tr("pkg-no-manifest"),
+        PackageError::BadManifest(why) => tr!("pkg-bad-manifest", reason = why.as_str()),
+        PackageError::NewerFormat(_) => tr("pkg-newer-format"),
+        PackageError::BadId(id) => tr!("pkg-bad-id", id = id.as_str()),
+        PackageError::BadGamePath(path) => tr!("pkg-bad-game-path", path = path.as_str()),
+        PackageError::NoMainTexture => tr("pkg-no-main-texture"),
+        PackageError::DuplicatePart(id) => tr!("pkg-duplicate-part", id = id.as_str()),
+        PackageError::MissingGameIds(name) => {
+            tr!("pkg-missing-game-ids", texture = name.as_str())
+        }
+        PackageError::BadGameId(id) => tr!("pkg-bad-game-id", id = id.as_str()),
+        PackageError::DuplicateGameId(id) => tr!("pkg-duplicate-game-id", id = id.as_str()),
+        PackageError::BadSize { texture, size } => {
+            tr!("pkg-bad-size", texture = texture.as_str(), size = *size)
+        }
+        PackageError::UnsafePath(path) => tr!("pkg-unsafe-path", path = path.as_str()),
+        PackageError::TooLarge => tr("pkg-too-large"),
+        PackageError::MissingTemplate { texture, .. } => {
+            tr!("pkg-missing-template", texture = texture.as_str())
+        }
+        PackageError::BadTemplate { texture, .. } => {
+            tr!("pkg-bad-template", texture = texture.as_str())
+        }
+        PackageError::TemplateTooLarge { texture } => {
+            tr!("pkg-template-too-large", texture = texture.as_str())
+        }
+    }
+}
+
+/// Why the custom vehicle `name` could not be built, in the current
+/// language.
+pub fn pack_error_message(err: &PackError, name: &str) -> String {
+    let reason = match err {
+        PackError::Package(e) => package_error_reason(e),
+        PackError::UnsupportedDds { texture, .. } => {
+            tr!("custom-template-unconvertible", texture = texture.as_str())
+        }
+        other => tr!("pkg-bad-manifest", reason = other.to_string()),
+    };
+    tr!("custom-build-failed", name = name, reason = reason)
+}
+
+/// Why `file` can't be a template, in the current language.
+pub fn template_error_message(err: &TemplateError, file: &str) -> String {
+    match err {
+        TemplateError::NotAnImage => tr!("custom-file-not-image", file = file),
+        TemplateError::UnsupportedDds(format) => tr!(
+            "custom-file-unsupported-dds",
+            file = file,
+            format = format.as_str()
+        ),
+        TemplateError::Damaged => tr!("custom-file-damaged", file = file),
+        TemplateError::TooLarge => tr!(
+            "custom-file-too-large",
+            file = file,
+            size = tp_vehicles::MAX_IMAGE_SIDE
+        ),
+    }
 }
 
 /// The installed packages.
