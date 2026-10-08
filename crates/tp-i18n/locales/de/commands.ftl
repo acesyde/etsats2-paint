@@ -77,7 +77,6 @@ reason-select-to-align = Wählen Sie ein Objekt aus (zwei bei „Ausrichten an: 
 reason-select-three = Wählen Sie drei oder mehr Objekte aus.
 reason-no-guides = Die Textur hat keine Hilfslinien.
 reason-no-selection = Wählen Sie zuerst ein oder mehrere Objekte aus.
-reason-soon-mods = Spiel-Mods benötigen Fahrzeugvorlagen, die noch nicht verfügbar sind.
 
 ## Tastennamen in Tastenkombinationen (Windows und Linux)
 

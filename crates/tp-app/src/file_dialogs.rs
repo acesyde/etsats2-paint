@@ -1,7 +1,7 @@
 //! Native file dialogs, behind a trait so tests can script them.
 
 use std::collections::VecDeque;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tp_i18n::tr;
 
 pub trait FileDialogs {
@@ -19,6 +19,10 @@ pub trait FileDialogs {
     fn pick_templates(&mut self) -> Vec<PathBuf>;
     /// Where to export a vehicle package, proposing `suggested`.
     fn save_package(&mut self, suggested: &str) -> Option<PathBuf>;
+    /// Where to export a mod, proposing `suggested` in `folder`.
+    fn save_mod(&mut self, suggested: &str, folder: Option<&Path>) -> Option<PathBuf>;
+    /// A PNG or JPEG picture for the mod.
+    fn pick_mod_image(&mut self) -> Option<PathBuf>;
     /// Names proposed so far (scripted dialogs only).
     fn suggested(&self) -> Vec<String> {
         Vec::new()
@@ -76,6 +80,24 @@ impl FileDialogs for NativeDialogs {
             .unwrap_or_default()
     }
 
+    fn save_mod(&mut self, suggested: &str, folder: Option<&Path>) -> Option<PathBuf> {
+        let mut dialog = rfd::FileDialog::new()
+            .set_title(tr("dialog-export-mod"))
+            .add_filter(tr("filter-mods"), &[crate::mod_export::EXTENSION])
+            .set_file_name(suggested);
+        if let Some(folder) = folder {
+            dialog = dialog.set_directory(folder);
+        }
+        dialog.save_file()
+    }
+
+    fn pick_mod_image(&mut self) -> Option<PathBuf> {
+        rfd::FileDialog::new()
+            .set_title(tr("mod-choose-image"))
+            .add_filter(tr("filter-mod-images"), &["png", "jpg", "jpeg"])
+            .pick_file()
+    }
+
     fn save_export(&mut self, suggested: &str) -> Option<PathBuf> {
         let ext = std::path::Path::new(suggested)
             .extension()
@@ -99,8 +121,12 @@ pub struct ScriptedDialogs {
     pub packages: VecDeque<Vec<PathBuf>>,
     pub templates: VecDeque<Vec<PathBuf>>,
     pub package_save: VecDeque<PathBuf>,
+    pub mod_save: VecDeque<PathBuf>,
+    pub mod_images: VecDeque<PathBuf>,
     /// File names proposed by save dialogs, in order.
     pub suggested: Vec<String>,
+    /// Folders the mod save dialogs opened in, in order.
+    pub mod_folders: Vec<Option<PathBuf>>,
 }
 
 impl FileDialogs for ScriptedDialogs {
@@ -137,6 +163,16 @@ impl FileDialogs for ScriptedDialogs {
     fn save_package(&mut self, suggested: &str) -> Option<PathBuf> {
         self.suggested.push(suggested.to_owned());
         self.package_save.pop_front()
+    }
+
+    fn save_mod(&mut self, suggested: &str, folder: Option<&Path>) -> Option<PathBuf> {
+        self.suggested.push(suggested.to_owned());
+        self.mod_folders.push(folder.map(Path::to_path_buf));
+        self.mod_save.pop_front()
+    }
+
+    fn pick_mod_image(&mut self) -> Option<PathBuf> {
+        self.mod_images.pop_front()
     }
 }
 

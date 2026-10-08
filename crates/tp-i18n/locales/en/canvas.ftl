@@ -80,6 +80,7 @@ undo-rename-symbol = Rename Symbol
 ## Vehicle projects
 
 undo-update-template = Update Template
+undo-edit-mod-settings = Edit Mod Settings
 undo-dismiss-layout = Dismiss Layout Change
 
 ## Fleet

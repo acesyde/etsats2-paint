@@ -28,7 +28,7 @@ In Euro Truck Simulator 2 and American Truck Simulator, a paint job is:
   - a truck whose cabins all share one layout, and a trailer, have a single main texture;
 - **accessory textures,** shared by the whole vehicle. Each covers a group of accessories: mirrors, side skirts, bumpers, or, for a trailer, its bodies and lengths.
 
-A painter's project paints the main textures they choose and the accessories they choose. TruckPaint's mod export will turn each part into the game's definitions.
+A painter's project paints the main textures they choose and the accessories they choose. TruckPaint's mod export (Export › Export Mod…) turns each part into the game's definitions.
 
 ## Manifest
 
@@ -242,6 +242,8 @@ When SCS updates a game and a vehicle's textures change:
 1. update the templates that changed and increase their `layout_version`;
 2. adjust `game.versions`;
 3. release the package with a higher `version`.
+
+Keep the order of `paint_job.main` between versions: an exported mod names the paint job of each main texture after its position (`<name>_a` for the first, `<name>_b` for the second…), so reordering them would change those names, and players who bought the paint job would lose it after a mod update.
 
 Painters install the new version alongside the old one. Their projects keep working with the templates they embed. **Vehicle › Update Template…** moves a project's vehicle to the new version:
 - it flags the textures whose layout changed;

@@ -8,8 +8,8 @@ use std::sync::Arc;
 use tp_core::document::{AssetId, Object, apply_affine};
 use tp_core::kurbo::Size;
 use tp_core::{
-    AssetKind, Guide, Project, ProjectVehicle, Surface, SurfaceTemplate, TemplateStatus,
-    TexturePart, TextureResolution,
+    AssetKind, GameData, Guide, Project, ProjectVehicle, RequiredMod, Surface, SurfaceTemplate,
+    TemplateStatus, TexturePart, TextureResolution,
 };
 use tp_vehicles::{ImageKind, Manifest, Package, Part, Role};
 
@@ -24,7 +24,59 @@ pub fn project_vehicle(m: &Manifest) -> ProjectVehicle {
         brand: m.brand.clone(),
         kind: m.kind.code().to_owned(),
         game: m.game.id.code().to_owned(),
+        game_data: Some(game_data(m)),
     }
+}
+
+/// What the mod export needs to know about the vehicle of `m`.
+pub fn game_data(m: &Manifest) -> GameData {
+    GameData {
+        path: m.game.path.clone(),
+        versions: m.game.versions.to_string(),
+        alt_uv: m.game.alt_uv,
+        colour_picker: m.game.colour_picker,
+        requires: m
+            .game
+            .requires
+            .iter()
+            .map(|r| RequiredMod {
+                name: r.name.clone(),
+                version: r.version.clone(),
+            })
+            .collect(),
+        main_count: m.paint_job.main.len(),
+    }
+}
+
+/// A main texture's position among the main textures of `m`.
+fn main_index(m: &Manifest, role: Role, id: &str) -> Option<usize> {
+    (role == Role::Main)
+        .then(|| m.paint_job.main.iter().position(|p| p.id == id))
+        .flatten()
+}
+
+/// Records the game data of `m` in its vehicle of `project` and in the
+/// templates of the textures `m` has, when the vehicle has none (files
+/// written before it was recorded). Returns whether anything was filled.
+pub fn fill_game_data(project: &mut Project, m: &Manifest) -> bool {
+    let Some(vehicle) = project
+        .vehicles
+        .iter_mut()
+        .find(|v| v.package_id == m.id && v.game_data.is_none())
+    else {
+        return false;
+    };
+    vehicle.game_data = Some(game_data(m));
+    for surface in &mut project.surfaces {
+        if let Some(t) = &mut surface.template
+            && t.package_id == m.id
+            && let Some((role, part)) = m.paint_job.part(&t.texture_id)
+        {
+            t.game_ids = part.game_ids.clone();
+            t.main_index = main_index(m, role, &part.id);
+        }
+    }
+    true
 }
 
 /// The project's part kind of a package role.
@@ -97,6 +149,8 @@ fn template_for(
         part: texture_part(role),
         asset,
         layout_version: part.texture.layout_version,
+        game_ids: part.game_ids.clone(),
+        main_index: main_index(&package.manifest, role, &part.id),
         opacity,
         visible,
         status: TemplateStatus::Current,
@@ -888,6 +942,81 @@ mod tests {
             ws.project.surfaces[1].template.as_ref().unwrap().status,
             TemplateStatus::Removed
         );
+    }
+
+    #[test]
+    fn game_data_is_recorded_on_creation() {
+        let project =
+            fleet_project("F", &truck("1.1.0"), &ids(&["standard", "side_skirts"])).unwrap();
+        let data = project.vehicles[0].game_data.as_ref().unwrap();
+        assert_eq!(data.path, "truckpaint.sample");
+        assert_eq!(data.main_count, 2);
+        assert!(!data.alt_uv && !data.colour_picker);
+        let standard = project.surfaces[0].template.as_ref().unwrap();
+        assert_eq!(standard.game_ids, ids(&["standard"]));
+        assert_eq!(standard.main_index, Some(0));
+        let skirts = project.surfaces[1].template.as_ref().unwrap();
+        assert_eq!(skirts.game_ids, ids(&["sideskirt.sample"]));
+        assert_eq!(skirts.main_index, None);
+    }
+
+    /// Version `version` of the generated truck, whose "chassis" accessory
+    /// covers `chassis_ids`.
+    fn truck_with_chassis_ids(
+        version: &str,
+        textures: &[SampleTexture],
+        chassis_ids: &[&str],
+    ) -> Package {
+        let mut m = sample::manifest("scs.sample.truck", "Sample Truck", version, textures);
+        for part in m["paint_job"]["accessories"].as_array_mut().unwrap() {
+            if part["id"] == "chassis" {
+                part["game_ids"] = chassis_ids.to_vec().into();
+            }
+        }
+        Package::read(&sample::zip(&m, &sample::templates(textures))).unwrap()
+    }
+
+    #[test]
+    fn update_template_replaces_the_game_data() {
+        let textures = [
+            tex("cabin", "Cabin", 1024, 1),
+            tex("chassis", "Chassis", 512, 1),
+            tex("old", "Old", 512, 1),
+        ];
+        let v1 = truck_with_chassis_ids("1.2.0", &textures, &["chassis.a"]);
+        let mut ws =
+            Workspace::new(fleet_project("T", &v1, &ids(&["cabin", "chassis", "old"])).unwrap());
+        let v2 = truck_with_chassis_ids("1.3.0", &textures[..2], &["chassis.a", "chassis.b"]);
+        assert!(ws.apply_update(&v2, &[], 1.0));
+        let game_ids = |ws: &Workspace, i: usize| {
+            ws.project.surfaces[i]
+                .template
+                .as_ref()
+                .unwrap()
+                .game_ids
+                .clone()
+        };
+        assert_eq!(game_ids(&ws, 1), ids(&["chassis.a", "chassis.b"]));
+        // "old" is not in 1.3.0: it keeps the ids it had.
+        assert_eq!(game_ids(&ws, 2), ids(&["old.sample"]));
+        ws.undo();
+        assert_eq!(game_ids(&ws, 1), ids(&["chassis.a"]));
+    }
+
+    #[test]
+    fn missing_game_data_is_filled_from_the_package() {
+        let v = truck("1.1.0");
+        let mut project = fleet_project("F", &v, &ids(&["high_roof", "chassis"])).unwrap();
+        let recorded = project.clone();
+        project.vehicles[0].game_data = None;
+        for s in &mut project.surfaces {
+            let t = s.template.as_mut().unwrap();
+            t.game_ids.clear();
+            t.main_index = None;
+        }
+        assert!(fill_game_data(&mut project, &v.manifest));
+        assert_eq!(project, recorded);
+        assert!(!fill_game_data(&mut project, &v.manifest), "already filled");
     }
 
     #[test]

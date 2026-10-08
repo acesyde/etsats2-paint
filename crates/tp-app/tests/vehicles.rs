@@ -16,7 +16,7 @@ use tp_app::layout::PanelKind;
 use tp_app::prefs::Prefs;
 use tp_app::state::Modal;
 use tp_app::vehicles::VehicleLibrary;
-use tp_app::workspace::Workspace;
+use tp_app::workspace::{SaveState, Workspace};
 use tp_core::TemplateStatus;
 use tp_core::document::{Frame, ShapeKind};
 use tp_core::kurbo::{Point, Size};
@@ -341,6 +341,64 @@ fn removing_a_version_keeps_open_projects_and_files_work_without_it() {
     let opened = tp_file::from_bytes(&bytes).unwrap().project;
     assert_eq!(opened.template_assets().count(), 3);
     assert_eq!(opened.vehicles[0].version, "1.2.0");
+}
+
+/// Opens `path` through File › Open… (no project open).
+fn open_file(h: &mut H, path: &Path) {
+    h.state_mut().dialogs = Box::new(ScriptedDialogs {
+        open: [path.to_path_buf()].into(),
+        ..Default::default()
+    });
+    h.key_press_modifiers(Modifiers::COMMAND, Key::O);
+    settle(h);
+}
+
+#[test]
+fn older_files_get_the_game_data_of_their_installed_version() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    install_v120(&mut h, dir.path());
+    create_vehicle_project(&mut h);
+    let recorded = ws(&h).project.clone();
+    assert!(recorded.vehicles[0].game_data.is_some());
+    // A file written before game data was recorded.
+    let mut old = recorded.clone();
+    old.vehicles[0].game_data = None;
+    for s in &mut old.surfaces {
+        let t = s.template.as_mut().unwrap();
+        t.game_ids.clear();
+        t.main_index = None;
+    }
+    let path = dir.path().join("old.truckpaint");
+    tp_file::write(&old, &path).unwrap();
+    h.state_mut().close_project();
+    open_file(&mut h, &path);
+    let p = &ws(&h).project;
+    assert_eq!(p.vehicles, recorded.vehicles);
+    let templates = |p: &tp_core::Project| {
+        p.surfaces
+            .iter()
+            .map(|s| s.template.clone().map(|t| (t.game_ids, t.main_index)))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(templates(p), templates(&recorded));
+    assert_eq!(ws(&h).save_state(), SaveState::Unsaved);
+
+    // Without the package version, it opens as it is, editable and saved.
+    h.state_mut().close_project();
+    h.state_mut()
+        .vehicles
+        .remove(ID, &"1.2.0".parse().unwrap())
+        .unwrap();
+    open_file(&mut h, &path);
+    assert!(ws(&h).project.vehicles[0].game_data.is_none());
+    assert_eq!(ws(&h).save_state(), SaveState::Saved);
+    ws_mut(&mut h).create_shape(
+        ShapeKind::rectangle(),
+        Frame::new(Point::new(100.0, 100.0), Size::new(50.0, 50.0), 0.0),
+        1.0,
+    );
+    assert_eq!(ws(&h).project.surface().objects.len(), 1);
 }
 
 #[test]

@@ -14,9 +14,9 @@ use tp_core::document::{
 };
 use tp_core::kurbo::{Point, Size, Vec2};
 use tp_core::{
-    Asset, AssetKind, Axis, BrandKit, DEFAULT_SWATCH_PREFIX, GraphicStyle, Guide, Look, Project,
-    ProjectVehicle, Surface, SurfaceTemplate, Swatch, Symbol, TemplateStatus, TextStyle,
-    TexturePart, TextureResolution,
+    Asset, AssetKind, Axis, BrandKit, DEFAULT_SWATCH_PREFIX, GameData, GraphicStyle, Guide, Look,
+    ModSettings, Project, ProjectVehicle, RequiredMod, Surface, SurfaceTemplate, Swatch, Symbol,
+    TemplateStatus, TextStyle, TexturePart, TextureResolution,
 };
 
 /// The document (`project.ron`). Asset bytes live in separate ZIP entries.
@@ -47,6 +47,32 @@ pub struct FileProject {
     /// The vehicles of the fleet.
     #[serde(default)]
     pub vehicles: Vec<FileVehicle>,
+    /// What the project exports as a mod (missing: the defaults).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_settings: Option<FileModSettings>,
+}
+
+/// The settings of the exported mod.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileModSettings {
+    pub name: String,
+    pub version: String,
+    #[serde(default)]
+    pub author: String,
+    #[serde(default)]
+    pub description: String,
+    /// The internal name as typed (missing: follows the name).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub internal_name: Option<String>,
+    pub price: u32,
+    #[serde(default)]
+    pub unlock_level: u32,
+    /// Asset of the chosen shop icon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<u64>,
+    /// Asset of the chosen Mod Manager image.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<u64>,
 }
 
 /// A symbol: its content on its own square artboard.
@@ -116,6 +142,32 @@ pub struct FileVehicle {
     pub brand: String,
     pub kind: String,
     pub game: String,
+    /// What the mod export needs (missing in files written before it was
+    /// recorded).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game_data: Option<FileGameData>,
+}
+
+/// What a vehicle is in the game, recorded from its package.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileGameData {
+    pub path: String,
+    pub versions: String,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub alt_uv: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub colour_picker: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub requires: Vec<FileRequiredMod>,
+    pub main_count: usize,
+}
+
+/// A mod a vehicle depends on.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileRequiredMod {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -146,6 +198,12 @@ pub struct FileTemplate {
     pub visible: bool,
     #[serde(default)]
     pub status: FileTemplateStatus,
+    /// The game ids of the texture.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub game_ids: Vec<String>,
+    /// A main texture's position among the package's main textures.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub main_index: Option<usize>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -823,6 +881,8 @@ pub fn from_project(project: &Project) -> FileProject {
                         TemplateStatus::LayoutChanged => FileTemplateStatus::LayoutChanged,
                         TemplateStatus::Removed => FileTemplateStatus::Removed,
                     },
+                    game_ids: t.game_ids.clone(),
+                    main_index: t.main_index,
                 }),
             })
             .collect(),
@@ -850,11 +910,67 @@ pub fn from_project(project: &Project) -> FileProject {
                 brand: v.brand.clone(),
                 kind: v.kind.clone(),
                 game: v.game.clone(),
+                game_data: v.game_data.as_ref().map(|g| FileGameData {
+                    path: g.path.clone(),
+                    versions: g.versions.clone(),
+                    alt_uv: g.alt_uv,
+                    colour_picker: g.colour_picker,
+                    requires: g
+                        .requires
+                        .iter()
+                        .map(|r| FileRequiredMod {
+                            name: r.name.clone(),
+                            version: r.version.clone(),
+                        })
+                        .collect(),
+                    main_count: g.main_count,
+                }),
             })
             .collect(),
+        mod_settings: mod_settings_to_file(project),
     };
     brand_to_file(project, &mut file);
     file
+}
+
+/// The mod settings, left out while they are a new project's.
+fn mod_settings_to_file(project: &Project) -> Option<FileModSettings> {
+    let s = &project.mod_settings;
+    (*s != ModSettings::for_project(&project.name)).then(|| FileModSettings {
+        name: s.name.clone(),
+        version: s.version.clone(),
+        author: s.author.clone(),
+        description: s.description.clone(),
+        internal_name: s.internal_name.clone(),
+        price: s.price,
+        unlock_level: s.unlock_level,
+        icon: s.icon.map(|a| a.0),
+        image: s.image.map(|a| a.0),
+    })
+}
+
+/// The mod settings of `file`; its chosen images must be assets.
+fn mod_settings_from_file(file: &FileProject, project: &Project) -> Result<ModSettings, String> {
+    let Some(s) = &file.mod_settings else {
+        return Ok(ModSettings::for_project(&project.name));
+    };
+    let asset = |id: Option<u64>| match id.map(AssetId) {
+        Some(a) if !project.assets.contains_key(&a) => {
+            Err("an image of the mod settings is missing".to_owned())
+        }
+        a => Ok(a),
+    };
+    Ok(ModSettings {
+        name: s.name.clone(),
+        version: s.version.clone(),
+        author: s.author.clone(),
+        description: s.description.clone(),
+        internal_name: s.internal_name.clone(),
+        price: s.price,
+        unlock_level: s.unlock_level,
+        icon: asset(s.icon)?,
+        image: asset(s.image)?,
+    })
 }
 
 /// The project's vehicles.
@@ -868,6 +984,21 @@ fn vehicles_from_file(file: &FileProject) -> Vec<ProjectVehicle> {
             brand: v.brand.clone(),
             kind: v.kind.clone(),
             game: v.game.clone(),
+            game_data: v.game_data.as_ref().map(|g| GameData {
+                path: g.path.clone(),
+                versions: g.versions.clone(),
+                alt_uv: g.alt_uv,
+                colour_picker: g.colour_picker,
+                requires: g
+                    .requires
+                    .iter()
+                    .map(|r| RequiredMod {
+                        name: r.name.clone(),
+                        version: r.version.clone(),
+                    })
+                    .collect(),
+                main_count: g.main_count,
+            }),
         })
         .collect()
 }
@@ -1096,6 +1227,8 @@ pub fn into_project(
                             FileTemplateStatus::LayoutChanged => TemplateStatus::LayoutChanged,
                             FileTemplateStatus::Removed => TemplateStatus::Removed,
                         },
+                        game_ids: t.game_ids.clone(),
+                        main_index: t.main_index,
                     })
                 }
                 None => None,
@@ -1143,5 +1276,6 @@ pub fn into_project(
     project.relink();
     project.vehicles = vehicles_from_file(file);
     check_fleet(&project.vehicles, &project.surfaces)?;
+    project.mod_settings = mod_settings_from_file(file, &project)?;
     Ok(project)
 }

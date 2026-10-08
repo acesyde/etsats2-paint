@@ -56,6 +56,8 @@ pub enum Modal {
     },
     /// Export Texture dialog.
     Export(Box<crate::ui::export_dialog::ExportDialog>),
+    /// Export Mod dialog.
+    ExportMod(Box<crate::ui::mod_export_dialog::ModExportDialog>),
     /// Vehicle Library dialog.
     VehicleLibrary(crate::ui::vehicle_dialogs::LibraryDialog),
     /// Update Template confirmation.
@@ -133,6 +135,8 @@ pub struct AppState {
     pub(crate) allow_close: bool,
     /// Last export choices, for the session.
     pub export_settings: crate::export::ExportSettings,
+    /// Folder of the last mod export of the session.
+    pub last_mod_folder: Option<std::path::PathBuf>,
 }
 
 impl AppState {
@@ -185,6 +189,7 @@ impl AppState {
             after_save: None,
             allow_close: false,
             export_settings: crate::export::ExportSettings::default(),
+            last_mod_folder: None,
         };
         state.refresh_recent_availability();
         state
@@ -553,6 +558,17 @@ impl AppState {
                     crate::ui::export_dialog::ExportDialog::new(self.export_settings),
                 )));
             }
+            CommandId::ExportMod => {
+                if let Some(ws) = self.workspace() {
+                    let library = &self.vehicles;
+                    let summary = crate::mod_export::summary(&ws.project, &|v| {
+                        library.recorded(v).map(|i| i.manifest.clone())
+                    });
+                    let dialog =
+                        crate::ui::mod_export_dialog::ModExportDialog::new(&ws.project, summary);
+                    self.modal = Some(Modal::ExportMod(Box::new(dialog)));
+                }
+            }
             CommandId::Save => {
                 self.save(ctx, false);
             }
@@ -749,8 +765,6 @@ impl AppState {
                     }
                 });
             }
-            // Not-yet-available commands never reach here (disabled).
-            _ => {}
         }
     }
 

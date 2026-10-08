@@ -144,6 +144,32 @@ A project belongs to one game, ETS2 or ATS, set by its first vehicle: ETS2
 and ATS mods are separate mods, so one project exports one mod. A player with
 fleets in both games has two projects (sharing a symbol library, later).
 
+### The mod (shipped in `mod-export`)
+Export › Export Mod… writes the whole fleet as **one `.scs` file**: one paint
+job, in one mod, in the format Paintjob Packer (MIT) has shipped for years.
+- **Ready to install:** the save dialog opens in the game's mod folder when
+  it exists (`Documents/<game>/mod` on Windows, the user's data folder on
+  macOS and Linux), else in the last export folder of the session.
+- **Settings live in the project:** Name (shop and Mod Manager), Version,
+  Author, Description, Price, Unlock level and an internal name derived from
+  the Name (at most 12 characters, or 10 when a truck has several main
+  textures, whose paint jobs are `<name>_a`, `<name>_b`…). Editing them and
+  exporting is one undo step. The sidebar's Version is the mod version.
+- **Pictures are generated, and can be replaced:** the shop icon (256×64)
+  and the Mod Manager image (276×162) are rendered from the first main
+  texture, or made from a PNG or JPEG the player chooses, stored in the
+  project.
+- **Projects record the game data** of their vehicles (game path, versions,
+  alternate UV set, colour picker, required mods, and the game ids and
+  main-texture position of each texture), so a project exports on a
+  computer without its packages. Older files get it from the installed
+  package version when they open; without it, only the export is blocked.
+- **Main textures keep their order:** a truck's paint jobs are lettered by
+  the position of their main texture in the package, so package authors
+  must not reorder main textures between versions.
+- Not done: an unpacked folder, Steam Workshop files, several paint jobs per
+  project, colour-mask paint jobs, `compatible_versions` in the manifest.
+
 ### How a fleet works (shipped in `fleet-projects`)
 - **Scale:** a fleet can reach 30 to 40 textures, mostly 4096². The canvas is
   vector-based and only draws the active texture, and its caches drop what is
@@ -157,9 +183,10 @@ fleets in both games has two projects (sharing a symbol library, later).
 
 ## Open questions
 
-- **Project version and game versions:** the sidebar's Project section shows
-  them empty and read only; a later feature stores and edits them (they will
-  feed the mod's manifest).
+- **Game versions:** the sidebar's Project section shows them empty and read
+  only; a later feature stores and edits them, and could feed the manifest's
+  `compatible_versions`. (The project version is the mod version since
+  `mod-export`.)
 - **Symbol library across projects:** reusing a logo, swatches or styles in
   several projects, or in projects for both games. Probably after `symbols`.
 
@@ -167,14 +194,17 @@ fleets in both games has two projects (sharing a symbol library, later).
 
 | # | Change | What it does | Why now |
 |---|---|---|---|
-| 1 | `mod-export` | Exports the whole fleet as one ready-to-install mod. | The deliverable of the app. Needs the paint job model. |
-| 2 | `vehicle-marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once the format is stable. |
-| 3 | `distribution` | Release builds and installers. | Once a player can go from vehicle to mod. |
+| 1 | `vehicle-marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once the format is stable. |
+| 2 | `distribution` | Release builds and installers. | A player can now go from vehicle to mod. |
 
 ## Shipped
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `mod-export`: Export Mod… writes the fleet as one `.scs` mod (definitions,
+  DDS textures, shop icon, Mod Manager entry) into the game's mod folder;
+  mod settings and pictures saved in the project; projects record the game
+  data of their vehicles;
 - `flip-objects`: Flip Horizontal (Shift+H) and Flip Vertical (Shift+V) in
   the Object menu, the canvas context menu and the Transform panel; images
   and texts can be mirrored (also by dragging a handle past the opposite

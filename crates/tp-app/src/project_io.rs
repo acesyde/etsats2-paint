@@ -243,14 +243,34 @@ impl AppState {
             }
         };
         let name = opened.project.name.clone();
+        let mut project = opened.project;
+        let filled = self.fill_game_data(&mut project);
         self.open_document(
             ctx,
-            opened.project,
+            project,
             Some(path.to_path_buf()),
-            !opened.migrated,
+            !opened.migrated && !filled,
         );
         self.prefs.push_recent(&name, path);
         self.refresh_recent_availability();
+    }
+
+    /// Fills the game data `project` lacks (files written before it was
+    /// recorded) from the installed package versions its vehicles record.
+    /// Returns whether anything was filled.
+    fn fill_game_data(&self, project: &mut Project) -> bool {
+        let manifests: Vec<_> = project
+            .vehicles
+            .iter()
+            .filter(|v| v.game_data.is_none())
+            .filter_map(|v| self.vehicles.recorded(v))
+            .map(|installed| installed.manifest.clone())
+            .collect();
+        let mut filled = false;
+        for m in &manifests {
+            filled |= crate::vehicle_project::fill_game_data(project, m);
+        }
+        filled
     }
 
     /// Replaces the open project with `project` read from a file.
@@ -331,7 +351,9 @@ impl AppState {
             .and_then(|m| m.original.clone());
         match store.read(session) {
             Ok(opened) => {
-                self.open_document(ctx, opened.project, original, false);
+                let mut project = opened.project;
+                self.fill_game_data(&mut project);
+                self.open_document(ctx, project, original, false);
                 if let Some(store) = &self.recovery {
                     store.adopt(session);
                 }

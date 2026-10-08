@@ -662,6 +662,47 @@ fn render_export() {
     .unwrap();
 }
 
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_mod_export() {
+    use tp_app::state::Modal;
+    let wait_preview = |h: &mut egui_kittest::Harness<'static, tp_app::AppState>| {
+        for _ in 0..400 {
+            h.step();
+            let ready = matches!(&h.state().modal, Some(Modal::ExportMod(d)) if d.preview_ready());
+            if ready {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        h.step();
+    };
+    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+        let prefs = Prefs {
+            ui_scale: scale,
+            ..Prefs::default()
+        };
+        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        common::create_project(&mut h);
+        lettering_scene(&mut h);
+        wait_for_images(&mut h);
+        h.key_press_modifiers(
+            egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+            egui::Key::E,
+        );
+        wait_preview(&mut h);
+        save(&mut h, &format!("mod_export_{suffix}"));
+        // With problems listed.
+        if let Some(Modal::ExportMod(d)) = &mut h.state_mut().modal {
+            d.settings.name.clear();
+            d.settings.price = 0;
+        }
+        wait_preview(&mut h);
+        save(&mut h, &format!("mod_export_problems_{suffix}"));
+    }
+}
+
 /// Stars, a polygon, a swoosh with a hole and open lines.
 fn vector_scene(
     h: &mut egui_kittest::Harness<'static, tp_app::AppState>,

@@ -77,7 +77,6 @@ reason-select-to-align = Sélectionnez un objet (deux avec Aligner sur : Objet c
 reason-select-three = Sélectionnez au moins trois objets.
 reason-no-guides = La texture n’a aucun repère.
 reason-no-selection = Sélectionnez d’abord un ou plusieurs objets.
-reason-soon-mods = Les mods de jeu nécessitent des modèles de véhicules, qui ne sont pas encore disponibles.
 
 ## Noms des touches dans les raccourcis (Windows et Linux)
 

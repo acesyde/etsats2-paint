@@ -265,7 +265,7 @@ impl AssetCache {
 }
 
 /// Straight RGBA image → premultiplied pixmap.
-fn pixmap_from_rgba(image: &image::RgbaImage) -> Option<Pixmap> {
+pub(crate) fn pixmap_from_rgba(image: &image::RgbaImage) -> Option<Pixmap> {
     let size = tiny_skia::IntSize::from_wh(image.width(), image.height())?;
     let mut data = image.as_raw().clone();
     for px in data.as_chunks_mut::<4>().0 {
