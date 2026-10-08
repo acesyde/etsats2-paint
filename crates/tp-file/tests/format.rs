@@ -427,6 +427,7 @@ fn assert_same_document(a: &Project, b: &Project) {
     assert_eq!(a.assets, b.assets);
     assert_eq!(a.vehicles, b.vehicles);
     assert_eq!(a.mod_settings, b.mod_settings);
+    assert_eq!(a.game_versions, b.game_versions);
 }
 
 #[test]
@@ -523,6 +524,24 @@ fn files_without_mod_settings_get_the_defaults() {
         !text.contains("game_data") && !text.contains("game_ids"),
         "{text}"
     );
+}
+
+#[test]
+fn game_versions_round_trip() {
+    let mut p = plain_project();
+    p.game_versions = vec!["1.56.*".into(), "1.57.*".into()];
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap()).unwrap();
+    assert_eq!(opened.project.game_versions, ["1.56.*", "1.57.*"]);
+    // Older files have none, and a project without any writes no key.
+    assert!(
+        tp_file::read(&fixture(1))
+            .unwrap()
+            .project
+            .game_versions
+            .is_empty()
+    );
+    let text = ron::to_string(&tp_file::current::from_project(&plain_project())).unwrap();
+    assert!(!text.contains("game_versions"), "{text}");
 }
 
 #[test]

@@ -80,6 +80,7 @@ undo-rename-symbol = Cambiar nombre del símbolo
 
 undo-update-template = Actualizar plantilla
 undo-edit-mod-settings = Editar ajustes del mod
+undo-edit-game-versions = Editar versiones del juego
 undo-dismiss-layout = Descartar cambio de disposición
 
 ## Fleet

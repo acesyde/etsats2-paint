@@ -113,6 +113,20 @@ pub enum Problem {
         vehicle: String,
         version: String,
     },
+    /// A listed game version isn't written like the game's.
+    BadGameVersion {
+        version: String,
+    },
+    /// A listed game version a vehicle's package doesn't support.
+    UnsupportedGameVersion {
+        version: String,
+        vehicle: crate::game_versions::VehicleRange,
+    },
+    /// The vehicles have no game version in common.
+    NoCommonGameVersion {
+        first: crate::game_versions::VehicleRange,
+        second: crate::game_versions::VehicleRange,
+    },
 }
 
 /// Whether `text` can be written inside a quoted SII string.
@@ -171,7 +185,33 @@ pub fn problems_with(project: &Project, s: &ModSettings) -> Vec<Problem> {
             });
         }
     }
+    game_version_problems(project, &mut out);
     out
+}
+
+/// The problems of the project's game versions: badly written ones, ones a
+/// vehicle doesn't support, and vehicles with no version in common.
+fn game_version_problems(project: &Project, out: &mut Vec<Problem>) {
+    use crate::game_versions::{FleetVersions, fleet, of_listed, vehicle_ranges};
+    let ranges = vehicle_ranges(project);
+    for version in &project.game_versions {
+        match of_listed(version) {
+            None => out.push(Problem::BadGameVersion {
+                version: version.clone(),
+            }),
+            Some(listed) => {
+                if let Some((vehicle, _)) = ranges.iter().find(|(_, r)| !r.contains(&listed)) {
+                    out.push(Problem::UnsupportedGameVersion {
+                        version: version.clone(),
+                        vehicle: vehicle.clone(),
+                    });
+                }
+            }
+        }
+    }
+    if let FleetVersions::Conflict { first, second } = fleet(project) {
+        out.push(Problem::NoCommonGameVersion { first, second });
+    }
 }
 
 /// What the mod holds for one vehicle (the dialog's summary).
@@ -371,9 +411,16 @@ pub fn plan(project: &Project) -> Result<ModPlan, Vec<Problem>> {
              \tcategory[]: \"paint_job\"\n\
              \tmp_mod_optional: true\n\
              \ticon: \"icon.jpg\"\n\
-             \tdescription_file: \"description.txt\"\n\
+             \tdescription_file: \"description.txt\"\n{}\
              }}\n}}\n",
-            s.version, s.name, s.author
+            s.version,
+            s.name,
+            s.author,
+            project
+                .game_versions
+                .iter()
+                .map(|v| format!("\tcompatible_versions[]: \"{v}\"\n"))
+                .collect::<String>()
         )),
     );
     files.insert(
@@ -1162,6 +1209,71 @@ mod tests {
         s.price = 0;
         assert_eq!(problems_with(&p, &s), [Problem::PriceZero]);
         assert_eq!(problems(&p), []);
+    }
+
+    #[test]
+    fn game_version_problems() {
+        use crate::game_versions::VehicleRange;
+        let truck_range = || VehicleRange {
+            vehicle: "TruckPaint Sample Truck".into(),
+            range: ">=1.56".into(),
+        };
+        let mut p = truck(&["standard"]);
+        p.game_versions = vec!["1.56.x".into()];
+        assert_eq!(
+            problems(&p),
+            [Problem::BadGameVersion {
+                version: "1.56.x".into()
+            }]
+        );
+        p.game_versions = vec!["1.55.*".into(), "1.56.*".into()];
+        assert_eq!(
+            problems(&p),
+            [Problem::UnsupportedGameVersion {
+                version: "1.55.*".into(),
+                vehicle: truck_range(),
+            }]
+        );
+        p.game_versions = vec!["1.56.*".into(), "1.57.*".into()];
+        assert_eq!(problems(&p), []);
+        // A second vehicle (another game path) that stops before 1.55.
+        let mut old = p.vehicles[0].clone();
+        old.name = "Old Hauler".into();
+        old.package_id = "custom.old.hauler".into();
+        let data = old.game_data.as_mut().unwrap();
+        data.versions = "<1.55".into();
+        data.path = "old.hauler".into();
+        p.vehicles.push(old);
+        p.game_versions.clear();
+        assert_eq!(
+            problems(&p),
+            [Problem::NoCommonGameVersion {
+                first: truck_range(),
+                second: VehicleRange {
+                    vehicle: "Old Hauler".into(),
+                    range: "<1.55".into(),
+                },
+            }]
+        );
+        assert!(plan(&p).is_err());
+    }
+
+    #[test]
+    fn game_versions_in_the_manifest() {
+        let mut p = truck(&["standard"]);
+        p.game_versions = vec!["1.56.*".into(), "1.57.*".into()];
+        let manifest = plan(&p).unwrap().text("manifest.sii").unwrap().to_owned();
+        assert!(
+            manifest.contains(
+                "\tdescription_file: \"description.txt\"\n\
+             \tcompatible_versions[]: \"1.56.*\"\n\
+             \tcompatible_versions[]: \"1.57.*\"\n}"
+            ),
+            "{manifest}"
+        );
+        p.game_versions.clear();
+        let manifest = plan(&p).unwrap().text("manifest.sii").unwrap().to_owned();
+        assert!(!manifest.contains("compatible_versions"), "{manifest}");
     }
 
     #[test]

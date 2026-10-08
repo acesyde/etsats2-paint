@@ -133,10 +133,22 @@ selection across the center of its bounds, along the texture's axes; several
 objects are mirrored as one block. **Images and texts are mirrored too**: a
 logo faces the other way, and a text reads backwards, still editable.
 
-The placeholder Object › Mirror to Other Side is gone. Copying a design to
-the other flank of a truck needs to know where each side lies on the
-texture, which packages don't record. It will come back only as a change
-that adds that left/right mapping to packages.
+The placeholder Object › Mirror to Other Side is gone, and copying a design
+to the other flank of a truck is dropped for good: copy/paste and Flip cover
+it, and it would need packages to record where each side lies on the
+texture.
+
+### Game versions (shipped in `game-versions`)
+The project's **Game versions** (sidebar, Project section) are the list the
+mod's manifest gets as `compatible_versions[]`, typed as the game writes them
+(`1.56.*, 1.57.*`). Export Mod copies them as they are: after a game update,
+the author adds the new version and exports a new version of the mod. The
+list starts empty (no `compatible_versions`).
+
+Under the field, the sidebar shows the versions every vehicle supports,
+computed from the packages' ranges. Export Mod blocks a badly written
+version, a version a vehicle's package doesn't support, and a fleet whose
+vehicles have no version in common.
 
 ### No 3D preview (decided after `mod-export`)
 The 3D preview was only ever a placeholder, and it is dropped: TruckPaint
@@ -188,10 +200,6 @@ job, in one mod, in the format Paintjob Packer (MIT) has shipped for years.
 
 ## Open questions
 
-- **Game versions:** the sidebar's Project section shows them empty and read
-  only; a later feature stores and edits them, and could feed the manifest's
-  `compatible_versions`. (The project version is the mod version since
-  `mod-export`.)
 - **Symbol library across projects:** reusing a logo, swatches or styles in
   several projects, or in projects for both games. Probably after `symbols`.
 
@@ -206,6 +214,11 @@ job, in one mod, in the format Paintjob Packer (MIT) has shipped for years.
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `game-versions`: the project's Game versions, edited in the sidebar and
+  copied into the manifest's `compatible_versions[]`, with the versions every
+  vehicle supports shown under the field and checked by Export Mod;
+- `remove-3d-preview`: the 3D preview placeholder and the view modes are
+  gone;
 - `mod-export`: Export Mod… writes the fleet as one `.scs` mod (definitions,
   DDS textures, shop icon, Mod Manager entry) into the game's mod folder;
   mod settings and pictures saved in the project; projects record the game

@@ -17,12 +17,16 @@ Decisions move to [roadmap.md](roadmap.md) once they become changes.
   Trap: a preferences file holding `view_mode: ThreeD` must still load (read
   the old value and ignore it). Otherwise it fails to parse and every
   preference is reset to defaults.
-- **No copy of a design to the other side of the truck.** Copy/paste and
-  Flip cover it. Remove the "it will come back with a left/right mapping"
-  paragraph from the roadmap.
+- **No copy of a design to the other side of the truck** (recorded in the
+  roadmap with `game-versions`). Copy/paste and Flip cover it.
 - **Prefill from Paintjob Packer's database:** later.
 
-## Game versions (to confirm)
+## Game versions (done in `game-versions`)
+
+Decided differently from the proposal below: the project's Game versions
+are an editable list copied as is into `compatible_versions[]`
+(`1.56.*, 1.57.*`), checked against the packages' ranges; a fleet with no
+common version blocks the export. The proposal, for the record:
 
 Packages give version ranges (`>=1.56`, `^1.53`, `*`). The manifest's
 `compatible_versions[]` wants explicit patterns (`"1.56.*"`).

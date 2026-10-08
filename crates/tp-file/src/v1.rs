@@ -50,6 +50,9 @@ pub struct FileProject {
     /// What the project exports as a mod (missing: the defaults).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_settings: Option<FileModSettings>,
+    /// The game versions the mod is made for (`1.56.*`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub game_versions: Vec<String>,
 }
 
 /// The settings of the exported mod.
@@ -928,6 +931,7 @@ pub fn from_project(project: &Project) -> FileProject {
             })
             .collect(),
         mod_settings: mod_settings_to_file(project),
+        game_versions: project.game_versions.clone(),
     };
     brand_to_file(project, &mut file);
     file
@@ -1277,5 +1281,6 @@ pub fn into_project(
     project.vehicles = vehicles_from_file(file);
     check_fleet(&project.vehicles, &project.surfaces)?;
     project.mod_settings = mod_settings_from_file(file, &project)?;
+    project.game_versions = file.game_versions.clone();
     Ok(project)
 }

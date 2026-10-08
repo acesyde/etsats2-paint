@@ -145,6 +145,22 @@ pub fn problem_message(problem: &Problem) -> String {
             vehicle = vehicle.as_str(),
             version = version.as_str()
         ),
+        Problem::BadGameVersion { version } => {
+            tr!("mod-problem-bad-game-version", version = version.as_str())
+        }
+        Problem::UnsupportedGameVersion { version, vehicle } => tr!(
+            "mod-problem-unsupported-game-version",
+            version = version.as_str(),
+            vehicle = vehicle.vehicle.as_str(),
+            range = vehicle.range.as_str()
+        ),
+        Problem::NoCommonGameVersion { first, second } => tr!(
+            "mod-problem-no-common-game-version",
+            first = first.vehicle.as_str(),
+            first_range = first.range.as_str(),
+            second = second.vehicle.as_str(),
+            second_range = second.range.as_str()
+        ),
     }
 }
 
