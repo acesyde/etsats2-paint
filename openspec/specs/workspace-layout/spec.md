@@ -68,26 +68,6 @@ A panel layout saved before a panel existed SHALL get that panel at its default 
 - **WHEN** the application starts with a panel layout saved before the Symbols panel existed
 - **THEN** the Symbols panel appears after Styles, collapsed, and the other panels keep their places and states
 
-### Requirement: 3D preview panel placeholder
-The workspace SHALL include a 3D preview panel that can be shown, hidden and resized. Until 3D rendering exists, the panel SHALL display an explicit placeholder state.
-
-#### Scenario: Hiding the 3D panel
-- **WHEN** the user toggles the 3D preview from the View menu
-- **THEN** the 3D panel is hidden and the canvas area expands to use the freed space
-
-### Requirement: View modes
-The workspace SHALL offer three view modes — 2D, 3D and Split — selectable from a segmented control and from the View menu with shortcuts. 2D shows only the canvas area, 3D shows only the 3D preview area, Split shows the canvas area and the 3D preview side by side with a draggable divider.
-
-Opening or creating a project SHALL show its canvas: when the remembered view mode is 3D, the project opens in 2D. 2D and Split are kept.
-
-#### Scenario: Switching to split view
-- **WHEN** the user selects Split
-- **THEN** the canvas area is shown on the left and the 3D preview on the right, separated by a draggable divider
-
-#### Scenario: Opening a project after using the 3D view
-- **WHEN** the user last used the 3D view and opens a project
-- **THEN** the project opens in 2D with its canvas visible
-
 ### Requirement: Status bar
 The workspace SHALL show a status bar displaying at least: current zoom level, pointer position in texture pixels when over the artboard, the active surface name, and the document save state. The save state SHALL be shown as text ("Saved" / "Unsaved changes") together with an icon, never by color alone.
 

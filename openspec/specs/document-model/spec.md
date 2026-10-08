@@ -142,7 +142,7 @@ A text object SHALL hold its content (one or more lines) and its character style
 
 A text or an image SHALL also have a mirrored state, off by default. A mirrored object SHALL be drawn reversed across its own vertical axis, within the same frame. A vertical mirror is a mirrored object turned by a half-turn. The mirrored state SHALL apply wherever the object is drawn or read:
 
-- on the canvas, in the 3D preview, in texture and mod export, and inside symbol instances;
+- on the canvas, in texture and mod export, and inside symbol instances;
 - for an image, when the eyedropper samples it: it SHALL take the pixel shown under the pointer;
 - for a text, while editing it: the caret and the selected characters SHALL be placed on the mirrored glyphs, and clicking places the caret under the pointer;
 - for a text, when it is outlined: Create Outlines SHALL give mirrored letters.
