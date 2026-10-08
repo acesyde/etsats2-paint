@@ -355,6 +355,32 @@ fn edit_menu_names_the_undo_step() {
 
 // --- object commands ------------------------------------------------------------
 
+/// The native backend sends Cmd/Ctrl+C, X and V as clipboard events, not as
+/// key presses.
+#[test]
+fn copy_cut_and_paste_from_clipboard_events() {
+    let mut h = open();
+    let a = add_rect(&mut h, 100.0, 100.0, 50.0, 50.0);
+    ws_mut(&mut h).selection = vec![a];
+    h.run();
+    h.event(Event::Copy);
+    h.run();
+    h.event(Event::Paste("Rectangle".into()));
+    h.run();
+    let objects = &ws(&h).project.surface().objects;
+    assert_eq!(objects.len(), 2, "pasted");
+    assert_eq!(objects[1].frame.center, Point::new(100.0, 100.0));
+    let copy = objects[1].id;
+    ws_mut(&mut h).selection = vec![copy];
+    h.run();
+    h.event(Event::Cut);
+    h.run();
+    assert_eq!(ws(&h).project.surface().objects.len(), 1, "cut");
+    h.event(Event::Paste("Rectangle".into()));
+    h.run();
+    assert_eq!(ws(&h).project.surface().objects.len(), 2, "pasted back");
+}
+
 #[test]
 fn duplicate_offsets_copy() {
     let mut h = open();

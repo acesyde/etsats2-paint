@@ -1109,27 +1109,40 @@ pub fn take_triggered(
 
     let mut triggered = Vec::new();
     input.events.retain(|event| {
-        let egui::Event::Key {
-            key,
-            pressed: true,
-            modifiers,
-            ..
-        } = event
-        else {
-            return true;
+        let hit = match event {
+            egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } => candidates
+                .iter()
+                .find(|(_, s)| s.logical_key == *key && modifiers_match(*modifiers, s.modifiers))
+                .map(|(id, _)| *id),
+            // The native backend turns Cmd/Ctrl+C, X and V into clipboard
+            // events instead of key presses.
+            egui::Event::Copy => clipboard_command(&candidates, CommandId::Copy),
+            egui::Event::Cut => clipboard_command(&candidates, CommandId::Cut),
+            egui::Event::Paste(_) => clipboard_command(&candidates, CommandId::Paste),
+            _ => None,
         };
-        let hit = candidates
-            .iter()
-            .find(|(_, s)| s.logical_key == *key && modifiers_match(*modifiers, s.modifiers));
         match hit {
-            Some((id, _)) if is_enabled(*id) => {
-                triggered.push(*id);
+            Some(id) if is_enabled(id) => {
+                triggered.push(id);
                 false
             }
             _ => true,
         }
     });
     triggered
+}
+
+/// `id` when its shortcut is active (in scope).
+fn clipboard_command(
+    candidates: &[(CommandId, KeyboardShortcut)],
+    id: CommandId,
+) -> Option<CommandId> {
+    candidates.iter().any(|(c, _)| *c == id).then_some(id)
 }
 
 #[cfg(test)]
