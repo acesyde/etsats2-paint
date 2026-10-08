@@ -9,7 +9,7 @@ Lets users keep their liveries: save a project to a single `.truckpaint` file, r
 ### Requirement: Self-contained project file
 A project SHALL be saved as one `.truckpaint` file containing everything needed to reopen it identically. The file SHALL contain:
 
-- the project's name and surfaces, with each surface's name and size;
+- the project's name, game versions and surfaces, with each surface's name and size;
 - the project's vehicles, each with its package id, version, name, brand, kind and game, and its game data: game path, supported game versions, whether it uses the alternate UV set and the colour picker, and the mods it requires;
 - each surface's template: the vehicle and texture it belongs to, whether that texture is a main texture or an accessory, its game ids, its image, opacity, visibility, layout version and status;
 - the full object tree, with every object's identity, name, kind, geometry (including polygon settings, the points and handles of every path subpath with its open or closed state, and the path's line width), fill, stroke, opacity, visibility and lock flags;
@@ -27,7 +27,7 @@ A project SHALL be saved as one `.truckpaint` file containing everything needed 
 
 Font families SHALL be stored by name only; font files SHALL NOT be embedded. Editor state that is not part of the document (selection, point selection, zoom, panel layout, grid and snapping settings, whether guides are shown, undo history) SHALL NOT be stored.
 
-A file written before swatches had names SHALL open with each palette color as a swatch named "Color 1", "Color 2"… in palette order, and nothing linked. A file written before texts and images could be mirrored SHALL open with none of them mirrored. A file written before mod settings existed SHALL open with the default mod settings.
+A file written before swatches had names SHALL open with each palette color as a swatch named "Color 1", "Color 2"… in palette order, and nothing linked. A file written before texts and images could be mirrored SHALL open with none of them mirrored. A file written before mod settings existed SHALL open with the default mod settings. A file written before game versions existed SHALL open with none.
 
 #### Scenario: Round trip
 - **WHEN** the user saves a project with grouped shapes, an outlined text, a placed SVG logo, a star, a curved path with a hole and two guides, closes it and opens the file again
@@ -64,6 +64,10 @@ A file written before swatches had names SHALL open with each palette color as a
 #### Scenario: File without mod settings
 - **WHEN** a project named "ACE" saved before mod settings existed is opened
 - **THEN** Export Mod… shows the Name "ACE", the Version "1.0", the Price 5000 and generated images
+
+#### Scenario: Game versions round trip
+- **WHEN** the user saves a project whose Game versions are `1.56.*, 1.57.*`, closes it and opens the file again
+- **THEN** the Game versions field shows "1.56.*, 1.57.*"
 
 ### Requirement: Game data of older files
 When a file without game data for a vehicle is opened, the game data of that vehicle and of its textures SHALL be filled in from the installed package version the vehicle records, if that version is installed. The file SHALL then open marked as having unsaved changes, so the next save stores the data. When that version isn't installed, the project SHALL open as it is and stay fully editable. Only Export Mod reports the missing data (see mod-export).

@@ -1,5 +1,5 @@
-//! The sidebar's content: the project's properties (read only for now) and
-//! its fleet as a tree, vehicle › variant › texture, the only place to
+//! The sidebar's content: the project's properties and its fleet as a
+//! tree, vehicle › variant › texture, the only place to
 //! switch textures. The active texture's template settings live in the
 //! Properties panel ([`texture_section`]).
 
@@ -19,9 +19,7 @@ use crate::ui::CommandUi;
 
 /// The Project and Vehicles sections.
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
-    let name = env.ws.project.name.clone();
-    let version = env.ws.project.mod_settings.version.clone();
-    project_section(ui, cmds, &name, &version);
+    project_section(ui, cmds, env);
     ui.add_space(space::SM);
     vehicles_section(ui, cmds, env);
 }
@@ -32,9 +30,12 @@ fn section_header(ui: &mut Ui, title: &str, action: impl FnOnce(&mut Ui)) {
     ui.with_layout(Layout::right_to_left(Align::Center), action);
 }
 
-/// Project properties, read only: the version is the mod's, set in Export
-/// Mod…. Its header holds the button that reduces the sidebar.
-fn project_section(ui: &mut Ui, cmds: &mut CommandUi<'_>, name: &str, version: &str) {
+/// Project properties: the name and the mod version (set in Export Mod…)
+/// read only, and the game versions the mod is made for. Its header holds
+/// the button that reduces the sidebar.
+fn project_section(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
+    let name = env.ws.project.name.clone();
+    let version = env.ws.project.mod_settings.version.clone();
     let id = ui.make_persistent_id("sidebar_project");
     CollapsingState::load_with_default_open(ui.ctx(), id, true)
         .show_header(ui, |ui| {
@@ -51,9 +52,8 @@ fn project_section(ui: &mut Ui, cmds: &mut CommandUi<'_>, name: &str, version: &
         })
         .body(|ui| {
             for (label, value) in [
-                (tr("project-name"), name.to_owned()),
-                (tr("project-version"), version.to_owned()),
-                (tr("project-game-versions"), String::new()),
+                (tr("project-name"), name.clone()),
+                (tr("project-version"), version.clone()),
             ] {
                 ui.label(RichText::new(&label).small().color(color::TEXT_SECONDARY));
                 let mut text = value;
@@ -63,7 +63,51 @@ fn project_section(ui: &mut Ui, cmds: &mut CommandUi<'_>, name: &str, version: &
                 );
                 field.widget_info(|| WidgetInfo::text_edit(false, String::new(), &text, &label));
             }
+            game_versions_field(ui, env);
         });
+}
+
+/// The game versions the mod is made for, committed on Enter or when the
+/// field is left (Escape restores them), with the versions every vehicle
+/// supports under it.
+fn game_versions_field(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+    use crate::game_versions::{FleetVersions, fleet, parse_list};
+    let label = tr("project-game-versions");
+    ui.label(RichText::new(&label).small().color(color::TEXT_SECONDARY));
+    let id = ui.id().with("game_versions_field");
+    let edit_id = id.with("edit");
+    let mut buffer = ui
+        .data(|d| d.get_temp::<String>(id))
+        .unwrap_or_else(|| env.ws.project.game_versions.join(", "));
+    tp_ui::widgets::remember_escape(ui, edit_id);
+    let response = ui.add(
+        TextEdit::singleline(&mut buffer)
+            .id(edit_id)
+            .hint_text("1.56.*, 1.57.*")
+            .desired_width(f32::INFINITY),
+    );
+    response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
+    if response.has_focus() {
+        ui.data_mut(|d| d.insert_temp(id, buffer.clone()));
+    }
+    if response.lost_focus() {
+        ui.data_mut(|d| d.remove::<String>(id));
+        if !tp_ui::widgets::take_escape(ui, edit_id) {
+            env.ws.set_game_versions(parse_list(&buffer), env.now);
+        }
+    }
+    let guide = match fleet(&env.ws.project) {
+        FleetVersions::NoData => None,
+        FleetVersions::Common(common) => Some(tr!(
+            "project-game-versions-supported",
+            versions = common.text().unwrap_or_else(|| tr("vehicles-any-version"))
+        )),
+        FleetVersions::Conflict { .. } => Some(tr("project-no-common-version")),
+    };
+    if let Some(text) = guide {
+        let label = ui.label(RichText::new(&text).small().color(color::TEXT_SECONDARY));
+        label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+    }
 }
 
 /// The fleet: each vehicle with its variants and textures.

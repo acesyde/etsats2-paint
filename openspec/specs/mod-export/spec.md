@@ -88,7 +88,10 @@ The dialog SHALL list every problem that blocks the export, each naming what to 
 - the internal name is empty, contains a character other than `a`–`z`, `0`–`9` and `_`, or is too long: at most 12 characters, or at most 10 when a vehicle of the project has several main textures in its package;
 - the Price is 0;
 - two vehicles of the project have the same game path;
-- a vehicle's game data is missing (see project-files), naming the vehicle and the package version to install.
+- a vehicle's game data is missing (see project-files), naming the vehicle and the package version to install;
+- one of the project's Game versions isn't written like the game's versions: two to four numbers separated by dots, the last one possibly replaced by `*` (`1.56`, `1.56.*`, `1.56.2`, `1.56.2.*`), naming it;
+- one of the project's Game versions isn't supported by a vehicle's package, naming the version, the vehicle and its range;
+- the vehicles have no game version in common, naming two vehicles whose ranges don't overlap and their ranges, and asking to update or remove one of them.
 
 #### Scenario: Empty name
 - **WHEN** the user clears the Name
@@ -101,6 +104,18 @@ The dialog SHALL list every problem that blocks the export, each naming what to 
 #### Scenario: Missing game data
 - **WHEN** a project made by a build without game data is opened on a computer that doesn't have its vehicle's package version 1.1.0, and the user opens Export Mod…
 - **THEN** the dialog says that TruckPaint Sample Truck 1.1.0 must be installed to export the mod, and Export… is disabled
+
+#### Scenario: Badly written game version
+- **WHEN** the project's Game versions are `1.56.x` and the user opens Export Mod…
+- **THEN** the dialog says that 1.56.x isn't a game version and gives 1.56.* as an example, and Export… is disabled
+
+#### Scenario: Game version a vehicle doesn't support
+- **WHEN** the project holds the sample truck (`>=1.56`), its Game versions are `1.55.*, 1.56.*`, and the user opens Export Mod…
+- **THEN** the dialog says that TruckPaint Sample Truck (>=1.56) doesn't support 1.55.*, and Export… is disabled
+
+#### Scenario: No common game version
+- **WHEN** the project holds the sample truck (`>=1.56`) and a custom vehicle "Old Hauler" supporting `<1.55`, and the user opens Export Mod…
+- **THEN** the dialog says that TruckPaint Sample Truck (>=1.56) and Old Hauler (<1.55) have no game version in common and that one of them must be updated or removed, and Export… is disabled
 
 ### Requirement: Destination
 Export… SHALL ask for the destination with a native save dialog, proposing "<Name>.scs", with the characters that can't be used in file names replaced by `-`. The dialog SHALL open in the game's mod folder when that folder exists:
@@ -125,7 +140,7 @@ Otherwise it SHALL open in the folder of the last mod export of the session, or 
 The export SHALL write one `.scs` file: a ZIP archive holding the mod at its root. All texts in it SHALL be in English, whatever the interface language, except what the player typed. With `<id>` the internal name, `<type>` `truck` for a truck and `trailer_owned` for a trailer, and `<path>` the vehicle's game path, it SHALL contain:
 
 **The mod:**
-- `manifest.sii`: a `mod_package` with the Version, the Name, the Author, the category `paint_job`, `mp_mod_optional: true`, the icon `icon.jpg` and the description file `description.txt`;
+- `manifest.sii`: a `mod_package` with the Version, the Name, the Author, the category `paint_job`, `mp_mod_optional: true`, the icon `icon.jpg`, the description file `description.txt`, and a copy of the project's Game versions (see workspace-layout): one `compatible_versions[]` line per version, in the order listed, none when the list is empty;
 - `icon.jpg`: the Mod Manager image;
 - `description.txt`: the Description, followed by "Vehicles supported:" and the name of each vehicle. When vehicles require other mods, it also has "Requires:" and the name and version of each one;
 - `material/ui/accessory/<id>_icon.mat`, `.tobj` and `.dds`: the shop icon.
@@ -176,6 +191,14 @@ The export SHALL write one `.scs` file: a ZIP archive holding the mod at its roo
 #### Scenario: Alternate UV set
 - **WHEN** a vehicle whose package sets `alt_uv` is exported
 - **THEN** its `<id>_settings.sui` contains `alternate_uvset: true`
+
+#### Scenario: Game versions in the manifest
+- **WHEN** a project whose Game versions are `1.56.*, 1.57.*` is exported
+- **THEN** its `manifest.sii` holds `compatible_versions[]: "1.56.*"` then `compatible_versions[]: "1.57.*"`
+
+#### Scenario: No game versions listed
+- **WHEN** a project whose Game versions are empty is exported
+- **THEN** its `manifest.sii` has no `compatible_versions`
 
 ### Requirement: Background export with progress
 Rendering, encoding and writing SHALL run without freezing the editor. While they run, the dialog SHALL show the progress over all the mod's textures and a Cancel button. Cancelling SHALL stop the export and leave no file at the destination, and an existing file there SHALL be left unchanged.

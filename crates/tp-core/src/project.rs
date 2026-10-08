@@ -352,6 +352,9 @@ pub struct Project {
     pub editing_symbol: Option<SymbolId>,
     /// What the project exports as a mod.
     pub mod_settings: ModSettings,
+    /// The game versions the mod is made for, as the game writes them
+    /// (`1.56.*`): the manifest's `compatible_versions`.
+    pub game_versions: Vec<String>,
     next_id: u64,
 }
 
@@ -382,6 +385,7 @@ impl Project {
             symbols: Vec::new(),
             editing_symbol: None,
             mod_settings,
+            game_versions: Vec::new(),
             next_id: 1,
         }
     }
@@ -802,6 +806,7 @@ impl Project {
             symbols: self.symbols.clone(),
             editing_symbol: self.editing_symbol,
             mod_settings: self.mod_settings.clone(),
+            game_versions: self.game_versions.clone(),
             assets: self.assets.clone(),
             selection: selection.to_vec(),
             points: Vec::new(),
@@ -851,6 +856,7 @@ impl Project {
         self.symbols = snapshot.symbols.clone();
         self.editing_symbol = snapshot.editing_symbol;
         self.mod_settings = snapshot.mod_settings.clone();
+        self.game_versions = snapshot.game_versions.clone();
         self.assets = snapshot.assets.clone();
         snapshot.selection.clone()
     }
@@ -877,6 +883,7 @@ pub struct Snapshot {
     symbols: Vec<Symbol>,
     editing_symbol: Option<SymbolId>,
     mod_settings: ModSettings,
+    game_versions: Vec<String>,
     assets: BTreeMap<AssetId, Arc<Asset>>,
     selection: Vec<ObjectId>,
     /// Selected path points (Direct Selection).
@@ -916,6 +923,7 @@ impl Snapshot {
             && self.brand == other.brand
             && self.editing_symbol == other.editing_symbol
             && self.mod_settings == other.mod_settings
+            && self.game_versions == other.game_versions
             && self.symbols.len() == other.symbols.len()
             && self
                 .symbols
@@ -1362,6 +1370,17 @@ mod tests {
         assert!(!before.same_document(&p.snapshot(&[])));
         p.restore(&before);
         assert_eq!(p.mod_settings.price, 5000);
+    }
+
+    #[test]
+    fn game_versions_are_part_of_the_history() {
+        let mut p = Project::new("ACE", TextureResolution::R2048);
+        assert!(p.game_versions.is_empty());
+        let before = p.snapshot(&[]);
+        p.game_versions = vec!["1.56.*".into()];
+        assert!(!before.same_document(&p.snapshot(&[])));
+        p.restore(&before);
+        assert!(p.game_versions.is_empty());
     }
 
     #[test]

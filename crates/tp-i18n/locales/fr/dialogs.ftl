@@ -280,4 +280,7 @@ mod-problem-internal-long = Le nom interne peut avoir au plus { $max } caractèr
 mod-problem-price = Le prix doit être supérieur à 0.
 mod-problem-same-path = { $first } et { $second } sont le même véhicule dans le jeu ({ $path }) : retirez-en un.
 mod-problem-game-data = { $vehicle } { $version } doit être installé pour exporter le mod.
+mod-problem-bad-game-version = { $version } n’est pas une version du jeu : écrivez-la comme 1.56.* ou 1.56.2.
+mod-problem-unsupported-game-version = { $vehicle } ({ $range }) ne prend pas en charge la version du jeu { $version }.
+mod-problem-no-common-game-version = { $first } ({ $first_range }) et { $second } ({ $second_range }) n’ont aucune version du jeu en commun : mettez à jour ou retirez l’un des deux.
 mod-export-done = Mod exporté dans { $file }
