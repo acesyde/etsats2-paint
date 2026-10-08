@@ -689,6 +689,17 @@ impl AppState {
                 if let Some(ws) = self.workspace() {
                     self.clipboard = ws.selected_objects();
                     self.paste_count = 0;
+                    // The system clipboard gets the objects' names: the
+                    // native backend only reports Cmd/Ctrl+V when it holds
+                    // text, so Paste would not fire after copying into an
+                    // empty clipboard.
+                    let names: Vec<&str> = self.clipboard.iter().map(|o| o.name.as_str()).collect();
+                    let text = names.join("\n");
+                    ctx.copy_text(if text.trim().is_empty() {
+                        "TruckPaint objects".to_owned()
+                    } else {
+                        text
+                    });
                 }
                 if id == CommandId::Cut
                     && let Some(ws) = self.workspace_mut()
