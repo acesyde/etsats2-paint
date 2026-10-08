@@ -155,10 +155,12 @@ fn menu_contents(
                 }
             });
             ui.separator();
+            for axis in tp_core::document::FlipAxis::ALL {
+                item(ui, cmds, Flip(axis));
+            }
+            ui.separator();
             item(ui, cmds, BringForward);
             item(ui, cmds, SendBackward);
-            ui.separator();
-            item(ui, cmds, MirrorToOtherSide);
         }
         "menu-layer" => {
             item(ui, cmds, NewLayer);

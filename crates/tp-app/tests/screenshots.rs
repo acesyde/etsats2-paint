@@ -1829,3 +1829,66 @@ fn render_symbols() {
         save(&mut h, &format!("symbols_edit_{code}"));
     }
 }
+
+/// Flip: an SVG logo and a text, with flipped copies (horizontal under each,
+/// vertical for the text), the Transform panel's Flip buttons, and the Object
+/// menu showing Flip Horizontal and Flip Vertical.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_flip() {
+    use tp_app::layout::PanelKind;
+    use tp_core::document::{CharStyle, FlipAxis, Object, ObjectId, Paint, Rgba, TextBlock};
+    use tp_core::kurbo::{Point, Vec2 as V};
+    let mut prefs = Prefs::default();
+    for slot in &mut prefs.layout.panels {
+        slot.collapsed = slot.kind != PanelKind::Transform;
+    }
+    let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 1000.0));
+    common::create_project(&mut h);
+    let ws = h.state_mut().workspace_mut().unwrap();
+    // A truck-like logo facing right: an arrow and a red wheel at the back.
+    let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="300" height="150">
+        <polygon points="0,30 200,30 200,0 300,75 200,150 200,120 0,120" fill="#1F4E9E"/>
+        <circle cx="50" cy="75" r="30" fill="#D02030"/>
+    </svg>"##;
+    ws.place_files(
+        vec![tp_app::import::read_bytes("arrow.svg", svg.to_vec())],
+        Some(Point::new(1100.0, 1100.0)),
+        0.0,
+    );
+    let logo = ws.selection[0];
+    let mut text = Object::text(
+        ObjectId(0),
+        TextBlock::new(
+            "ACE",
+            CharStyle {
+                size: 260.0,
+                weight: 900,
+                ..CharStyle::default()
+            },
+        ),
+        Point::new(2400.0, 1150.0),
+    );
+    text.fill = Paint::Solid(Rgba::rgb(0x1F, 0x4E, 0x9E));
+    ws.text.place_at(&mut text, Point::new(2400.0, 1150.0));
+    let text = ws.project.add(text);
+    // Flipped copies below the originals.
+    let copies = ws.project.duplicate(&[logo, text], V::new(0.0, 900.0));
+    ws.selection = vec![copies[0]];
+    ws.flip_selection(FlipAxis::Horizontal, 1.0);
+    let upside_down = ws.project.duplicate(&[text], V::new(0.0, 1800.0));
+    ws.selection = vec![copies[1]];
+    ws.flip_selection(FlipAxis::Horizontal, 2.0);
+    ws.selection = upside_down;
+    ws.flip_selection(FlipAxis::Vertical, 3.0);
+    ws.selection = vec![copies[0], copies[1]];
+    for _ in 0..30 {
+        h.step();
+    }
+    save(&mut h, "flip_canvas");
+    h.get_by_label("Object").click();
+    for _ in 0..5 {
+        h.step();
+    }
+    save(&mut h, "flip_menu");
+}

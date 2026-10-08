@@ -27,7 +27,6 @@ cmd-convert-to-path = Convertir en trazado
 cmd-create-outlines = Crear contornos
 cmd-bring-forward = Hacia delante
 cmd-send-backward = Hacia atrás
-cmd-mirror-to-other-side = Reflejar en el otro lado
 cmd-new-layer = Nueva capa
 cmd-duplicate-layer = Duplicar capa
 cmd-delete-layer = Eliminar capa
@@ -78,7 +77,6 @@ reason-select-to-align = Seleccione un objeto (dos con Alinear con: Objeto clave
 reason-select-three = Seleccione tres objetos o más.
 reason-no-guides = La textura no tiene guías.
 reason-no-selection = Seleccione uno o varios objetos primero.
-reason-soon-vehicles = Las plantillas de vehículos aún no están disponibles.
 reason-soon-mods = Los mods del juego necesitan plantillas de vehículos, que aún no están disponibles.
 
 ## Nombres de teclas en los atajos (Windows y Linux)
@@ -97,6 +95,11 @@ key-tab = Tab
 
 cmd-undo-action = Deshacer { $action }
 cmd-redo-action = Rehacer { $action }
+
+## Voltear
+
+op-flip-horizontal = Voltear horizontalmente
+op-flip-vertical = Voltear verticalmente
 
 ## Alineación
 

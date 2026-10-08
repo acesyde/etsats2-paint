@@ -364,7 +364,13 @@ fn draw_image(
         Some(texture) => {
             let mut mesh = egui::Mesh::with_texture(texture.id());
             let tint = Color32::WHITE.gamma_multiply(opacity);
-            let uvs = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
+            // Corners go top-left, top-right, bottom-right, bottom-left; a
+            // mirrored image swaps left and right.
+            let uvs = if object.mirrored {
+                [(1.0, 0.0), (0.0, 0.0), (0.0, 1.0), (1.0, 1.0)]
+            } else {
+                [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+            };
             for (pos, (u, v)) in corners.iter().zip(uvs) {
                 mesh.vertices.push(egui::epaint::Vertex {
                     pos: *pos,

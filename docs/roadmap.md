@@ -128,6 +128,17 @@ How sharing works (palette, styles and copy from cabin shipped in
   same.
 - Files with symbols don't open in builds made before `symbols`.
 
+### Flipping and the other side of the truck
+Flip Horizontal and Flip Vertical (shipped in `flip-objects`) mirror the
+selection across the center of its bounds, along the texture's axes; several
+objects are mirrored as one block. **Images and texts are mirrored too**: a
+logo faces the other way, and a text reads backwards, still editable.
+
+The placeholder Object › Mirror to Other Side is gone. Copying a design to
+the other flank of a truck needs to know where each side lies on the
+texture, which packages don't record. It will come back only as a change
+that adds that left/right mapping to packages.
+
 ### One game per project
 A project belongs to one game, ETS2 or ATS, set by its first vehicle: ETS2
 and ATS mods are separate mods, so one project exports one mod. A player with
@@ -164,6 +175,10 @@ fleets in both games has two projects (sharing a symbol library, later).
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `flip-objects`: Flip Horizontal (Shift+H) and Flip Vertical (Shift+V) in
+  the Object menu, the canvas context menu and the Transform panel; images
+  and texts can be mirrored (also by dragging a handle past the opposite
+  side); Mirror to Other Side removed;
 - `symbols`: Convert to Symbol, the Symbols panel (Place, Edit, Rename,
   Duplicate, Delete), a symbol edited in its own view with Done, Detach
   Instance; instances move, resize, rotate and flip like objects and follow

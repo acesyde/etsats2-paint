@@ -27,7 +27,6 @@ cmd-convert-to-path = In Pfad umwandeln
 cmd-create-outlines = In Pfade umwandeln
 cmd-bring-forward = Schrittweise nach vorne
 cmd-send-backward = Schrittweise nach hinten
-cmd-mirror-to-other-side = Auf andere Seite spiegeln
 cmd-new-layer = Neue Ebene
 cmd-duplicate-layer = Ebene duplizieren
 cmd-delete-layer = Ebene löschen
@@ -78,7 +77,6 @@ reason-select-to-align = Wählen Sie ein Objekt aus (zwei bei „Ausrichten an: 
 reason-select-three = Wählen Sie drei oder mehr Objekte aus.
 reason-no-guides = Die Textur hat keine Hilfslinien.
 reason-no-selection = Wählen Sie zuerst ein oder mehrere Objekte aus.
-reason-soon-vehicles = Fahrzeugvorlagen sind noch nicht verfügbar.
 reason-soon-mods = Spiel-Mods benötigen Fahrzeugvorlagen, die noch nicht verfügbar sind.
 
 ## Tastennamen in Tastenkombinationen (Windows und Linux)
@@ -97,6 +95,11 @@ key-tab = Tab
 
 cmd-undo-action = Rückgängig: { $action }
 cmd-redo-action = Wiederholen: { $action }
+
+## Spiegeln
+
+op-flip-horizontal = Horizontal spiegeln
+op-flip-vertical = Vertikal spiegeln
 
 ## Ausrichten
 

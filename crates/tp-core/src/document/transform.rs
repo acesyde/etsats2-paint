@@ -190,10 +190,14 @@ fn resize_one(o: &Object, transform: Affine, sx: f64, sy: f64, bounds_rotation: 
         // rotation follows where the local "up" direction goes, so a
         // vertical flip turns them upside down.
         ShapeKind::Polygon { .. } => {
-            let up = full * Point::new(0.0, -1.0) - full * Point::ORIGIN;
-            if up.hypot2() > 1e-18 {
-                o.frame.rotation_deg = normalize_degrees(up.x.atan2(-up.y).to_degrees());
-            }
+            o.frame.rotation_deg = rotation_of_up(full, o.frame.rotation_deg)
+        }
+        // Texts and images are not symmetric: a mirroring transform toggles
+        // their mirror (a reflection across their vertical axis, which keeps
+        // "up"), and their rotation follows where "up" goes.
+        ShapeKind::Text | ShapeKind::Image { .. } if transform.determinant() < 0.0 => {
+            o.mirrored = !o.mirrored;
+            o.frame.rotation_deg = rotation_of_up(full, o.frame.rotation_deg);
         }
         _ => {}
     }
@@ -211,6 +215,49 @@ fn resize_one(o: &Object, transform: Affine, sx: f64, sy: f64, bounds_rotation: 
     }
     o.refresh_group_frame();
     o
+}
+
+/// Direction a flip reverses: Horizontal swaps left and right, Vertical
+/// swaps top and bottom.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum FlipAxis {
+    Horizontal,
+    Vertical,
+}
+
+impl FlipAxis {
+    pub const ALL: [Self; 2] = [Self::Horizontal, Self::Vertical];
+}
+
+/// Mirrors the selection across the vertical (Horizontal) or horizontal
+/// (Vertical) line through the center of its bounds, along the texture's
+/// axes whatever its rotation. The bounds stay where they were.
+pub fn flip(objects: &[Object], axis: FlipAxis) -> Vec<Object> {
+    let Some(bounds) = selection_frame(objects) else {
+        return Vec::new();
+    };
+    let (sx, sy) = match axis {
+        FlipAxis::Horizontal => (-1.0, 1.0),
+        FlipAxis::Vertical => (1.0, -1.0),
+    };
+    let c = bounds.center.to_vec2();
+    let transform =
+        Affine::translate(c) * Affine::scale_non_uniform(sx, sy) * Affine::translate(-c);
+    objects
+        .iter()
+        .map(|o| resize_one(o, transform, sx, sy, 0.0))
+        .collect()
+}
+
+/// Rotation (degrees) that points a frame's local "up" where `full` maps
+/// it; `fallback` when `full` collapses it.
+fn rotation_of_up(full: Affine, fallback: f64) -> f64 {
+    let up = full * Point::new(0.0, -1.0) - full * Point::ORIGIN;
+    if up.hypot2() > 1e-18 {
+        normalize_degrees(up.x.atan2(-up.y).to_degrees())
+    } else {
+        fallback
+    }
 }
 
 /// Rotates the selection by `angle_deg` around `pivot`. With `snap`, a single
@@ -697,6 +744,123 @@ mod tests {
             ResizeOptions::default(),
         );
         assert!(close(h[0].frame.rotation_deg, 0.0));
+    }
+
+    fn image(center: (f64, f64), size: (f64, f64), rot: f64) -> Object {
+        Object::new(
+            ObjectId(5),
+            ShapeKind::Image {
+                asset: crate::document::AssetId(1),
+            },
+            Frame::new(center.into(), size.into(), rot),
+        )
+    }
+
+    #[test]
+    fn dragging_past_the_opposite_side_mirrors_an_image() {
+        let i = image((50.0, 50.0), (100.0, 100.0), 0.0);
+        let out = resize(
+            std::slice::from_ref(&i),
+            i.frame,
+            Handle { x: 1, y: 0 },
+            Point::new(-50.0, 50.0),
+            ResizeOptions::default(),
+        );
+        assert!(out[0].mirrored);
+        assert!(close(out[0].frame.rotation_deg, 0.0));
+        assert!(close(out[0].frame.size.width, 50.0));
+        // Past the top: mirrored and upside down.
+        let v = resize(
+            std::slice::from_ref(&i),
+            i.frame,
+            Handle { x: 0, y: 1 },
+            Point::new(50.0, -50.0),
+            ResizeOptions::default(),
+        );
+        assert!(v[0].mirrored);
+        assert!(close(v[0].frame.rotation_deg, 180.0));
+        // A plain resize keeps the mirror as it was.
+        let grown = resize(
+            &out,
+            out[0].frame,
+            Handle { x: 1, y: 1 },
+            Point::new(200.0, 200.0),
+            ResizeOptions::default(),
+        );
+        assert!(grown[0].mirrored);
+    }
+
+    #[test]
+    fn flipping_a_rotated_rectangle_reverses_its_rotation() {
+        let r = rect((400.0, 400.0), (200.0, 100.0), 30.0);
+        for axis in FlipAxis::ALL {
+            let out = &flip(std::slice::from_ref(&r), axis)[0];
+            assert!(out.frame.center.distance(r.frame.center) < 1e-9);
+            assert!(close(out.frame.size.width, 200.0) && close(out.frame.size.height, 100.0));
+            assert!(
+                close(out.frame.rotation_deg, -30.0),
+                "{axis:?}: {:?}",
+                out.frame
+            );
+            assert!(!out.mirrored, "shapes carry no mirror");
+        }
+    }
+
+    #[test]
+    fn flipping_several_objects_swaps_their_ends() {
+        let a = rect((100.0, 100.0), (100.0, 100.0), 0.0);
+        let b = rect((500.0, 300.0), (50.0, 50.0), 0.0);
+        let objects = [a, b];
+        let before = selection_frame(&objects).unwrap();
+        let out = flip(&objects, FlipAxis::Horizontal);
+        let after = selection_frame(&out).unwrap();
+        assert!(after.center.distance(before.center) < 1e-9);
+        assert_eq!(after.size, before.size);
+        assert!(close(out[0].frame.center.x, 475.0) && close(out[0].frame.center.y, 100.0));
+        assert!(close(out[1].frame.center.x, 75.0) && close(out[1].frame.center.y, 300.0));
+        let v = flip(&objects, FlipAxis::Vertical);
+        assert!(close(v[0].frame.center.y, 275.0) && close(v[1].frame.center.y, 75.0));
+    }
+
+    #[test]
+    fn flipping_twice_restores_a_path() {
+        let a = arrow();
+        let back = flip(
+            &flip(std::slice::from_ref(&a), FlipAxis::Horizontal),
+            FlipAxis::Horizontal,
+        );
+        assert!(back[0].frame.center.distance(a.frame.center) < 1e-9);
+        for (p, q) in doc_points(&back[0]).iter().zip(doc_points(&a)) {
+            assert!(p.distance(q) < 1e-9, "{p:?} vs {q:?}");
+        }
+        let once = &flip(std::slice::from_ref(&a), FlipAxis::Horizontal)[0];
+        assert!(doc_points(once)[3].x < doc_points(once)[0].x, "points left");
+    }
+
+    #[test]
+    fn flipping_an_image_both_ways_turns_it_upside_down() {
+        let i = image((300.0, 200.0), (200.0, 100.0), 0.0);
+        let h = flip(std::slice::from_ref(&i), FlipAxis::Horizontal);
+        assert!(h[0].mirrored && close(h[0].frame.rotation_deg, 0.0));
+        assert!(h[0].frame.center.distance(i.frame.center) < 1e-9);
+        let hv = &flip(&h, FlipAxis::Vertical)[0];
+        assert!(!hv.mirrored);
+        assert!(close(hv.frame.rotation_deg, 180.0));
+        assert!(close(hv.frame.size.width, 200.0) && close(hv.frame.size.height, 100.0));
+        // A rotated image: −θ horizontally, 180° − θ vertically.
+        let r = image((0.0, 0.0), (200.0, 100.0), 30.0);
+        assert!(close(
+            flip(std::slice::from_ref(&r), FlipAxis::Horizontal)[0]
+                .frame
+                .rotation_deg,
+            -30.0
+        ));
+        assert!(close(
+            flip(std::slice::from_ref(&r), FlipAxis::Vertical)[0]
+                .frame
+                .rotation_deg,
+            150.0
+        ));
     }
 
     #[test]

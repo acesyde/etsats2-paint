@@ -5,7 +5,7 @@ use egui::{Key, KeyboardShortcut, Modifiers};
 use tp_i18n::tr;
 use tp_ui::icons;
 
-use tp_core::document::{BooleanOp, DistributeAxis, DistributeMode, Edge};
+use tp_core::document::{BooleanOp, DistributeAxis, DistributeMode, Edge, FlipAxis};
 
 use crate::layout::{PanelKind, ViewMode};
 use crate::tool::Tool;
@@ -45,7 +45,7 @@ pub enum CommandId {
     Combine(BooleanOp),
     BringForward,
     SendBackward,
-    MirrorToOtherSide,
+    Flip(FlipAxis),
     // Layer
     NewLayer,
     DuplicateLayer,
@@ -253,7 +253,6 @@ const NONE: Modifiers = Modifiers::NONE;
 const SHIFT: Modifiers = Modifiers::SHIFT;
 
 const NEEDS_SELECTION: &str = "reason-no-selection";
-const SOON_VEHICLES: &str = "reason-soon-vehicles";
 const SOON_EXPORT: &str = "reason-soon-mods";
 
 impl CommandId {
@@ -288,7 +287,6 @@ impl CommandId {
             CreateOutlines,
             BringForward,
             SendBackward,
-            MirrorToOtherSide,
             NewLayer,
             DuplicateLayer,
             DeleteLayer,
@@ -326,6 +324,7 @@ impl CommandId {
         }
         all.extend(Tool::ALL.map(SelectTool));
         all.extend(Edge::ALL.map(Align));
+        all.extend(FlipAxis::ALL.map(Flip));
         all.extend(BooleanOp::ALL.map(Combine));
         for axis in [DistributeAxis::Horizontal, DistributeAxis::Vertical] {
             for mode in [DistributeMode::Centers, DistributeMode::Spacing] {
@@ -637,12 +636,21 @@ impl CommandId {
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
             ),
-            MirrorToOtherSide => m(
-                "cmd-mirror-to-other-side",
-                None,
-                &[],
+            Flip(axis) => m(
+                crate::arrange::flip_label(axis),
+                Some(match axis {
+                    FlipAxis::Horizontal => icons::FLIP_HORIZONTAL,
+                    FlipAxis::Vertical => icons::FLIP_VERTICAL,
+                }),
+                match axis {
+                    FlipAxis::Horizontal => const { &[sc(SHIFT, Key::H)] },
+                    FlipAxis::Vertical => const { &[sc(SHIFT, Key::V)] },
+                },
                 Workspace,
-                NotYet(SOON_VEHICLES),
+                When(
+                    |c| editable_selection(c) && !c.editing_text,
+                    NEEDS_SELECTION,
+                ),
             ),
 
             NewLayer => m(

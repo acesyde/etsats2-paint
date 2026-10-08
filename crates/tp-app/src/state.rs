@@ -607,6 +607,7 @@ impl AppState {
             CommandId::CreateOutlines => self.with_workspace(|ws| ws.create_outlines(now)),
             CommandId::Combine(op) => self.with_workspace(|ws| ws.combine_selection(op, now)),
             CommandId::Align(edge) => self.with_workspace(|ws| ws.align_selection(edge, now)),
+            CommandId::Flip(axis) => self.with_workspace(|ws| ws.flip_selection(axis, now)),
             CommandId::Distribute(axis, mode) => {
                 self.with_workspace(|ws| ws.distribute_selection(axis, mode, now));
             }

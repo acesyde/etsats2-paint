@@ -28,7 +28,6 @@ cmd-convert-to-path = Convert to Path
 cmd-create-outlines = Create Outlines
 cmd-bring-forward = Bring Forward
 cmd-send-backward = Send Backward
-cmd-mirror-to-other-side = Mirror to Other Side
 cmd-new-layer = New Layer
 cmd-duplicate-layer = Duplicate Layer
 cmd-delete-layer = Delete Layer
@@ -79,7 +78,6 @@ reason-select-to-align = Select an object (two with Align to: Key object).
 reason-select-three = Select three objects or more.
 reason-no-guides = The texture has no guides.
 reason-no-selection = Select one or more objects first.
-reason-soon-vehicles = Vehicle templates are not available yet.
 reason-soon-mods = Game mods need vehicle templates, which are not available yet.
 
 ## Key names in shortcuts (Windows and Linux)
@@ -98,6 +96,11 @@ key-tab = Tab
 
 cmd-undo-action = Undo { $action }
 cmd-redo-action = Redo { $action }
+
+## Flip
+
+op-flip-horizontal = Flip Horizontal
+op-flip-vertical = Flip Vertical
 
 ## Alignment
 

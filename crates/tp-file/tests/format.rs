@@ -941,3 +941,63 @@ fn files_without_symbols_have_no_symbols_field() {
     std::io::Read::read_to_string(&mut zip.by_name("project.ron").unwrap(), &mut doc).unwrap();
     assert!(!doc.contains("symbols"), "{doc}");
 }
+
+#[test]
+fn mirrored_objects_round_trip() {
+    let mut p = plain_project();
+    let (asset, _) = p.add_asset(
+        "logo",
+        AssetKind::Raster,
+        Arc::from(PNG),
+        Size::new(300.0, 100.0),
+    );
+    let image = |name: &str, mirrored: bool| {
+        let mut o = Object::new(
+            ObjectId(0),
+            ShapeKind::Image { asset },
+            Frame::new(Point::new(500.0, 300.0), Size::new(300.0, 100.0), 0.0),
+        );
+        o.name = name.into();
+        o.mirrored = mirrored;
+        o
+    };
+    p.add(image("Mirrored logo", true));
+    p.add(image("Logo", false));
+    let mut block = TextBlock::new("TRANS", CharStyle::default());
+    block.layout_size = Size::new(400.0, 120.0);
+    let mut text = Object::text(ObjectId(0), block, Point::new(800.0, 800.0));
+    text.name = "Upside down".into();
+    text.mirrored = true;
+    text.frame.rotation_deg = 180.0;
+    p.add(text);
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap())
+        .unwrap()
+        .project;
+    assert_same_document(&p, &opened);
+    assert!(named(&opened, "Mirrored logo").mirrored);
+    assert!(!named(&opened, "Logo").mirrored);
+    let text = named(&opened, "Upside down");
+    assert!(text.mirrored);
+    assert_eq!(text.frame.rotation_deg, 180.0);
+}
+
+/// The `project.ron` entry of `.truckpaint` bytes.
+fn document_text(bytes: &[u8]) -> String {
+    use std::io::Read;
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+    let mut text = String::new();
+    zip.by_name("project.ron")
+        .unwrap()
+        .read_to_string(&mut text)
+        .unwrap();
+    text
+}
+
+#[test]
+fn unmirrored_objects_write_nothing_new() {
+    let fixture = std::fs::read(fixture(1)).unwrap();
+    let opened = tp_file::from_bytes(&fixture).unwrap().project;
+    let written = document_text(&tp_file::to_bytes(&opened).unwrap());
+    assert!(!written.contains("mirrored"));
+    assert_eq!(written, document_text(&fixture), "the fixture is unchanged");
+}

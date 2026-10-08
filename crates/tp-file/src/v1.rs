@@ -400,6 +400,13 @@ pub struct FileObject {
     /// Dash pattern, caps and joins of those lines.
     #[serde(default)]
     pub line_style: Option<FileLineStyle>,
+    /// A text or an image drawn reversed across its vertical axis.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub mirrored: bool,
+}
+
+fn is_false(b: &bool) -> bool {
+    !b
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -754,6 +761,7 @@ fn object_to_file(o: &Object) -> FileObject {
         }),
         line_width: o.path_data().map(|p| p.line_width),
         line_style: o.path_data().map(|p| line_style_to_file(&p.line_style)),
+        mirrored: o.mirrored,
     }
 }
 
@@ -949,6 +957,9 @@ fn object_from_file(
     o.opacity = f.opacity.clamp(0.0, 1.0);
     o.visible = f.visible;
     o.locked = f.locked;
+    // Only texts and images carry a mirror; other kinds carry it in their
+    // geometry.
+    o.mirrored = f.mirrored && matches!(kind, ShapeKind::Text | ShapeKind::Image { .. });
     o.children = f
         .children
         .iter()
