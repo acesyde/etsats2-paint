@@ -253,7 +253,6 @@ const NONE: Modifiers = Modifiers::NONE;
 const SHIFT: Modifiers = Modifiers::SHIFT;
 
 const NEEDS_SELECTION: &str = "reason-no-selection";
-const SOON_EXPORT: &str = "reason-soon-mods";
 
 impl CommandId {
     /// Every command, including each parameterized variant.
@@ -335,7 +334,7 @@ impl CommandId {
     }
 
     pub fn meta(self) -> CommandMeta {
-        use Availability::{Always, NeedsProject, NotYet, When};
+        use Availability::{Always, NeedsProject, When};
         use CommandId::*;
         use Scope::{App, Global, Workspace};
 
@@ -865,7 +864,7 @@ impl CommandId {
                 None,
                 const { &[sc(CMD_SHIFT, Key::E)] },
                 Workspace,
-                NotYet(SOON_EXPORT),
+                When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
             ),
 
             KeyboardShortcuts => m(

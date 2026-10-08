@@ -423,6 +423,7 @@ mod tests {
             brand: "Sample".into(),
             kind: "truck".into(),
             game: "ets2".into(),
+            game_data: None,
         };
         assert!(lib.update_for(&vehicle).is_none());
         lib.install_bytes(&pkg("1.3.0")).unwrap();

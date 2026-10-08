@@ -78,7 +78,6 @@ reason-select-to-align = Select an object (two with Align to: Key object).
 reason-select-three = Select three objects or more.
 reason-no-guides = The texture has no guides.
 reason-no-selection = Select one or more objects first.
-reason-soon-mods = Game mods need vehicle templates, which are not available yet.
 
 ## Key names in shortcuts (Windows and Linux)
 

@@ -15,6 +15,7 @@ pub mod image_cache;
 pub mod import;
 pub mod layout;
 pub mod logging;
+pub mod mod_export;
 pub mod outline_text;
 pub mod path_edit;
 pub mod paths;

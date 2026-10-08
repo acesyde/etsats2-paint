@@ -79,6 +79,7 @@ undo-rename-symbol = Symbol umbenennen
 ## Vehicle projects
 
 undo-update-template = Vorlage aktualisieren
+undo-edit-mod-settings = Mod-Einstellungen ändern
 undo-dismiss-layout = Layoutänderung verwerfen
 
 ## Fleet

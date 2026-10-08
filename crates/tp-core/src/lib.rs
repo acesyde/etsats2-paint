@@ -5,14 +5,16 @@
 
 mod brand;
 pub mod document;
+pub mod mod_settings;
 mod project;
 mod symbols;
 
 pub use brand::{BrandKit, GraphicStyle, Look, Swatch, TextStyle};
 pub use kurbo;
+pub use mod_settings::ModSettings;
 pub use project::{
-    Asset, AssetKind, Axis, DEFAULT_PROJECT_NAME, DEFAULT_SWATCH_PREFIX, Guide, MAIN_SURFACE_NAME,
-    Project, ProjectVehicle, Snapshot, Surface, SurfaceTemplate, TemplateStatus, TextureKey,
-    TexturePart, TextureResolution,
+    Asset, AssetKind, Axis, DEFAULT_PROJECT_NAME, DEFAULT_SWATCH_PREFIX, GameData, Guide,
+    MAIN_SURFACE_NAME, Project, ProjectVehicle, RequiredMod, Snapshot, Surface, SurfaceTemplate,
+    TemplateStatus, TextureKey, TexturePart, TextureResolution,
 };
 pub use symbols::Symbol;

@@ -227,6 +227,8 @@ fn add_vehicle(p: &mut Project) {
                 part: key.2,
                 asset,
                 layout_version: layout,
+                game_ids: Vec::new(),
+                main_index: None,
                 opacity,
                 visible,
                 status,
@@ -293,6 +295,7 @@ fn add_vehicle(p: &mut Project) {
             brand: "Volvo".into(),
             kind: "truck".into(),
             game: "ets2".into(),
+            game_data: None,
         },
         ProjectVehicle {
             package_id: KRONE.into(),
@@ -301,6 +304,7 @@ fn add_vehicle(p: &mut Project) {
             brand: "Krone".into(),
             kind: "trailer".into(),
             game: "ets2".into(),
+            game_data: None,
         },
     ];
 }
@@ -422,6 +426,7 @@ fn assert_same_document(a: &Project, b: &Project) {
     assert_eq!(without_content_ids(a), without_content_ids(b));
     assert_eq!(a.assets, b.assets);
     assert_eq!(a.vehicles, b.vehicles);
+    assert_eq!(a.mod_settings, b.mod_settings);
 }
 
 #[test]
@@ -451,6 +456,81 @@ fn file_round_trip() {
     assert_same_document(&p, &opened.project);
     // No temporary file left behind.
     assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+}
+
+#[test]
+fn game_data_and_mod_settings_round_trip() {
+    use tp_core::{GameData, RequiredMod};
+    let mut p = plain_project();
+    p.vehicles[0].game_data = Some(GameData {
+        path: "volvo.fh16".into(),
+        versions: ">=1.50, <1.54".into(),
+        alt_uv: true,
+        colour_picker: false,
+        requires: vec![RequiredMod {
+            name: "Volvo Pack".into(),
+            version: Some(">=2.1".into()),
+        }],
+        main_count: 2,
+    });
+    {
+        let t = p.surfaces[0].template.as_mut().unwrap();
+        t.game_ids = vec!["globetrotter_xl".into()];
+        t.main_index = Some(1);
+        let t = p.surfaces[3].template.as_mut().unwrap();
+        t.game_ids = vec!["mirror.painted".into(), "s_mirror.painted".into()];
+    }
+    let (image, _) = p.add_asset(
+        "Mod picture",
+        AssetKind::Raster,
+        Arc::from(&b"\xFF\xD8 not really a jpeg"[..]),
+        Size::new(1280.0, 720.0),
+    );
+    let s = &mut p.mod_settings;
+    s.version = "2.0".into();
+    s.author = "Jane".into();
+    s.description = "Company colors.".into();
+    s.internal_name = Some("acelog".into());
+    s.price = 7500;
+    s.unlock_level = 3;
+    s.image = Some(image);
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap()).unwrap();
+    assert_same_document(&p, &opened.project);
+    let back = &opened.project;
+    assert_eq!(back.vehicles[1].game_data, None);
+    let t = back.surfaces[0].template.as_ref().unwrap();
+    assert_eq!(
+        (t.game_ids.as_slice(), t.main_index),
+        (&["globetrotter_xl".to_owned()][..], Some(1))
+    );
+    assert_eq!(back.assets[&image].bytes, p.assets[&image].bytes);
+    assert_eq!(back.mod_settings.image, Some(image));
+    assert_eq!(back.mod_settings.icon, None);
+}
+
+#[test]
+fn files_without_mod_settings_get_the_defaults() {
+    let opened = tp_file::read(&fixture(1)).unwrap();
+    let p = &opened.project;
+    assert_eq!(p.mod_settings, tp_core::ModSettings::for_project(&p.name));
+    assert!(p.vehicles.iter().all(|v| v.game_data.is_none()));
+    // A new project's settings and missing game data are not written, so
+    // such a file reads as before.
+    let file = tp_file::current::from_project(&rich_project());
+    assert!(file.mod_settings.is_none());
+    let text = ron::to_string(&file).unwrap();
+    assert!(
+        !text.contains("game_data") && !text.contains("game_ids"),
+        "{text}"
+    );
+}
+
+#[test]
+fn a_missing_mod_image_is_damage() {
+    let mut p = plain_project();
+    p.mod_settings.icon = Some(tp_core::document::AssetId(999));
+    let err = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap()).unwrap_err();
+    assert!(matches!(err, Error::Damaged(_)), "{err:?}");
 }
 
 #[test]

@@ -82,6 +82,7 @@ undo-rename-symbol = Renommer le symbole
 ## Vehicle projects
 
 undo-update-template = Mettre à jour le gabarit
+undo-edit-mod-settings = Modifier les réglages du mod
 undo-dismiss-layout = Ignorer le changement de disposition
 
 ## Fleet

@@ -5,8 +5,8 @@ vehicle, design its paint job with vector tools, and export a ready-to-install m
 
 > Early development. The current build designs the paint jobs of a fleet: vehicle
 > packages with their templates, projects holding several trucks and trailers of one
-> game, vector editing (shapes, paths, text, images, gradients) and texture export to
-> PNG or DDS. Exporting a ready-to-install mod comes next.
+> game, vector editing (shapes, paths, text, images, gradients), texture export to
+> PNG or DDS, and export of the whole fleet as a ready-to-install mod (`.scs`).
 
 Built in Rust with [egui](https://github.com/emilk/egui) (wgpu backend) for Linux,
 Windows and macOS.

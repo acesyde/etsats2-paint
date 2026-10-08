@@ -77,7 +77,6 @@ reason-select-to-align = Seleccione un objeto (dos con Alinear con: Objeto clave
 reason-select-three = Seleccione tres objetos o más.
 reason-no-guides = La textura no tiene guías.
 reason-no-selection = Seleccione uno o varios objetos primero.
-reason-soon-mods = Los mods del juego necesitan plantillas de vehículos, que aún no están disponibles.
 
 ## Nombres de teclas en los atajos (Windows y Linux)
 

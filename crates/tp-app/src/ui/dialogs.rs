@@ -51,6 +51,16 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         }
         return;
     }
+    if matches!(state.modal, Some(Modal::ExportMod(_))) {
+        let Some(Modal::ExportMod(mut dialog)) = state.modal.take() else {
+            unreachable!()
+        };
+        let keep = super::mod_export_dialog::show(ctx, state, &mut dialog);
+        if keep && state.modal.is_none() {
+            state.modal = Some(Modal::ExportMod(dialog));
+        }
+        return;
+    }
     if matches!(state.modal, Some(Modal::CopyFromCabin(_))) {
         let Some(Modal::CopyFromCabin(mut dialog)) = state.modal.take() else {
             unreachable!()
@@ -178,6 +188,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         Modal::About => about(ctx),
         Modal::Message { title, text } => message(ctx, title, text),
         Modal::Export(_)
+        | Modal::ExportMod(_)
         | Modal::VehicleLibrary(_)
         | Modal::UpdateTemplate(_)
         | Modal::AddVehicle(_)

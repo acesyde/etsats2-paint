@@ -7,6 +7,7 @@ pub mod export_dialog;
 pub mod gallery;
 pub mod home;
 pub mod menu_bar;
+pub mod mod_export_dialog;
 pub mod vehicle_dialogs;
 pub mod workspace;
 

@@ -54,6 +54,22 @@ pub fn encode_png(pixmap: &Pixmap) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
+/// JPEG bytes at `quality` (1–100), drawn over white (JPEG has no alpha).
+pub fn encode_jpeg(pixmap: &Pixmap, quality: u8) -> Result<Vec<u8>, String> {
+    let rgba = to_rgba(pixmap);
+    let rgb = image::RgbImage::from_fn(rgba.width(), rgba.height(), |x, y| {
+        let [r, g, b, a] = rgba.get_pixel(x, y).0;
+        let over_white =
+            |c: u8| ((u16::from(c) * u16::from(a) + 255 * (255 - u16::from(a)) + 127) / 255) as u8;
+        image::Rgb([over_white(r), over_white(g), over_white(b)])
+    });
+    let mut out = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, quality)
+        .encode_image(&rgb)
+        .map_err(|e| e.to_string())?;
+    Ok(out)
+}
+
 fn bc3_level_size(w: u32, h: u32) -> usize {
     texpresso::Format::Bc3.compressed_size(w as usize, h as usize)
 }

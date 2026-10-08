@@ -20,7 +20,8 @@ use crate::ui::CommandUi;
 /// The Project and Vehicles sections.
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     let name = env.ws.project.name.clone();
-    project_section(ui, cmds, &name);
+    let version = env.ws.project.mod_settings.version.clone();
+    project_section(ui, cmds, &name, &version);
     ui.add_space(space::SM);
     vehicles_section(ui, cmds, env);
 }
@@ -31,9 +32,9 @@ fn section_header(ui: &mut Ui, title: &str, action: impl FnOnce(&mut Ui)) {
     ui.with_layout(Layout::right_to_left(Align::Center), action);
 }
 
-/// Project properties, read only: they become editable with a later
-/// feature. Its header holds the button that reduces the sidebar.
-fn project_section(ui: &mut Ui, cmds: &mut CommandUi<'_>, name: &str) {
+/// Project properties, read only: the version is the mod's, set in Export
+/// Mod…. Its header holds the button that reduces the sidebar.
+fn project_section(ui: &mut Ui, cmds: &mut CommandUi<'_>, name: &str, version: &str) {
     let id = ui.make_persistent_id("sidebar_project");
     CollapsingState::load_with_default_open(ui.ctx(), id, true)
         .show_header(ui, |ui| {
@@ -51,7 +52,7 @@ fn project_section(ui: &mut Ui, cmds: &mut CommandUi<'_>, name: &str) {
         .body(|ui| {
             for (label, value) in [
                 (tr("project-name"), name.to_owned()),
-                (tr("project-version"), String::new()),
+                (tr("project-version"), version.to_owned()),
                 (tr("project-game-versions"), String::new()),
             ] {
                 ui.label(RichText::new(&label).small().color(color::TEXT_SECONDARY));

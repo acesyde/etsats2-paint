@@ -8,6 +8,7 @@ use crate::brand::{BrandKit, GraphicStyle, Swatch, TextStyle};
 use crate::document::SymbolId;
 use crate::document::tree::{self, Hit, Placement};
 use crate::document::{AssetId, Object, ObjectId, PointRef, Rgba, ShapeKind};
+use crate::mod_settings::{INTERNAL_NAME_MAX, ModSettings, SPLIT_INTERNAL_NAME_MAX};
 use crate::symbols::Symbol;
 
 /// Name given to a project created without a name.
@@ -124,6 +125,13 @@ pub struct SurfaceTemplate {
     /// The image, stored with the project's assets.
     pub asset: AssetId,
     pub layout_version: u32,
+    /// What the game calls the things the texture covers: the cabins of a
+    /// main texture (none: every cabin) or the accessory ids of an
+    /// accessory. Empty when the game data is unknown.
+    pub game_ids: Vec<String>,
+    /// A main texture's position among the package's main textures (an
+    /// accessory has none).
+    pub main_index: Option<usize>,
     /// 0.0..=1.0; not part of the undo history.
     pub opacity: f32,
     /// Not part of the undo history.
@@ -155,13 +163,27 @@ impl SurfaceTemplate {
 
     /// The same template ignoring opacity and visibility (undo compares
     /// templates this way).
-    fn document_part(&self) -> (&str, &str, TexturePart, AssetId, u32, TemplateStatus) {
+    #[allow(clippy::type_complexity)]
+    fn document_part(
+        &self,
+    ) -> (
+        &str,
+        &str,
+        TexturePart,
+        AssetId,
+        u32,
+        &[String],
+        Option<usize>,
+        TemplateStatus,
+    ) {
         (
             &self.package_id,
             &self.texture_id,
             self.part,
             self.asset,
             self.layout_version,
+            &self.game_ids,
+            self.main_index,
             self.status,
         )
     }
@@ -180,6 +202,35 @@ pub struct ProjectVehicle {
     pub kind: String,
     /// `ets2` or `ats`.
     pub game: String,
+    /// What the mod export needs, recorded from the package. `None` in
+    /// files written before it was recorded, until it is filled in from the
+    /// installed package.
+    pub game_data: Option<GameData>,
+}
+
+/// What a vehicle is in the game, recorded from its package version.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GameData {
+    /// The vehicle's path in the game's definitions (`scania.r_2016`).
+    pub path: String,
+    /// Game versions the templates match, as a version range.
+    pub versions: String,
+    /// The paint job uses the vehicle's alternate UV set.
+    pub alt_uv: bool,
+    /// The paint job lets the player pick a base color.
+    pub colour_picker: bool,
+    /// Mods the vehicle depends on.
+    pub requires: Vec<RequiredMod>,
+    /// Number of main textures in the package (painted or not).
+    pub main_count: usize,
+}
+
+/// A mod a vehicle depends on.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RequiredMod {
+    pub name: String,
+    /// Version range, if any.
+    pub version: Option<String>,
 }
 
 impl Surface {
@@ -299,6 +350,8 @@ pub struct Project {
     pub symbols: Vec<Symbol>,
     /// The symbol shown and edited instead of the active texture.
     pub editing_symbol: Option<SymbolId>,
+    /// What the project exports as a mod.
+    pub mod_settings: ModSettings,
     next_id: u64,
 }
 
@@ -312,6 +365,7 @@ impl Project {
         } else {
             trimmed.to_owned()
         };
+        let mod_settings = ModSettings::for_project(&name);
         Self {
             name,
             resolution,
@@ -327,6 +381,7 @@ impl Project {
             vehicles: Vec::new(),
             symbols: Vec::new(),
             editing_symbol: None,
+            mod_settings,
             next_id: 1,
         }
     }
@@ -629,6 +684,7 @@ impl Project {
                 .sum()
         }
         let templates = self.template_assets().filter(|a| *a == asset).count();
+        let mod_images = self.mod_image_assets().filter(|a| *a == asset).count();
         let symbols = self.symbols.iter().map(|s| &s.surface);
         self.surfaces
             .iter()
@@ -636,6 +692,7 @@ impl Project {
             .map(|s| count(&s.objects, asset))
             .sum::<usize>()
             + templates
+            + mod_images
     }
 
     /// Assets used by surface templates (not listed as images).
@@ -643,6 +700,39 @@ impl Project {
         self.surfaces
             .iter()
             .filter_map(|s| s.template.as_ref().map(|t| t.asset))
+    }
+
+    /// Assets used by the mod settings' chosen images.
+    pub fn mod_image_assets(&self) -> impl Iterator<Item = AssetId> + '_ {
+        [self.mod_settings.icon, self.mod_settings.image]
+            .into_iter()
+            .flatten()
+    }
+
+    /// Assets that are project data rather than imported images: templates
+    /// and the mod's chosen images.
+    pub fn data_assets(&self) -> impl Iterator<Item = AssetId> + '_ {
+        self.template_assets().chain(self.mod_image_assets())
+    }
+
+    /// Longest internal name the mod can have: shorter when a truck of the
+    /// fleet has several main textures, whose paint jobs get a suffix.
+    pub fn internal_name_limit(&self) -> usize {
+        let split = self
+            .vehicles
+            .iter()
+            .any(|v| v.game_data.as_ref().is_some_and(|g| g.main_count > 1));
+        if split {
+            SPLIT_INTERNAL_NAME_MAX
+        } else {
+            INTERNAL_NAME_MAX
+        }
+    }
+
+    /// The mod's internal name, derived for the current fleet when the
+    /// player hasn't typed one.
+    pub fn internal_name(&self) -> String {
+        self.mod_settings.internal_name(self.internal_name_limit())
     }
 
     /// Removes an unused asset; returns false if it is used or unknown.
@@ -711,6 +801,7 @@ impl Project {
             brand: self.brand_kit(),
             symbols: self.symbols.clone(),
             editing_symbol: self.editing_symbol,
+            mod_settings: self.mod_settings.clone(),
             assets: self.assets.clone(),
             selection: selection.to_vec(),
             points: Vec::new(),
@@ -759,6 +850,7 @@ impl Project {
         self.text_styles = snapshot.brand.text_styles.clone();
         self.symbols = snapshot.symbols.clone();
         self.editing_symbol = snapshot.editing_symbol;
+        self.mod_settings = snapshot.mod_settings.clone();
         self.assets = snapshot.assets.clone();
         snapshot.selection.clone()
     }
@@ -784,6 +876,7 @@ pub struct Snapshot {
     brand: BrandKit,
     symbols: Vec<Symbol>,
     editing_symbol: Option<SymbolId>,
+    mod_settings: ModSettings,
     assets: BTreeMap<AssetId, Arc<Asset>>,
     selection: Vec<ObjectId>,
     /// Selected path points (Direct Selection).
@@ -822,6 +915,7 @@ impl Snapshot {
             && self.guides == other.guides
             && self.brand == other.brand
             && self.editing_symbol == other.editing_symbol
+            && self.mod_settings == other.mod_settings
             && self.symbols.len() == other.symbols.len()
             && self
                 .symbols
@@ -1185,6 +1279,8 @@ mod tests {
             part,
             asset,
             layout_version: 1,
+            game_ids: Vec::new(),
+            main_index: None,
             opacity: SurfaceTemplate::DEFAULT_OPACITY,
             visible: true,
             status: TemplateStatus::Current,
@@ -1240,6 +1336,50 @@ mod tests {
         assert_eq!((t.opacity, t.visible), (0.2, false));
     }
 
+    #[test]
+    fn mod_images_are_used_assets() {
+        let mut p = Project::new("ACE Logistics", TextureResolution::R2048);
+        assert_eq!(p.mod_settings.name, "ACE Logistics");
+        let (icon, _) = p.add_asset(
+            "icon",
+            AssetKind::Raster,
+            Arc::from(&b"png"[..]),
+            Size::new(8.0, 8.0),
+        );
+        p.mod_settings.icon = Some(icon);
+        assert_eq!(p.asset_usage(icon), 1);
+        assert!(!p.remove_asset(icon), "a chosen mod image is kept");
+        assert_eq!(p.data_assets().collect::<Vec<_>>(), vec![icon]);
+        p.mod_settings.icon = None;
+        assert!(p.remove_asset(icon));
+    }
+
+    #[test]
+    fn mod_settings_are_part_of_the_history() {
+        let mut p = Project::new("ACE", TextureResolution::R2048);
+        let before = p.snapshot(&[]);
+        p.mod_settings.price = 9000;
+        assert!(!before.same_document(&p.snapshot(&[])));
+        p.restore(&before);
+        assert_eq!(p.mod_settings.price, 5000);
+    }
+
+    #[test]
+    fn internal_name_limit_follows_the_fleet() {
+        let mut p = Project::new("ACE Logistics", TextureResolution::R2048);
+        p.vehicles = vec![vehicle("a.b")];
+        assert_eq!(p.internal_name(), "ace_logistic");
+        p.vehicles[0].game_data = Some(GameData {
+            path: "a.b".into(),
+            versions: "*".into(),
+            alt_uv: false,
+            colour_picker: false,
+            requires: Vec::new(),
+            main_count: 2,
+        });
+        assert_eq!(p.internal_name(), "ace_logist");
+    }
+
     fn vehicle(package: &str) -> ProjectVehicle {
         ProjectVehicle {
             package_id: package.into(),
@@ -1248,6 +1388,7 @@ mod tests {
             brand: "B".into(),
             kind: "truck".into(),
             game: "ets2".into(),
+            game_data: None,
         }
     }
 
