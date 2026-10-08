@@ -10,8 +10,8 @@ Lets users keep their liveries: save a project to a single `.truckpaint` file, r
 A project SHALL be saved as one `.truckpaint` file containing everything needed to reopen it identically. The file SHALL contain:
 
 - the project's name and surfaces, with each surface's name and size;
-- the project's vehicles, each with its package id, version, name, brand, kind and game;
-- each surface's template: the vehicle and texture it belongs to, whether that texture is a main texture or an accessory, its image, opacity, visibility, layout version and status;
+- the project's vehicles, each with its package id, version, name, brand, kind and game, and its game data: game path, supported game versions, whether it uses the alternate UV set and the colour picker, and the mods it requires;
+- each surface's template: the vehicle and texture it belongs to, whether that texture is a main texture or an accessory, its game ids, its image, opacity, visibility, layout version and status;
 - the full object tree, with every object's identity, name, kind, geometry (including polygon settings, the points and handles of every path subpath with its open or closed state, and the path's line width), fill, stroke, opacity, visibility and lock flags;
 - each text's content and character style;
 - image references;
@@ -22,11 +22,12 @@ A project SHALL be saved as one `.truckpaint` file containing everything needed 
 - the links: for every solid fill, solid stroke and gradient stop, the swatch it is linked to; for every object, the graphic style and the text style it follows;
 - the symbols: each symbol's identity, name, artboard size, guides and content (an object tree, as for a surface);
 - each instance's symbol, placement, opacity, visibility, lock and name. An instance's content is not stored: it is rebuilt from its symbol when the file opens;
-- the bytes of every imported asset.
+- the mod settings: Name, Version, Author, Description, Price, Unlock level, internal name and whether it was edited, and the chosen shop icon and Mod Manager image, if any;
+- the bytes of every imported asset, chosen mod images included.
 
 Font families SHALL be stored by name only; font files SHALL NOT be embedded. Editor state that is not part of the document (selection, point selection, zoom, panel layout, grid and snapping settings, whether guides are shown, undo history) SHALL NOT be stored.
 
-A file written before swatches had names SHALL open with each palette color as a swatch named "Color 1", "Color 2"… in palette order, and nothing linked. A file written before texts and images could be mirrored SHALL open with none of them mirrored.
+A file written before swatches had names SHALL open with each palette color as a swatch named "Color 1", "Color 2"… in palette order, and nothing linked. A file written before texts and images could be mirrored SHALL open with none of them mirrored. A file written before mod settings existed SHALL open with the default mod settings.
 
 #### Scenario: Round trip
 - **WHEN** the user saves a project with grouped shapes, an outlined text, a placed SVG logo, a star, a curved path with a hole and two guides, closes it and opens the file again
@@ -38,7 +39,7 @@ A file written before swatches had names SHALL open with each palette color as a
 
 #### Scenario: Vehicle project round trip
 - **WHEN** the user saves a project with a truck painting two main textures and two accessories and a trailer painting its Base texture, with one template hidden and one flagged "Layout changed", closes it and opens the file again
-- **THEN** the vehicles and their recorded versions, the surfaces with their main texture or accessory role, their templates, opacities, visibilities and flags are restored
+- **THEN** the vehicles and their recorded versions and game data, the surfaces with their main texture or accessory role and game ids, their templates, opacities, visibilities and flags are restored
 
 #### Scenario: Brand kit round trip
 - **WHEN** the user saves a project with the swatches "Company red" and "Company grey", a graphic style whose gradient has a stop linked to "Company red", a text style, a rectangle following the graphic style and a text following the text style with its fill linked to "Company grey", then closes and reopens it
@@ -55,6 +56,25 @@ A file written before swatches had names SHALL open with each palette color as a
 #### Scenario: Mirrored objects round trip
 - **WHEN** the user saves a project with a mirrored image, a text flipped vertically and an image that is not mirrored, closes it and opens the file again
 - **THEN** the first image is still mirrored, the text is still drawn upside down and mirrored, and the other image is not mirrored
+
+#### Scenario: Mod settings round trip
+- **WHEN** the user saves a project whose mod settings have the Version "2.0", the Author "Jane", the Price 7500, the edited internal name "acelog" and a chosen Mod Manager image, closes it and opens the file again
+- **THEN** Export Mod… shows the same settings and image, and changing the Name leaves the internal name "acelog"
+
+#### Scenario: File without mod settings
+- **WHEN** a project named "ACE" saved before mod settings existed is opened
+- **THEN** Export Mod… shows the Name "ACE", the Version "1.0", the Price 5000 and generated images
+
+### Requirement: Game data of older files
+When a file without game data for a vehicle is opened, the game data of that vehicle and of its textures SHALL be filled in from the installed package version the vehicle records, if that version is installed. The file SHALL then open marked as having unsaved changes, so the next save stores the data. When that version isn't installed, the project SHALL open as it is and stay fully editable. Only Export Mod reports the missing data (see mod-export).
+
+#### Scenario: Older file with the package installed
+- **WHEN** a file saved before game data was recorded, holding the sample truck 1.1.0, is opened with that version installed
+- **THEN** it opens with the game path "truckpaint.sample" and the game ids of its textures, and the status bar shows "Unsaved changes"
+
+#### Scenario: Older file without the package
+- **WHEN** the same file is opened on a computer where the sample truck 1.1.0 is not installed
+- **THEN** it opens with its artwork and templates, the status bar shows "Saved", and Export Mod… reports the missing data
 
 ### Requirement: Versioned format
 Every project file SHALL record the version of the file format it was written with. The application SHALL open files of every format version it has ever written, converting them to the current format when opening; such a file SHALL open marked as having unsaved changes and SHALL be written in the current format at the next save (the original file is only replaced when the user saves). Files written with a newer format version than the application supports SHALL be refused (see Invalid files).
