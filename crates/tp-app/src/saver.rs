@@ -15,6 +15,8 @@ pub enum JobKind {
     Save,
     /// A crash-recovery copy.
     Recovery,
+    /// The personal library.
+    Library,
 }
 
 struct Job {
@@ -52,8 +54,13 @@ impl Saver {
             .name("project-saver".into())
             .spawn(move || {
                 while let Ok(job) = job_rx.recv() {
-                    let mut result =
-                        tp_file::write(&job.project, &job.path).map_err(|e| e.to_string());
+                    let mut result = match job.kind {
+                        JobKind::Library => tp_file::library::write(&job.project, &job.path),
+                        JobKind::Save | JobKind::Recovery => {
+                            tp_file::write(&job.project, &job.path)
+                        }
+                    }
+                    .map_err(|e| e.to_string());
                     if result.is_ok()
                         && let Some((path, text)) = &job.extra
                     {

@@ -18,6 +18,7 @@ tp-vehicles.workspace = true
 tp-pack.workspace = true
 semver.workspace = true
 tp-core.workspace = true
+blake3.workspace = true
 tp-ui.workspace = true
 tp-text.workspace = true
 tp-file.workspace = true

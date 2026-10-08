@@ -12,6 +12,7 @@ use std::sync::Arc;
 use crate::document::{
     CharStyle, Object, ObjectId, Paint, Rgba, ShapeKind, StrokeStyle, StyleId, SwatchId, tree,
 };
+use crate::import::LibraryKey;
 use crate::project::Project;
 
 /// A named palette color.
@@ -20,6 +21,9 @@ pub struct Swatch {
     pub id: SwatchId,
     pub name: String,
     pub color: Rgba,
+    /// The library entry it came from or was added to (not part of the
+    /// undo history).
+    pub origin: Option<LibraryKey>,
 }
 
 /// A fill, a stroke and an opacity: what a style gives an object besides
@@ -38,6 +42,8 @@ pub struct GraphicStyle {
     pub id: StyleId,
     pub name: String,
     pub look: Look,
+    /// The library entry it came from or was added to.
+    pub origin: Option<LibraryKey>,
 }
 
 /// A named lettering: character settings and look.
@@ -47,6 +53,8 @@ pub struct TextStyle {
     pub name: String,
     pub style: CharStyle,
     pub look: Look,
+    /// The library entry it came from or was added to.
+    pub origin: Option<LibraryKey>,
 }
 
 /// The palette and the shared styles, as stored.
@@ -55,6 +63,31 @@ pub struct BrandKit {
     pub palette: Vec<Swatch>,
     pub graphic_styles: Vec<GraphicStyle>,
     pub text_styles: Vec<TextStyle>,
+}
+
+impl BrandKit {
+    /// Whether both hold the same swatches and styles, library origins
+    /// aside (they are not part of the undo history).
+    pub(crate) fn same_content(&self, other: &BrandKit) -> bool {
+        fn same<T>(a: &[T], b: &[T], eq: impl Fn(&T, &T) -> bool) -> bool {
+            a.len() == b.len() && a.iter().zip(b).all(|(x, y)| eq(x, y))
+        }
+        same(&self.palette, &other.palette, |a, b| {
+            a.id == b.id && a.name == b.name && a.color == b.color
+        }) && same(&self.graphic_styles, &other.graphic_styles, |a, b| {
+            a.id == b.id && a.name == b.name && a.look == b.look
+        }) && same(&self.text_styles, &other.text_styles, |a, b| {
+            a.id == b.id && a.name == b.name && a.style == b.style && a.look == b.look
+        })
+    }
+
+    /// The library origins of the swatches and styles, in order.
+    pub(crate) fn origins(&self) -> impl Iterator<Item = Option<&LibraryKey>> {
+        let palette = self.palette.iter().map(|s| s.origin.as_ref());
+        let graphic = self.graphic_styles.iter().map(|s| s.origin.as_ref());
+        let text = self.text_styles.iter().map(|s| s.origin.as_ref());
+        palette.chain(graphic).chain(text)
+    }
 }
 
 /// Whether two paints are the same, a gradient's position aside: a style
@@ -138,7 +171,7 @@ impl Look {
     }
 
     /// Recolors the parts linked to swatch `id`.
-    fn recolor(&mut self, id: SwatchId, color: Rgba) {
+    pub(crate) fn recolor(&mut self, id: SwatchId, color: Rgba) {
         recolor(&mut self.fill, self.fill_swatch, id, color);
         if let Some(s) = &mut self.stroke {
             let link = s.swatch;
@@ -178,6 +211,7 @@ impl GraphicStyle {
             id,
             name,
             look: Look::of(o),
+            origin: None,
         }
     }
 }
@@ -208,6 +242,7 @@ impl TextStyle {
             name,
             style: o.text.as_ref()?.style.clone(),
             look: Look::of(o),
+            origin: None,
         })
     }
 }
@@ -346,7 +381,12 @@ impl Project {
         }
         let id = SwatchId(self.fresh_id());
         let name = numbered_name(prefix, self.palette.iter().map(|s| s.name.as_str()));
-        self.palette.push(Swatch { id, name, color });
+        self.palette.push(Swatch {
+            id,
+            name,
+            color,
+            origin: None,
+        });
         (id, true)
     }
 
@@ -553,9 +593,10 @@ impl Project {
         let Some(style) = self.text_styles.iter_mut().find(|s| s.id == id) else {
             return false;
         };
-        let Some(new) = TextStyle::from_object(id, style.name.clone(), &o) else {
+        let Some(mut new) = TextStyle::from_object(id, style.name.clone(), &o) else {
             return false;
         };
+        new.origin = style.origin.take();
         *style = new.clone();
         update_surfaces(self, &mut |o| {
             let follows = o.id == from || o.text.as_ref().is_some_and(|t| t.style_id == Some(id));
@@ -603,6 +644,55 @@ impl Project {
             }
             None => false,
         }
+    }
+
+    /// Gives `o` and its descendants the current values of the swatches
+    /// and styles they link to, so the links hold.
+    pub(crate) fn follow_links(&self, o: &mut Object) {
+        if let Some(id) = o.text.as_ref().and_then(|t| t.style_id)
+            && let Some(style) = self.text_style(id)
+        {
+            style.apply_to(o);
+        } else if let Some(id) = o.style
+            && let Some(style) = self.graphic_style(id)
+            && takes_graphic_style(o)
+        {
+            style.apply_to(o);
+        }
+        for swatch in &self.palette {
+            recolor(&mut o.fill, o.fill_swatch, swatch.id, swatch.color);
+            if let Some(s) = &mut o.stroke {
+                let link = s.swatch;
+                recolor(&mut s.paint, link, swatch.id, swatch.color);
+            }
+        }
+        // An instance's content follows its symbol.
+        if !o.is_instance() {
+            for child in &mut o.children {
+                self.follow_links(Arc::make_mut(child));
+            }
+        }
+    }
+
+    /// Gives every object following style `id` (graphic or text), on every
+    /// surface and in the symbols, the style's current look.
+    pub(crate) fn reapply_style(&mut self, id: StyleId) {
+        let graphic = self.graphic_style(id).cloned();
+        let text = self.text_style(id).cloned();
+        update_surfaces(self, &mut |o| {
+            let before = o.clone();
+            if let Some(style) = &text
+                && o.text.as_ref().is_some_and(|t| t.style_id == Some(id))
+            {
+                style.apply_to(o);
+            } else if let Some(style) = &graphic
+                && o.style == Some(id)
+            {
+                style.apply_to(o);
+            }
+            *o != before
+        });
+        self.refresh_instances();
     }
 
     /// Deletes a style: objects keep their look and stop following it.

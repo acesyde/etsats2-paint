@@ -285,3 +285,20 @@ mod-problem-bad-game-version = { $version } isn't a game version: write it like 
 mod-problem-unsupported-game-version = { $vehicle } ({ $range }) doesn't support game version { $version }.
 mod-problem-no-common-game-version = { $first } ({ $first_range }) and { $second } ({ $second_range }) have no game version in common: update or remove one of them.
 mod-export-done = Mod exported to { $file }
+
+## Import from Library
+
+library-hint = Your symbols, swatches and styles, shared by every project of both games. Imported elements are copies, with everything they use.
+library-symbols = Symbols
+library-swatches = Swatches
+library-graphic-styles = Graphic styles
+library-text-styles = Text styles
+library-in-project = In this project
+library-import = Import
+library-empty = Your library is empty. Right-click a symbol, a swatch or a style in its panel and choose Add to Library to use it in every project.
+library-remove = Remove from Library
+library-remove-confirm = Remove { $name } from the library? Projects that imported it keep their copy.
+library-remove-button = Remove
+library-unreadable-title = Library
+library-unreadable = The library could not be read: it starts empty. A copy of the file was kept as { $file }.
+library-unreadable-no-backup = The library could not be read: it starts empty.

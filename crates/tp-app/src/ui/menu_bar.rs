@@ -94,6 +94,7 @@ fn menu_contents(
             item(ui, cmds, Ungroup);
             ui.separator();
             item(ui, cmds, ConvertToSymbol);
+            item(ui, cmds, ImportFromLibrary);
             item(ui, cmds, EditSymbol);
             item(ui, cmds, DetachInstance);
             ui.separator();

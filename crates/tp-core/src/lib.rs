@@ -5,11 +5,13 @@
 
 mod brand;
 pub mod document;
+pub mod import;
 pub mod mod_settings;
 mod project;
 mod symbols;
 
 pub use brand::{BrandKit, GraphicStyle, Look, Swatch, TextStyle};
+pub use import::LibraryKey;
 pub use kurbo;
 pub use mod_settings::ModSettings;
 pub use project::{

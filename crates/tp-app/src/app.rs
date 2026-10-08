@@ -13,8 +13,10 @@ impl TruckPaintApp {
         store: Option<PrefsStore>,
         recovery_dir: Option<std::path::PathBuf>,
         vehicles_dir: Option<std::path::PathBuf>,
+        library_path: Option<std::path::PathBuf>,
     ) -> Self {
         let mut state = AppState::new(store);
+        state.library = crate::library::LibraryStore::new(library_path);
         if let Some(dir) = vehicles_dir {
             state.vehicles = crate::vehicles::VehicleLibrary::open(&dir);
         }

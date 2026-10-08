@@ -49,7 +49,10 @@ Proposal:
 - an empty intersection (two vehicles that never run on the same game
   version) is reported in Export Mod. Warning or blocking problem: to decide.
 
-## Shared library (to decide)
+## Shared library (done in `shared-library`)
+
+Decided: **B**, a personal library, copied with an origin, not linked (see
+[roadmap.md](roadmap.md)). The options, for the record:
 
 Reuse a logo, swatches and styles across projects, including across ETS2
 and ATS.
@@ -60,9 +63,8 @@ and ATS.
 | **B. Personal library** | A Library panel stored in the app's data folder. "Add to library" from a project, "Place" / "Import" into another. Copied, not linked. | Medium |
 | **C. Linked library** | Like B, but projects follow the library's edits (update prompts, versions). | Large |
 
-Leaning: **B**.
 
-## Bug found: pasting into another project
+## Bug found: pasting into another project (fixed in `shared-library`)
 
 The clipboard (`AppState.clipboard: Vec<Object>`) survives closing a
 project, and its objects refer to ids of the source project:
@@ -78,10 +80,11 @@ project, and its objects refer to ids of the source project:
 
 Any library needs the same building block: bringing an element into a
 project with everything it depends on (assets, swatches, styles, symbol)
-under new ids. Fixing paste comes with it.
+under new ids. Fixing paste came with it: Paste into another project
+imports what the objects use, with the library's reuse rules.
 
 ## Possible changes
 
 1. A small cleanup change: remove the 3D preview, Game versions, roadmap
    updates.
-2. The library change (with the paste fix), once A, B or C is chosen.
+2. The library change (with the paste fix): done in `shared-library`.

@@ -32,6 +32,7 @@ fn main() -> ExitCode {
     let store = dirs.as_ref().map(|d| PrefsStore::new(&d.config));
     let recovery_dir = dirs.as_ref().map(|d| d.recovery());
     let vehicles_dir = dirs.as_ref().map(|d| d.vehicles());
+    let library_path = dirs.as_ref().map(|d| d.library());
     let result = eframe::run_native(
         APP_NAME,
         options,
@@ -41,6 +42,7 @@ fn main() -> ExitCode {
                 store,
                 recovery_dir,
                 vehicles_dir,
+                library_path,
             )))
         }),
     );

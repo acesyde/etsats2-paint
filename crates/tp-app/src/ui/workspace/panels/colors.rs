@@ -80,7 +80,7 @@ fn apply_now(env: &mut PanelEnv<'_>, color: Rgba) {
     env.ws.commit_pending(env.now);
 }
 
-pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv<'_>) {
     if instances_only(env) {
         instance_message(ui);
         return;
@@ -157,7 +157,7 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     channel_fields(ui, env, current, base);
     hex_field(ui, env, current);
     recent_colors(ui, env);
-    palette(ui, env, current);
+    palette(ui, cmds, env, current);
 }
 
 /// Solid / Linear / Radial control for the current target.
@@ -606,7 +606,12 @@ fn recent_colors(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     });
 }
 
-fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
+fn palette(
+    ui: &mut Ui,
+    cmds: &mut crate::ui::CommandUi<'_>,
+    env: &mut PanelEnv<'_>,
+    current: Option<Rgba>,
+) {
     let target = env.ws.panels.color_target;
     ui.horizontal(|ui| {
         ui.label(
@@ -633,6 +638,7 @@ fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
                 .small()
                 .color(color::TEXT_DISABLED),
         );
+        super::import_from_library_button(ui, cmds);
         return;
     }
     // The swatch the target is linked to: a ring, and its name below.
@@ -659,6 +665,7 @@ fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
                     env.ws.start_swatch_edit(s.id);
                     ui.close();
                 }
+                super::library_item(ui, env, crate::library::Element::Swatch(s.id));
                 if ui
                     .add(tp_ui::widgets::MenuRow::new(&tr("colors-delete-swatch")))
                     .clicked()

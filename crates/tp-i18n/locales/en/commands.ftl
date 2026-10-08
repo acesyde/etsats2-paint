@@ -21,6 +21,7 @@ cmd-edit-text = Edit Text
 cmd-group = Group
 cmd-ungroup = Ungroup
 cmd-convert-to-symbol = Convert to Symbol
+cmd-import-from-library = Import from Library…
 cmd-edit-symbol = Edit Symbol
 cmd-detach-instance = Detach Instance
 cmd-finish-symbol = Done Editing Symbol

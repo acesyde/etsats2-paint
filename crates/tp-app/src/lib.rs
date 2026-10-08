@@ -15,6 +15,7 @@ pub mod gradient_textures;
 pub mod image_cache;
 pub mod import;
 pub mod layout;
+pub mod library;
 pub mod logging;
 pub mod mod_export;
 pub mod outline_text;

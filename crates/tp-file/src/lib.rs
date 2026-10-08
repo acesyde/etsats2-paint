@@ -7,6 +7,7 @@
 //! file with the module of its own version and migrates it step by step to
 //! the current one; writing always uses the current version.
 
+pub mod library;
 pub mod v1;
 
 use std::io::{Cursor, Read, Write};
@@ -134,18 +135,23 @@ fn ron_options() -> ron::Options {
 
 /// Serializes a project to `.truckpaint` bytes.
 pub fn to_bytes(project: &Project) -> Result<Vec<u8>, Error> {
+    zip_bytes(project, MIMETYPE, DOCUMENT)
+}
+
+/// A ZIP of `mimetype`, the document as `document` and the assets.
+fn zip_bytes(project: &Project, mimetype: &str, document: &str) -> Result<Vec<u8>, Error> {
     let zip_err = |e: zip::result::ZipError| Error::Io(std::io::Error::other(e));
     let mut zip = ZipWriter::new(Cursor::new(Vec::new()));
     let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
     let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
     zip.start_file("mimetype", stored).map_err(zip_err)?;
-    zip.write_all(MIMETYPE.as_bytes())?;
+    zip.write_all(mimetype.as_bytes())?;
 
-    let document = current::from_project(project);
+    let file = current::from_project(project);
     let text = ron_options()
-        .to_string_pretty(&document, ron::ser::PrettyConfig::default())
+        .to_string_pretty(&file, ron::ser::PrettyConfig::default())
         .map_err(|e| Error::Io(std::io::Error::other(e)))?;
-    zip.start_file(DOCUMENT, deflated).map_err(zip_err)?;
+    zip.start_file(document, deflated).map_err(zip_err)?;
     zip.write_all(text.as_bytes())?;
 
     for asset in project.assets.values() {
@@ -163,6 +169,27 @@ pub fn to_bytes(project: &Project) -> Result<Vec<u8>, Error> {
 
 /// Reads a project from `.truckpaint` bytes.
 pub fn from_bytes(bytes: &[u8]) -> Result<Opened, Error> {
+    let (mut zip, text) = open_zip(bytes, MIMETYPE, DOCUMENT)?;
+    let header = header(&text)?;
+    if header.format == 1 && is_development_v1(&text) {
+        return Err(Error::Unsupported {
+            found: header.format,
+        });
+    }
+    let (document, migrated) = migrate(header.format, &text)?;
+    let project = current::into_project(&document, |entry| entry_bytes(&mut zip, entry))
+        .map_err(Error::Damaged)?;
+    Ok(Opened { project, migrated })
+}
+
+type Zip<'a> = ZipArchive<Cursor<&'a [u8]>>;
+
+/// The archive and its document, once `mimetype` is checked.
+fn open_zip<'a>(
+    bytes: &'a [u8],
+    mimetype: &str,
+    document: &str,
+) -> Result<(Zip<'a>, String), Error> {
     let mut zip = ZipArchive::new(Cursor::new(bytes)).map_err(|e| {
         // A ZIP that cannot be read (e.g. truncated) is a damaged project;
         // anything else is not a project at all.
@@ -172,35 +199,32 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Opened, Error> {
             Error::NotAProject
         }
     })?;
-    let mut mimetype = String::new();
+    let mut found = String::new();
     zip.by_name("mimetype")
         .map_err(|_| Error::NotAProject)?
-        .read_to_string(&mut mimetype)
+        .read_to_string(&mut found)
         .map_err(|_| Error::NotAProject)?;
-    if mimetype.trim() != MIMETYPE {
+    if found.trim() != mimetype {
         return Err(Error::NotAProject);
     }
     let mut text = String::new();
-    zip.by_name(DOCUMENT)
+    zip.by_name(document)
         .map_err(|_| Error::Damaged("missing document".into()))?
         .read_to_string(&mut text)
         .map_err(|e| Error::Damaged(e.to_string()))?;
-    let header: Header = ron_options()
-        .from_str(&text)
-        .map_err(|e| Error::Damaged(e.to_string()))?;
-    if header.format == 1 && is_development_v1(&text) {
-        return Err(Error::Unsupported {
-            found: header.format,
-        });
-    }
-    let (document, migrated) = migrate(header.format, &text)?;
-    let project = current::into_project(&document, |entry| {
-        let mut out = Vec::new();
-        zip.by_name(entry).ok()?.read_to_end(&mut out).ok()?;
-        Some(out)
-    })
-    .map_err(Error::Damaged)?;
-    Ok(Opened { project, migrated })
+    Ok((zip, text))
+}
+
+fn header(text: &str) -> Result<Header, Error> {
+    ron_options()
+        .from_str(text)
+        .map_err(|e| Error::Damaged(e.to_string()))
+}
+
+fn entry_bytes(zip: &mut Zip<'_>, entry: &str) -> Option<Vec<u8>> {
+    let mut out = Vec::new();
+    zip.by_name(entry).ok()?.read_to_end(&mut out).ok()?;
+    Some(out)
 }
 
 /// Parses the document with its own version's structures and converts it

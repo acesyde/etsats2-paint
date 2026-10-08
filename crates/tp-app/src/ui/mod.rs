@@ -6,6 +6,7 @@ pub mod dialogs;
 pub mod export_dialog;
 pub mod gallery;
 pub mod home;
+pub mod library_dialog;
 pub mod menu_bar;
 pub mod mod_export_dialog;
 pub mod vehicle_dialogs;

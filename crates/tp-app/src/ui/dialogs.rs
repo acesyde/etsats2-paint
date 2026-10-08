@@ -84,6 +84,15 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         }
         return;
     }
+    if matches!(state.modal, Some(Modal::ImportFromLibrary(_))) {
+        let Some(Modal::ImportFromLibrary(mut dialog)) = state.modal.take() else {
+            unreachable!()
+        };
+        if super::library_dialog::show(ctx, state, &mut dialog) && state.modal.is_none() {
+            state.modal = Some(Modal::ImportFromLibrary(dialog));
+        }
+        return;
+    }
     if matches!(state.modal, Some(Modal::UpdateTemplate(_))) {
         let Some(Modal::UpdateTemplate(mut dialog)) = state.modal.take() else {
             unreachable!()
@@ -190,6 +199,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         Modal::Export(_)
         | Modal::ExportMod(_)
         | Modal::VehicleLibrary(_)
+        | Modal::ImportFromLibrary(_)
         | Modal::UpdateTemplate(_)
         | Modal::AddVehicle(_)
         | Modal::Textures(_)

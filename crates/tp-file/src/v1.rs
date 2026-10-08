@@ -14,9 +14,9 @@ use tp_core::document::{
 };
 use tp_core::kurbo::{Point, Size, Vec2};
 use tp_core::{
-    Asset, AssetKind, Axis, BrandKit, DEFAULT_SWATCH_PREFIX, GameData, GraphicStyle, Guide, Look,
-    ModSettings, Project, ProjectVehicle, RequiredMod, Surface, SurfaceTemplate, Swatch, Symbol,
-    TemplateStatus, TextStyle, TexturePart, TextureResolution,
+    Asset, AssetKind, Axis, BrandKit, DEFAULT_SWATCH_PREFIX, GameData, GraphicStyle, Guide,
+    LibraryKey, Look, ModSettings, Project, ProjectVehicle, RequiredMod, Surface, SurfaceTemplate,
+    Swatch, Symbol, TemplateStatus, TextStyle, TexturePart, TextureResolution,
 };
 
 /// The document (`project.ron`). Asset bytes live in separate ZIP entries.
@@ -89,6 +89,9 @@ pub struct FileSymbol {
     pub objects: Vec<FileObject>,
     #[serde(default)]
     pub guides: Vec<FileGuide>,
+    /// The library entry it came from or was added to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
 }
 
 /// A named palette color.
@@ -97,6 +100,9 @@ pub struct FileSwatch {
     pub id: u64,
     pub name: String,
     pub color: [u8; 4],
+    /// The library entry it came from or was added to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
 }
 
 /// A named fill, stroke and opacity.
@@ -110,6 +116,9 @@ pub struct FileGraphicStyle {
     #[serde(default)]
     pub stroke: Option<FileStroke>,
     pub opacity: f32,
+    /// The library entry it came from or was added to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
 }
 
 /// A named character style.
@@ -134,6 +143,9 @@ pub struct FileTextStyle {
     pub stroke: Option<FileStroke>,
     #[serde(default)]
     pub opacity: Option<f32>,
+    /// The library entry it came from or was added to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
 }
 
 /// A vehicle of the project: the package its templates come from.
@@ -616,6 +628,14 @@ fn stroke_from_file(s: &FileStroke, id: u64) -> Result<StrokeStyle, String> {
     })
 }
 
+fn origin_to_file(origin: Option<&LibraryKey>) -> Option<String> {
+    origin.map(|k| k.0.clone())
+}
+
+fn origin_from_file(origin: Option<&String>) -> Option<LibraryKey> {
+    origin.map(|k| LibraryKey(k.clone()))
+}
+
 fn brand_to_file(project: &Project, file: &mut FileProject) {
     file.swatches = project
         .palette
@@ -624,6 +644,7 @@ fn brand_to_file(project: &Project, file: &mut FileProject) {
             id: s.id.0,
             name: s.name.clone(),
             color: color(s.color),
+            origin: origin_to_file(s.origin.as_ref()),
         })
         .collect();
     file.graphic_styles = project
@@ -636,6 +657,7 @@ fn brand_to_file(project: &Project, file: &mut FileProject) {
             fill_swatch: s.look.fill_swatch.map(|w| w.0),
             stroke: s.look.stroke.as_ref().map(stroke_to_file),
             opacity: s.look.opacity,
+            origin: origin_to_file(s.origin.as_ref()),
         })
         .collect();
     file.text_styles = project
@@ -655,6 +677,7 @@ fn brand_to_file(project: &Project, file: &mut FileProject) {
             fill_swatch: s.look.fill_swatch.map(|w| w.0),
             stroke: s.look.stroke.as_ref().map(stroke_to_file),
             opacity: Some(s.look.opacity),
+            origin: origin_to_file(s.origin.as_ref()),
         })
         .collect();
 }
@@ -669,6 +692,7 @@ fn brand_from_file(file: &FileProject) -> Result<BrandKit, String> {
             id: SwatchId(s.id),
             name: s.name.clone(),
             color: rgba(s.color),
+            origin: origin_from_file(s.origin.as_ref()),
         })
         .collect();
     let graphic_styles = file
@@ -688,6 +712,7 @@ fn brand_from_file(file: &FileProject) -> Result<BrandKit, String> {
                         .transpose()?,
                     opacity: s.opacity.clamp(0.0, 1.0),
                 },
+                origin: origin_from_file(s.origin.as_ref()),
             })
         })
         .collect::<Result<_, String>>()?;
@@ -720,6 +745,7 @@ fn brand_from_file(file: &FileProject) -> Result<BrandKit, String> {
                         .transpose()?,
                     opacity: s.opacity.unwrap_or(1.0).clamp(0.0, 1.0),
                 },
+                origin: origin_from_file(s.origin.as_ref()),
             })
         })
         .collect::<Result<_, String>>()?;
@@ -851,6 +877,7 @@ pub fn from_project(project: &Project) -> FileProject {
                     .map(|o| object_to_file(o))
                     .collect(),
                 guides: guides_to_file(&s.surface.guides),
+                origin: origin_to_file(s.origin.as_ref()),
             })
             .collect(),
         surfaces: project
@@ -1155,8 +1182,20 @@ fn object_from_file(
     Ok(o)
 }
 
-/// Rebuilds the project; `bytes_of` returns the content of a ZIP entry.
+/// Rebuilds the project and checks its fleet; `bytes_of` returns the
+/// content of a ZIP entry.
 pub fn into_project(
+    file: &FileProject,
+    bytes_of: impl FnMut(&str) -> Option<Vec<u8>>,
+) -> Result<Project, String> {
+    let project = into_document(file, bytes_of)?;
+    check_fleet(&project.vehicles, &project.surfaces)?;
+    Ok(project)
+}
+
+/// Rebuilds the document without checking its fleet (the library has no
+/// vehicle); `bytes_of` returns the content of a ZIP entry.
+pub fn into_document(
     file: &FileProject,
     mut bytes_of: impl FnMut(&str) -> Option<Vec<u8>>,
 ) -> Result<Project, String> {
@@ -1271,6 +1310,7 @@ pub fn into_project(
                 id: SymbolId(s.id),
                 name: s.name.clone(),
                 surface,
+                origin: origin_from_file(s.origin.as_ref()),
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -1279,7 +1319,6 @@ pub fn into_project(
     // instances are expanded from their symbols.
     project.relink();
     project.vehicles = vehicles_from_file(file);
-    check_fleet(&project.vehicles, &project.surfaces)?;
     project.mod_settings = mod_settings_from_file(file, &project)?;
     project.game_versions = file.game_versions.clone();
     Ok(project)

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use kurbo::{Point, Rect, Size, Vec2};
@@ -8,6 +8,7 @@ use crate::brand::{BrandKit, GraphicStyle, Swatch, TextStyle};
 use crate::document::SymbolId;
 use crate::document::tree::{self, Hit, Placement};
 use crate::document::{AssetId, Object, ObjectId, PointRef, Rgba, ShapeKind};
+use crate::import::LibraryKey;
 use crate::mod_settings::{INTERNAL_NAME_MAX, ModSettings, SPLIT_INTERNAL_NAME_MAX};
 use crate::symbols::Symbol;
 
@@ -529,7 +530,7 @@ impl Project {
     }
 
     /// Gives `object` and all its descendants fresh ids.
-    fn assign_fresh_ids(&mut self, object: &mut Object) {
+    pub(crate) fn assign_fresh_ids(&mut self, object: &mut Object) {
         object.id = self.next_object_id();
         for child in &mut object.children {
             let mut c = (**child).clone();
@@ -813,9 +814,45 @@ impl Project {
         }
     }
 
+    /// The library origins of the swatches, styles and symbols, by id.
+    fn origins_by_id(&self) -> HashMap<u64, Option<LibraryKey>> {
+        let palette = self.palette.iter().map(|s| (s.id.0, s.origin.clone()));
+        let graphic = self
+            .graphic_styles
+            .iter()
+            .map(|s| (s.id.0, s.origin.clone()));
+        let text = self.text_styles.iter().map(|s| (s.id.0, s.origin.clone()));
+        let symbols = self.symbols.iter().map(|s| (s.id.0, s.origin.clone()));
+        palette.chain(graphic).chain(text).chain(symbols).collect()
+    }
+
+    /// Gives each swatch, style and symbol found in `origins` that origin.
+    pub(crate) fn set_origins(&mut self, origins: &HashMap<u64, Option<LibraryKey>>) {
+        let set = |id: u64, origin: &mut Option<LibraryKey>| {
+            if let Some(o) = origins.get(&id) {
+                origin.clone_from(o);
+            }
+        };
+        for s in &mut self.palette {
+            set(s.id.0, &mut s.origin);
+        }
+        for s in &mut self.graphic_styles {
+            set(s.id.0, &mut s.origin);
+        }
+        for s in &mut self.text_styles {
+            set(s.id.0, &mut s.origin);
+        }
+        for s in &mut self.symbols {
+            set(s.id.0, &mut s.origin);
+        }
+    }
+
     /// Restores a snapshot and returns its selection. Ids stay unique because
     /// the id counter is never rewound.
     pub fn restore(&mut self, snapshot: &Snapshot) -> Vec<ObjectId> {
+        // Library origins are not part of the history either: an element
+        // that still exists keeps its current one.
+        let origins = self.origins_by_id();
         // The surface list itself may differ (an update added surfaces).
         // Template opacity and visibility are not part of the history: keep
         // the current values of the same texture.
@@ -858,6 +895,7 @@ impl Project {
         self.mod_settings = snapshot.mod_settings.clone();
         self.game_versions = snapshot.game_versions.clone();
         self.assets = snapshot.assets.clone();
+        self.set_origins(&origins);
         snapshot.selection.clone()
     }
 }
@@ -920,7 +958,7 @@ impl Snapshot {
                         == b.template.as_ref().map(SurfaceTemplate::document_part)
             })
             && self.guides == other.guides
-            && self.brand == other.brand
+            && self.brand.same_content(&other.brand)
             && self.editing_symbol == other.editing_symbol
             && self.mod_settings == other.mod_settings
             && self.game_versions == other.game_versions
@@ -940,6 +978,21 @@ impl Snapshot {
             && self.surfaces.iter().zip(&other.surfaces).all(|(a, b)| {
                 a.len() == b.len() && a.iter().zip(b).all(|(x, y)| Arc::ptr_eq(x, y) || x == y)
             })
+    }
+
+    /// Whether both hold the same document as saved: [`Self::same_document`]
+    /// and the same library origins, which the file records but the undo
+    /// history doesn't.
+    pub fn same_saved(&self, other: &Snapshot) -> bool {
+        let symbols = |s: &Snapshot| {
+            s.symbols
+                .iter()
+                .map(|s| s.origin.clone())
+                .collect::<Vec<_>>()
+        };
+        self.same_document(other)
+            && self.brand.origins().eq(other.brand.origins())
+            && symbols(self) == symbols(other)
     }
 }
 
@@ -1139,6 +1192,7 @@ mod tests {
                     id: crate::document::SwatchId(900),
                     name: "Red".into(),
                     color: Rgba::rgb(1, 2, 3),
+                    origin: None,
                 }],
                 ..Default::default()
             },
@@ -1342,6 +1396,26 @@ mod tests {
         assert!(p.surface().objects.is_empty());
         let t = p.surfaces[0].template.as_ref().unwrap();
         assert_eq!((t.opacity, t.visible), (0.2, false));
+    }
+
+    #[test]
+    fn library_origins_survive_undo_and_count_for_saving() {
+        let mut p = Project::new("T", TextureResolution::R2048);
+        p.add_to_palette(Rgba::rgb(0, 128, 0));
+        let before = p.snapshot(&[]);
+        p.add(rect_at(100.0, 100.0));
+        let key = LibraryKey("0123456789abcdef0123456789abcdef".into());
+        p.palette[0].origin = Some(key.clone());
+        // Recording an origin alone is no undo step, but is a change to save.
+        let mut q = p.clone();
+        q.palette[0].origin = None;
+        assert!(p.snapshot(&[]).same_document(&q.snapshot(&[])));
+        assert!(!p.snapshot(&[]).same_saved(&q.snapshot(&[])));
+        assert!(p.snapshot(&[]).same_saved(&p.snapshot(&[])));
+        // Restoring an older snapshot keeps the origin recorded after it.
+        p.restore(&before);
+        assert!(p.surface().objects.is_empty());
+        assert_eq!(p.palette[0].origin, Some(key));
     }
 
     #[test]

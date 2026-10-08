@@ -166,7 +166,8 @@ impl AppState {
     }
 
     fn on_written(&mut self, ctx: &egui::Context, done: Done) {
-        if done.kind == JobKind::Recovery {
+        // Failures of background copies are logged by the saver.
+        if matches!(done.kind, JobKind::Recovery | JobKind::Library) {
             return;
         }
         let Some(ws) = self.workspace_mut() else {
@@ -295,6 +296,13 @@ impl AppState {
         }
     }
 
+    /// Queues the library for writing when it changed (called every frame).
+    pub fn write_library(&mut self, ctx: &egui::Context) {
+        if let Some((library, path)) = self.library.take_write() {
+            self.saver(ctx).write(JobKind::Library, library, path, None);
+        }
+    }
+
     /// Writes a recovery copy when due (called every frame).
     pub fn write_recovery(&mut self, ctx: &egui::Context, now: f64) {
         let Some(store) = &self.recovery else {
@@ -314,7 +322,7 @@ impl AppState {
         if ws
             .recovery_written
             .as_ref()
-            .is_some_and(|w| w.same_document(&snapshot))
+            .is_some_and(|w| w.same_saved(&snapshot))
         {
             return;
         }
@@ -383,6 +391,12 @@ impl AppState {
 
     /// Normal exit: pending saves finish and the recovery copy is removed.
     pub fn shutdown(&mut self) {
+        // A library change not yet queued is written before quitting.
+        if let Some((library, path)) = self.library.take_write()
+            && let Err(err) = tp_file::library::write(&library, &path)
+        {
+            tracing::error!(%err, "the library could not be written");
+        }
         self.clear_recovery();
     }
 
