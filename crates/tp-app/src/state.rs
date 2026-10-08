@@ -8,7 +8,6 @@ use tp_ui::ThemeSettings;
 
 use crate::commands::{self, Availability, CommandId, EditContext};
 use crate::file_dialogs::{FileDialogs, NativeDialogs};
-use crate::layout::ViewMode;
 use crate::paths::APP_NAME;
 use crate::prefs::{Prefs, PrefsStore, recent_exists};
 pub use crate::project_io::PendingAction;
@@ -236,11 +235,6 @@ impl AppState {
             .unwrap_or_else(tp_text::FontLibrary::bundled);
         let ws = Workspace::with_text_engine(project, TextEngine::new(fonts));
         self.screen = Screen::Workspace(Box::new(ws));
-        // A project always opens showing its canvas: the 3D view alone
-        // (remembered from an earlier session) would hide it.
-        if self.prefs.layout.view_mode == crate::layout::ViewMode::ThreeD {
-            self.prefs.layout.view_mode = crate::layout::ViewMode::TwoD;
-        }
     }
 
     pub fn close_project(&mut self) {
@@ -578,15 +572,6 @@ impl AppState {
             CommandId::CloseProject => self.guard(ctx, PendingAction::CloseProject),
             CommandId::Preferences => self.modal = Some(Modal::Preferences),
             CommandId::Quit => self.guard(ctx, PendingAction::Quit),
-            CommandId::SetViewMode(mode) => self.prefs.layout.view_mode = mode,
-            CommandId::TogglePreview => {
-                let layout = &mut self.prefs.layout;
-                layout.view_mode = if layout.view_mode.shows_preview() {
-                    ViewMode::TwoD
-                } else {
-                    ViewMode::Split
-                };
-            }
             CommandId::TogglePanel(kind) => self.prefs.layout.toggle_open(kind),
             CommandId::ResetWorkspace => self.prefs.layout.reset(),
             CommandId::DesignGallery => self.show_gallery = !self.show_gallery,
@@ -947,8 +932,6 @@ fn keeps_text_session(id: CommandId) -> bool {
             | CommandId::ZoomOut
             | CommandId::FitToScreen
             | CommandId::ActualSize
-            | CommandId::SetViewMode(_)
-            | CommandId::TogglePreview
             | CommandId::TogglePanel(_)
             | CommandId::ToggleVehicles
             | CommandId::ResetWorkspace

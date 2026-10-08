@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines the editor workspace layout (menus, tools, canvas area, panels, 3D preview area, view modes and status bar) that all editing features plug into.
+Defines the editor workspace layout (menus, tools, sidebar, canvas area, panels and status bar) that all editing features plug into.
 
 ## Requirements
 

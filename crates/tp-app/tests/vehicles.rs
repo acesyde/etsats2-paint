@@ -1053,24 +1053,3 @@ fn the_vehicles_sidebar_hides_and_comes_back() {
     assert!(h.state().prefs.layout.vehicles_open);
     assert!(h.query_by_label(tree_row).is_some());
 }
-
-#[test]
-fn projects_open_showing_the_canvas() {
-    let dir = tempfile::tempdir().unwrap();
-    let mut h = app(dir.path());
-    h.state_mut().prefs.layout.view_mode = tp_app::layout::ViewMode::ThreeD;
-    create_sample_project(&mut h, &["Standard cab"], &[]);
-    assert_eq!(
-        h.state().prefs.layout.view_mode,
-        tp_app::layout::ViewMode::TwoD
-    );
-    // Split shows the canvas: kept.
-    h.state_mut().close_project();
-    h.state_mut().prefs.layout.view_mode = tp_app::layout::ViewMode::Split;
-    h.run();
-    create_sample_project(&mut h, &["Standard cab"], &[]);
-    assert_eq!(
-        h.state().prefs.layout.view_mode,
-        tp_app::layout::ViewMode::Split
-    );
-}

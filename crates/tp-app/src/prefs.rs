@@ -273,7 +273,7 @@ pub fn recent_exists(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::{PanelKind, ViewMode};
+    use crate::layout::PanelKind;
 
     #[test]
     fn missing_file_gives_defaults_without_issue() {
@@ -304,6 +304,24 @@ mod tests {
         assert_eq!(store.load().prefs.view_aids, prefs.view_aids);
         prefs.reset_scaling();
         assert_eq!(prefs.view_aids.grid_spacing, DEFAULT_GRID_SPACING);
+    }
+
+    #[test]
+    fn files_from_builds_with_the_3d_preview_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = PrefsStore::new(dir.path());
+        fs::write(
+            store.path(),
+            "(version: 1, ui_scale: 1.25, layout: (column_width: 300.0, \
+             view_mode: ThreeD, split_fraction: 0.42, vehicles_open: false))",
+        )
+        .unwrap();
+        let loaded = store.load();
+        assert!(loaded.issue.is_none());
+        assert!(loaded.backup.is_none());
+        assert_eq!(loaded.prefs.ui_scale, 1.25);
+        assert_eq!(loaded.prefs.layout.column_width, 300.0);
+        assert!(!loaded.prefs.layout.vehicles_open);
     }
 
     #[test]
@@ -339,7 +357,6 @@ mod tests {
             ..Prefs::default()
         };
         prefs.layout.toggle_open(PanelKind::Assets);
-        prefs.layout.view_mode = ViewMode::Split;
         prefs.recent.push(RecentProject {
             name: "ACE".into(),
             path: "/tmp/ace.truckpaint".into(),

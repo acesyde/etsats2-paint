@@ -7,7 +7,7 @@ use tp_ui::icons;
 
 use tp_core::document::{BooleanOp, DistributeAxis, DistributeMode, Edge, FlipAxis};
 
-use crate::layout::{PanelKind, ViewMode};
+use crate::layout::PanelKind;
 use crate::tool::Tool;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -55,8 +55,6 @@ pub enum CommandId {
     ZoomOut,
     FitToScreen,
     ActualSize,
-    SetViewMode(ViewMode),
-    TogglePreview,
     ToggleVehicles,
     TogglePanel(PanelKind),
     ResetWorkspace,
@@ -246,7 +244,6 @@ const fn sc(modifiers: Modifiers, key: Key) -> KeyboardShortcut {
 
 const CMD: Modifiers = Modifiers::COMMAND;
 const CMD_SHIFT: Modifiers = Modifiers::COMMAND.plus(Modifiers::SHIFT);
-const CMD_ALT: Modifiers = Modifiers::COMMAND.plus(Modifiers::ALT);
 const ALT: Modifiers = Modifiers::ALT;
 const ALT_SHIFT: Modifiers = Modifiers::ALT.plus(Modifiers::SHIFT);
 const NONE: Modifiers = Modifiers::NONE;
@@ -293,7 +290,6 @@ impl CommandId {
             ZoomOut,
             FitToScreen,
             ActualSize,
-            TogglePreview,
             ResetWorkspace,
             ShowGrid,
             ShowGuides,
@@ -313,7 +309,6 @@ impl CommandId {
             KeyboardShortcuts,
             About,
         ];
-        all.extend([ViewMode::TwoD, ViewMode::ThreeD, ViewMode::Split].map(SetViewMode));
         all.push(ToggleVehicles);
         all.extend(PanelKind::ALL.map(TogglePanel));
         all.extend([SwapColorTarget, SwapFillStroke, DefaultColors, Deselect]);
@@ -699,34 +694,6 @@ impl CommandId {
                 "cmd-actual-size-100pct",
                 None,
                 const { &[sc(CMD, Key::Num1)] },
-                Workspace,
-                NeedsProject,
-            ),
-            SetViewMode(ViewMode::TwoD) => m(
-                "cmd-2d-canvas",
-                Some(icons::VIEW_2D),
-                const { &[sc(CMD_ALT, Key::Num1)] },
-                Workspace,
-                NeedsProject,
-            ),
-            SetViewMode(ViewMode::ThreeD) => m(
-                "cmd-3d-preview",
-                Some(icons::VIEW_3D),
-                const { &[sc(CMD_ALT, Key::Num2)] },
-                Workspace,
-                NeedsProject,
-            ),
-            SetViewMode(ViewMode::Split) => m(
-                "cmd-split-view",
-                Some(icons::VIEW_SPLIT),
-                const { &[sc(CMD_ALT, Key::Num3)] },
-                Workspace,
-                NeedsProject,
-            ),
-            TogglePreview => m(
-                "cmd-show-3d-preview",
-                Some(icons::PREVIEW_3D),
-                &[],
                 Workspace,
                 NeedsProject,
             ),

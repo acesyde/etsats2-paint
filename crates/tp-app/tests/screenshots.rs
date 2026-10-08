@@ -10,7 +10,6 @@ use std::path::PathBuf;
 
 use egui::Vec2;
 use egui_kittest::kittest::Queryable;
-use tp_app::layout::ViewMode;
 use tp_app::prefs::{Prefs, RecentProject};
 
 fn out_dir() -> PathBuf {
@@ -58,9 +57,6 @@ fn render_screens() {
         h.run();
         h.get_by_label("Create").click();
         save(&mut h, &format!("workspace_{suffix}"));
-
-        h.state_mut().prefs.layout.view_mode = ViewMode::Split;
-        save(&mut h, &format!("workspace_split_{suffix}"));
     }
 
     let mut h = common::wgpu_harness_with(Prefs::default(), Vec2::new(1440.0, 900.0));

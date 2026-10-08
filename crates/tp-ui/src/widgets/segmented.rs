@@ -16,7 +16,7 @@ pub struct Segment<'a, T> {
     pub shortcut: Option<String>,
 }
 
-/// Row of mutually exclusive choices (e.g. 2D / 3D / Split).
+/// Row of mutually exclusive choices (e.g. PNG / DDS).
 ///
 /// The selected segment uses a raised fill, semibold text and an accent
 /// underline, so selection does not depend on color alone.
