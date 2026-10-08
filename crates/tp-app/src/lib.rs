@@ -25,6 +25,7 @@ pub mod recovery;
 pub mod saver;
 pub mod snap;
 pub mod state;
+pub mod symbol_ops;
 pub mod text_engine;
 pub mod text_input;
 pub mod text_session;

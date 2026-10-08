@@ -109,6 +109,7 @@ pub const TRANSFORM: &str = ph::BOUNDING_BOX;
 pub const ASSETS: &str = ph::IMAGES;
 pub const VEHICLE: &str = ph::TRUCK;
 pub const GROUP: &str = ph::FOLDER_SIMPLE;
+pub const SYMBOL: &str = ph::SHAPES;
 pub const UNGROUP: &str = ph::FOLDER_SIMPLE_DASHED;
 pub const NEW_LAYER: &str = ph::STACK_PLUS;
 pub const VISIBLE: &str = ph::EYE;

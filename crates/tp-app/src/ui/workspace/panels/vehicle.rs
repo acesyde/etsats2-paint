@@ -220,7 +220,8 @@ fn flagged(status: Option<TemplateStatus>) -> bool {
 
 /// A texture: name and size; clicking makes it active.
 fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
-    let active = env.ws.project.active_surface == i;
+    // No texture is highlighted while a symbol is edited.
+    let active = env.ws.project.active_surface == i && !env.ws.is_editing_symbol();
     let surface = &env.ws.project.surfaces[i];
     let name = surface.name.clone();
     let size = surface.size;

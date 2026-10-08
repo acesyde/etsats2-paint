@@ -36,6 +36,7 @@ impl Workspace {
                 OperandProblem::OpenLine => "reason-combine-open-line",
                 OperandProblem::Text => "reason-combine-text",
                 OperandProblem::Image => "reason-combine-image",
+                OperandProblem::Instance => "reason-instance-look",
             });
         }
         (objects.len() < 2).then_some("reason-select-two-shapes")

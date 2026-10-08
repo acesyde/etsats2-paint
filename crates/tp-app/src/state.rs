@@ -433,6 +433,11 @@ impl AppState {
                     ws.project.active_surface,
                 )
                 .len(),
+                editing_symbol: ws.is_editing_symbol(),
+                selection_has_instance: ws.selection_has_instance(),
+                only_instances: !ws.selection.is_empty()
+                    && ws.selected_objects().iter().all(|o| o.is_instance()),
+                single_instance: ws.selected_instance_symbol().is_some(),
             },
             None => EditContext::default(),
         }
@@ -583,7 +588,13 @@ impl AppState {
             CommandId::Undo => self.with_workspace(Workspace::undo),
             CommandId::Redo => self.with_workspace(Workspace::redo),
             CommandId::SelectAll => self.with_workspace(Workspace::select_all),
-            CommandId::Deselect => self.with_workspace(Workspace::deselect),
+            CommandId::Deselect => self.with_workspace(|ws| {
+                if ws.selection.is_empty() && ws.points.is_empty() {
+                    ws.finish_symbol_edit(now);
+                } else {
+                    ws.deselect();
+                }
+            }),
             CommandId::Delete => self.with_workspace(|ws| {
                 if ws.points.is_empty() {
                     ws.delete_selection(now);
@@ -650,6 +661,18 @@ impl AppState {
             }
             CommandId::Group => self.with_workspace(|ws| ws.group_selection(now)),
             CommandId::Ungroup => self.with_workspace(|ws| ws.ungroup_selection(now)),
+            CommandId::ConvertToSymbol => self.with_workspace(|ws| {
+                ws.convert_to_symbol(now);
+            }),
+            CommandId::EditSymbol => self.with_workspace(|ws| {
+                if let Some(id) = ws.selected_instance_symbol() {
+                    ws.edit_symbol(id, now);
+                }
+            }),
+            CommandId::DetachInstance => {
+                self.with_workspace(|ws| ws.detach_selected_instances(now));
+            }
+            CommandId::FinishSymbol => self.with_workspace(|ws| ws.finish_symbol_edit(now)),
             CommandId::NewLayer => self.with_workspace(|ws| ws.new_layer(now)),
             CommandId::SwapColorTarget => self.with_workspace(|ws| {
                 ws.panels.color_target = match ws.panels.color_target {
@@ -914,6 +937,9 @@ fn keeps_text_session(id: CommandId) -> bool {
 
 /// Whether a command can run in the current state.
 pub fn is_enabled(id: CommandId, edit: &EditContext) -> bool {
+    if edit.editing_symbol && id.needs_texture() {
+        return false;
+    }
     match id.meta().availability {
         Availability::Always => true,
         Availability::NeedsProject => edit.has_project,
@@ -925,6 +951,12 @@ pub fn is_enabled(id: CommandId, edit: &EditContext) -> bool {
 /// Tooltip explaining why a command is disabled in the current state
 /// (combine commands name what blocks them).
 pub fn disabled_reason_for(id: CommandId, edit: &EditContext) -> Option<&'static str> {
+    if edit.editing_symbol && id.needs_texture() {
+        return Some("reason-editing-symbol");
+    }
+    if edit.only_instances && id.changes_shapes() {
+        return Some("reason-instance-look");
+    }
     match (id, edit.combine_block) {
         (CommandId::Combine(_), Some(reason)) if edit.has_selection => Some(reason),
         _ => disabled_reason(id),

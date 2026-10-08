@@ -31,7 +31,10 @@ fn new_style_blocked(env: &PanelEnv<'_>, text: bool) -> Option<String> {
             if text {
                 o.text.is_some()
             } else {
-                !matches!(o.kind, ShapeKind::Group | ShapeKind::Image { .. })
+                !matches!(
+                    o.kind,
+                    ShapeKind::Group | ShapeKind::Image { .. } | ShapeKind::Instance { .. }
+                )
             }
         }),
         _ => false,

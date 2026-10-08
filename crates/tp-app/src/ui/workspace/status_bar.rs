@@ -61,10 +61,13 @@ pub fn show(ui: &mut Ui, ws: &Workspace, view_mode: ViewMode) {
         divider(ui);
         // "Vehicle › Texture", shortened when too long.
         let active = ws.project.active_surface;
-        let name = ws.project.surface_names(active).map_or_else(
-            || ws.project.surface().name.clone(),
-            |(v, t)| format!("{v} › {t}"),
-        );
+        let name = match ws.project.edited_symbol() {
+            Some(s) => tr!("status-symbol", name = s.name.as_str()),
+            None => ws.project.surface_names(active).map_or_else(
+                || ws.project.surface().name.clone(),
+                |(v, t)| format!("{v} › {t}"),
+            ),
+        };
         let label =
             egui::Label::new(RichText::new(&name).small().color(color::TEXT_SECONDARY)).truncate();
         ui.add(label).on_hover_text(&name);

@@ -38,6 +38,14 @@ pub enum ShapeKind {
     Image {
         asset: AssetId,
     },
+    /// An instance of a symbol: `placement` maps the symbol's coordinates
+    /// onto the surface (a negative determinant mirrors it); `children`
+    /// hold the symbol's content expanded through it, and the frame is
+    /// derived from them as a group's.
+    Instance {
+        symbol: SymbolId,
+        placement: Affine,
+    },
 }
 
 /// Identifier of a project asset (imported image or SVG).
@@ -51,6 +59,10 @@ pub struct SwatchId(pub u64);
 /// Identifier of a shared style (graphic or text).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct StyleId(pub u64);
+
+/// Identifier of a symbol.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct SymbolId(pub u64);
 
 /// Horizontal text alignment around the text anchor.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -131,11 +143,22 @@ impl ShapeKind {
             Self::Group => "Group",
             Self::Text => "Text",
             Self::Image { .. } => "Image",
+            Self::Instance { .. } => "Instance",
         }
     }
 
     pub fn is_group(self) -> bool {
         matches!(self, Self::Group)
+    }
+
+    pub fn is_instance(self) -> bool {
+        matches!(self, Self::Instance { .. })
+    }
+
+    /// Kinds whose children are drawn, measured and hit-tested: groups and
+    /// instances.
+    pub fn has_content(self) -> bool {
+        matches!(self, Self::Group | Self::Instance { .. })
     }
 
     /// Shapes that Convert to Path turns into paths.
@@ -501,9 +524,30 @@ impl Object {
         self.kind.is_group()
     }
 
+    pub fn is_instance(&self) -> bool {
+        self.kind.is_instance()
+    }
+
+    /// Whether the object's children are drawn and measured (a group or an
+    /// instance).
+    pub fn has_content(&self) -> bool {
+        self.kind.has_content()
+    }
+
+    /// Composes `transform` (document space) into an instance's placement.
+    pub(crate) fn place_by(&mut self, transform: Affine) {
+        if let ShapeKind::Instance { placement, .. } = &mut self.kind {
+            *placement = transform * *placement;
+        }
+    }
+
     /// Applies `f` to this object if it is a shape, or to every shape in
-    /// its subtree if it is a group (then refreshes group frames).
+    /// its subtree if it is a group (then refreshes group frames). An
+    /// instance's look is its symbol's: it is left out.
     pub fn for_each_shape(&mut self, f: &mut impl FnMut(&mut Object)) {
+        if self.is_instance() {
+            return;
+        }
         if self.is_group() {
             for child in &mut self.children {
                 Arc::make_mut(child).for_each_shape(f);
@@ -514,9 +558,12 @@ impl Object {
         }
     }
 
-    /// Shapes of this object's subtree (itself if it is a shape).
+    /// Shapes of this object's subtree (itself if it is a shape; none for
+    /// an instance, whose look is its symbol's).
     pub fn shapes(&self) -> Vec<&Object> {
-        if self.is_group() {
+        if self.is_instance() {
+            Vec::new()
+        } else if self.is_group() {
             self.children.iter().flat_map(|c| c.shapes()).collect()
         } else {
             vec![self]
@@ -526,6 +573,7 @@ impl Object {
     /// Moves the object and all its descendants by `delta`.
     pub fn translate_deep(&mut self, delta: Vec2) {
         self.frame.center += delta;
+        self.place_by(Affine::translate(delta));
         for child in &mut self.children {
             Arc::make_mut(child).translate_deep(delta);
         }
@@ -537,7 +585,7 @@ impl Object {
             return;
         }
         match self.kind {
-            ShapeKind::Group => {
+            ShapeKind::Group | ShapeKind::Instance { .. } => {
                 for child in &self.children {
                     child.extent_points(out);
                 }
@@ -555,7 +603,7 @@ impl Object {
     /// Recomputes a group's frame as the bounds of its visible children,
     /// measured in the group's own rotation. No-op for shapes.
     pub fn refresh_group_frame(&mut self) {
-        if !self.is_group() {
+        if !self.has_content() {
             return;
         }
         let mut points = Vec::new();
@@ -587,6 +635,7 @@ impl Object {
             }
             ShapeKind::Rectangle { .. }
             | ShapeKind::Group
+            | ShapeKind::Instance { .. }
             | ShapeKind::Text
             | ShapeKind::Image { .. } => rect.to_path(0.01),
             ShapeKind::Ellipse => Ellipse::from_rect(rect).to_path(0.01),
@@ -656,7 +705,7 @@ impl Object {
             ShapeKind::Rectangle { .. } | ShapeKind::Text | ShapeKind::Image { .. } => {
                 self.frame.bounding_box()
             }
-            ShapeKind::Group => {
+            ShapeKind::Group | ShapeKind::Instance { .. } => {
                 let mut points = Vec::new();
                 self.extent_points(&mut points);
                 match points.first() {
@@ -673,7 +722,7 @@ impl Object {
     /// points up to `tolerance` texture pixels outside it. For a group, whether
     /// any visible child contains it.
     pub fn contains(&self, point: Point, tolerance: f64) -> bool {
-        if self.is_group() {
+        if self.has_content() {
             return self
                 .children
                 .iter()

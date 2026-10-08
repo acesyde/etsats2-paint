@@ -19,6 +19,10 @@ cmd-select-all = Tout sélectionner
 cmd-edit-text = Modifier le texte
 cmd-group = Grouper
 cmd-ungroup = Dissocier
+cmd-convert-to-symbol = Convertir en symbole
+cmd-edit-symbol = Modifier le symbole
+cmd-detach-instance = Détacher l’instance
+cmd-finish-symbol = Terminer la modification du symbole
 cmd-convert-to-path = Convertir en tracé
 cmd-create-outlines = Vectoriser le texte
 cmd-bring-forward = Déplacer vers l’avant
@@ -136,6 +140,10 @@ tool-hand = Main
 reason-combine-open-line = Les lignes ouvertes n’ont pas de surface à combiner.
 reason-combine-text = Les textes ne peuvent pas être combinés : utilisez d’abord Vectoriser le texte.
 reason-combine-image = Les images ne peuvent pas être combinées.
+reason-instance-look = Une instance montre son symbole : modifiez le symbole, ou détachez l’instance.
+reason-editing-symbol = Pas pendant la modification d’un symbole : cliquez d’abord sur Terminé.
+reason-no-instance = Sélectionnez une instance.
+reason-not-editing-symbol = Aucun symbole n’est en cours de modification.
 
 ## Vehicles
 

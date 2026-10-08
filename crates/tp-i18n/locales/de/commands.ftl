@@ -19,6 +19,10 @@ cmd-select-all = Alles auswählen
 cmd-edit-text = Text bearbeiten
 cmd-group = Gruppieren
 cmd-ungroup = Gruppierung aufheben
+cmd-convert-to-symbol = In Symbol umwandeln
+cmd-edit-symbol = Symbol bearbeiten
+cmd-detach-instance = Instanz lösen
+cmd-finish-symbol = Symbolbearbeitung beenden
 cmd-convert-to-path = In Pfad umwandeln
 cmd-create-outlines = In Pfade umwandeln
 cmd-bring-forward = Schrittweise nach vorne
@@ -136,6 +140,10 @@ tool-hand = Hand
 reason-combine-open-line = Offene Linien haben keine Fläche zum Kombinieren.
 reason-combine-text = Texte können nicht kombiniert werden: Verwenden Sie zuerst „In Pfade umwandeln“.
 reason-combine-image = Bilder können nicht kombiniert werden.
+reason-instance-look = Eine Instanz zeigt ihr Symbol: Bearbeiten Sie das Symbol oder lösen Sie die Instanz.
+reason-editing-symbol = Nicht während ein Symbol bearbeitet wird: Klicken Sie zuerst auf Fertig.
+reason-no-instance = Wählen Sie eine Instanz aus.
+reason-not-editing-symbol = Es wird kein Symbol bearbeitet.
 
 ## Vehicles
 

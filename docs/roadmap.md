@@ -110,7 +110,7 @@ so **copy from cabin** (same coordinates) is offered. The 3D preview will
 make placement easier later.
 
 How sharing works (palette, styles and copy from cabin shipped in
-`brand-kit`; symbols come next, in `symbols`):
+`brand-kit`, symbols in `symbols`):
 - **Linked, not copied:** a color picked from a palette swatch, and an object
   given a style, follow later edits of the swatch or the style on every
   texture. A link holds while the value still equals its source: changing an
@@ -119,6 +119,14 @@ How sharing works (palette, styles and copy from cabin shipped in
 - **No partial overrides:** an object follows a whole style or none.
 - **A symbol is edited in its own view** (like a temporary texture, with
   every tool), not in place through an instance's transform.
+- **An instance has no override:** only its position, size, rotation, flip,
+  opacity, visibility and lock are its own. A variant is a duplicated symbol,
+  or a detached instance (a plain group).
+- **Symbols don't nest:** converting a selection that holds an instance
+  detaches it first.
+- **Deleting a used symbol** turns its instances into groups that look the
+  same.
+- Files with symbols don't open in builds made before `symbols`.
 
 ### One game per project
 A project belongs to one game, ETS2 or ATS, set by its first vehicle: ETS2
@@ -148,15 +156,18 @@ fleets in both games has two projects (sharing a symbol library, later).
 
 | # | Change | What it does | Why now |
 |---|---|---|---|
-| 1 | `symbols` | Symbols: a logo, lettering or stripes defined once and placed as instances on every texture, each with its own position, scale and rotation; edited in their own view. | Completes the shared identity started by `brand-kit`: "reposition, don't redraw". |
-| 2 | `mod-export` | Exports the whole fleet as one ready-to-install mod. | The deliverable of the app. Needs the paint job model. |
-| 3 | `vehicle-marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once the format is stable. |
-| 4 | `distribution` | Release builds and installers. | Once a player can go from vehicle to mod. |
+| 1 | `mod-export` | Exports the whole fleet as one ready-to-install mod. | The deliverable of the app. Needs the paint job model. |
+| 2 | `vehicle-marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once the format is stable. |
+| 3 | `distribution` | Release builds and installers. | Once a player can go from vehicle to mod. |
 
 ## Shipped
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `symbols`: Convert to Symbol, the Symbols panel (Place, Edit, Rename,
+  Duplicate, Delete), a symbol edited in its own view with Done, Detach
+  Instance; instances move, resize, rotate and flip like objects and follow
+  every edit of their symbol on every texture;
 - `brand-kit`: named palette swatches that fills, strokes and gradient stops
   link to (Edit Swatch… recolors the fleet); linked graphic and text styles
   in a new Styles panel; Copy From Cabin… between the main textures of a

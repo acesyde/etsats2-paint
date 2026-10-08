@@ -4,6 +4,7 @@ panel-properties = Propriétés
 panel-layers = Calques
 panel-colors = Couleurs
 panel-styles = Styles
+panel-symbols = Symboles
 panel-stroke = Contour
 panel-transform = Transformation
 panel-assets = Ressources
@@ -16,6 +17,8 @@ empty-colors = Aucune couleur sélectionnée
 empty-colors-hint = Choisissez un fond ou un contour pour modifier sa couleur.
 empty-styles = Aucun style
 empty-styles-hint = Enregistrez des apparences à réutiliser sur chaque texture.
+empty-symbols = Aucun symbole
+empty-symbols-hint = Convertissez un logo ou un lettrage en symbole pour le placer sur chaque texture.
 empty-stroke = Aucun contour
 empty-stroke-hint = Sélectionnez un objet pour modifier son contour.
 empty-transform = Rien à transformer
@@ -294,3 +297,28 @@ styles-redefine = Redéfinir d’après la sélection
 styles-select-users = Sélectionner les utilisateurs sur cette texture
 styles-delete = Supprimer le style
 styles-name = Nom du style
+
+## Symbols panel
+
+symbols-prefix = Symbole
+symbols-copy-suffix = copie
+symbols-empty = Dessinez une fois un logo ou un lettrage, sélectionnez-le et choisissez Convertir en symbole : placez-le sur chaque texture, et modifiez-le une fois pour toutes.
+symbols-instances = { $count ->
+    [one] { $count } instance
+   *[other] { $count } instances
+    }
+symbols-item = Symbole { $name }
+symbols-place = Placer { $name }
+symbols-edit = Modifier { $name }
+symbols-rename = Renommer
+symbols-duplicate = Dupliquer
+symbols-delete = Supprimer le symbole
+symbols-delete-confirm = Supprimer { $name } ? { $count ->
+    [one] Son instance devient un groupe à l’identique.
+   *[other] Ses { $count } instances deviennent des groupes à l’identique.
+    }
+symbols-name = Nom du symbole
+symbol-bar-editing = Modification du symbole { $name }
+symbol-bar-done = Terminé
+props-instance-of = Instance de { $name }
+instance-look-in-symbol = Une instance montre son symbole : modifiez le symbole pour changer son apparence, ou détachez l’instance.

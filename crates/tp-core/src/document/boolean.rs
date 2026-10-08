@@ -52,6 +52,8 @@ pub enum OperandProblem {
     /// Texts must be outlined first.
     Text,
     Image,
+    /// An instance's shapes are its symbol's: edit or detach it first.
+    Instance,
 }
 
 /// Why an object cannot take part in a combination, if it cannot.
@@ -62,6 +64,7 @@ pub fn operand_problem(o: &Object) -> Option<OperandProblem> {
         ShapeKind::Path => Some(OperandProblem::OpenLine),
         ShapeKind::Text => Some(OperandProblem::Text),
         ShapeKind::Image { .. } => Some(OperandProblem::Image),
+        ShapeKind::Instance { .. } => Some(OperandProblem::Instance),
         ShapeKind::Group => o
             .children
             .iter()

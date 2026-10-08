@@ -11,6 +11,7 @@ pub enum PanelKind {
     Layers,
     Colors,
     Styles,
+    Symbols,
     Stroke,
     Transform,
     Assets,
@@ -22,11 +23,12 @@ pub enum PanelKind {
 
 impl PanelKind {
     /// The panels of the right-hand column.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::Properties,
         Self::Layers,
         Self::Colors,
         Self::Styles,
+        Self::Symbols,
         Self::Stroke,
         Self::Transform,
         Self::Assets,
@@ -38,6 +40,7 @@ impl PanelKind {
             Self::Layers => "panel-layers",
             Self::Colors => "panel-colors",
             Self::Styles => "panel-styles",
+            Self::Symbols => "panel-symbols",
             Self::Stroke => "panel-stroke",
             Self::Transform => "panel-transform",
             Self::Assets => "panel-assets",
@@ -51,6 +54,7 @@ impl PanelKind {
             Self::Layers => icons::LAYERS,
             Self::Colors => icons::COLORS,
             Self::Styles => icons::STYLES,
+            Self::Symbols => icons::SYMBOL,
             Self::Stroke => icons::STROKE,
             Self::Transform => icons::TRANSFORM,
             Self::Assets => icons::ASSETS,
@@ -65,6 +69,7 @@ impl PanelKind {
             Self::Layers => ("empty-layers", "empty-layers-hint"),
             Self::Colors => ("empty-colors", "empty-colors-hint"),
             Self::Styles => ("empty-styles", "empty-styles-hint"),
+            Self::Symbols => ("empty-symbols", "empty-symbols-hint"),
             Self::Stroke => ("empty-stroke", "empty-stroke-hint"),
             Self::Transform => ("empty-transform", "empty-transform-hint"),
             Self::Assets => ("empty-assets", "empty-assets-hint"),
@@ -144,6 +149,7 @@ impl Default for WorkspaceLayout {
                     collapsed: matches!(
                         kind,
                         PanelKind::Styles
+                            | PanelKind::Symbols
                             | PanelKind::Stroke
                             | PanelKind::Transform
                             | PanelKind::Assets
@@ -311,8 +317,8 @@ mod tests {
     fn layout_from_before_the_styles_panel() {
         let mut saved = WorkspaceLayout::default();
         saved.panels.retain(|s| s.kind != PanelKind::Styles);
-        saved.panels[2].collapsed = true; // Colors
-        saved.panels[3].open = false; // Stroke
+        saved.slot_mut(PanelKind::Colors).collapsed = true;
+        saved.slot_mut(PanelKind::Stroke).open = false;
         let layout = saved.clone().sanitized();
         let kinds: Vec<PanelKind> = layout.panels.iter().map(|s| s.kind).collect();
         assert_eq!(kinds, PanelKind::ALL);
@@ -320,6 +326,19 @@ mod tests {
         assert!(styles.open && styles.collapsed);
         assert!(layout.slot(PanelKind::Colors).collapsed);
         assert!(!layout.is_open(PanelKind::Stroke));
+    }
+
+    #[test]
+    fn layout_from_before_the_symbols_panel() {
+        let mut saved = WorkspaceLayout::default();
+        saved.panels.retain(|s| s.kind != PanelKind::Symbols);
+        saved.slot_mut(PanelKind::Styles).collapsed = false;
+        let layout = saved.sanitized();
+        let kinds: Vec<PanelKind> = layout.panels.iter().map(|s| s.kind).collect();
+        assert_eq!(kinds, PanelKind::ALL);
+        let symbols = layout.slot(PanelKind::Symbols);
+        assert!(symbols.open && symbols.collapsed);
+        assert!(!layout.slot(PanelKind::Styles).collapsed);
     }
 
     #[test]

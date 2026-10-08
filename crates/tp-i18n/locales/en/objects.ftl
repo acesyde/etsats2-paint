@@ -7,6 +7,7 @@ object-polygon = Polygon
 object-path = Path
 object-line = Line
 object-group = Group
+object-instance = Instance
 object-text = Text
 object-image = Image
 object-layer-n = Layer { $n }

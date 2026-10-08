@@ -103,7 +103,60 @@ fn rich_project() -> Project {
     p.add_guide(tp_core::Guide::new(tp_core::Axis::Horizontal, 1200.5));
     add_brand(&mut p);
     add_vehicle(&mut p);
+    add_symbol(&mut p);
     p
+}
+
+/// The symbol "Logo" (a circle and a text), shown by its first instance on
+/// the main surface and by a rotated, mirrored instance on the second one.
+fn add_symbol(p: &mut Project) {
+    let mut circle = Object::new(
+        ObjectId(0),
+        ShapeKind::Ellipse,
+        Frame::new(Point::new(3000.0, 3000.0), Size::new(200.0, 200.0), 0.0),
+    );
+    circle.fill = Paint::Solid(Rgba::rgb(0x20, 0x40, 0x80));
+    let mut text = Object::new(
+        ObjectId(0),
+        ShapeKind::Text,
+        Frame::new(Point::new(3000.0, 3200.0), Size::new(300.0, 80.0), 0.0),
+    );
+    text.text = Some(TextBlock::new("ACE", CharStyle::default()));
+    let (a, b) = (p.add(circle), p.add(text));
+    let (logo, _) = p.convert_to_symbol(&[a, b], "Symbol").unwrap();
+    p.rename_symbol(logo, "Logo");
+    let placement = tp_core::kurbo::Affine::translate((800.0, 600.0))
+        * tp_core::kurbo::Affine::rotate(0.6)
+        * tp_core::kurbo::Affine::scale_non_uniform(-0.5, 0.5);
+    let second = p.new_instance(logo, placement).unwrap();
+    p.active_surface = 1;
+    p.add(second);
+    p.active_surface = 0;
+    p.refresh_instances();
+}
+
+/// The surfaces with every instance's content ids cleared (they are new
+/// after opening a file).
+fn without_content_ids(p: &Project) -> Vec<tp_core::Surface> {
+    fn clear(o: &mut Object, inside: bool) {
+        if inside {
+            o.id = ObjectId(0);
+        }
+        let inside = inside || o.is_instance();
+        for c in &mut o.children {
+            clear(Arc::make_mut(c), inside);
+        }
+    }
+    p.surfaces
+        .iter()
+        .cloned()
+        .map(|mut s| {
+            for o in &mut s.objects {
+                clear(Arc::make_mut(o), false);
+            }
+            s
+        })
+        .collect()
 }
 
 const COMPANY_RED: Rgba = Rgba::rgb(0xC0, 0x10, 0x20);
@@ -363,7 +416,10 @@ fn assert_same_document(a: &Project, b: &Project) {
     assert_eq!(a.palette, b.palette);
     assert_eq!(a.graphic_styles, b.graphic_styles);
     assert_eq!(a.text_styles, b.text_styles);
-    assert_eq!(a.surfaces, b.surfaces);
+    assert_eq!(a.symbols, b.symbols);
+    // Instance content is rebuilt on opening with new ids: compare it
+    // without them.
+    assert_eq!(without_content_ids(a), without_content_ids(b));
     assert_eq!(a.assets, b.assets);
     assert_eq!(a.vehicles, b.vehicles);
 }
@@ -609,8 +665,11 @@ fn v1_fixture_opens() {
     assert!(!opened.migrated);
     assert_same_document(&opened.project, &rich_project());
     let objects = &opened.project.surface().objects;
-    // The vector and gradient objects, then the brand kit's three.
-    assert_eq!(objects.len(), 13);
+    // The vector and gradient objects, the brand kit's three, then the
+    // instance of "Logo".
+    assert_eq!(objects.len(), 14);
+    assert!(objects[13].is_instance());
+    assert_eq!(opened.project.symbols[0].name, "Logo");
     let fade = objects[7].fill.gradient().unwrap();
     assert_eq!(fade.kind, GradientKind::Linear);
     assert_eq!(fade.stops(), stops3().as_slice());
@@ -837,4 +896,48 @@ fn text_style_without_its_look_opens_with_the_default_look() {
     assert_eq!((look.stroke, look.opacity), (None, 1.0));
     // The grey lettering no longer matches it.
     assert_eq!(named(&back, "Brand lettering").text.unwrap().style_id, None);
+}
+
+#[test]
+fn symbols_round_trip() {
+    let p = rich_project();
+    let mut opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap())
+        .unwrap()
+        .project;
+    assert_same_document(&p, &opened);
+    let logo = opened.symbols[0].id;
+    assert_eq!(opened.symbols[0].name, "Logo");
+    assert_eq!(opened.instance_count(logo), 2);
+    // Both instances follow an edit of "Logo".
+    opened.editing_symbol = Some(logo);
+    let mut circle = (*opened.surface().objects[0]).clone();
+    circle.fill = Paint::Solid(Rgba::rgb(9, 9, 9));
+    opened.surface_mut().replace(&[circle]);
+    opened.editing_symbol = None;
+    opened.refresh_instances();
+    let filled = |s: &tp_core::Surface| {
+        s.objects
+            .iter()
+            .filter(|o| o.is_instance())
+            .all(|o| o.children[0].fill == Paint::Solid(Rgba::rgb(9, 9, 9)))
+    };
+    assert!(filled(&opened.surfaces[0]) && filled(&opened.surfaces[1]));
+    let mirrored = opened.surfaces[1]
+        .objects
+        .iter()
+        .find_map(|o| match o.kind {
+            ShapeKind::Instance { placement, .. } => Some(placement),
+            _ => None,
+        })
+        .unwrap();
+    assert!(mirrored.determinant() < 0.0);
+}
+
+#[test]
+fn files_without_symbols_have_no_symbols_field() {
+    let bytes = tp_file::to_bytes(&plain_project()).unwrap();
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+    let mut doc = String::new();
+    std::io::Read::read_to_string(&mut zip.by_name("project.ron").unwrap(), &mut doc).unwrap();
+    assert!(!doc.contains("symbols"), "{doc}");
 }

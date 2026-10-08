@@ -4,6 +4,7 @@ panel-properties = Propiedades
 panel-layers = Capas
 panel-colors = Colores
 panel-styles = Estilos
+panel-symbols = Símbolos
 panel-stroke = Trazo
 panel-transform = Transformar
 panel-assets = Recursos
@@ -16,6 +17,8 @@ empty-colors = Ningún color seleccionado
 empty-colors-hint = Elija un relleno o un trazo para editar su color.
 empty-styles = Aún no hay estilos
 empty-styles-hint = Guarde apariencias para reutilizarlas en cada textura.
+empty-symbols = Aún no hay símbolos
+empty-symbols-hint = Convierta un logotipo o una rotulación en símbolo para colocarlo en cada textura.
 empty-stroke = Sin trazo
 empty-stroke-hint = Seleccione un objeto para editar su contorno.
 empty-transform = Nada que transformar
@@ -291,3 +294,28 @@ styles-redefine = Redefinir a partir de la selección
 styles-select-users = Seleccionar los usos en esta textura
 styles-delete = Eliminar estilo
 styles-name = Nombre del estilo
+
+## Symbols panel
+
+symbols-prefix = Símbolo
+symbols-copy-suffix = copia
+symbols-empty = Dibuje una vez un logotipo o una rotulación, selecciónelo y elija Convertir en símbolo: colóquelo en cada textura y edítelo una sola vez para todas.
+symbols-instances = { $count ->
+    [one] { $count } instancia
+   *[other] { $count } instancias
+ }
+symbols-item = Símbolo { $name }
+symbols-place = Colocar { $name }
+symbols-edit = Editar { $name }
+symbols-rename = Cambiar nombre
+symbols-duplicate = Duplicar
+symbols-delete = Eliminar símbolo
+symbols-delete-confirm = ¿Eliminar { $name }? { $count ->
+    [one] Su instancia se convierte en un grupo idéntico.
+   *[other] Sus { $count } instancias se convierten en grupos idénticos.
+ }
+symbols-name = Nombre del símbolo
+symbol-bar-editing = Editando el símbolo { $name }
+symbol-bar-done = Hecho
+props-instance-of = Instancia de { $name }
+instance-look-in-symbol = Una instancia muestra su símbolo: edite el símbolo para cambiar su aspecto, o separe la instancia.

@@ -12,7 +12,7 @@ use std::sync::Arc;
 use crate::document::{
     CharStyle, Object, ObjectId, Paint, Rgba, ShapeKind, StrokeStyle, StyleId, SwatchId, tree,
 };
-use crate::project::{Project, Surface};
+use crate::project::Project;
 
 /// A named palette color.
 #[derive(Clone, Debug, PartialEq)]
@@ -98,7 +98,10 @@ fn same_stroke(a: Option<&StrokeStyle>, b: Option<&StrokeStyle>) -> bool {
 
 /// Whether an object can follow a graphic style (shapes and texts).
 fn takes_graphic_style(o: &Object) -> bool {
-    !matches!(o.kind, ShapeKind::Group | ShapeKind::Image { .. })
+    !matches!(
+        o.kind,
+        ShapeKind::Group | ShapeKind::Image { .. } | ShapeKind::Instance { .. }
+    )
 }
 
 impl Look {
@@ -262,7 +265,8 @@ fn unlink_paint(
 
 /// Runs `f` on every object of `list` and their descendants (children
 /// first). An object is replaced only when `f` or a descendant changed it,
-/// so unchanged objects keep their `Arc`.
+/// so unchanged objects keep their `Arc`. An instance's children, its
+/// expanded content, are left out: they follow its symbol.
 pub(crate) fn update_tree(
     list: &mut [Arc<Object>],
     f: &mut dyn FnMut(&mut Object) -> bool,
@@ -270,7 +274,7 @@ pub(crate) fn update_tree(
     let mut any = false;
     for arc in list.iter_mut() {
         let mut o = (**arc).clone();
-        let mut changed = update_tree(&mut o.children, f);
+        let mut changed = !o.is_instance() && update_tree(&mut o.children, f);
         changed |= f(&mut o);
         if changed {
             *arc = Arc::new(o);
@@ -280,14 +284,19 @@ pub(crate) fn update_tree(
     any
 }
 
-fn update_surfaces(surfaces: &mut [Surface], f: &mut dyn FnMut(&mut Object) -> bool) {
-    for s in surfaces {
+/// Runs `f` on every object of the textures and of the symbols' content.
+fn update_surfaces(project: &mut Project, f: &mut dyn FnMut(&mut Object) -> bool) {
+    let symbols = project.symbols.iter_mut().map(|s| &mut s.surface);
+    for s in project.surfaces.iter_mut().chain(symbols) {
         update_tree(&mut s.objects, f);
     }
 }
 
 /// The first "`prefix` N" not in `names`.
-fn numbered_name<'a>(prefix: &str, names: impl Iterator<Item = &'a str> + Clone) -> String {
+pub(crate) fn numbered_name<'a>(
+    prefix: &str,
+    names: impl Iterator<Item = &'a str> + Clone,
+) -> String {
     (1..)
         .map(|n| format!("{prefix} {n}"))
         .find(|candidate| !names.clone().any(|n| n == candidate))
@@ -298,6 +307,9 @@ fn numbered_name<'a>(prefix: &str, names: impl Iterator<Item = &'a str> + Clone)
 fn with_descendants(list: &[Arc<Object>], ids: &[ObjectId]) -> Vec<ObjectId> {
     fn walk(o: &Object, out: &mut Vec<ObjectId>) {
         out.push(o.id);
+        if o.is_instance() {
+            return;
+        }
         for c in &o.children {
             walk(c, out);
         }
@@ -370,7 +382,7 @@ impl Project {
         for style in &mut self.text_styles {
             style.look.recolor(id, color);
         }
-        update_surfaces(&mut self.surfaces, &mut |o| {
+        update_surfaces(self, &mut |o| {
             let mut changed = recolor(&mut o.fill, o.fill_swatch, id, color);
             if let Some(s) = &mut o.stroke {
                 let link = s.swatch;
@@ -378,6 +390,7 @@ impl Project {
             }
             changed
         });
+        self.refresh_instances();
     }
 
     /// Drops every link whose value no longer matches its source, or whose
@@ -399,7 +412,7 @@ impl Project {
             .collect();
         let text: HashMap<StyleId, TextStyle> =
             self.text_styles.iter().map(|s| (s.id, s.clone())).collect();
-        update_surfaces(&mut self.surfaces, &mut |o| {
+        update_surfaces(self, &mut |o| {
             let mut changed = unlink_paint(&mut o.fill, &mut o.fill_swatch, &swatches);
             if let Some(s) = &mut o.stroke {
                 let mut link = s.swatch;
@@ -430,6 +443,8 @@ impl Project {
             }
             changed
         });
+        // Symbol content may have changed links: instances follow.
+        self.refresh_instances();
     }
 
     pub fn graphic_style(&self, id: StyleId) -> Option<&GraphicStyle> {
@@ -517,7 +532,7 @@ impl Project {
         };
         style.look = Look::of(&o);
         let style = style.clone();
-        update_surfaces(&mut self.surfaces, &mut |o| {
+        update_surfaces(self, &mut |o| {
             if o.style != Some(id) && o.id != from {
                 return false;
             }
@@ -525,6 +540,7 @@ impl Project {
             style.apply_to(o);
             *o != before
         });
+        self.refresh_instances();
         true
     }
 
@@ -541,7 +557,7 @@ impl Project {
             return false;
         };
         *style = new.clone();
-        update_surfaces(&mut self.surfaces, &mut |o| {
+        update_surfaces(self, &mut |o| {
             let follows = o.id == from || o.text.as_ref().is_some_and(|t| t.style_id == Some(id));
             if !follows {
                 return false;
@@ -549,6 +565,7 @@ impl Project {
             let before = o.clone();
             new.apply_to(o) && *o != before
         });
+        self.refresh_instances();
         true
     }
 
@@ -602,7 +619,9 @@ impl Project {
                 if o.style == Some(id) || o.text.as_ref().is_some_and(|t| t.style_id == Some(id)) {
                     out.push(o.id);
                 }
-                walk(&o.children, id, out);
+                if !o.is_instance() {
+                    walk(&o.children, id, out);
+                }
             }
         }
         let mut out = Vec::new();

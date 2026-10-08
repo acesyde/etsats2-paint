@@ -17,8 +17,8 @@ pub use color::{DEFAULT_FILL, Hsla, Hsva, Rgba};
 pub use history::{COALESCE_WINDOW, DEFAULT_MAX_STEPS, History};
 pub use object::{
     AssetId, Cap, CharStyle, DEFAULT_MITER_LIMIT, Dash, Frame, Join, LineStyle, MIN_SIZE, Object,
-    ObjectId, ShapeKind, StrokeAlign, StrokeStyle, StyleId, SwatchId, TextAlign, TextBlock,
-    convex_polygons_overlap, flatten_closed, flatten_subpaths, normalize_degrees,
+    ObjectId, ShapeKind, StrokeAlign, StrokeStyle, StyleId, SwatchId, SymbolId, TextAlign,
+    TextBlock, convex_polygons_overlap, flatten_closed, flatten_subpaths, normalize_degrees,
     segments_intersect,
 };
 pub use paint::{
@@ -29,5 +29,6 @@ pub use path::{
 };
 pub use stroke_region::stroke_region;
 pub use transform::{
-    Handle, ResizeOptions, angle_around, resize, rotate, selection_frame, snap_direction, translate,
+    Handle, ResizeOptions, angle_around, apply_affine, resize, rotate, selection_frame,
+    snap_direction, translate,
 };

@@ -5,6 +5,7 @@ panel-properties = Properties
 panel-layers = Layers
 panel-colors = Colors
 panel-styles = Styles
+panel-symbols = Symbols
 panel-stroke = Stroke
 panel-transform = Transform
 panel-assets = Assets
@@ -17,6 +18,8 @@ empty-colors = No color selected
 empty-colors-hint = Pick a fill or stroke to edit its color.
 empty-styles = No style yet
 empty-styles-hint = Save looks to reuse on every texture.
+empty-symbols = No symbol yet
+empty-symbols-hint = Convert a logo or a lettering to a symbol to place it on every texture.
 empty-stroke = No stroke
 empty-stroke-hint = Select an object to edit its outline.
 empty-transform = Nothing to transform
@@ -292,3 +295,28 @@ styles-redefine = Redefine from Selection
 styles-select-users = Select Users on This Texture
 styles-delete = Delete Style
 styles-name = Style name
+
+## Symbols panel
+
+symbols-prefix = Symbol
+symbols-copy-suffix = copy
+symbols-empty = Draw a logo or a lettering once, select it and choose Convert to Symbol: place it on every texture, and edit it once for all.
+symbols-instances = { $count ->
+    [one] { $count } instance
+   *[other] { $count } instances
+}
+symbols-item = Symbol { $name }
+symbols-place = Place { $name }
+symbols-edit = Edit { $name }
+symbols-rename = Rename
+symbols-duplicate = Duplicate
+symbols-delete = Delete Symbol
+symbols-delete-confirm = Delete { $name }? { $count ->
+    [one] Its instance becomes a group that looks the same.
+   *[other] Its { $count } instances become groups that look the same.
+}
+symbols-name = Symbol name
+symbol-bar-editing = Editing symbol { $name }
+symbol-bar-done = Done
+props-instance-of = Instance of { $name }
+instance-look-in-symbol = An instance shows its symbol: edit the symbol to change its look, or detach the instance.

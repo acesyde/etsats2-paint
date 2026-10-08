@@ -20,6 +20,10 @@ cmd-select-all = Select All
 cmd-edit-text = Edit Text
 cmd-group = Group
 cmd-ungroup = Ungroup
+cmd-convert-to-symbol = Convert to Symbol
+cmd-edit-symbol = Edit Symbol
+cmd-detach-instance = Detach Instance
+cmd-finish-symbol = Done Editing Symbol
 cmd-convert-to-path = Convert to Path
 cmd-create-outlines = Create Outlines
 cmd-bring-forward = Bring Forward
@@ -137,6 +141,10 @@ tool-hand = Hand
 reason-combine-open-line = Open lines have no area to combine.
 reason-combine-text = Texts cannot be combined: use Create Outlines first.
 reason-combine-image = Images cannot be combined.
+reason-instance-look = An instance shows its symbol: edit the symbol, or detach the instance.
+reason-editing-symbol = Not while a symbol is edited: click Done first.
+reason-no-instance = Select one instance.
+reason-not-editing-symbol = No symbol is being edited.
 
 ## Vehicles
 

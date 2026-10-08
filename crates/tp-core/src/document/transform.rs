@@ -205,6 +205,7 @@ fn resize_one(o: &Object, transform: Affine, sx: f64, sy: f64, bounds_rotation: 
         s.paint = paint;
     }
     o.remap_paints(&from, transform);
+    o.place_by(transform);
     for child in &mut o.children {
         *child = Arc::new(resize_one(child, transform, sx, sy, bounds_rotation));
     }
@@ -237,11 +238,36 @@ fn rotate_one(o: &Object, around: Affine, angle: f64) -> Object {
     let mut o = o.clone();
     o.frame.center = around * o.frame.center;
     o.frame.rotation_deg = normalize_degrees(o.frame.rotation_deg + angle);
+    o.place_by(around);
     for child in &mut o.children {
         *child = Arc::new(rotate_one(child, around, angle));
     }
     o.refresh_group_frame();
     o
+}
+
+/// Maps objects by any affine transform `a`. Paths and gradients take it
+/// exactly; frames take its rotation and per-axis scales, a skew being
+/// approximated as when a group is resized.
+pub fn apply_affine(objects: &[Object], a: Affine) -> Vec<Object> {
+    let [m0, m1, m2, m3, e, f] = a.as_coeffs();
+    let sx = m0.hypot(m1);
+    if sx < 1e-12 || (m0 * m3 - m1 * m2).abs() < 1e-12 {
+        return objects.to_vec();
+    }
+    // a = translate(e, f) · rotate(θ) · m, with m upper triangular: the
+    // per-axis scales (and a shear) in unrotated axes.
+    let theta = m1.atan2(m0);
+    let sy = (m0 * m3 - m1 * m2) / sx;
+    let m = Affine::rotate(-theta) * Affine::new([m0, m1, m2, m3, 0.0, 0.0]);
+    let around = Affine::translate((e, f)) * Affine::rotate(theta);
+    objects
+        .iter()
+        .map(|o| {
+            let scaled = resize_one(o, m, sx, sy, 0.0);
+            rotate_one(&scaled, around, theta.to_degrees())
+        })
+        .collect()
 }
 
 /// Angle in degrees of `point` around `pivot` (clockwise on screen).
@@ -266,6 +292,95 @@ mod tests {
 
     fn close(a: f64, b: f64) -> bool {
         (a - b).abs() < 1e-6
+    }
+
+    fn assert_same(a: &Object, b: &Object) {
+        assert!(
+            a.frame.center.distance(b.frame.center) < 1e-6,
+            "{:?} vs {:?}",
+            a.frame,
+            b.frame
+        );
+        assert!(
+            close(a.frame.size.width, b.frame.size.width),
+            "{:?} vs {:?}",
+            a.frame,
+            b.frame
+        );
+        assert!(close(a.frame.size.height, b.frame.size.height));
+        assert!(close(
+            normalize_degrees(a.frame.rotation_deg - b.frame.rotation_deg),
+            0.0
+        ));
+    }
+
+    #[test]
+    fn apply_affine_matches_the_other_transforms() {
+        let o = rect((100.0, 50.0), (200.0, 100.0), 30.0);
+        // Identity and translation.
+        assert_same(
+            &apply_affine(std::slice::from_ref(&o), Affine::IDENTITY)[0],
+            &o,
+        );
+        assert_same(
+            &apply_affine(std::slice::from_ref(&o), Affine::translate((10.0, -5.0)))[0],
+            &translate(std::slice::from_ref(&o), Vec2::new(10.0, -5.0), false)[0],
+        );
+        // A 2× scale about the origin.
+        let doubled = &apply_affine(std::slice::from_ref(&o), Affine::scale(2.0))[0];
+        assert_eq!(doubled.frame.center, Point::new(200.0, 100.0));
+        assert!(close(doubled.frame.size.width, 400.0));
+        assert!(close(doubled.frame.rotation_deg, 30.0));
+        // A 90° rotation about the origin.
+        assert_same(
+            &apply_affine(std::slice::from_ref(&o), Affine::rotate(90f64.to_radians()))[0],
+            &rotate(std::slice::from_ref(&o), Point::ORIGIN, 90.0, false)[0],
+        );
+        // A non-uniform scale on a rotated object: as resize does.
+        let bounds = Frame::new(Point::new(0.0, 0.0), kurbo::Size::new(2.0, 2.0), 0.0);
+        let resized = resize(
+            std::slice::from_ref(&o),
+            bounds,
+            Handle { x: 1, y: 1 },
+            Point::new(2.0, 0.5),
+            ResizeOptions {
+                proportional: false,
+                from_center: true,
+            },
+        );
+        assert_same(
+            &apply_affine(
+                std::slice::from_ref(&o),
+                Affine::scale_non_uniform(2.0, 0.5),
+            )[0],
+            &resized[0],
+        );
+    }
+
+    #[test]
+    fn apply_affine_mirrors_paths_exactly() {
+        use crate::document::{Node, PathData, Subpath};
+        let path = Object::from_path(
+            ObjectId(1),
+            PathData::new(vec![Subpath::new(
+                vec![
+                    Node::corner(Point::new(10.0, 0.0)),
+                    Node::corner(Point::new(30.0, 0.0)),
+                    Node::corner(Point::new(30.0, 10.0)),
+                ],
+                false,
+            )]),
+        );
+        let mirror = Affine::new([-1.0, 0.0, 0.0, 1.0, 100.0, 0.0]);
+        let out = &apply_affine(std::slice::from_ref(&path), mirror)[0];
+        let expected = mirror * path.path();
+        let got = out.path();
+        let pts = |p: &kurbo::BezPath| -> Vec<Point> {
+            p.elements().iter().filter_map(|e| e.end_point()).collect()
+        };
+        for (a, b) in pts(&got).iter().zip(pts(&expected).iter()) {
+            assert!(a.distance(*b) < 1e-6, "{a:?} vs {b:?}");
+        }
     }
 
     #[test]

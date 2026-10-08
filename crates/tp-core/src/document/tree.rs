@@ -319,7 +319,7 @@ pub fn draw_list(list: &[Arc<Object>]) -> Vec<(Arc<Object>, f32)> {
     fn walk(list: &[Arc<Object>], opacity: f32, out: &mut Vec<(Arc<Object>, f32)>) {
         for o in list.iter().filter(|o| o.visible) {
             let alpha = opacity * o.opacity;
-            if o.is_group() {
+            if o.has_content() {
                 walk(&o.children, alpha, out);
             } else {
                 out.push((o.clone(), alpha));
@@ -361,7 +361,7 @@ pub fn hit_test(list: &[Arc<Object>], point: Point, tolerance: f64) -> Option<Hi
 /// Topmost visible shape under `point`, locked or not (eyedropper sampling).
 pub fn sample(list: &[Arc<Object>], point: Point, tolerance: f64) -> Option<&Arc<Object>> {
     for o in list.iter().rev().filter(|o| o.visible) {
-        if o.is_group() {
+        if o.has_content() {
             if let Some(found) = sample(&o.children, point, tolerance) {
                 return Some(found);
             }
@@ -379,7 +379,7 @@ pub fn top_level_in_rect(list: &[Arc<Object>], rect: Rect) -> Vec<ObjectId> {
         if !o.visible || o.locked {
             return false;
         }
-        if o.is_group() {
+        if o.has_content() {
             return o.children.iter().any(|c| touches(c, rect, corners));
         }
         let b = o.bounding_box();

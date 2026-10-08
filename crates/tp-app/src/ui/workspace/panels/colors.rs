@@ -81,6 +81,10 @@ fn apply_now(env: &mut PanelEnv<'_>, color: Rgba) {
 }
 
 pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+    if instances_only(env) {
+        instance_message(ui);
+        return;
+    }
     let target = env.ws.panels.color_target;
 
     // Target swatches (+ None for strokes).
@@ -748,4 +752,17 @@ fn edit_swatch_popup(ctx: &egui::Context, env: &mut PanelEnv<'_>) {
     } else if ok {
         env.ws.finish_swatch_edit(env.now);
     }
+}
+
+/// Whether only instances are selected: their look is their symbol's.
+pub fn instances_only(env: &PanelEnv<'_>) -> bool {
+    let objects = env.ws.selected_objects();
+    !objects.is_empty() && objects.iter().all(|o| o.is_instance())
+}
+
+/// "The look of an instance is edited in its symbol."
+pub fn instance_message(ui: &mut Ui) {
+    let text = tr("instance-look-in-symbol");
+    ui.label(RichText::new(&text).small().color(color::TEXT_SECONDARY))
+        .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
 }
