@@ -20,6 +20,7 @@ cmd-edit-text = Text bearbeiten
 cmd-group = Gruppieren
 cmd-ungroup = Gruppierung aufheben
 cmd-convert-to-symbol = In Symbol umwandeln
+cmd-import-from-library = Aus Bibliothek importieren…
 cmd-edit-symbol = Symbol bearbeiten
 cmd-detach-instance = Instanz lösen
 cmd-finish-symbol = Symbolbearbeitung beenden

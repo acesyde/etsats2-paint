@@ -545,6 +545,27 @@ fn game_versions_round_trip() {
 }
 
 #[test]
+fn library_origins_round_trip() {
+    let key = |n: u8| tp_core::LibraryKey(format!("{n:032x}"));
+    let mut p = rich_project();
+    p.palette[0].origin = Some(key(1));
+    p.graphic_styles[0].origin = Some(key(2));
+    p.text_styles[0].origin = Some(key(3));
+    p.symbols[0].origin = Some(key(4));
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap()).unwrap();
+    assert_same_document(&p, &opened.project);
+    assert_eq!(opened.project.symbols[0].origin, Some(key(4)));
+    // Files written before the library have none, and write none.
+    let old = tp_file::read(&fixture(1)).unwrap().project;
+    assert!(old.palette.iter().all(|s| s.origin.is_none()));
+    assert!(old.graphic_styles.iter().all(|s| s.origin.is_none()));
+    assert!(old.text_styles.iter().all(|s| s.origin.is_none()));
+    assert!(old.symbols.iter().all(|s| s.origin.is_none()));
+    let text = ron::to_string(&tp_file::current::from_project(&old)).unwrap();
+    assert!(!text.contains("origin"), "{text}");
+}
+
+#[test]
 fn a_missing_mod_image_is_damage() {
     let mut p = plain_project();
     p.mod_settings.icon = Some(tp_core::document::AssetId(999));

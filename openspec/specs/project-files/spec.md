@@ -21,13 +21,14 @@ A project SHALL be saved as one `.truckpaint` file containing everything needed 
 - the shared styles: each graphic style's identity, name, fill, stroke and opacity, and each text style's identity, name, character style, fill, stroke and opacity;
 - the links: for every solid fill, solid stroke and gradient stop, the swatch it is linked to; for every object, the graphic style and the text style it follows;
 - the symbols: each symbol's identity, name, artboard size, guides and content (an object tree, as for a surface);
+- the library origin of each swatch, graphic style, text style and symbol that came from the library or was added to it;
 - each instance's symbol, placement, opacity, visibility, lock and name. An instance's content is not stored: it is rebuilt from its symbol when the file opens;
 - the mod settings: Name, Version, Author, Description, Price, Unlock level, internal name and whether it was edited, and the chosen shop icon and Mod Manager image, if any;
 - the bytes of every imported asset, chosen mod images included.
 
 Font families SHALL be stored by name only; font files SHALL NOT be embedded. Editor state that is not part of the document (selection, point selection, zoom, panel layout, grid and snapping settings, whether guides are shown, undo history) SHALL NOT be stored.
 
-A file written before swatches had names SHALL open with each palette color as a swatch named "Color 1", "Color 2"… in palette order, and nothing linked. A file written before texts and images could be mirrored SHALL open with none of them mirrored. A file written before mod settings existed SHALL open with the default mod settings. A file written before game versions existed SHALL open with none.
+A file written before swatches had names SHALL open with each palette color as a swatch named "Color 1", "Color 2"… in palette order, and nothing linked. A file written before texts and images could be mirrored SHALL open with none of them mirrored. A file written before mod settings existed SHALL open with the default mod settings. A file written before game versions existed SHALL open with none. A file written before the library existed SHALL open with no library origins.
 
 #### Scenario: Round trip
 - **WHEN** the user saves a project with grouped shapes, an outlined text, a placed SVG logo, a star, a curved path with a hole and two guides, closes it and opens the file again
@@ -68,6 +69,10 @@ A file written before swatches had names SHALL open with each palette color as a
 #### Scenario: Game versions round trip
 - **WHEN** the user saves a project whose Game versions are `1.56.*, 1.57.*`, closes it and opens the file again
 - **THEN** the Game versions field shows "1.56.*, 1.57.*"
+
+#### Scenario: Library origins round trip
+- **WHEN** the user imports "Logo Ardent" and "Vert Ardent" from the library, saves the project, closes it and opens it again
+- **THEN** Import from Library… shows both as "In this project"
 
 ### Requirement: Game data of older files
 When a file without game data for a vehicle is opened, the game data of that vehicle and of its textures SHALL be filled in from the installed package version the vehicle records, if that version is installed. The file SHALL then open marked as having unsaved changes, so the next save stores the data. When that version isn't installed, the project SHALL open as it is and stay fully editable. Only Export Mod reports the missing data (see mod-export).

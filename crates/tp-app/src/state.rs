@@ -1,5 +1,7 @@
 //! Application state machine and per-frame orchestration.
 
+use std::sync::Arc;
+
 use egui::{Key, Ui, ViewportCommand};
 use tp_core::Project;
 use tp_core::document::Object;
@@ -59,6 +61,8 @@ pub enum Modal {
     ExportMod(Box<crate::ui::mod_export_dialog::ModExportDialog>),
     /// Vehicle Library dialog.
     VehicleLibrary(crate::ui::vehicle_dialogs::LibraryDialog),
+    /// Import from Library dialog.
+    ImportFromLibrary(Box<crate::ui::library_dialog::LibraryDialog>),
     /// Update Template confirmation.
     UpdateTemplate(Box<crate::ui::vehicle_dialogs::UpdateDialog>),
     /// Add Vehicle dialog.
@@ -75,6 +79,16 @@ pub enum Modal {
         package_id: String,
         name: String,
     },
+}
+
+/// Objects copied or cut, and where they come from.
+#[derive(Clone, Debug, Default)]
+pub struct Clipboard {
+    pub objects: Vec<Object>,
+    /// The session of the workspace they were copied in and its document
+    /// then, which holds what they use (images, swatches, styles, symbols)
+    /// even after it closes.
+    pub source: Option<(u64, Arc<Project>)>,
 }
 
 /// An action on one vehicle of the project, asked from the Vehicles panel.
@@ -103,7 +117,9 @@ pub struct AppState {
     /// Whether each recent project's file exists (aligned with `prefs.recent`).
     pub recent_available: Vec<bool>,
     /// Objects copied or cut, shared by every project in this session.
-    pub clipboard: Vec<Object>,
+    pub clipboard: Clipboard,
+    /// Session id of the next workspace opened.
+    next_session: u64,
     /// Pastes since the last copy, for the repeated-paste offset.
     pub paste_count: u32,
     /// A text field had focus at the end of the previous frame. egui drops
@@ -136,6 +152,8 @@ pub struct AppState {
     pub export_settings: crate::export::ExportSettings,
     /// Folder of the last mod export of the session.
     pub last_mod_folder: Option<std::path::PathBuf>,
+    /// The personal library of symbols, swatches and styles.
+    pub library: crate::library::LibraryStore,
 }
 
 impl AppState {
@@ -172,7 +190,8 @@ impl AppState {
             show_gallery: false,
             queue: Vec::new(),
             recent_available: Vec::new(),
-            clipboard: Vec::new(),
+            clipboard: Clipboard::default(),
+            next_session: 1,
             paste_count: 0,
             text_focus_last_frame: false,
             title: String::new(),
@@ -189,6 +208,8 @@ impl AppState {
             allow_close: false,
             export_settings: crate::export::ExportSettings::default(),
             last_mod_folder: None,
+            // In memory; `TruckPaintApp::new` gives it its file.
+            library: crate::library::LibraryStore::default(),
         };
         state.refresh_recent_availability();
         state
@@ -233,7 +254,9 @@ impl AppState {
             .fonts
             .take()
             .unwrap_or_else(tp_text::FontLibrary::bundled);
-        let ws = Workspace::with_text_engine(project, TextEngine::new(fonts));
+        let mut ws = Workspace::with_text_engine(project, TextEngine::new(fonts));
+        ws.session = self.next_session;
+        self.next_session += 1;
         self.screen = Screen::Workspace(Box::new(ws));
     }
 
@@ -246,6 +269,34 @@ impl AppState {
     }
 
     /// Runs one frame of the whole application.
+    /// Opens Import from Library…; a library that could not be read says
+    /// so in the dialog.
+    pub fn open_import_from_library(&mut self) {
+        if !self.has_project() {
+            return;
+        }
+        let mut dialog = crate::ui::library_dialog::LibraryDialog::default();
+        self.library.library();
+        if let Some(issue) = self.library.take_issue() {
+            dialog.issue = Some(crate::ui::library_dialog::issue_message(&issue));
+        }
+        self.modal = Some(Modal::ImportFromLibrary(Box::new(dialog)));
+    }
+
+    /// Reports a library that could not be read, once, when it was first
+    /// used outside the Import from Library dialog.
+    fn report_library_issue(&mut self) {
+        if self.modal.is_some() {
+            return;
+        }
+        if let Some(issue) = self.library.take_issue() {
+            self.modal = Some(Modal::Message {
+                title: tr("library-unreadable-title"),
+                text: crate::ui::library_dialog::issue_message(&issue),
+            });
+        }
+    }
+
     /// Opens Update Template for the newest installed version of the
     /// project's vehicle `package_id` (`None`: the active surface's).
     pub fn open_update_dialog(&mut self, package_id: Option<&str>) {
@@ -395,7 +446,7 @@ impl AppState {
                 has_selection: !ws.selection.is_empty(),
                 can_undo: ws.history.can_undo() || ws.is_drawing_pen(),
                 can_redo: ws.history.can_redo(),
-                has_clipboard: !self.clipboard.is_empty(),
+                has_clipboard: !self.clipboard.objects.is_empty(),
                 gesture_active: ws.gesture.is_active(),
                 undo_label: ws.history.undo_label(),
                 redo_label: ws.history.redo_label(),
@@ -666,6 +717,7 @@ impl AppState {
             CommandId::ConvertToSymbol => self.with_workspace(|ws| {
                 ws.convert_to_symbol(now);
             }),
+            CommandId::ImportFromLibrary => self.open_import_from_library(),
             CommandId::EditSymbol => self.with_workspace(|ws| {
                 if let Some(id) = ws.selected_instance_symbol() {
                     ws.edit_symbol(id, now);
@@ -688,13 +740,21 @@ impl AppState {
             CommandId::SendBackward => self.with_workspace(|ws| ws.send_backward(now)),
             CommandId::Copy | CommandId::Cut => {
                 if let Some(ws) = self.workspace() {
-                    self.clipboard = ws.selected_objects();
+                    self.clipboard = Clipboard {
+                        objects: ws.selected_objects(),
+                        source: Some((ws.session, Arc::new(ws.project.clone()))),
+                    };
                     self.paste_count = 0;
                     // The system clipboard gets the objects' names: the
                     // native backend only reports Cmd/Ctrl+V when it holds
                     // text, so Paste would not fire after copying into an
                     // empty clipboard.
-                    let names: Vec<&str> = self.clipboard.iter().map(|o| o.name.as_str()).collect();
+                    let names: Vec<&str> = self
+                        .clipboard
+                        .objects
+                        .iter()
+                        .map(|o| o.name.as_str())
+                        .collect();
                     let text = names.join("\n");
                     ctx.copy_text(if text.trim().is_empty() {
                         "TruckPaint objects".to_owned()
@@ -712,10 +772,16 @@ impl AppState {
                 }
             }
             CommandId::Paste => {
-                let objects = self.clipboard.clone();
+                let Clipboard { objects, source } = self.clipboard.clone();
                 let offset = COPY_OFFSET * f64::from(self.paste_count);
                 self.paste_count += 1;
-                self.with_workspace(|ws| ws.paste(&objects, offset, now));
+                self.with_workspace(|ws| match source {
+                    // From another project: what the objects use comes too.
+                    Some((session, project)) if session != ws.session => {
+                        ws.paste_from(&project, &objects, offset, now);
+                    }
+                    _ => ws.paste(&objects, offset, now),
+                });
             }
             CommandId::Nudge(direction, big) => {
                 let (dx, dy) = direction.delta();
@@ -833,6 +899,8 @@ impl AppState {
             }
         }
         self.poll_saves(ctx);
+        self.report_library_issue();
+        self.write_library(ctx);
         self.write_recovery(ctx, now);
         let Screen::Workspace(ws) = &mut self.screen else {
             return;

@@ -32,6 +32,8 @@ pub struct PanelEnv<'a> {
     pub vehicles: &'a crate::vehicles::VehicleLibrary,
     /// An action on one of the project's vehicles, run after the frame.
     pub vehicle_request: &'a mut Option<crate::state::VehicleRequest>,
+    /// The personal library (Add to Library).
+    pub library: &'a mut crate::library::LibraryStore,
     pub now: f64,
 }
 
@@ -51,6 +53,28 @@ pub fn apply_field(
         FieldEvent::Revert => env.ws.cancel_pending(),
         FieldEvent::None => {}
     }
+}
+
+/// Add to Library or Update in Library, in an element's context menu.
+pub fn library_item(ui: &mut Ui, env: &mut PanelEnv<'_>, element: crate::library::Element) {
+    let label = env.library.menu_label(&env.ws.project, element);
+    if ui.add(tp_ui::widgets::MenuRow::new(&label)).clicked() {
+        env.ws.add_to_library(env.library, element, env.now);
+        ui.close();
+    }
+}
+
+/// "Import from Library…", offered by panels while they are empty.
+pub fn import_from_library_button(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
+    ui.vertical_centered(|ui| {
+        let button = ui.add_enabled(
+            cmds.enabled(CommandId::ImportFromLibrary),
+            tp_ui::widgets::secondary_button(&tr("cmd-import-from-library")),
+        );
+        if button.clicked() {
+            cmds.push(CommandId::ImportFromLibrary);
+        }
+    });
 }
 
 /// Opens and expands a panel (e.g. Colors when a swatch is clicked).
@@ -143,8 +167,8 @@ fn body(
     match kind {
         PanelKind::Properties => properties::show(ui, env, layout),
         PanelKind::Transform => transform::show(ui, cmds, env),
-        PanelKind::Colors => colors::show(ui, env),
-        PanelKind::Styles => styles::show(ui, env),
+        PanelKind::Colors => colors::show(ui, cmds, env),
+        PanelKind::Styles => styles::show(ui, cmds, env),
         PanelKind::Symbols => symbols::show(ui, cmds, env),
         PanelKind::Stroke => stroke::show(ui, env),
         PanelKind::Layers => layers::show(ui, cmds, env),

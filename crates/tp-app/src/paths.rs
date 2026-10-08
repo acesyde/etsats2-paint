@@ -36,6 +36,11 @@ impl AppDirs {
         self.data.join("vehicles")
     }
 
+    /// The personal library of symbols, swatches and styles.
+    pub fn library(&self) -> PathBuf {
+        self.data.join(tp_file::library::FILE_NAME)
+    }
+
     /// Crash-recovery copies of unsaved projects.
     pub fn recovery(&self) -> PathBuf {
         self.data.join("recovery")

@@ -142,6 +142,9 @@ pub struct FontPicker {
 
 pub struct Workspace {
     pub project: Project,
+    /// Identifies this opening of the project in the session (a project
+    /// closed and opened again gets a new one); not saved.
+    pub session: u64,
     pub tool: Tool,
     /// Tool to restore when the temporary Hand tool (Space) is released.
     pub tool_before_space: Option<Tool>,
@@ -223,6 +226,7 @@ impl Workspace {
     pub fn with_text_engine(project: Project, text: TextEngine) -> Self {
         Self {
             project,
+            session: 0,
             tool: Tool::default(),
             tool_before_space: None,
             path: None,
@@ -485,7 +489,7 @@ impl Workspace {
             || self
                 .saved
                 .as_ref()
-                .is_none_or(|saved| !self.snapshot().same_document(saved))
+                .is_none_or(|saved| !self.snapshot().same_saved(saved))
     }
 
     /// Save state shown in the status bar.

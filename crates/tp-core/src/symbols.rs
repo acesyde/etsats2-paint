@@ -13,6 +13,7 @@ use kurbo::{Affine, Point, Size, Vec2};
 
 use crate::brand::{numbered_name, update_tree};
 use crate::document::{Frame, Object, ObjectId, ShapeKind, SymbolId, apply_affine, tree};
+use crate::import::LibraryKey;
 use crate::project::{Project, Surface};
 
 /// A named drawing, placed as instances.
@@ -22,6 +23,9 @@ pub struct Symbol {
     pub name: String,
     /// The content, on the symbol's own square artboard.
     pub surface: Surface,
+    /// The library entry it came from or was added to (not part of the
+    /// undo history).
+    pub origin: Option<LibraryKey>,
 }
 
 impl Symbol {
@@ -198,7 +202,12 @@ impl Project {
         let name = numbered_name(prefix, self.symbols.iter().map(|s| s.name.as_str()));
         let mut surface = Surface::new(name.clone(), side);
         surface.objects = content;
-        self.symbols.push(Symbol { id, name, surface });
+        self.symbols.push(Symbol {
+            id,
+            name,
+            surface,
+            origin: None,
+        });
         let mut instance = self.new_instance(id, Affine::translate(-offset))?;
         instance.id = group;
         self.surface_mut().replace(&[instance]);
@@ -259,6 +268,7 @@ impl Project {
             id: new,
             name,
             surface,
+            origin: None,
         });
         Some(new)
     }

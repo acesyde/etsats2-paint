@@ -159,7 +159,36 @@ won't render vehicle models. The workspace shows the canvas only; the 2D /
 ### One game per project
 A project belongs to one game, ETS2 or ATS, set by its first vehicle: ETS2
 and ATS mods are separate mods, so one project exports one mod. A player with
-fleets in both games has two projects (sharing a symbol library, later).
+fleets in both games has two projects, sharing the personal library.
+
+### The personal library (shipped in `shared-library`)
+A company's identity is the same on every fleet, in both games, so it lives
+in **one personal library** per user, in the application's data folder
+(`library.tplib`), shared by every project. It holds symbols, swatches,
+graphic styles and text styles, with the images its symbols use.
+- **Add to Library** (context menu of a symbol, a swatch or a style) copies
+  the element with everything it uses: a symbol brings its images, the
+  swatches it links to and the styles it follows. When the element came
+  from the library, the item reads **Update in Library** and replaces the
+  library's copy.
+- **Import from Library…** (Object menu, and the empty Symbols, Colors and
+  Styles panels) imports checked elements with what they use, as one undo
+  step. **Remove from Library** deletes an entry; projects keep their copy.
+- **Copies with an origin, not links:** each element remembers the library
+  entry it came from (saved in the project, not part of the undo history).
+  Editing the library doesn't change projects; editing a project doesn't
+  change the library until Update in Library. Live links and "Update from
+  Library" may come later.
+- **Reuse, no duplicates:** an import reuses what the project already has
+  (the same library entry, or a swatch or style with the same name and
+  value), never adding "Company red 2" next to "Company red". A symbol is
+  reused only by its library entry. A new element whose name is taken gets
+  a numbered name ("Logo 2").
+- **Paste across projects follows the same rules:** objects pasted into
+  another project bring their images, swatches, styles and symbols, even
+  after the source project is closed.
+- An unreadable library is set aside as a backup and the library starts
+  empty, said once. Not done: several libraries, sharing a library file.
 
 ### The mod (shipped in `mod-export`)
 Export › Export Mod… writes the whole fleet as **one `.scs` file**: one paint
@@ -200,8 +229,7 @@ job, in one mod, in the format Paintjob Packer (MIT) has shipped for years.
 
 ## Open questions
 
-- **Symbol library across projects:** reusing a logo, swatches or styles in
-  several projects, or in projects for both games. Probably after `symbols`.
+None at the moment.
 
 ## Next changes, in order
 
@@ -214,6 +242,11 @@ job, in one mod, in the format Paintjob Packer (MIT) has shipped for years.
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `shared-library`: the personal library shared by every project of both
+  games (Add to Library / Update in Library, Import from Library…, Remove
+  from Library), elements imported with what they use and without
+  duplicates, and paste into another project bringing images, swatches,
+  styles and symbols;
 - `game-versions`: the project's Game versions, edited in the sidebar and
   copied into the manifest's `compatible_versions[]`, with the versions every
   vehicle supports shown under the field and checked by Export Mod;

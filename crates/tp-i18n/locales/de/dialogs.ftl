@@ -284,3 +284,20 @@ mod-problem-bad-game-version = { $version } ist keine Spielversion: Schreiben Si
 mod-problem-unsupported-game-version = { $vehicle } ({ $range }) unterstützt die Spielversion { $version } nicht.
 mod-problem-no-common-game-version = { $first } ({ $first_range }) und { $second } ({ $second_range }) haben keine gemeinsame Spielversion: Aktualisieren oder entfernen Sie eines davon.
 mod-export-done = Mod exportiert nach { $file }
+
+## Import from Library
+
+library-hint = Ihre Symbole, Farbfelder und Stile, geteilt von allen Projekten beider Spiele. Importierte Elemente sind Kopien, mit allem, was sie verwenden.
+library-symbols = Symbole
+library-swatches = Farbfelder
+library-graphic-styles = Grafikstile
+library-text-styles = Textstile
+library-in-project = In diesem Projekt
+library-import = Importieren
+library-empty = Ihre Bibliothek ist leer. Klicken Sie mit der rechten Maustaste auf ein Symbol, ein Farbfeld oder einen Stil in seinem Bedienfeld und wählen Sie Zur Bibliothek hinzufügen, um es in allen Projekten zu verwenden.
+library-remove = Aus Bibliothek entfernen
+library-remove-confirm = { $name } aus der Bibliothek entfernen? Projekte, die es importiert haben, behalten ihre Kopie.
+library-remove-button = Entfernen
+library-unreadable-title = Bibliothek
+library-unreadable = Die Bibliothek konnte nicht gelesen werden: Sie beginnt leer. Eine Kopie der Datei wurde als { $file } aufbewahrt.
+library-unreadable-no-backup = Die Bibliothek konnte nicht gelesen werden: Sie beginnt leer.

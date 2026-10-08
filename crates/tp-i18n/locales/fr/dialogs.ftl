@@ -284,3 +284,20 @@ mod-problem-bad-game-version = { $version } n’est pas une version du jeu : éc
 mod-problem-unsupported-game-version = { $vehicle } ({ $range }) ne prend pas en charge la version du jeu { $version }.
 mod-problem-no-common-game-version = { $first } ({ $first_range }) et { $second } ({ $second_range }) n’ont aucune version du jeu en commun : mettez à jour ou retirez l’un des deux.
 mod-export-done = Mod exporté dans { $file }
+
+## Import from Library
+
+library-hint = Vos symboles, nuances et styles, partagés par tous les projets des deux jeux. Les éléments importés sont des copies, avec tout ce qu'ils utilisent.
+library-symbols = Symboles
+library-swatches = Nuances
+library-graphic-styles = Styles graphiques
+library-text-styles = Styles de texte
+library-in-project = Dans ce projet
+library-import = Importer
+library-empty = Votre bibliothèque est vide. Faites un clic droit sur un symbole, une nuance ou un style dans son panneau et choisissez Ajouter à la bibliothèque pour l'utiliser dans tous vos projets.
+library-remove = Retirer de la bibliothèque
+library-remove-confirm = Retirer { $name } de la bibliothèque ? Les projets qui l'ont importé gardent leur copie.
+library-remove-button = Retirer
+library-unreadable-title = Bibliothèque
+library-unreadable = La bibliothèque n'a pas pu être lue : elle repart vide. Une copie du fichier a été conservée sous le nom { $file }.
+library-unreadable-no-backup = La bibliothèque n'a pas pu être lue : elle repart vide.

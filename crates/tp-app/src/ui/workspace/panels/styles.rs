@@ -71,8 +71,9 @@ fn section_header(ui: &mut Ui, env: &mut PanelEnv<'_>, title: &str, text: bool) 
     });
 }
 
-pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv<'_>) {
     let followed = env.ws.project.styles_of(&env.ws.selection);
+    let empty = env.ws.project.graphic_styles.is_empty() && env.ws.project.text_styles.is_empty();
 
     section_header(ui, env, &tr("styles-graphic"), false);
     let graphic = env.ws.project.graphic_styles.clone();
@@ -144,6 +145,10 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         if row {
             env.ws.apply_style(style.id, env.now);
         }
+    }
+    if empty {
+        ui.add_space(space::SM);
+        super::import_from_library_button(ui, cmds);
     }
 }
 
@@ -235,6 +240,7 @@ fn style_row(
             env.ws.select_style_users(id);
             ui.close();
         }
+        super::library_item(ui, env, crate::library::Element::Style(id));
         ui.separator();
         if ui.add(MenuRow::new(&tr("styles-delete"))).clicked() {
             env.ws.delete_style(id, env.now);

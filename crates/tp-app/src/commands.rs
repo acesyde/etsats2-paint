@@ -35,6 +35,7 @@ pub enum CommandId {
     Group,
     Ungroup,
     ConvertToSymbol,
+    ImportFromLibrary,
     EditSymbol,
     DetachInstance,
     FinishSymbol,
@@ -177,6 +178,7 @@ impl CommandId {
                 | Self::ExportMod
                 | Self::AddVehicle
                 | Self::ConvertToSymbol
+                | Self::ImportFromLibrary
                 | Self::EditSymbol
                 | Self::DetachInstance
         )
@@ -276,6 +278,7 @@ impl CommandId {
             Group,
             Ungroup,
             ConvertToSymbol,
+            ImportFromLibrary,
             EditSymbol,
             DetachInstance,
             FinishSymbol,
@@ -497,6 +500,13 @@ impl CommandId {
                 &[],
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
+            ),
+            ImportFromLibrary => m(
+                "cmd-import-from-library",
+                None,
+                &[],
+                Workspace,
+                When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
             ),
             EditSymbol => m(
                 "cmd-edit-symbol",

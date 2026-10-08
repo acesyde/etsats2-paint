@@ -1929,3 +1929,109 @@ fn render_flip() {
     }
     save(&mut h, "flip_menu");
 }
+
+/// Import from Library…: a library holding the symbol "Logo Ardent" (an
+/// SVG badge and its lettering), two swatches and two styles; one swatch is
+/// already in the project, and the symbol is checked.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_import_from_library() {
+    use tp_app::library::Element;
+    use tp_core::document::{CharStyle, Object, ObjectId, Paint, Rgba, StrokeStyle, TextBlock};
+    use tp_core::kurbo::Point;
+    let mut h = common::wgpu_harness_with(Prefs::default(), Vec2::new(1440.0, 1000.0));
+    common::create_project(&mut h);
+    let vert = Rgba::rgb(0x1E, 0x8C, 0x3A);
+    let gris = Rgba::rgb(0x4A, 0x50, 0x58);
+    let tp_app::AppState {
+        library, screen, ..
+    } = h.state_mut();
+    let tp_app::state::Screen::Workspace(ws) = screen else {
+        panic!("project open");
+    };
+    let (green, _) = ws.project.add_swatch(vert, "Color");
+    ws.project.rename_swatch(green, "Vert Ardent");
+    let (grey, _) = ws.project.add_swatch(gris, "Color");
+    ws.project.rename_swatch(grey, "Gris Ardent");
+    let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+        <circle cx="100" cy="100" r="90" fill="#1E8C3A"/>
+        <polygon points="100,30 160,150 40,150" fill="#FFFFFF"/>
+    </svg>"##;
+    ws.place_files(
+        vec![tp_app::import::read_bytes("badge.svg", svg.to_vec())],
+        Some(Point::new(1400.0, 1050.0)),
+        0.0,
+    );
+    let badge = ws.selection[0];
+    let mut text = Object::text(
+        ObjectId(0),
+        TextBlock::new(
+            "ARDENT",
+            CharStyle {
+                size: 180.0,
+                weight: 900,
+                ..CharStyle::default()
+            },
+        ),
+        Point::new(1000.0, 1350.0),
+    );
+    text.fill = Paint::Solid(gris);
+    text.fill_swatch = Some(grey);
+    ws.text.place_at(&mut text, Point::new(1000.0, 1350.0));
+    let text = ws.project.add(text);
+    let titre = ws.project.new_text_style(text, "Text style").unwrap();
+    ws.project.rename_style(titre, "Titre");
+    let mut stripe = Object::new(
+        ObjectId(0),
+        tp_core::document::ShapeKind::rectangle(),
+        tp_core::document::Frame::new(
+            Point::new(2000.0, 2000.0),
+            tp_core::kurbo::Size::new(800.0, 80.0),
+            0.0,
+        ),
+    );
+    stripe.fill = Paint::Solid(vert);
+    stripe.fill_swatch = Some(green);
+    stripe.stroke = Some(StrokeStyle {
+        paint: Paint::Solid(gris),
+        width: 8.0,
+        swatch: Some(grey),
+        ..StrokeStyle::default()
+    });
+    let stripe = ws.project.add(stripe);
+    let bande = ws.project.new_graphic_style(stripe, "Style").unwrap();
+    ws.project.rename_style(bande, "Bande");
+    let (logo, _) = ws
+        .project
+        .convert_to_symbol(&[badge, text], "Symbol")
+        .unwrap();
+    ws.project.rename_symbol(logo, "Logo Ardent");
+    ws.relayout_all_texts();
+    for element in [
+        Element::Symbol(logo),
+        Element::Swatch(green),
+        Element::Style(bande),
+    ] {
+        ws.add_to_library(library, element, 1.0);
+    }
+    common::create_project(&mut h);
+    run(&mut h, tp_app::commands::CommandId::ImportFromLibrary);
+    h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Vert Ardent")
+        .click();
+    h.run();
+    h.get_by_label("Import").click();
+    h.run();
+    run(&mut h, tp_app::commands::CommandId::ImportFromLibrary);
+    h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Logo Ardent")
+        .click();
+    for _ in 0..30 {
+        h.step();
+    }
+    save(&mut h, "import_from_library");
+}
+
+fn run(h: &mut egui_kittest::Harness<'static, tp_app::AppState>, id: tp_app::commands::CommandId) {
+    h.state_mut().queue.push(id);
+    h.run_steps(3);
+    h.run();
+}

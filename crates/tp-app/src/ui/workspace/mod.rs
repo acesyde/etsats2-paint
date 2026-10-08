@@ -22,6 +22,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         screen,
         vehicles,
         vehicle_request,
+        library,
         ..
     } = state;
     let Screen::Workspace(ws) = screen else {
@@ -63,6 +64,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         ws,
         vehicles,
         vehicle_request,
+        library,
         generation,
     );
 
@@ -77,6 +79,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
                 recent_colors,
                 vehicles,
                 vehicle_request,
+                library,
                 now: ctx.input(|i| i.time),
             };
             panels::show(ui, &mut cmds, layout, &mut env);
@@ -93,6 +96,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
 
 /// The sidebar: the project and its fleet tree on the left of the canvas,
 /// or a strip with a button to show it again.
+#[allow(clippy::too_many_arguments)]
 fn vehicles_sidebar(
     ui: &mut Ui,
     cmds: &mut CommandUi<'_>,
@@ -100,6 +104,7 @@ fn vehicles_sidebar(
     ws: &mut crate::workspace::Workspace,
     vehicles: &crate::vehicles::VehicleLibrary,
     vehicle_request: &mut Option<crate::state::VehicleRequest>,
+    library: &mut crate::library::LibraryStore,
     generation: u32,
 ) {
     use egui::ScrollArea;
@@ -143,6 +148,7 @@ fn vehicles_sidebar(
                         recent_colors: &[],
                         vehicles,
                         vehicle_request,
+                        library,
                         now: ui.input(|i| i.time),
                     };
                     panels::vehicle::show(ui, cmds, &mut env);

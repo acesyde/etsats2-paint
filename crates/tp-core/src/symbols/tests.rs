@@ -20,6 +20,7 @@ fn project_with_symbol() -> (Project, SymbolId) {
         id,
         name: "Logo".into(),
         surface: Surface::new("Logo", 500.0),
+        origin: None,
     });
     (p, id)
 }
@@ -65,6 +66,7 @@ fn ids_continue_after_the_symbols() {
         id: SymbolId(400),
         name: "Logo".into(),
         surface: content,
+        origin: None,
     }]);
     assert!(p.next_object_id().0 > 500);
 }

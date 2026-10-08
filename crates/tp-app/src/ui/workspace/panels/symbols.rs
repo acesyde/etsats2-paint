@@ -11,6 +11,7 @@ use tp_ui::widgets::{IconButton, MenuRow, primary_button, secondary_button};
 
 use super::PanelEnv;
 use crate::commands::CommandId;
+use crate::library::Element;
 use crate::ui::CommandUi;
 
 const ROW_HEIGHT: f32 = 28.0;
@@ -43,6 +44,7 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
                 cmds.push(CommandId::ConvertToSymbol);
             }
         });
+        super::import_from_library_button(ui, cmds);
         return;
     }
     for (id, name) in &symbols {
@@ -114,6 +116,7 @@ fn row(ui: &mut Ui, env: &mut PanelEnv<'_>, id: SymbolId, name: &str) {
             env.ws.duplicate_symbol(id, env.now);
             ui.close();
         }
+        super::library_item(ui, env, Element::Symbol(id));
         ui.separator();
         if ui.add(MenuRow::new(&tr("symbols-delete"))).clicked() {
             if count == 0 {

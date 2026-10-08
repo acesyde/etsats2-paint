@@ -318,3 +318,11 @@ symbol-bar-editing = Modification du symbole { $name }
 symbol-bar-done = Terminé
 props-instance-of = Instance de { $name }
 instance-look-in-symbol = Une instance montre son symbole : modifiez le symbole pour changer son apparence, ou détachez l’instance.
+
+## Library
+
+library-add = Ajouter à la bibliothèque
+library-update = Mettre à jour dans la bibliothèque
+library-added = Ajouté à la bibliothèque
+library-updated = Bibliothèque mise à jour
+undo-import-from-library = Importer depuis la bibliothèque

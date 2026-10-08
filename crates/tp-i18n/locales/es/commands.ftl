@@ -20,6 +20,7 @@ cmd-edit-text = Editar texto
 cmd-group = Agrupar
 cmd-ungroup = Desagrupar
 cmd-convert-to-symbol = Convertir en símbolo
+cmd-import-from-library = Importar desde la biblioteca…
 cmd-edit-symbol = Editar símbolo
 cmd-detach-instance = Separar instancia
 cmd-finish-symbol = Terminar de editar el símbolo
