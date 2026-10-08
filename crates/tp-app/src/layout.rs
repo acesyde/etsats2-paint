@@ -78,33 +78,6 @@ impl PanelKind {
     }
 }
 
-/// How the central area is split between the 2D canvas and the 3D preview.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ViewMode {
-    #[default]
-    TwoD,
-    ThreeD,
-    Split,
-}
-
-impl ViewMode {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::TwoD => "view-2d",
-            Self::ThreeD => "view-3d",
-            Self::Split => "view-split",
-        }
-    }
-
-    pub fn shows_canvas(self) -> bool {
-        matches!(self, Self::TwoD | Self::Split)
-    }
-
-    pub fn shows_preview(self) -> bool {
-        matches!(self, Self::ThreeD | Self::Split)
-    }
-}
-
 /// A panel's place and state in the column.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PanelSlot {
@@ -113,11 +86,9 @@ pub struct PanelSlot {
     pub collapsed: bool,
 }
 
-pub const SPLIT_FRACTION_DEFAULT: f32 = 0.42;
 /// Width of the Vehicles sidebar.
 pub const VEHICLES_WIDTH_DEFAULT: f32 = 260.0;
 pub const VEHICLES_WIDTH_RANGE: std::ops::RangeInclusive<f32> = 200.0..=420.0;
-pub const SPLIT_FRACTION_RANGE: std::ops::RangeInclusive<f32> = 0.2..=0.8;
 
 /// Everything about the workspace arrangement that survives restarts.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -126,9 +97,6 @@ pub struct WorkspaceLayout {
     /// Panels in display order; closed panels keep their position.
     pub panels: Vec<PanelSlot>,
     pub column_width: f32,
-    pub view_mode: ViewMode,
-    /// Width of the 3D preview in split view, as a fraction of the central area.
-    pub split_fraction: f32,
     /// The Vehicles sidebar on the left: shown, or reduced to a strip.
     pub vehicles_open: bool,
     pub vehicles_width: f32,
@@ -157,8 +125,6 @@ impl Default for WorkspaceLayout {
                 })
                 .collect(),
             column_width: size::PANEL_COLUMN_DEFAULT,
-            view_mode: ViewMode::default(),
-            split_fraction: SPLIT_FRACTION_DEFAULT,
             vehicles_open: true,
             vehicles_width: VEHICLES_WIDTH_DEFAULT,
             generation: 0,
@@ -197,9 +163,6 @@ impl WorkspaceLayout {
         self.column_width = self
             .column_width
             .clamp(size::PANEL_COLUMN_MIN, size::PANEL_COLUMN_MAX);
-        self.split_fraction = self
-            .split_fraction
-            .clamp(*SPLIT_FRACTION_RANGE.start(), *SPLIT_FRACTION_RANGE.end());
         self.vehicles_width = self
             .vehicles_width
             .clamp(*VEHICLES_WIDTH_RANGE.start(), *VEHICLES_WIDTH_RANGE.end());
@@ -299,7 +262,6 @@ mod tests {
                 },
             ],
             column_width: 10_000.0,
-            split_fraction: -1.0,
             vehicles_width: 5.0,
             ..WorkspaceLayout::default()
         }
@@ -310,7 +272,6 @@ mod tests {
         assert!(layout.vehicles_open);
         assert!(!layout.is_open(PanelKind::Layers));
         assert_eq!(layout.column_width, size::PANEL_COLUMN_MAX);
-        assert_eq!(layout.split_fraction, *SPLIT_FRACTION_RANGE.start());
     }
 
     #[test]

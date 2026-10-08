@@ -29,12 +29,6 @@ empty-assets-hint = Imported logos and images will be listed here.
 empty-vehicle = No vehicle
 empty-vehicle-hint = Vehicle templates will be available in a future update.
 
-## 3D preview
-
-preview-hide = Hide 3D Preview
-preview-soon = 3D preview coming soon
-preview-soon-hint = Your livery will be shown on the vehicle model here once vehicle models are available.
-
 ## Panels and Layers
 
 panels-all-closed = All panels are closed

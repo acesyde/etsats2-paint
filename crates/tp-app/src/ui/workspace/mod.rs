@@ -1,9 +1,8 @@
-//! Editor workspace: menu bar, tool bar, canvas area, panels, 3D preview and
+//! Editor workspace: menu bar, tool bar, sidebar, canvas area, panels and
 //! status bar.
 
 pub mod canvas;
 pub mod panels;
-pub mod preview;
 pub mod status_bar;
 pub mod toolbar;
 
@@ -12,7 +11,6 @@ use tp_ui::tokens::{color, size, space};
 
 use super::home::bar_frame;
 use super::{CommandUi, menu_bar};
-use crate::layout::{SPLIT_FRACTION_RANGE, ViewMode};
 use crate::state::{AppState, Screen};
 
 pub fn show(ui: &mut Ui, state: &mut AppState) {
@@ -46,7 +44,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     Panel::bottom("status_bar")
         .exact_size(size::STATUS_BAR_HEIGHT)
         .frame(bar_frame().inner_margin(Margin::symmetric(space::MD as i8, 0)))
-        .show(ui, |ui| status_bar::show(ui, ws, layout.view_mode));
+        .show(ui, |ui| status_bar::show(ui, ws));
 
     Panel::left("tool_bar")
         .exact_size(size::TOOL_BAR_WIDTH)
@@ -90,29 +88,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
 
     CentralPanel::no_frame()
         .frame(Frame::new().fill(color::SURFACE_0))
-        .show(ui, |ui| match layout.view_mode {
-            ViewMode::TwoD => canvas_area(ui, &mut cmds, ws),
-            ViewMode::ThreeD => preview::show(ui, &mut cmds, false),
-            ViewMode::Split => {
-                let total = ui.available_width();
-                let (min, max) = (*SPLIT_FRACTION_RANGE.start(), *SPLIT_FRACTION_RANGE.end());
-                let split = Panel::right(egui::Id::new(("preview_split", generation)))
-                    .resizable(true)
-                    .default_size(total * layout.split_fraction)
-                    .size_range((total * min)..=(total * max))
-                    .frame(Frame::new().fill(color::SURFACE_0))
-                    .show(ui, |ui| preview::show(ui, &mut cmds, true));
-                if total > 0.0 {
-                    let fraction = (split.response.rect.width() / total).clamp(min, max);
-                    if (fraction - layout.split_fraction).abs() > 0.005 {
-                        layout.split_fraction = fraction;
-                    }
-                }
-                CentralPanel::no_frame()
-                    .frame(Frame::new().fill(color::SURFACE_0))
-                    .show(ui, |ui| canvas_area(ui, &mut cmds, ws));
-            }
-        });
+        .show(ui, |ui| canvas_area(ui, &mut cmds, ws));
 }
 
 /// The sidebar: the project and its fleet tree on the left of the canvas,

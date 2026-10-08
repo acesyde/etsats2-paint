@@ -121,8 +121,3 @@ pub const UNLOCKED: &str = ph::LOCK_SIMPLE_OPEN;
 pub const LINKED: &str = ph::LINK_SIMPLE;
 pub const UNLINKED: &str = ph::LINK_BREAK;
 pub const ADD: &str = ph::PLUS;
-pub const PREVIEW_3D: &str = ph::CUBE;
-
-pub const VIEW_2D: &str = ph::SQUARE_HALF;
-pub const VIEW_3D: &str = ph::CUBE;
-pub const VIEW_SPLIT: &str = ph::COLUMNS;

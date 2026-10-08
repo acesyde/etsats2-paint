@@ -106,8 +106,7 @@ another vehicle. What a project shares:
 
 What remains per vehicle is **placing** the elements. The promise is "reposition,
 don't redraw". The cabin layouts of a truck often share most of their texture,
-so **copy from cabin** (same coordinates) is offered. The 3D preview will
-make placement easier later.
+so **copy from cabin** (same coordinates) is offered.
 
 How sharing works (palette, styles and copy from cabin shipped in
 `brand-kit`, symbols in `symbols`):
@@ -138,6 +137,12 @@ The placeholder Object › Mirror to Other Side is gone. Copying a design to
 the other flank of a truck needs to know where each side lies on the
 texture, which packages don't record. It will come back only as a change
 that adds that left/right mapping to packages.
+
+### No 3D preview (decided after `mod-export`)
+The 3D preview was only ever a placeholder, and it is dropped: TruckPaint
+won't render vehicle models. The workspace shows the canvas only; the 2D /
+3D / Split view modes and their shortcuts are gone (removed in
+`remove-3d-preview`).
 
 ### One game per project
 A project belongs to one game, ETS2 or ATS, set by its first vehicle: ETS2

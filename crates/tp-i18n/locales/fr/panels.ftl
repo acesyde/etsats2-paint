@@ -28,12 +28,6 @@ empty-assets-hint = Les logos et images importés seront listés ici.
 empty-vehicle = Aucun véhicule
 empty-vehicle-hint = Les modèles de véhicules seront disponibles dans une prochaine mise à jour.
 
-## Aperçu 3D
-
-preview-hide = Masquer l’aperçu 3D
-preview-soon = Aperçu 3D bientôt disponible
-preview-soon-hint = Votre livrée sera affichée ici sur le modèle du véhicule dès que les modèles de véhicules seront disponibles.
-
 ## Panneaux et calques
 
 panels-all-closed = Tous les panneaux sont fermés

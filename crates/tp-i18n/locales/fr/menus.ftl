@@ -10,6 +10,3 @@ menu-export = Exporter
 menu-help = Aide
 menu-combine = Combiner
 menu-align = Aligner
-view-2d = 2D
-view-3d = 3D
-view-split = Partagé

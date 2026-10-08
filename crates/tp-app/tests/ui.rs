@@ -9,7 +9,7 @@ use egui::{Key, Modifiers, Vec2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use tp_app::AppState;
-use tp_app::layout::{PanelKind, ViewMode};
+use tp_app::layout::PanelKind;
 use tp_app::prefs::{Prefs, RecentProject};
 use tp_app::state::{Modal, Screen};
 use tp_app::tool::Tool;
@@ -281,33 +281,21 @@ fn panel_header_context_menu() {
 }
 
 #[test]
-fn view_modes_show_expected_regions() {
+fn the_view_menu_has_no_3d_preview() {
     let mut h = harness();
     create_project(&mut h);
     h.get_by_label("Canvas");
-    assert!(h.query_by_label("3D preview coming soon").is_none());
-
-    h.get_by_label("Split").click();
+    h.get_by_label("View").click();
     h.run();
-    assert_eq!(h.state().prefs.layout.view_mode, ViewMode::Split);
-    let canvas = h.get_by_label("Canvas").rect();
-    let preview = h.get_by_label("3D preview coming soon").rect();
-    assert!(
-        canvas.center().x < preview.center().x,
-        "canvas left of preview"
-    );
-
-    h.get_by_label("3D").click();
-    h.run();
-    assert!(h.query_by_label("Canvas").is_none());
-    h.get_by_label("3D preview coming soon");
-
-    // Hiding the preview returns to the canvas only.
-    h.state_mut().prefs.layout.view_mode = ViewMode::Split;
-    h.run();
-    h.get_by_label("Hide 3D Preview").click();
-    h.run();
-    assert_eq!(h.state().prefs.layout.view_mode, ViewMode::TwoD);
+    for item in ["Zoom In", "Actual Size", "Show Grid", "Show Guides"] {
+        assert!(h.query_by_label_contains(item).is_some(), "{item}");
+    }
+    for gone in ["2D Canvas", "3D Preview", "Split View", "Show 3D Preview"] {
+        assert!(h.query_by_label_contains(gone).is_none(), "{gone}");
+    }
+    // Nothing in the menu bar switches views any more.
+    assert!(h.query_by_label("Split").is_none());
+    assert!(h.query_by_label("3D").is_none());
 }
 
 #[test]

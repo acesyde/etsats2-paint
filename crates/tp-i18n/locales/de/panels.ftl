@@ -28,12 +28,6 @@ empty-assets-hint = Importierte Logos und Bilder werden hier aufgelistet.
 empty-vehicle = Kein Fahrzeug
 empty-vehicle-hint = Fahrzeugvorlagen werden in einem künftigen Update verfügbar sein.
 
-## 3D-Vorschau
-
-preview-hide = 3D-Vorschau ausblenden
-preview-soon = 3D-Vorschau folgt in Kürze
-preview-soon-hint = Ihre Lackierung wird hier auf dem Fahrzeugmodell angezeigt, sobald Fahrzeugmodelle verfügbar sind.
-
 ## Bedienfelder und Ebenen
 
 panels-all-closed = Alle Bedienfelder sind geschlossen

@@ -11,6 +11,3 @@ menu-export = Export
 menu-help = Help
 menu-combine = Combine
 menu-align = Align
-view-2d = 2D
-view-3d = 3D
-view-split = Split

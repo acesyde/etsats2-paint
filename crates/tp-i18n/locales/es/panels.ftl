@@ -28,12 +28,6 @@ empty-assets-hint = Los logotipos y las imágenes importados aparecerán aquí.
 empty-vehicle = Ningún vehículo
 empty-vehicle-hint = Las plantillas de vehículos estarán disponibles en una próxima actualización.
 
-## Vista previa 3D
-
-preview-hide = Ocultar vista previa 3D
-preview-soon = Vista previa 3D próximamente
-preview-soon-hint = Su librea se mostrará aquí sobre el modelo del vehículo cuando los modelos de vehículos estén disponibles.
-
 ## Paneles y capas
 
 panels-all-closed = Todos los paneles están cerrados

@@ -54,9 +54,9 @@ pub fn show(ctx: &egui::Context, open: &mut bool) {
             let id = ui.id().with("gallery_segment");
             let mut current = ui.data(|d| d.get_temp::<u8>(id).unwrap_or(0));
             if let Some(v) = SegmentedControl::new()
-                .segment(0u8, icons::VIEW_2D, "2D", None)
-                .segment(1, icons::VIEW_3D, "3D", None)
-                .segment(2, icons::VIEW_SPLIT, "Split", None)
+                .segment(0u8, icons::RECTANGLE, "Rectangle", None)
+                .segment(1, icons::ELLIPSE, "Ellipse", None)
+                .segment(2, icons::POLYGON, "Polygon", None)
                 .show(ui, current)
             {
                 current = v;

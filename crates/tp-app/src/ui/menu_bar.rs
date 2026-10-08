@@ -1,14 +1,13 @@
 //! Application menu bar (File, Edit, Object, Layer, View, Vehicle, Export, Help).
 
-use egui::{Align, Layout, Ui};
+use egui::Ui;
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, size, space};
-use tp_ui::widgets::SegmentedControl;
 
 use super::CommandUi;
 use crate::commands::CommandId;
-use crate::layout::{PanelKind, ViewMode, WorkspaceLayout};
+use crate::layout::{PanelKind, WorkspaceLayout};
 
 /// Menu titles, in order.
 pub const MENUS: [&str; 8] = [
@@ -43,38 +42,6 @@ pub fn show(
             ui.menu_button(tr(title), |ui| {
                 ui.set_min_width(220.0);
                 menu_contents(ui, cmds, title, layout, aids);
-            });
-        }
-
-        if let Some(layout) = layout {
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                ui.add_space(space::XS);
-                let picked = SegmentedControl::new()
-                    .segment(
-                        ViewMode::TwoD,
-                        icons::VIEW_2D,
-                        &tr("view-2d"),
-                        cmds.shortcuts
-                            .command(CommandId::SetViewMode(ViewMode::TwoD)),
-                    )
-                    .segment(
-                        ViewMode::ThreeD,
-                        icons::VIEW_3D,
-                        &tr("view-3d"),
-                        cmds.shortcuts
-                            .command(CommandId::SetViewMode(ViewMode::ThreeD)),
-                    )
-                    .segment(
-                        ViewMode::Split,
-                        icons::VIEW_SPLIT,
-                        &tr("view-split"),
-                        cmds.shortcuts
-                            .command(CommandId::SetViewMode(ViewMode::Split)),
-                    )
-                    .show(ui, layout.view_mode);
-                if let Some(mode) = picked {
-                    cmds.push(CommandId::SetViewMode(mode));
-                }
             });
         }
     });
@@ -172,12 +139,6 @@ fn menu_contents(
             item(ui, cmds, ZoomOut);
             item(ui, cmds, FitToScreen);
             item(ui, cmds, ActualSize);
-            ui.separator();
-            let mode = layout.map(|l| l.view_mode);
-            for m in [ViewMode::TwoD, ViewMode::ThreeD, ViewMode::Split] {
-                cmds.menu_toggle(ui, SetViewMode(m), mode == Some(m));
-            }
-            cmds.menu_toggle(ui, TogglePreview, mode.is_some_and(ViewMode::shows_preview));
             ui.separator();
             cmds.menu_toggle(ui, ShowGrid, layout.is_some() && aids.grid);
             cmds.menu_toggle(ui, ShowGuides, layout.is_some() && aids.guides);
