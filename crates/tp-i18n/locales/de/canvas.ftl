@@ -55,6 +55,7 @@ import-unreadable = kann nicht gelesen werden ({ $detail })
 
 status-zoom = Zoom { $zoom }
 status-saved = Gespeichert
+status-symbol = Symbol › { $name }
 status-unsaved = Nicht gespeicherte Änderungen
 status-saving = Wird gespeichert…
 
@@ -70,6 +71,10 @@ undo-resize = Größe ändern
 undo-rotate = Drehen
 hint-convert-to-edit = Verwenden Sie Objekt › In Pfad umwandeln, um die Punkte zu bearbeiten
 undo-place = Platzieren
+undo-place-symbol = Symbol platzieren
+undo-duplicate-symbol = Symbol duplizieren
+undo-delete-symbol = Symbol löschen
+undo-rename-symbol = Symbol umbenennen
 
 ## Vehicle projects
 

@@ -102,6 +102,41 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
         let at = ctx.pointer_interact_pos().map(|p| map.to_doc(p));
         ws.place_asset(*asset, at, now);
     }
+    // A symbol dragged from the Symbols panel.
+    if let Some(symbol) = response.dnd_release_payload::<tp_core::document::SymbolId>() {
+        let at = ctx.pointer_interact_pos().map(|p| map.to_doc(p));
+        ws.place_symbol(*symbol, at, now);
+    }
+    symbol_bar(ui, cmds, ws, area);
+}
+
+/// While a symbol is edited: "Editing symbol <name>" and Done, over the
+/// top of the canvas.
+fn symbol_bar(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &Workspace, area: Rect) {
+    let Some(symbol) = ws.project.edited_symbol() else {
+        return;
+    };
+    let bar = Rect::from_min_size(area.min, egui::vec2(area.width(), 36.0));
+    ui.painter()
+        .rect_filled(bar, 0, tp_ui::tokens::color::ACCENT_SUBTLE);
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(bar.shrink2(egui::vec2(12.0, 4.0)))
+            .layout(egui::Layout::left_to_right(egui::Align::Center)),
+    );
+    let text = tr!("symbol-bar-editing", name = symbol.name.as_str());
+    child
+        .label(
+            egui::RichText::new(format!("{} {text}", tp_ui::icons::SYMBOL))
+                .color(tp_ui::tokens::color::TEXT_PRIMARY),
+        )
+        .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+    child.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        let done = ui.add(tp_ui::widgets::primary_button(&tr("symbol-bar-done")));
+        if done.clicked() {
+            cmds.push(crate::commands::CommandId::FinishSymbol);
+        }
+    });
 }
 
 /// Whether positions snap now: Snapping on and Cmd/Ctrl not held.
@@ -456,6 +491,15 @@ fn double_click(ws: &mut Workspace, map: &ScreenMap, pointer: Pos2, now: f64) {
         return;
     }
     let doc = map.to_doc(pointer);
+    // An instance: edit its symbol.
+    if !ws.is_editing_text()
+        && let Some(id) = click_target(ws, doc, map, true)
+        && let Some(o) = ws.project.surface().get(id)
+        && let ShapeKind::Instance { symbol, .. } = o.kind
+    {
+        ws.edit_symbol(symbol, now);
+        return;
+    }
     if in_edited_text(ws, doc, map) {
         ws.text_select_word(doc, now);
     } else if let Some(id) = text_under(ws, doc, map) {
@@ -718,7 +762,14 @@ fn direct_click(ws: &mut Workspace, doc: kurbo::Point, map: &ScreenMap, m: Modif
                     .surface()
                     .get(id)
                     .is_some_and(|o| o.kind == ShapeKind::Path || o.is_group());
-                if !is_path {
+                let is_instance = ws
+                    .project
+                    .surface()
+                    .get(id)
+                    .is_some_and(|o| o.is_instance());
+                if is_instance {
+                    ws.show_hint(tr("reason-instance-look"), now);
+                } else if !is_path {
                     ws.show_hint(tr("hint-convert-to-edit"), now);
                 }
             }

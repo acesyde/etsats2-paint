@@ -34,6 +34,10 @@ pub enum CommandId {
     EditText,
     Group,
     Ungroup,
+    ConvertToSymbol,
+    EditSymbol,
+    DetachInstance,
+    FinishSymbol,
     ConvertToPath,
     CreateOutlines,
     Align(Edge),
@@ -150,6 +154,44 @@ pub struct EditContext {
     /// Other main textures of the active texture's vehicle (Copy From
     /// Cabin).
     pub cabin_sources: usize,
+    /// A symbol is edited instead of a texture.
+    pub editing_symbol: bool,
+    /// The selection holds an instance (maybe in a group).
+    pub selection_has_instance: bool,
+    /// The selection is instances only.
+    pub only_instances: bool,
+    /// Exactly one instance is selected.
+    pub single_instance: bool,
+}
+
+impl CommandId {
+    /// Commands about the active texture, disabled while a symbol is
+    /// edited.
+    pub fn needs_texture(self) -> bool {
+        matches!(
+            self,
+            Self::CopyFromCabin
+                | Self::NextTexture
+                | Self::PreviousTexture
+                | Self::UpdateTemplate
+                | Self::ShowTemplate
+                | Self::ExportTexture
+                | Self::ExportMod
+                | Self::AddVehicle
+                | Self::ConvertToSymbol
+                | Self::EditSymbol
+                | Self::DetachInstance
+        )
+    }
+
+    /// Commands that change shapes, which an instance's are not: they are
+    /// its symbol's.
+    pub fn changes_shapes(self) -> bool {
+        matches!(
+            self,
+            Self::ConvertToPath | Self::CreateOutlines | Self::Combine(_)
+        )
+    }
 }
 
 fn can_align(c: &EditContext) -> bool {
@@ -238,6 +280,10 @@ impl CommandId {
             EditText,
             Group,
             Ungroup,
+            ConvertToSymbol,
+            EditSymbol,
+            DetachInstance,
+            FinishSymbol,
             ConvertToPath,
             CreateOutlines,
             BringForward,
@@ -450,6 +496,43 @@ impl CommandId {
                 When(
                     |c| editable_selection(c) && c.selection_has_group,
                     "reason-select-group",
+                ),
+            ),
+            ConvertToSymbol => m(
+                "cmd-convert-to-symbol",
+                Some(icons::SYMBOL),
+                &[],
+                Workspace,
+                When(editable_selection, NEEDS_SELECTION),
+            ),
+            EditSymbol => m(
+                "cmd-edit-symbol",
+                None,
+                &[],
+                Workspace,
+                When(
+                    |c| editable_selection(c) && c.single_instance,
+                    "reason-no-instance",
+                ),
+            ),
+            DetachInstance => m(
+                "cmd-detach-instance",
+                None,
+                &[],
+                Workspace,
+                When(
+                    |c| editable_selection(c) && c.selection_has_instance,
+                    "reason-no-instance",
+                ),
+            ),
+            FinishSymbol => m(
+                "cmd-finish-symbol",
+                None,
+                &[],
+                Workspace,
+                When(
+                    |c| c.editing_symbol && !c.gesture_active,
+                    "reason-not-editing-symbol",
                 ),
             ),
             ConvertToPath => m(
@@ -812,7 +895,12 @@ impl CommandId {
                 None,
                 const { &[sc(NONE, Key::Escape)] },
                 Workspace,
-                When(editable_selection, NEEDS_SELECTION),
+                // With nothing selected, Escape leaves the symbol being
+                // edited.
+                When(
+                    |c| editable_selection(c) || (c.editing_symbol && !c.gesture_active),
+                    NEEDS_SELECTION,
+                ),
             ),
             Nudge(direction, big) => m(
                 match (direction, big) {

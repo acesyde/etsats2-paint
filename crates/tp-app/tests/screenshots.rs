@@ -1752,3 +1752,80 @@ fn render_brand_kit() {
         save(&mut h, &format!("brand_copy_from_cabin_{code}"));
     }
 }
+
+/// Symbols: the Symbols panel with two instances of a logo on a texture
+/// (one selected, Properties showing it), then the logo edited in its own
+/// view with its bar, in English and French.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_symbols() {
+    use tp_app::layout::PanelKind;
+    use tp_core::document::{
+        CharStyle, Frame, Object, ObjectId, Paint, Rgba, ShapeKind, StrokeStyle, TextBlock,
+    };
+    use tp_core::kurbo::{Point, Size};
+    for language in [tp_i18n::Language::English, tp_i18n::Language::French] {
+        let mut prefs = Prefs::default();
+        prefs.set_language(Some(language));
+        for slot in &mut prefs.layout.panels {
+            slot.collapsed = !matches!(slot.kind, PanelKind::Properties | PanelKind::Symbols);
+        }
+        let code = language.code();
+        let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 1000.0));
+        common::create_project(&mut h);
+        let ws = h.state_mut().workspace_mut().unwrap();
+        let frame = |x, y, w, h| Frame::new(Point::new(x, y), Size::new(w, h), 0.0);
+        let mut badge = Object::new(
+            ObjectId(0),
+            ShapeKind::Ellipse,
+            frame(900.0, 1500.0, 420.0, 420.0),
+        );
+        badge.fill = Paint::Solid(Rgba::rgb(0xC0, 0x10, 0x20));
+        badge.stroke = Some(StrokeStyle {
+            paint: Paint::Solid(Rgba::rgb(255, 255, 255)),
+            width: 18.0,
+            ..StrokeStyle::default()
+        });
+        let mut letters = Object::text(
+            ObjectId(0),
+            TextBlock::new(
+                "ACE",
+                CharStyle {
+                    size: 180.0,
+                    weight: 900,
+                    ..CharStyle::default()
+                },
+            ),
+            Point::new(760.0, 1560.0),
+        );
+        letters.fill = Paint::Solid(Rgba::rgb(255, 255, 255));
+        ws.text.place_at(&mut letters, Point::new(760.0, 1560.0));
+        let a = ws.project.add(badge);
+        let b = ws.project.add(letters);
+        ws.selection = vec![a, b];
+        let symbol = ws.convert_to_symbol(1.0).unwrap();
+        ws.project.rename_symbol(symbol, "ACE badge");
+        ws.place_symbol(symbol, Some(Point::new(2900.0, 1500.0)), 2.0);
+        let second = ws.selection[0];
+        let rotated = tp_core::document::rotate(
+            &ws.selected_objects(),
+            Point::new(2900.0, 1500.0),
+            -15.0,
+            false,
+        );
+        ws.project.surface_mut().replace(&rotated);
+        ws.project.refresh_instances();
+        ws.selection = vec![second];
+        ws.relayout_all_texts();
+        for _ in 0..20 {
+            h.step();
+        }
+        save(&mut h, &format!("symbols_panel_{code}"));
+        let ws = h.state_mut().workspace_mut().unwrap();
+        ws.edit_symbol(symbol, 3.0);
+        for _ in 0..20 {
+            h.step();
+        }
+        save(&mut h, &format!("symbols_edit_{code}"));
+    }
+}

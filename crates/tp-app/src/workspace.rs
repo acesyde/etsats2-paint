@@ -125,6 +125,10 @@ pub struct PanelState {
     pub editing_swatch: Option<crate::brand_ops::SwatchEdit>,
     /// Style being renamed in the Styles panel, with its edit buffer.
     pub renaming_style: Option<(tp_core::document::StyleId, String)>,
+    /// Symbol being renamed in the Symbols panel, with its edit buffer.
+    pub renaming_symbol: Option<(tp_core::document::SymbolId, String)>,
+    /// Used symbol waiting for the deletion confirmation.
+    pub confirm_delete_symbol: Option<tp_core::document::SymbolId>,
 }
 
 /// State of the font family picker popup.
@@ -157,6 +161,8 @@ pub struct Workspace {
     pub viewport: Option<Viewport>,
     /// Views of the other surfaces, by index (`None`: fit when shown).
     pub viewports: Vec<Option<Viewport>>,
+    /// Views of the symbols, when not edited.
+    pub symbol_viewports: std::collections::HashMap<tp_core::document::SymbolId, Viewport>,
     /// Template opacity or visibility changed since the last save (not in
     /// the undo history).
     pub settings_changed: bool,
@@ -228,6 +234,7 @@ impl Workspace {
             selection: Vec::new(),
             viewport: None,
             viewports: Vec::new(),
+            symbol_viewports: std::collections::HashMap::new(),
             settings_changed: false,
             history: History::default(),
             gesture: Gesture::Idle,
@@ -287,6 +294,7 @@ impl Workspace {
     /// Restores a snapshot with its object and point selection.
     pub fn restore(&mut self, state: &Snapshot) {
         let before = self.project.active_surface;
+        let before_symbol = self.project.editing_symbol;
         let keys = self.surface_keys();
         self.selection = self.project.restore(state);
         self.points = state.points().iter().copied().collect();
@@ -294,17 +302,65 @@ impl Workspace {
             return;
         }
         let after = self.project.active_surface;
-        if after != before {
-            // The restored state is on another surface: show it with its view.
+        let after_symbol = self.project.editing_symbol;
+        if after != before || after_symbol != before_symbol {
+            // The restored state is on another surface or symbol: show it
+            // with its view.
             self.project.active_surface = before;
-            self.swap_view(after);
+            self.project.editing_symbol = before_symbol;
+            self.show_view(after, after_symbol);
         }
+    }
+
+    /// Stores the current view, then shows texture `index` or, when set,
+    /// symbol `symbol`, each with its own view (`None`: fit when shown).
+    pub(crate) fn show_view(&mut self, index: usize, symbol: Option<tp_core::document::SymbolId>) {
+        let active = self.project.active_surface;
+        match self.project.editing_symbol {
+            Some(current) => {
+                if let Some(v) = self.viewport {
+                    self.symbol_viewports.insert(current, v);
+                }
+            }
+            None => {
+                self.viewports
+                    .resize(self.viewports.len().max(active + 1), None);
+                self.viewports[active] = self.viewport;
+            }
+        }
+        self.project.active_surface = index;
+        self.project.editing_symbol = symbol;
+        let stored = match symbol {
+            Some(id) => self.symbol_viewports.remove(&id),
+            None => self.viewports.get_mut(index).and_then(Option::take),
+        };
+        // Never shown: keep a view marked to fit, so the canvas (which may
+        // be in the middle of a frame) fits the new surface on its next.
+        self.viewport = stored.or_else(|| {
+            self.viewport.map(|mut v| {
+                v.fitted = true;
+                v
+            })
+        });
     }
 
     /// Makes surface `index` active, with its own view; the selection and
     /// point selection are cleared and text editing ends.
     pub fn set_active_surface(&mut self, index: usize) {
-        if index == self.project.active_surface || index >= self.project.surfaces.len() {
+        if index >= self.project.surfaces.len() {
+            return;
+        }
+        if self.project.editing_symbol.is_some() {
+            // Choosing a texture ends the symbol's edit.
+            if self.is_editing_text() {
+                self.end_text_session(0.0);
+            }
+            self.selection.clear();
+            self.points.clear();
+            self.show_view(index, None);
+            return;
+        }
+        if index == self.project.active_surface {
             return;
         }
         if self.is_editing_text() {
@@ -519,7 +575,7 @@ impl Workspace {
             ShapeKind::Path => "undo-create-path",
             ShapeKind::Group => "undo-create-group",
             ShapeKind::Text => "undo-create-text",
-            ShapeKind::Image { .. } => "undo-place",
+            ShapeKind::Image { .. } | ShapeKind::Instance { .. } => "undo-place",
         };
         self.create_object_as(object, label, now)
     }
@@ -922,6 +978,7 @@ pub fn object_name(kind: ShapeKind) -> String {
         ShapeKind::Group => "object-group",
         ShapeKind::Text => "object-text",
         ShapeKind::Image { .. } => "object-image",
+        ShapeKind::Instance { .. } => "object-instance",
     })
 }
 

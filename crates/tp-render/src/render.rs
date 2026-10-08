@@ -422,7 +422,7 @@ pub fn render(
                     draw_image(&mut pixmap, object, asset, *opacity, scale, &mut assets);
                 }
             }
-            ShapeKind::Group => {}
+            ShapeKind::Group | ShapeKind::Instance { .. } => {}
         }
         if !progress(i + 1, total) {
             return Err(Cancelled);

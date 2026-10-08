@@ -6,6 +6,7 @@ object-polygon = Polygone
 object-path = Tracé
 object-line = Ligne
 object-group = Groupe
+object-instance = Instance
 object-text = Texte
 object-image = Image
 object-layer-n = Calque { $n }

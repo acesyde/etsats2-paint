@@ -19,6 +19,10 @@ cmd-select-all = Seleccionar todo
 cmd-edit-text = Editar texto
 cmd-group = Agrupar
 cmd-ungroup = Desagrupar
+cmd-convert-to-symbol = Convertir en símbolo
+cmd-edit-symbol = Editar símbolo
+cmd-detach-instance = Separar instancia
+cmd-finish-symbol = Terminar de editar el símbolo
 cmd-convert-to-path = Convertir en trazado
 cmd-create-outlines = Crear contornos
 cmd-bring-forward = Hacia delante
@@ -136,6 +140,10 @@ tool-hand = Mano
 reason-combine-open-line = Las líneas abiertas no tienen área que combinar.
 reason-combine-text = Los textos no se pueden combinar: use antes Crear contornos.
 reason-combine-image = Las imágenes no se pueden combinar.
+reason-instance-look = Una instancia muestra su símbolo: edite el símbolo o separe la instancia.
+reason-editing-symbol = No mientras se edita un símbolo: pulse primero Hecho.
+reason-no-instance = Seleccione una instancia.
+reason-not-editing-symbol = No se está editando ningún símbolo.
 
 ## Vehicles
 

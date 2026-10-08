@@ -58,6 +58,7 @@ import-unreadable = lecture impossible ({ $detail })
 
 status-zoom = Zoom { $zoom }
 status-saved = Enregistré
+status-symbol = Symbole › { $name }
 status-unsaved = Modifications non enregistrées
 status-saving = Enregistrement…
 
@@ -73,6 +74,10 @@ undo-resize = Redimensionner
 undo-rotate = Faire pivoter
 hint-convert-to-edit = Utilisez Objet › Convertir en tracé pour modifier ses points
 undo-place = Importer
+undo-place-symbol = Placer le symbole
+undo-duplicate-symbol = Dupliquer le symbole
+undo-delete-symbol = Supprimer le symbole
+undo-rename-symbol = Renommer le symbole
 
 ## Vehicle projects
 

@@ -5,8 +5,8 @@
 
 use std::sync::Arc;
 
-use tp_core::document::{AssetId, Frame, Handle, Object, ResizeOptions, resize};
-use tp_core::kurbo::{Point, Rect, Size};
+use tp_core::document::{AssetId, Object, apply_affine};
+use tp_core::kurbo::Size;
 use tp_core::{
     AssetKind, Guide, Project, ProjectVehicle, Surface, SurfaceTemplate, TemplateStatus,
     TexturePart, TextureResolution,
@@ -293,14 +293,7 @@ pub fn scale_objects(objects: &[Object], old: f64, new: f64) -> Vec<Object> {
     if objects.is_empty() || old == new {
         return objects.to_vec();
     }
-    let bounds = Frame::from_rect(Rect::new(0.0, 0.0, old, old));
-    resize(
-        objects,
-        bounds,
-        Handle { x: 1, y: 1 },
-        Point::new(new, new),
-        ResizeOptions::default(),
-    )
+    apply_affine(objects, tp_core::kurbo::Affine::scale(new / old))
 }
 
 /// The other main textures of the vehicle surface `index` is a main
@@ -553,7 +546,8 @@ pub(crate) fn test_project(name: &str) -> Project {
 
 #[cfg(test)]
 mod tests {
-    use tp_core::document::{ObjectId, ShapeKind};
+    use tp_core::document::{Frame, ObjectId, ShapeKind};
+    use tp_core::kurbo::{Point, Rect};
     use tp_vehicles::sample::{self, SampleTexture};
 
     use super::*;

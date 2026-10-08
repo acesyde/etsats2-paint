@@ -10,13 +10,13 @@ use serde::{Deserialize, Serialize};
 use tp_core::document::{
     AssetId, Cap, CharStyle, ColorStop, DEFAULT_MITER_LIMIT, Dash, Frame, Gradient, GradientKind,
     Join, LineStyle, MIN_STOPS, Node, Object, ObjectId, Paint, PathData, Rgba, ShapeKind,
-    StrokeAlign, StrokeStyle, StyleId, Subpath, SwatchId, TextAlign, TextBlock,
+    StrokeAlign, StrokeStyle, StyleId, Subpath, SwatchId, SymbolId, TextAlign, TextBlock,
 };
 use tp_core::kurbo::{Point, Size, Vec2};
 use tp_core::{
     Asset, AssetKind, Axis, BrandKit, DEFAULT_SWATCH_PREFIX, GraphicStyle, Guide, Look, Project,
-    ProjectVehicle, Surface, SurfaceTemplate, Swatch, TemplateStatus, TextStyle, TexturePart,
-    TextureResolution,
+    ProjectVehicle, Surface, SurfaceTemplate, Swatch, Symbol, TemplateStatus, TextStyle,
+    TexturePart, TextureResolution,
 };
 
 /// The document (`project.ron`). Asset bytes live in separate ZIP entries.
@@ -38,12 +38,28 @@ pub struct FileProject {
     pub graphic_styles: Vec<FileGraphicStyle>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub text_styles: Vec<FileTextStyle>,
+    /// Drawings placed as instances on the surfaces.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub symbols: Vec<FileSymbol>,
     pub surfaces: Vec<FileSurface>,
     #[serde(default)]
     pub assets: Vec<FileAsset>,
     /// The vehicles of the fleet.
     #[serde(default)]
     pub vehicles: Vec<FileVehicle>,
+}
+
+/// A symbol: its content on its own square artboard.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileSymbol {
+    pub id: u64,
+    pub name: String,
+    /// Side of the artboard in pixels.
+    pub size: f64,
+    #[serde(default)]
+    pub objects: Vec<FileObject>,
+    #[serde(default)]
+    pub guides: Vec<FileGuide>,
 }
 
 /// A named palette color.
@@ -168,6 +184,13 @@ pub enum FileKind {
         star: Option<f64>,
     },
     Path,
+    /// An instance of a symbol; `placement` is the affine (a, b, c, d, e,
+    /// f) mapping the symbol onto the surface. Its content is not stored:
+    /// it is rebuilt from the symbol.
+    Instance {
+        symbol: u64,
+        placement: [f64; 6],
+    },
 }
 
 /// An anchor point (frame-local coordinates).
@@ -639,6 +662,31 @@ fn brand_from_file(file: &FileProject) -> Result<BrandKit, String> {
     })
 }
 
+fn guides_to_file(guides: &[Guide]) -> Vec<FileGuide> {
+    guides
+        .iter()
+        .map(|g| FileGuide {
+            vertical: g.axis == Axis::Vertical,
+            position: g.position,
+        })
+        .collect()
+}
+
+fn guides_from_file(guides: &[FileGuide]) -> Vec<Guide> {
+    guides
+        .iter()
+        .filter(|g| g.position.is_finite())
+        .map(|g| {
+            let axis = if g.vertical {
+                Axis::Vertical
+            } else {
+                Axis::Horizontal
+            };
+            Guide::new(axis, g.position)
+        })
+        .collect()
+}
+
 fn object_to_file(o: &Object) -> FileObject {
     FileObject {
         id: o.id.0,
@@ -651,6 +699,10 @@ fn object_to_file(o: &Object) -> FileObject {
             ShapeKind::Image { asset } => FileKind::Image { asset: asset.0 },
             ShapeKind::Polygon { sides, star } => FileKind::Polygon { sides, star },
             ShapeKind::Path => FileKind::Path,
+            ShapeKind::Instance { symbol, placement } => FileKind::Instance {
+                symbol: symbol.0,
+                placement: placement.as_coeffs(),
+            },
         },
         center: [o.frame.center.x, o.frame.center.y],
         size: [o.frame.size.width, o.frame.size.height],
@@ -662,7 +714,12 @@ fn object_to_file(o: &Object) -> FileObject {
         opacity: o.opacity,
         visible: o.visible,
         locked: o.locked,
-        children: o.children.iter().map(|c| object_to_file(c)).collect(),
+        // An instance's children are rebuilt from its symbol.
+        children: if o.is_instance() {
+            Vec::new()
+        } else {
+            o.children.iter().map(|c| object_to_file(c)).collect()
+        },
         text: o.text.as_ref().map(|t| FileText {
             content: t.content.clone(),
             family: t.style.family.clone(),
@@ -711,6 +768,22 @@ pub fn from_project(project: &Project) -> FileProject {
         swatches: Vec::new(),
         graphic_styles: Vec::new(),
         text_styles: Vec::new(),
+        symbols: project
+            .symbols
+            .iter()
+            .map(|s| FileSymbol {
+                id: s.id.0,
+                name: s.name.clone(),
+                size: s.surface.size,
+                objects: s
+                    .surface
+                    .objects
+                    .iter()
+                    .map(|o| object_to_file(o))
+                    .collect(),
+                guides: guides_to_file(&s.surface.guides),
+            })
+            .collect(),
         surfaces: project
             .surfaces
             .iter()
@@ -840,6 +913,15 @@ fn object_from_file(
             star: star.map(|r| r.clamp(0.1, 0.9)),
         },
         FileKind::Path => ShapeKind::Path,
+        FileKind::Instance { symbol, placement } => {
+            if placement.iter().any(|v| !v.is_finite()) {
+                return Err(format!("instance {} has an invalid placement", f.id));
+            }
+            ShapeKind::Instance {
+                symbol: SymbolId(symbol),
+                placement: tp_core::kurbo::Affine::new(placement),
+            }
+        }
         FileKind::Image { asset } => {
             if !assets.contains_key(&AssetId(asset)) {
                 return Err(format!("object {} uses a missing asset", f.id));
@@ -921,7 +1003,7 @@ fn object_from_file(
         }
         o.path = Some(Arc::new(data));
     }
-    if o.is_group() {
+    if o.has_content() {
         o.refresh_group_frame();
     }
     Ok(o)
@@ -1023,7 +1105,30 @@ pub fn into_project(
             project.add_swatch(rgba(*c), DEFAULT_SWATCH_PREFIX);
         }
     }
-    // A link that disagrees with its source (a hand-edited file) is dropped.
+    let symbols = file
+        .symbols
+        .iter()
+        .map(|s| {
+            if !(s.size.is_finite() && s.size > 0.0) {
+                return Err(format!("symbol {} has an invalid size", s.id));
+            }
+            let mut surface = Surface::new(s.name.clone(), s.size);
+            surface.objects = s
+                .objects
+                .iter()
+                .map(|o| object_from_file(o, &project.assets).map(Arc::new))
+                .collect::<Result<_, _>>()?;
+            surface.guides = guides_from_file(&s.guides);
+            Ok(Symbol {
+                id: SymbolId(s.id),
+                name: s.name.clone(),
+                surface,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    project.set_symbols(symbols);
+    // A link that disagrees with its source (a hand-edited file) is dropped;
+    // instances are expanded from their symbols.
     project.relink();
     project.vehicles = vehicles_from_file(file);
     check_fleet(&project.vehicles, &project.surfaces)?;

@@ -265,7 +265,8 @@ impl Workspace {
     /// changed).
     pub fn relayout_all_texts(&mut self) {
         let engine = &mut self.text;
-        for surface in &mut self.project.surfaces {
+        let symbols = self.project.symbols.iter_mut().map(|s| &mut s.surface);
+        for surface in self.project.surfaces.iter_mut().chain(symbols) {
             let mut changed = Vec::new();
             for object in &surface.objects {
                 let mut copy = (**object).clone();
@@ -285,6 +286,8 @@ impl Workspace {
                 surface.replace(&changed);
             }
         }
+        // Instances show their symbols' texts as laid out now.
+        self.project.refresh_instances();
     }
 }
 

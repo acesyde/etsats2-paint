@@ -6,6 +6,7 @@
 mod brand;
 pub mod document;
 mod project;
+mod symbols;
 
 pub use brand::{BrandKit, GraphicStyle, Look, Swatch, TextStyle};
 pub use kurbo;
@@ -14,3 +15,4 @@ pub use project::{
     Project, ProjectVehicle, Snapshot, Surface, SurfaceTemplate, TemplateStatus, TextureKey,
     TexturePart, TextureResolution,
 };
+pub use symbols::Symbol;

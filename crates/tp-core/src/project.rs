@@ -5,8 +5,10 @@ use kurbo::{Point, Rect, Size, Vec2};
 use serde::{Deserialize, Serialize};
 
 use crate::brand::{BrandKit, GraphicStyle, Swatch, TextStyle};
+use crate::document::SymbolId;
 use crate::document::tree::{self, Hit, Placement};
 use crate::document::{AssetId, Object, ObjectId, PointRef, Rgba, ShapeKind};
+use crate::symbols::Symbol;
 
 /// Name given to a project created without a name.
 pub const DEFAULT_PROJECT_NAME: &str = "Untitled";
@@ -293,6 +295,10 @@ pub struct Project {
     /// application always have at least one; [`Project::new`] makes one
     /// without (unit tests).
     pub vehicles: Vec<ProjectVehicle>,
+    /// Drawings placed as instances on the textures.
+    pub symbols: Vec<Symbol>,
+    /// The symbol shown and edited instead of the active texture.
+    pub editing_symbol: Option<SymbolId>,
     next_id: u64,
 }
 
@@ -319,6 +325,8 @@ impl Project {
             text_styles: Vec::new(),
             assets: BTreeMap::new(),
             vehicles: Vec::new(),
+            symbols: Vec::new(),
+            editing_symbol: None,
             next_id: 1,
         }
     }
@@ -367,8 +375,19 @@ impl Project {
         (side, side)
     }
 
+    /// The surface being edited: the edited symbol's, else the active
+    /// texture.
     pub fn surface(&self) -> &Surface {
+        if let Some(s) = self.edited_symbol() {
+            return &s.surface;
+        }
         &self.surfaces[self.active_surface]
+    }
+
+    /// The symbol being edited, if any.
+    pub fn edited_symbol(&self) -> Option<&Symbol> {
+        let id = self.editing_symbol?;
+        self.symbols.iter().find(|s| s.id == id)
     }
 
     /// The game of the fleet (`ets2` or `ats`): its first vehicle's.
@@ -419,6 +438,11 @@ impl Project {
     }
 
     pub fn surface_mut(&mut self) -> &mut Surface {
+        if let Some(id) = self.editing_symbol
+            && let Some(i) = self.symbols.iter().position(|s| s.id == id)
+        {
+            return &mut self.symbols[i].surface;
+        }
         &mut self.surfaces[self.active_surface]
     }
 
@@ -427,8 +451,18 @@ impl Project {
         ObjectId(self.fresh_id())
     }
 
-    /// A new, never-used id (objects, assets, swatches and styles share
-    /// the counter).
+    /// The next id the counter will give.
+    pub(crate) fn id_counter(&self) -> u64 {
+        self.next_id
+    }
+
+    /// Makes sure new ids come after `id`.
+    pub(crate) fn reserve_ids_up_to(&mut self, id: u64) {
+        self.next_id = self.next_id.max(id + 1);
+    }
+
+    /// A new, never-used id (objects, assets, swatches, styles and symbols
+    /// share the counter).
     pub(crate) fn fresh_id(&mut self) -> u64 {
         let id = self.next_id;
         self.next_id += 1;
@@ -584,13 +618,21 @@ impl Project {
         fn count(list: &[Arc<Object>], asset: AssetId) -> usize {
             list.iter()
                 .map(|o| {
-                    usize::from(o.kind == ShapeKind::Image { asset }) + count(&o.children, asset)
+                    // An instance's content counts once, in its symbol.
+                    let inside = if o.is_instance() {
+                        0
+                    } else {
+                        count(&o.children, asset)
+                    };
+                    usize::from(o.kind == ShapeKind::Image { asset }) + inside
                 })
                 .sum()
         }
         let templates = self.template_assets().filter(|a| *a == asset).count();
+        let symbols = self.symbols.iter().map(|s| &s.surface);
         self.surfaces
             .iter()
+            .chain(symbols)
             .map(|s| count(&s.objects, asset))
             .sum::<usize>()
             + templates
@@ -667,6 +709,8 @@ impl Project {
             guides: self.surfaces.iter().map(|s| s.guides.clone()).collect(),
             active_surface: self.active_surface,
             brand: self.brand_kit(),
+            symbols: self.symbols.clone(),
+            editing_symbol: self.editing_symbol,
             assets: self.assets.clone(),
             selection: selection.to_vec(),
             points: Vec::new(),
@@ -713,6 +757,8 @@ impl Project {
         self.palette = snapshot.brand.palette.clone();
         self.graphic_styles = snapshot.brand.graphic_styles.clone();
         self.text_styles = snapshot.brand.text_styles.clone();
+        self.symbols = snapshot.symbols.clone();
+        self.editing_symbol = snapshot.editing_symbol;
         self.assets = snapshot.assets.clone();
         snapshot.selection.clone()
     }
@@ -736,6 +782,8 @@ pub struct Snapshot {
     guides: Vec<Vec<Guide>>,
     active_surface: usize,
     brand: BrandKit,
+    symbols: Vec<Symbol>,
+    editing_symbol: Option<SymbolId>,
     assets: BTreeMap<AssetId, Arc<Asset>>,
     selection: Vec<ObjectId>,
     /// Selected path points (Direct Selection).
@@ -754,6 +802,11 @@ impl Snapshot {
         &self.points
     }
 
+    /// The symbol being edited at that time.
+    pub fn editing_symbol(&self) -> Option<SymbolId> {
+        self.editing_symbol
+    }
+
     /// Whether both snapshots hold the same document, ignoring selection
     /// (objects and points). Unchanged objects share their `Arc`, so this is mostly pointer checks.
     pub fn same_document(&self, other: &Snapshot) -> bool {
@@ -768,6 +821,13 @@ impl Snapshot {
             })
             && self.guides == other.guides
             && self.brand == other.brand
+            && self.editing_symbol == other.editing_symbol
+            && self.symbols.len() == other.symbols.len()
+            && self
+                .symbols
+                .iter()
+                .zip(&other.symbols)
+                .all(|(a, b)| a.same_document(b))
             && self.assets.len() == other.assets.len()
             && self
                 .assets

@@ -4,6 +4,7 @@ panel-properties = Eigenschaften
 panel-layers = Ebenen
 panel-colors = Farben
 panel-styles = Stile
+panel-symbols = Symbole
 panel-stroke = Kontur
 panel-transform = Transformieren
 panel-assets = Assets
@@ -16,6 +17,8 @@ empty-colors = Keine Farbe ausgewählt
 empty-colors-hint = Wählen Sie eine Fläche oder Kontur, um ihre Farbe zu bearbeiten.
 empty-styles = Noch kein Stil
 empty-styles-hint = Speichern Sie Darstellungen, um sie auf jeder Textur wiederzuverwenden.
+empty-symbols = Noch kein Symbol
+empty-symbols-hint = Wandeln Sie ein Logo oder einen Schriftzug in ein Symbol um, um es auf jeder Textur zu platzieren.
 empty-stroke = Keine Kontur
 empty-stroke-hint = Wählen Sie ein Objekt aus, um seine Kontur zu bearbeiten.
 empty-transform = Nichts zu transformieren
@@ -294,3 +297,28 @@ styles-redefine = Aus Auswahl neu definieren
 styles-select-users = Verwendungen auf dieser Textur auswählen
 styles-delete = Stil löschen
 styles-name = Stilname
+
+## Symbols panel
+
+symbols-prefix = Symbol
+symbols-copy-suffix = Kopie
+symbols-empty = Zeichnen Sie ein Logo oder einen Schriftzug einmal, wählen Sie es aus und wählen Sie In Symbol umwandeln: Platzieren Sie es auf jeder Textur und bearbeiten Sie es einmal für alle.
+symbols-instances = { $count ->
+    [one] { $count } Instanz
+   *[other] { $count } Instanzen
+ }
+symbols-item = Symbol { $name }
+symbols-place = { $name } platzieren
+symbols-edit = { $name } bearbeiten
+symbols-rename = Umbenennen
+symbols-duplicate = Duplizieren
+symbols-delete = Symbol löschen
+symbols-delete-confirm = { $name } löschen? { $count ->
+    [one] Seine Instanz wird zu einer Gruppe, die gleich aussieht.
+   *[other] Seine { $count } Instanzen werden zu Gruppen, die gleich aussehen.
+ }
+symbols-name = Symbolname
+symbol-bar-editing = Symbol { $name } wird bearbeitet
+symbol-bar-done = Fertig
+props-instance-of = Instanz von { $name }
+instance-look-in-symbol = Eine Instanz zeigt ihr Symbol: Bearbeiten Sie das Symbol, um ihr Aussehen zu ändern, oder lösen Sie die Instanz.

@@ -8,6 +8,7 @@ pub mod line_style;
 mod properties;
 mod stroke;
 mod styles;
+mod symbols;
 mod transform;
 pub mod vehicle;
 
@@ -144,6 +145,7 @@ fn body(
         PanelKind::Transform => transform::show(ui, cmds, env),
         PanelKind::Colors => colors::show(ui, env),
         PanelKind::Styles => styles::show(ui, env),
+        PanelKind::Symbols => symbols::show(ui, cmds, env),
         PanelKind::Stroke => stroke::show(ui, env),
         PanelKind::Layers => layers::show(ui, cmds, env),
         PanelKind::Assets => assets::show(ui, cmds, env),

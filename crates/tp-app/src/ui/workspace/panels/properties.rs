@@ -24,6 +24,7 @@ pub fn kind_icon(kind: ShapeKind) -> &'static str {
         ShapeKind::Group => icons::GROUP,
         ShapeKind::Text => icons::TEXT,
         ShapeKind::Image { .. } => icons::IMAGE,
+        ShapeKind::Instance { .. } => icons::SYMBOL,
     }
 }
 
@@ -245,6 +246,44 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
     }
 }
 
+fn instance_section(ui: &mut Ui, env: &mut PanelEnv<'_>, objects: &[Object]) {
+    let symbols: Vec<tp_core::document::SymbolId> = objects
+        .iter()
+        .filter_map(|o| match o.kind {
+            ShapeKind::Instance { symbol, .. } => Some(symbol),
+            _ => None,
+        })
+        .collect();
+    ui.add_space(space::XS);
+    if let [symbol] = symbols.as_slice()
+        && let Some(name) = env.ws.project.symbol(*symbol).map(|s| s.name.clone())
+    {
+        let text = tr!("props-instance-of", name = name.as_str());
+        ui.label(RichText::new(&text).color(color::TEXT_SECONDARY))
+            .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+    }
+    ui.label(
+        RichText::new(tr("instance-look-in-symbol"))
+            .small()
+            .color(color::TEXT_SECONDARY),
+    );
+    ui.horizontal(|ui| {
+        if let [symbol] = symbols.as_slice()
+            && ui
+                .add(tp_ui::widgets::secondary_button(&tr("cmd-edit-symbol")))
+                .clicked()
+        {
+            env.ws.edit_symbol(*symbol, env.now);
+        }
+        if ui
+            .add(tp_ui::widgets::secondary_button(&tr("cmd-detach-instance")))
+            .clicked()
+        {
+            env.ws.detach_selected_instances(env.now);
+        }
+    });
+}
+
 fn image_info(ui: &mut Ui, env: &mut PanelEnv<'_>, object: &Object) {
     let ShapeKind::Image { asset } = object.kind else {
         return;
@@ -312,6 +351,13 @@ fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
             env.ws.commit_pending(env.now);
         }
     });
+
+    // Instances: their symbol, Edit Symbol and Detach Instance; their look
+    // is edited in the symbol.
+    if objects.iter().all(|o| o.is_instance()) {
+        instance_section(ui, env, &objects);
+        return;
+    }
 
     // Corner radius when every selected object is a rectangle.
     let radii: Vec<f64> = objects

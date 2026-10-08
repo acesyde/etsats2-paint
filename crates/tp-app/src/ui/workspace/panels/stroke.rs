@@ -38,6 +38,10 @@ fn outlines_a_shape(o: &Object) -> bool {
 }
 
 pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+    if super::colors::instances_only(env) {
+        super::colors::instance_message(ui);
+        return;
+    }
     let shapes = env.ws.selected_shapes();
     let empty = env.ws.selection.is_empty();
     // Enabled state: all / none / mixed.

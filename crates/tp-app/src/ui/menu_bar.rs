@@ -126,6 +126,10 @@ fn menu_contents(
             item(ui, cmds, Group);
             item(ui, cmds, Ungroup);
             ui.separator();
+            item(ui, cmds, ConvertToSymbol);
+            item(ui, cmds, EditSymbol);
+            item(ui, cmds, DetachInstance);
+            ui.separator();
             item(ui, cmds, ConvertToPath);
             item(ui, cmds, CreateOutlines);
             ui.menu_button(tr("menu-combine"), |ui| {
