@@ -15,6 +15,7 @@ A project SHALL be saved as one `.truckpaint` file containing everything needed 
 - the full object tree, with every object's identity, name, kind, geometry (including polygon settings, the points and handles of every path subpath with its open or closed state, and the path's line width), fill, stroke, opacity, visibility and lock flags;
 - each text's content and character style;
 - image references;
+- whether each text and image is mirrored;
 - the guides of each surface;
 - the project palette: each swatch's identity, name and color;
 - the shared styles: each graphic style's identity, name, fill, stroke and opacity, and each text style's identity, name, character style, fill, stroke and opacity;
@@ -25,7 +26,7 @@ A project SHALL be saved as one `.truckpaint` file containing everything needed 
 
 Font families SHALL be stored by name only; font files SHALL NOT be embedded. Editor state that is not part of the document (selection, point selection, zoom, panel layout, grid and snapping settings, whether guides are shown, undo history) SHALL NOT be stored.
 
-A file written before swatches had names SHALL open with each palette color as a swatch named "Color 1", "Color 2"… in palette order, and nothing linked.
+A file written before swatches had names SHALL open with each palette color as a swatch named "Color 1", "Color 2"… in palette order, and nothing linked. A file written before texts and images could be mirrored SHALL open with none of them mirrored.
 
 #### Scenario: Round trip
 - **WHEN** the user saves a project with grouped shapes, an outlined text, a placed SVG logo, a star, a curved path with a hole and two guides, closes it and opens the file again
@@ -50,6 +51,10 @@ A file written before swatches had names SHALL open with each palette color as a
 #### Scenario: Palette of an earlier file
 - **WHEN** a file whose palette holds three colors without names is opened
 - **THEN** the palette shows the swatches "Color 1", "Color 2" and "Color 3" with those colors, and no object is linked
+
+#### Scenario: Mirrored objects round trip
+- **WHEN** the user saves a project with a mirrored image, a text flipped vertically and an image that is not mirrored, closes it and opens the file again
+- **THEN** the first image is still mirrored, the text is still drawn upside down and mirrored, and the other image is not mirrored
 
 ### Requirement: Versioned format
 Every project file SHALL record the version of the file format it was written with. The application SHALL open files of every format version it has ever written, converting them to the current format when opening; such a file SHALL open marked as having unsaved changes and SHALL be written in the current format at the next save (the original file is only replaced when the user saves). Files written with a newer format version than the application supports SHALL be refused (see Invalid files).

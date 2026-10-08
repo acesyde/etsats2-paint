@@ -167,7 +167,8 @@ pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv
     align_rows(ui, cmds, env);
 }
 
-/// Align buttons with the Align to selector, then distribute buttons.
+/// Align buttons with the Align to selector, then distribute and flip
+/// buttons.
 fn align_rows(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv<'_>) {
     use tp_core::document::{DistributeAxis, DistributeMode, Edge};
 
@@ -203,6 +204,11 @@ fn align_rows(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelE
             (DistributeAxis::Vertical, DistributeMode::Spacing),
         ] {
             cmds.icon_button(ui, CommandId::Distribute(axis, mode), false);
+        }
+        // The align row is full at the column's default width.
+        ui.add_space(space::MD);
+        for axis in tp_core::document::FlipAxis::ALL {
+            cmds.icon_button(ui, CommandId::Flip(axis), false);
         }
     });
     ui.horizontal(|ui| {

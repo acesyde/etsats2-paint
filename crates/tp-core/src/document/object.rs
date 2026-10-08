@@ -362,6 +362,10 @@ pub struct Object {
     pub text: Option<TextBlock>,
     /// Geometry of a path object, in frame-local coordinates.
     pub path: Option<Arc<PathData>>,
+    /// A text or an image drawn reversed across its frame's vertical axis
+    /// (see [`Object::content_affine`]). Always false for other kinds,
+    /// whose geometry carries mirrors.
+    pub mirrored: bool,
 }
 
 impl Object {
@@ -382,6 +386,18 @@ impl Object {
             children: Vec::new(),
             text: None,
             path: None,
+            mirrored: false,
+        }
+    }
+
+    /// Maps the content of a text or an image (local coordinates, origin
+    /// at the frame center) to the document: the frame, after a reflection
+    /// across its vertical axis when mirrored.
+    pub fn content_affine(&self) -> Affine {
+        if self.mirrored {
+            self.frame.affine() * Affine::scale_non_uniform(-1.0, 1.0)
+        } else {
+            self.frame.affine()
         }
     }
 
@@ -1025,6 +1041,28 @@ mod tests {
         g.refresh_group_frame();
         let diag = 100.0 * 2f64.sqrt();
         assert!((g.frame.size.width - diag).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_mirrored_image_maps_its_right_side_to_the_left() {
+        let mut image = Object::new(
+            ObjectId(1),
+            ShapeKind::Image { asset: AssetId(1) },
+            Frame::new(Point::new(100.0, 50.0), Size::new(40.0, 20.0), 0.0),
+        );
+        assert_eq!(
+            image.content_affine() * Point::new(10.0, 0.0),
+            Point::new(110.0, 50.0)
+        );
+        image.mirrored = true;
+        assert_eq!(
+            image.content_affine() * Point::new(10.0, 0.0),
+            Point::new(90.0, 50.0)
+        );
+        assert_eq!(
+            image.content_affine() * Point::new(0.0, 5.0),
+            Point::new(100.0, 55.0)
+        );
     }
 
     #[test]

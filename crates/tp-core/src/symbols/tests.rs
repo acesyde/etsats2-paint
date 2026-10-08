@@ -491,3 +491,49 @@ fn an_image_in_a_symbol_counts_once() {
     assert_eq!(p.asset_usage(asset), 1);
     let _: AssetId = asset;
 }
+
+#[test]
+fn flipping_an_instance_mirrors_its_images_but_not_the_symbol() {
+    use crate::document::{AssetId, FlipAxis, flip};
+    let (mut p, id) = project_with_symbol();
+    p.editing_symbol = Some(id);
+    p.add(Object::new(
+        ObjectId(0),
+        ShapeKind::Image { asset: AssetId(7) },
+        Frame::new(Point::new(100.0, 100.0), Size::new(80.0, 40.0), 0.0),
+    ));
+    p.editing_symbol = None;
+    let mut ids = Vec::new();
+    for x in [0.0, 1000.0] {
+        let i = Object::new(
+            ObjectId(0),
+            ShapeKind::Instance {
+                symbol: id,
+                placement: kurbo::Affine::translate((x, 0.0)),
+            },
+            Frame::new(Point::ORIGIN, Size::ZERO, 0.0),
+        );
+        ids.push(p.add(i));
+    }
+    p.refresh_instances();
+    let first = (**p.surface().get(ids[0]).unwrap()).clone();
+    let flipped = flip(&[first], FlipAxis::Horizontal);
+    p.surface_mut().replace(&flipped);
+    p.refresh_instances();
+    let shown = |p: &Project, i: ObjectId| p.surface().get(i).unwrap().children[0].mirrored;
+    assert!(placement_of(p.surface().get(ids[0]).unwrap()).determinant() < 0.0);
+    assert!(
+        shown(&p, ids[0]),
+        "the flipped instance shows the image mirrored"
+    );
+    assert!(!shown(&p, ids[1]), "the other instance does not");
+    assert!(!content(&p, id)[0].mirrored, "the symbol is unchanged");
+    // A mirrored image in the symbol shows unmirrored in a mirrored instance.
+    p.editing_symbol = Some(id);
+    let image = content(&p, id)[0].clone();
+    let mirrored = flip(&[image], FlipAxis::Horizontal);
+    p.surface_mut().replace(&mirrored);
+    p.editing_symbol = None;
+    p.refresh_instances();
+    assert!(!shown(&p, ids[0]) && shown(&p, ids[1]));
+}

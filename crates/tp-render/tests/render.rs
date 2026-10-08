@@ -193,6 +193,37 @@ fn text_counter_is_empty_and_stroke_covers_outline() {
     assert_eq!(px(&img, b.x0.round() as u32, cy), [255, 0, 0, 255]);
 }
 
+#[test]
+fn a_mirrored_text_reads_backwards_in_the_same_frame() {
+    let mut fonts = FontLibrary::bundled();
+    let mut block = TextBlock::new("LT", CharStyle::default());
+    let layout = tp_text::layout(&mut fonts, "LT", &block.style);
+    block.layout_size = layout.size;
+    let mut text = Object::text(ObjectId(0), block, Point::new(1000.0, 1000.0));
+    let glyphs = tp_text::GlyphCache::default().glyph_outlines(&mut fonts, &layout);
+    let shown = |text: &Object| -> Vec<tp_core::kurbo::Rect> {
+        let to_doc = tp_text::layout_to_doc(text);
+        glyphs
+            .iter()
+            .map(|g| (to_doc * g.path.clone()).bounding_box())
+            .collect()
+    };
+    let plain = shown(&text);
+    text.mirrored = true;
+    let mirrored = shown(&text);
+    let c = text.frame.center.x;
+    assert!(plain[0].center().x < plain[1].center().x, "L then T");
+    assert!(
+        mirrored[0].center().x > mirrored[1].center().x,
+        "the L is on the right"
+    );
+    for (p, m) in plain.iter().zip(&mirrored) {
+        // Each glyph is reflected across the frame's vertical axis.
+        assert!((m.x0 - (2.0 * c - p.x1)).abs() < 1e-6 && (m.x1 - (2.0 * c - p.x0)).abs() < 1e-6);
+        assert!((m.y0 - p.y0).abs() < 1e-6 && (m.y1 - p.y1).abs() < 1e-6);
+    }
+}
+
 fn png(w: u32, h: u32, rgba: [u8; 4]) -> Vec<u8> {
     let mut out = Vec::new();
     image::RgbaImage::from_pixel(w, h, image::Rgba(rgba))
@@ -231,6 +262,47 @@ fn raster_image_and_its_opacity() {
         "{:?}",
         px(&img, 1000, 1000)
     );
+}
+
+#[test]
+fn a_mirrored_image_renders_mirrored() {
+    // Red on its left half, blue on its right half.
+    let mut pixels = image::RgbaImage::from_pixel(40, 20, image::Rgba([255, 0, 0, 255]));
+    for x in 20..40 {
+        for y in 0..20 {
+            pixels.put_pixel(x, y, image::Rgba([0, 0, 255, 255]));
+        }
+    }
+    let mut bytes = Vec::new();
+    pixels
+        .write_to(
+            &mut std::io::Cursor::new(&mut bytes),
+            image::ImageFormat::Png,
+        )
+        .unwrap();
+    let mut p = project(TextureResolution::R2048);
+    let (asset, _) = p.add_asset(
+        "halves",
+        AssetKind::Raster,
+        Arc::from(bytes),
+        Size::new(40.0, 20.0),
+    );
+    let mut image = shape(
+        ShapeKind::Image { asset },
+        (1000.0, 1000.0),
+        (400.0, 200.0),
+        0.0,
+        WHITE,
+    );
+    image.id = p.add(image.clone());
+    let img = draw(&p, 2048, Some(WHITE));
+    assert_eq!(px(&img, 900, 1000), [255, 0, 0, 255]);
+    assert_eq!(px(&img, 1100, 1000), [0, 0, 255, 255]);
+    image.mirrored = true;
+    p.surface_mut().replace(&[image]);
+    let img = draw(&p, 2048, Some(WHITE));
+    assert_eq!(px(&img, 900, 1000), [0, 0, 255, 255], "blue on the left");
+    assert_eq!(px(&img, 1100, 1000), [255, 0, 0, 255], "red on the right");
 }
 
 #[test]

@@ -308,7 +308,7 @@ fn draw_image(
     let place = |w: f64, h: f64| {
         Affine::translate(Vec2::new(-bounds.x0, -bounds.y0))
             * Affine::scale(scale)
-            * object.frame.affine()
+            * object.content_affine()
             * Affine::translate(Vec2::new(-frame_size.width / 2.0, -frame_size.height / 2.0))
             * Affine::scale_non_uniform(frame_size.width / w, frame_size.height / h)
     };

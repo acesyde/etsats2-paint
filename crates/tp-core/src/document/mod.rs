@@ -29,6 +29,6 @@ pub use path::{
 };
 pub use stroke_region::stroke_region;
 pub use transform::{
-    Handle, ResizeOptions, angle_around, apply_affine, resize, rotate, selection_frame,
-    snap_direction, translate,
+    FlipAxis, Handle, ResizeOptions, angle_around, apply_affine, flip, resize, rotate,
+    selection_frame, snap_direction, translate,
 };

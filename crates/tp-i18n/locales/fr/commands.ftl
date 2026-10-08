@@ -27,7 +27,6 @@ cmd-convert-to-path = Convertir en tracé
 cmd-create-outlines = Vectoriser le texte
 cmd-bring-forward = Déplacer vers l’avant
 cmd-send-backward = Déplacer vers l’arrière
-cmd-mirror-to-other-side = Refléter sur l’autre côté
 cmd-new-layer = Nouveau calque
 cmd-duplicate-layer = Dupliquer le calque
 cmd-delete-layer = Supprimer le calque
@@ -78,7 +77,6 @@ reason-select-to-align = Sélectionnez un objet (deux avec Aligner sur : Objet c
 reason-select-three = Sélectionnez au moins trois objets.
 reason-no-guides = La texture n’a aucun repère.
 reason-no-selection = Sélectionnez d’abord un ou plusieurs objets.
-reason-soon-vehicles = Les modèles de véhicules ne sont pas encore disponibles.
 reason-soon-mods = Les mods de jeu nécessitent des modèles de véhicules, qui ne sont pas encore disponibles.
 
 ## Noms des touches dans les raccourcis (Windows et Linux)
@@ -97,6 +95,11 @@ key-tab = Tab
 
 cmd-undo-action = Annuler { $action }
 cmd-redo-action = Rétablir { $action }
+
+## Retourner
+
+op-flip-horizontal = Retourner horizontalement
+op-flip-vertical = Retourner verticalement
 
 ## Alignement
 

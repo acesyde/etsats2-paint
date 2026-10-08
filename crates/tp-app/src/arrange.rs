@@ -1,6 +1,8 @@
-//! Align and distribute the selection (Object › Align, Transform panel).
+//! Align, distribute and flip the selection (Object menu, Transform panel).
 
-use tp_core::document::{DistributeAxis, DistributeMode, Edge, ObjectId, align, distribute};
+use tp_core::document::{
+    DistributeAxis, DistributeMode, Edge, FlipAxis, ObjectId, align, distribute, flip,
+};
 use tp_core::kurbo::Rect;
 
 use crate::workspace::Workspace;
@@ -37,6 +39,14 @@ pub fn align_label(edge: Edge) -> &'static str {
         Edge::Top => "op-align-top",
         Edge::VCenter => "op-align-vertical-centers",
         Edge::Bottom => "op-align-bottom",
+    }
+}
+
+/// Label (and undo label) of a flip command.
+pub fn flip_label(axis: FlipAxis) -> &'static str {
+    match axis {
+        FlipAxis::Horizontal => "op-flip-horizontal",
+        FlipAxis::Vertical => "op-flip-vertical",
     }
 }
 
@@ -95,6 +105,18 @@ impl Workspace {
         let moved = align(&moving, edge, target);
         self.edit(align_label(edge), now, false, |project, _| {
             project.surface_mut().replace(&moved);
+        });
+    }
+
+    /// Mirrors the selection across the center of its bounds (one undo
+    /// step).
+    pub fn flip_selection(&mut self, axis: FlipAxis, now: f64) {
+        let flipped = flip(&self.selected_objects(), axis);
+        if flipped.is_empty() {
+            return;
+        }
+        self.edit(flip_label(axis), now, false, |project, _| {
+            project.surface_mut().replace(&flipped);
         });
     }
 
@@ -169,5 +191,20 @@ mod tests {
         assert_eq!(ws.history.undo_label(), Some("op-align-top"));
         ws.undo();
         assert_eq!(top(&ws, ids[0]), 50.0);
+    }
+
+    #[test]
+    fn flipping_swaps_the_selection_in_one_undo_step() {
+        let (mut ws, ids) = ws_with(&[(100.0, 100.0), (500.0, 300.0)]);
+        let history = ws.history.len();
+        ws.flip_selection(FlipAxis::Horizontal, 1.0);
+        assert_eq!(ws.history.len(), history, "nothing selected, nothing done");
+        ws.selection = ids.clone();
+        ws.flip_selection(FlipAxis::Horizontal, 1.0);
+        let x = |ws: &Workspace, id| ws.project.surface().get(id).unwrap().frame.center.x;
+        assert_eq!((x(&ws, ids[0]), x(&ws, ids[1])), (500.0, 100.0));
+        assert_eq!(ws.history.undo_label(), Some("op-flip-horizontal"));
+        ws.undo();
+        assert_eq!((x(&ws, ids[0]), x(&ws, ids[1])), (100.0, 500.0));
     }
 }

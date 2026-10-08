@@ -1100,8 +1100,8 @@ fn eyedropper(ws: &mut Workspace, doc: kurbo::Point, map: &ScreenMap, now: f64) 
     let paint = match sampled {
         Some(object) => match object.kind {
             ShapeKind::Image { asset } => {
-                // The pixel under the pointer, opaque.
-                let local = object.frame.affine().inverse() * doc;
+                // The pixel shown under the pointer, opaque.
+                let local = object.content_affine().inverse() * doc;
                 let size = object.frame.size;
                 let uv = [local.x / size.width + 0.5, local.y / size.height + 0.5];
                 match ws.images.sample(asset, uv) {
@@ -1150,6 +1150,9 @@ fn context_menu(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
     ui.separator();
     cmds.menu_item(ui, BringForward);
     cmds.menu_item(ui, SendBackward);
+    for axis in tp_core::document::FlipAxis::ALL {
+        cmds.menu_item(ui, Flip(axis));
+    }
     ui.separator();
     cmds.menu_item(ui, SelectAll);
     cmds.menu_item(ui, Deselect);

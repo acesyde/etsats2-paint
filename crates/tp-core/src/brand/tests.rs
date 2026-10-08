@@ -173,6 +173,10 @@ fn links_survive_transforms_and_structure_changes() {
     p.surface_mut().replace(&moved);
     let turned = crate::document::rotate(&[get(&p, 0, a)], Point::ORIGIN, 30.0, false);
     p.surface_mut().replace(&turned);
+    for axis in crate::document::FlipAxis::ALL {
+        let flipped = crate::document::flip(&[get(&p, 0, a)], axis);
+        p.surface_mut().replace(&flipped);
+    }
     let copies = p.duplicate(&[a], Vec2::ZERO);
     let group = p.group(&[a]).unwrap();
     let mut path = get(&p, 0, a);
@@ -337,6 +341,11 @@ fn own_changes_detach_transforms_dont() {
         Some(id),
         "rotation keeps the link"
     );
+    let flipped =
+        crate::document::flip(&[get(&p, 0, source)], crate::document::FlipAxis::Horizontal);
+    p.surface_mut().replace(&flipped);
+    p.relink();
+    assert_eq!(get(&p, 0, source).style, Some(id), "a flip keeps the link");
     let mut faded = get(&p, 0, source);
     faded.opacity = 0.4;
     p.surface_mut().replace(&[faded]);

@@ -36,6 +36,7 @@ struct MeshEntry {
     ptr: usize,
     bucket: i32,
     frame: tp_core::document::Frame,
+    mirrored: bool,
     block: TextBlock,
     stroke: Option<StrokeStyle>,
     mesh: Arc<TextMesh>,
@@ -145,13 +146,20 @@ impl TextEngine {
     fn place(&mut self, object: &mut Object, block: &TextBlock, anchor: Point) {
         let layout = self.block_layout(block);
         let size = layout.size;
+        let mirror = if object.mirrored {
+            Affine::scale_non_uniform(-1.0, 1.0)
+        } else {
+            Affine::IDENTITY
+        };
         let text = object.text.as_mut().expect("text object");
         text.layout_size = size;
         object.frame.size = tp_core::kurbo::Size::new(
             size.width * text.scale.x.abs(),
             size.height * text.scale.y.abs(),
         );
+        // As `layout_to_doc`, without the translation.
         let local = Affine::rotate(object.frame.rotation_deg.to_radians())
+            * mirror
             * Affine::scale_non_uniform(text.scale.x, text.scale.y);
         let from_center =
             anchor_in(text, &layout) - Point::new(size.width / 2.0, size.height / 2.0);
@@ -193,6 +201,7 @@ impl TextEngine {
             && e.ptr == ptr
             && e.bucket == bucket
             && e.frame == object.frame
+            && e.mirrored == object.mirrored
             && e.stroke == object.stroke
             && object.text.as_ref() == Some(&e.block)
         {
@@ -214,6 +223,7 @@ impl TextEngine {
                 ptr,
                 bucket,
                 frame: object.frame,
+                mirrored: object.mirrored,
                 block: object
                     .text
                     .clone()
