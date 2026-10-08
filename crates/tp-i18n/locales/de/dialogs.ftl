@@ -237,4 +237,11 @@ textures-missing-version = Version { $version } dieses Fahrzeugs ist nicht insta
 textures-remove-confirm = Die Gestaltung von { $textures } wird mit ihnen entfernt.
 textures-remove = Entfernen
 textures-apply = Anwenden
+copy-cabin-hint = Kopiert alle Objekte der gewählten Kabine an denselben Positionen auf { $texture }.
+copy-cabin-objects = { $count ->
+    [one] { $count } Objekt
+   *[other] { $count } Objekte
+ }
+copy-cabin-empty = Diese Textur enthält kein Objekt zum Kopieren.
+copy-cabin-copy = Kopieren
 remove-vehicle-confirm = { $name } und seine Gestaltung aus dem Projekt entfernen?

@@ -158,3 +158,5 @@ cmd-sidebar = Sidebar
 cmd-next-texture = Next Texture
 cmd-previous-texture = Previous Texture
 reason-one-texture = The project has a single texture.
+cmd-copy-from-cabin = Copy From Cabin…
+reason-no-other-cabin = Copies between main textures of one truck: the active texture is an accessory, a trailer's, or the only cabin painted.

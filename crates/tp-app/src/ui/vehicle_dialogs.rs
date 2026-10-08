@@ -938,3 +938,102 @@ pub fn remove_vehicle(
     }
     keep
 }
+
+/// State of the Copy From Cabin dialog: the other main textures of the
+/// active texture's vehicle, with their object counts, and the chosen one.
+#[derive(Clone, Debug)]
+pub struct CopyFromCabinDialog {
+    /// (surface index, name, object count).
+    pub sources: Vec<(usize, String, usize)>,
+    pub chosen: usize,
+}
+
+impl CopyFromCabinDialog {
+    /// The dialog for the active texture; the first source holding objects
+    /// is chosen.
+    pub fn new(project: &tp_core::Project) -> Self {
+        let sources: Vec<(usize, String, usize)> =
+            crate::vehicle_project::cabin_sources(project, project.active_surface)
+                .into_iter()
+                .map(|i| {
+                    let s = &project.surfaces[i];
+                    (i, s.name.clone(), s.objects.len())
+                })
+                .collect();
+        let chosen = sources
+            .iter()
+            .find(|(_, _, n)| *n > 0)
+            .or(sources.first())
+            .map_or(0, |(i, _, _)| *i);
+        Self { sources, chosen }
+    }
+}
+
+/// Shows the Copy From Cabin dialog; returns false once it is closed.
+pub fn copy_from_cabin(
+    ctx: &egui::Context,
+    state: &mut AppState,
+    dialog: &mut CopyFromCabinDialog,
+) -> bool {
+    let mut keep = true;
+    let mut copy = false;
+    let target = state
+        .workspace()
+        .map(|ws| ws.project.surface().name.clone())
+        .unwrap_or_default();
+    super::dialogs::modal("copy_from_cabin_modal").show(ctx, |ui| {
+        ui.set_width(420.0);
+        ui.label(
+            RichText::new(tr("cmd-copy-from-cabin").trim_end_matches('…'))
+                .text_style(title_style())
+                .color(color::TEXT_PRIMARY),
+        );
+        ui.add_space(space::XS);
+        ui.label(
+            RichText::new(tr!("copy-cabin-hint", texture = target.as_str()))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        );
+        ui.add_space(space::SM);
+        for (index, name, count) in &dialog.sources {
+            let text = format!("{name}   {}", tr!("copy-cabin-objects", count = *count));
+            let selected = dialog.chosen == *index;
+            let row = ui.selectable_label(selected, text);
+            row.widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, true, selected, name));
+            if row.clicked() {
+                dialog.chosen = *index;
+            }
+        }
+        let empty = dialog
+            .sources
+            .iter()
+            .find(|(i, _, _)| *i == dialog.chosen)
+            .is_none_or(|(_, _, n)| *n == 0);
+        if empty {
+            ui.label(
+                RichText::new(tr("copy-cabin-empty"))
+                    .small()
+                    .color(color::TEXT_SECONDARY),
+            );
+        }
+        ui.add_space(space::LG);
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            copy |= ui
+                .add_enabled(!empty, primary_button(&tr("copy-cabin-copy")))
+                .clicked();
+            keep &= !ui.add(secondary_button(&tr("button-cancel"))).clicked();
+        });
+    });
+    if copy {
+        let now = ctx.input(|i| i.time);
+        let source = dialog.chosen;
+        if let Some(ws) = state.workspace_mut() {
+            ws.copy_from_texture(source, now);
+        }
+        keep = false;
+    }
+    if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+        keep = false;
+    }
+    keep
+}

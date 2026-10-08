@@ -4,6 +4,7 @@ use std::sync::Arc;
 use kurbo::{Point, Rect, Size, Vec2};
 use serde::{Deserialize, Serialize};
 
+use crate::brand::{BrandKit, GraphicStyle, Swatch, TextStyle};
 use crate::document::tree::{self, Hit, Placement};
 use crate::document::{AssetId, Object, ObjectId, PointRef, Rgba, ShapeKind};
 
@@ -11,6 +12,8 @@ use crate::document::{AssetId, Object, ObjectId, PointRef, Rgba, ShapeKind};
 pub const DEFAULT_PROJECT_NAME: &str = "Untitled";
 /// Name of the surface every new project starts with.
 pub const MAIN_SURFACE_NAME: &str = "Main texture";
+/// Name of new swatches when none is given ("Color 1", "Color 2"…).
+pub const DEFAULT_SWATCH_PREFIX: &str = "Color";
 
 /// Square texture resolution a livery is authored for.
 ///
@@ -278,8 +281,12 @@ pub struct Project {
     pub resolution: TextureResolution,
     pub surfaces: Vec<Surface>,
     pub active_surface: usize,
-    /// Saved colors, without duplicates.
-    pub palette: Vec<Rgba>,
+    /// Named colors, linked to by fills, strokes and gradient stops.
+    pub palette: Vec<Swatch>,
+    /// Named fills, strokes and opacities objects can follow.
+    pub graphic_styles: Vec<GraphicStyle>,
+    /// Named character styles texts can follow.
+    pub text_styles: Vec<TextStyle>,
     /// Imported files, shared by image objects and templates.
     pub assets: BTreeMap<AssetId, Arc<Asset>>,
     /// The vehicles of the fleet, all of one game. Projects made by the
@@ -308,6 +315,8 @@ impl Project {
             )],
             active_surface: 0,
             palette: Vec::new(),
+            graphic_styles: Vec::new(),
+            text_styles: Vec::new(),
             assets: BTreeMap::new(),
             vehicles: Vec::new(),
             next_id: 1,
@@ -322,7 +331,7 @@ impl Project {
         resolution: TextureResolution,
         surfaces: Vec<Surface>,
         active_surface: usize,
-        palette: Vec<Rgba>,
+        brand: BrandKit,
         assets: BTreeMap<AssetId, Arc<Asset>>,
     ) -> Self {
         fn max_id(list: &[Arc<Object>]) -> u64 {
@@ -335,13 +344,18 @@ impl Project {
             .iter()
             .map(|s| max_id(&s.objects))
             .chain(assets.keys().map(|a| a.0))
+            .chain(brand.palette.iter().map(|s| s.id.0))
+            .chain(brand.graphic_styles.iter().map(|s| s.id.0))
+            .chain(brand.text_styles.iter().map(|s| s.id.0))
             .max()
             .unwrap_or(0);
         let mut project = Self::new(name, resolution);
         assert!(!surfaces.is_empty(), "a project has at least one surface");
         project.active_surface = active_surface.min(surfaces.len() - 1);
         project.surfaces = surfaces;
-        project.palette = palette;
+        project.palette = brand.palette;
+        project.graphic_styles = brand.graphic_styles;
+        project.text_styles = brand.text_styles;
         project.assets = assets;
         project.next_id = largest + 1;
         project
@@ -410,7 +424,13 @@ impl Project {
 
     /// A new, never-used object id.
     pub fn next_object_id(&mut self) -> ObjectId {
-        let id = ObjectId(self.next_id);
+        ObjectId(self.fresh_id())
+    }
+
+    /// A new, never-used id (objects, assets, swatches and styles share
+    /// the counter).
+    pub(crate) fn fresh_id(&mut self) -> u64 {
+        let id = self.next_id;
         self.next_id += 1;
         id
     }
@@ -597,13 +617,10 @@ impl Project {
         }
     }
 
-    /// Adds a color to the palette unless already present.
+    /// Adds a swatch of `color` named "Color N" unless a swatch already
+    /// has it; returns whether it was added.
     pub fn add_to_palette(&mut self, color: Rgba) -> bool {
-        if self.palette.contains(&color) {
-            return false;
-        }
-        self.palette.push(color);
-        true
+        self.add_swatch(color, DEFAULT_SWATCH_PREFIX).1
     }
 
     /// Adds a guide to the active surface; returns its index.
@@ -649,7 +666,7 @@ impl Project {
             surfaces: self.surfaces.iter().map(|s| s.objects.clone()).collect(),
             guides: self.surfaces.iter().map(|s| s.guides.clone()).collect(),
             active_surface: self.active_surface,
-            palette: self.palette.clone(),
+            brand: self.brand_kit(),
             assets: self.assets.clone(),
             selection: selection.to_vec(),
             points: Vec::new(),
@@ -693,7 +710,9 @@ impl Project {
             .collect();
         self.vehicles = snapshot.vehicles.clone();
         self.active_surface = snapshot.active_surface.min(self.surfaces.len() - 1);
-        self.palette = snapshot.palette.clone();
+        self.palette = snapshot.brand.palette.clone();
+        self.graphic_styles = snapshot.brand.graphic_styles.clone();
+        self.text_styles = snapshot.brand.text_styles.clone();
         self.assets = snapshot.assets.clone();
         snapshot.selection.clone()
     }
@@ -716,7 +735,7 @@ pub struct Snapshot {
     surfaces: Vec<Vec<Arc<Object>>>,
     guides: Vec<Vec<Guide>>,
     active_surface: usize,
-    palette: Vec<Rgba>,
+    brand: BrandKit,
     assets: BTreeMap<AssetId, Arc<Asset>>,
     selection: Vec<ObjectId>,
     /// Selected path points (Direct Selection).
@@ -748,7 +767,7 @@ impl Snapshot {
                         == b.template.as_ref().map(SurfaceTemplate::document_part)
             })
             && self.guides == other.guides
-            && self.palette == other.palette
+            && self.brand == other.brand
             && self.assets.len() == other.assets.len()
             && self
                 .assets
@@ -882,12 +901,13 @@ mod tests {
         let red = Rgba::rgb(255, 0, 0);
         assert!(p.add_to_palette(red));
         assert!(!p.add_to_palette(red));
-        assert_eq!(p.palette, vec![red]);
+        let colors = |p: &Project| p.palette.iter().map(|s| s.color).collect::<Vec<_>>();
+        assert_eq!(colors(&p), vec![red]);
         let snap = p.snapshot(&[]);
         p.palette.clear();
         assert!(!snap.same_document(&p.snapshot(&[])));
         p.restore(&snap);
-        assert_eq!(p.palette, vec![red]);
+        assert_eq!(colors(&p), vec![red]);
     }
 
     #[test]
@@ -952,11 +972,22 @@ mod tests {
             p.resolution,
             p.surfaces.clone(),
             0,
-            vec![Rgba::rgb(1, 2, 3)],
+            crate::BrandKit {
+                palette: vec![crate::Swatch {
+                    id: crate::document::SwatchId(900),
+                    name: "Red".into(),
+                    color: Rgba::rgb(1, 2, 3),
+                }],
+                ..Default::default()
+            },
             p.assets.clone(),
         );
         assert_eq!(q.surfaces, p.surfaces);
         assert!(q.next_object_id().0 > asset.0);
+        assert!(
+            q.next_object_id().0 > 900,
+            "ids continue after the swatches'"
+        );
     }
 
     #[test]

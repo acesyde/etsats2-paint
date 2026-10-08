@@ -51,6 +51,16 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         }
         return;
     }
+    if matches!(state.modal, Some(Modal::CopyFromCabin(_))) {
+        let Some(Modal::CopyFromCabin(mut dialog)) = state.modal.take() else {
+            unreachable!()
+        };
+        if super::vehicle_dialogs::copy_from_cabin(ctx, state, &mut dialog) && state.modal.is_none()
+        {
+            state.modal = Some(Modal::CopyFromCabin(dialog));
+        }
+        return;
+    }
     if matches!(state.modal, Some(Modal::CustomVehicle(_))) {
         super::custom_vehicle::show_modal(ctx, state);
         return;
@@ -173,6 +183,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         | Modal::AddVehicle(_)
         | Modal::Textures(_)
         | Modal::CustomVehicle(_)
+        | Modal::CopyFromCabin(_)
         | Modal::RemoveVehicle { .. } => {
             unreachable!("handled above")
         }

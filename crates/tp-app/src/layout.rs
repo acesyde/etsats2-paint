@@ -10,6 +10,7 @@ pub enum PanelKind {
     Properties,
     Layers,
     Colors,
+    Styles,
     Stroke,
     Transform,
     Assets,
@@ -21,10 +22,11 @@ pub enum PanelKind {
 
 impl PanelKind {
     /// The panels of the right-hand column.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Properties,
         Self::Layers,
         Self::Colors,
+        Self::Styles,
         Self::Stroke,
         Self::Transform,
         Self::Assets,
@@ -35,6 +37,7 @@ impl PanelKind {
             Self::Properties => "panel-properties",
             Self::Layers => "panel-layers",
             Self::Colors => "panel-colors",
+            Self::Styles => "panel-styles",
             Self::Stroke => "panel-stroke",
             Self::Transform => "panel-transform",
             Self::Assets => "panel-assets",
@@ -47,6 +50,7 @@ impl PanelKind {
             Self::Properties => icons::PROPERTIES,
             Self::Layers => icons::LAYERS,
             Self::Colors => icons::COLORS,
+            Self::Styles => icons::STYLES,
             Self::Stroke => icons::STROKE,
             Self::Transform => icons::TRANSFORM,
             Self::Assets => icons::ASSETS,
@@ -60,6 +64,7 @@ impl PanelKind {
             Self::Properties => ("empty-properties", "empty-properties-hint"),
             Self::Layers => ("empty-layers", "empty-layers-hint"),
             Self::Colors => ("empty-colors", "empty-colors-hint"),
+            Self::Styles => ("empty-styles", "empty-styles-hint"),
             Self::Stroke => ("empty-stroke", "empty-stroke-hint"),
             Self::Transform => ("empty-transform", "empty-transform-hint"),
             Self::Assets => ("empty-assets", "empty-assets-hint"),
@@ -138,7 +143,10 @@ impl Default for WorkspaceLayout {
                     // Keep the default stack readable: secondary panels start collapsed.
                     collapsed: matches!(
                         kind,
-                        PanelKind::Stroke | PanelKind::Transform | PanelKind::Assets
+                        PanelKind::Styles
+                            | PanelKind::Stroke
+                            | PanelKind::Transform
+                            | PanelKind::Assets
                     ),
                 })
                 .collect(),
@@ -161,13 +169,23 @@ impl WorkspaceLayout {
             seen.push(slot.kind);
             fresh
         });
-        for kind in PanelKind::ALL {
+        // A panel the saved layout doesn't know (it was added since) goes
+        // to its default place, after the panel before it, collapsed.
+        for (i, kind) in PanelKind::ALL.into_iter().enumerate() {
             if !seen.contains(&kind) {
-                self.panels.push(PanelSlot {
-                    kind,
-                    open: true,
-                    collapsed: false,
-                });
+                let at = PanelKind::ALL[..i]
+                    .iter()
+                    .rev()
+                    .find_map(|prev| self.panels.iter().position(|s| s.kind == *prev))
+                    .map_or(0, |p| p + 1);
+                self.panels.insert(
+                    at,
+                    PanelSlot {
+                        kind,
+                        open: true,
+                        collapsed: true,
+                    },
+                );
             }
         }
         self.column_width = self
@@ -287,6 +305,21 @@ mod tests {
         assert!(!layout.is_open(PanelKind::Layers));
         assert_eq!(layout.column_width, size::PANEL_COLUMN_MAX);
         assert_eq!(layout.split_fraction, *SPLIT_FRACTION_RANGE.start());
+    }
+
+    #[test]
+    fn layout_from_before_the_styles_panel() {
+        let mut saved = WorkspaceLayout::default();
+        saved.panels.retain(|s| s.kind != PanelKind::Styles);
+        saved.panels[2].collapsed = true; // Colors
+        saved.panels[3].open = false; // Stroke
+        let layout = saved.clone().sanitized();
+        let kinds: Vec<PanelKind> = layout.panels.iter().map(|s| s.kind).collect();
+        assert_eq!(kinds, PanelKind::ALL);
+        let styles = layout.slot(PanelKind::Styles);
+        assert!(styles.open && styles.collapsed);
+        assert!(layout.slot(PanelKind::Colors).collapsed);
+        assert!(!layout.is_open(PanelKind::Stroke));
     }
 
     #[test]

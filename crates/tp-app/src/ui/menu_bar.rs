@@ -202,6 +202,7 @@ fn menu_contents(
             ui.separator();
             item(ui, cmds, NextTexture);
             item(ui, cmds, PreviousTexture);
+            item(ui, cmds, CopyFromCabin);
             ui.separator();
             item(ui, cmds, UpdateTemplate);
         }

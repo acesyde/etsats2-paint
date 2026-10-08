@@ -8,7 +8,7 @@
 use kurbo::{Affine, Point, Vec2};
 
 use super::color::Rgba;
-use super::object::Frame;
+use super::object::{Frame, SwatchId};
 
 /// Largest number of stops a gradient may have.
 pub const MAX_STOPS: usize = 16;
@@ -16,6 +16,10 @@ pub const MAX_STOPS: usize = 16;
 pub const MIN_STOPS: usize = 2;
 
 /// Fill or stroke paint.
+// Kept inline and `Copy` on purpose: paints are copied freely by tools and
+// styles, and a gradient's stops (with their swatch links) are a few
+// hundred bytes.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Paint {
     Solid(Rgba),
@@ -112,11 +116,17 @@ pub struct ColorStop {
     /// 0.0 (start or center) ..= 1.0 (end or radius).
     pub offset: f32,
     pub color: Rgba,
+    /// The swatch the color is linked to.
+    pub swatch: Option<SwatchId>,
 }
 
 impl ColorStop {
     pub fn new(offset: f32, color: Rgba) -> Self {
-        Self { offset, color }
+        Self {
+            offset,
+            color,
+            swatch: None,
+        }
     }
 }
 
@@ -213,6 +223,12 @@ impl Gradient {
         &self.stops[..usize::from(self.len)]
     }
 
+    /// The stops, to change their colors or links (offsets must keep
+    /// their order: use [`Gradient::set_stops`] to move stops).
+    pub fn stops_mut(&mut self) -> &mut [ColorStop] {
+        &mut self.stops[..usize::from(self.len)]
+    }
+
     /// Replaces the stops: offsets are clamped to 0..=1, the stops sorted
     /// (equal offsets keep their order), extra stops beyond [`MAX_STOPS`]
     /// dropped, and a single stop doubled. An empty slice is ignored.
@@ -223,13 +239,22 @@ impl Gradient {
         let mut list: Vec<ColorStop> = stops
             .iter()
             .take(MAX_STOPS)
-            .map(|s| ColorStop::new(s.offset.clamp(0.0, 1.0), s.color))
+            .map(|s| ColorStop {
+                offset: s.offset.clamp(0.0, 1.0),
+                ..*s
+            })
             .collect();
         if list.len() < MIN_STOPS {
             let only = list[0];
             list = vec![
-                ColorStop::new(0.0, only.color),
-                ColorStop::new(1.0, only.color),
+                ColorStop {
+                    offset: 0.0,
+                    ..only
+                },
+                ColorStop {
+                    offset: 1.0,
+                    ..only
+                },
             ];
         }
         list.sort_by(|a, b| a.offset.total_cmp(&b.offset));

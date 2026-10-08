@@ -287,20 +287,47 @@ pub fn plan(project: &Project, package: &Package) -> Option<UpdatePlan> {
     })
 }
 
+/// `objects` of a texture of `old` pixels, scaled for a texture of `new`
+/// pixels (anchored at the top-left corner).
+pub fn scale_objects(objects: &[Object], old: f64, new: f64) -> Vec<Object> {
+    if objects.is_empty() || old == new {
+        return objects.to_vec();
+    }
+    let bounds = Frame::from_rect(Rect::new(0.0, 0.0, old, old));
+    resize(
+        objects,
+        bounds,
+        Handle { x: 1, y: 1 },
+        Point::new(new, new),
+        ResizeOptions::default(),
+    )
+}
+
+/// The other main textures of the vehicle surface `index` is a main
+/// texture of: the cabins Copy From Cabin can copy from.
+pub fn cabin_sources(project: &Project, index: usize) -> Vec<usize> {
+    let main_of = |i: usize| {
+        project.surfaces[i]
+            .template
+            .as_ref()
+            .filter(|t| t.part == TexturePart::Main)
+            .map(|t| t.package_id.as_str())
+    };
+    let Some(package) = main_of(index) else {
+        return Vec::new();
+    };
+    (0..project.surfaces.len())
+        .filter(|&i| i != index && main_of(i) == Some(package))
+        .collect()
+}
+
 /// Scales a surface's artwork and guides from `old` to `new` texture pixels
 /// (anchored at the top-left corner).
 fn scale_surface(surface: &mut Surface, old: f64, new: f64) {
     let factor = new / old;
     let objects: Vec<Object> = surface.objects.iter().map(|o| (**o).clone()).collect();
     if !objects.is_empty() {
-        let bounds = Frame::from_rect(Rect::new(0.0, 0.0, old, old));
-        let scaled = resize(
-            &objects,
-            bounds,
-            Handle { x: 1, y: 1 },
-            Point::new(new, new),
-            ResizeOptions::default(),
-        );
+        let scaled = scale_objects(&objects, old, new);
         surface.objects = scaled.into_iter().map(Arc::new).collect();
     }
     for g in &mut surface.guides {
@@ -1127,5 +1154,56 @@ mod tests {
         assert_eq!(ws.project.active_surface, 0);
         assert!(ws.project.surfaces[0].get(on_cabin).is_none());
         assert_eq!(ws.viewport, Some(cabin_view));
+    }
+
+    #[test]
+    fn copy_from_cabin_scales_keeps_links_and_undoes() {
+        use tp_core::document::{Frame, Object, SwatchId};
+        let mut project = tp_core::Project::new("p", TextureResolution::R2048);
+        project.surfaces[0].size = 2048.0;
+        project.surfaces.push(Surface::new("High roof", 4096.0));
+        let mut r = Object::new(
+            ObjectId(0),
+            ShapeKind::rectangle(),
+            Frame::from_rect(Rect::new(0.0, 75.0, 200.0, 125.0)),
+        );
+        r.fill_swatch = Some(SwatchId(99));
+        let source = project.add(r);
+        let mut ws = Workspace::new(project);
+        ws.set_active_surface(1);
+        ws.copy_from_texture(0, 1.0);
+        let copies = &ws.project.surfaces[1].objects;
+        assert_eq!(copies.len(), 1);
+        let copy = &copies[0];
+        assert_ne!(copy.id, source, "fresh id");
+        assert_eq!(copy.frame.center, tp_core::kurbo::Point::new(200.0, 200.0));
+        assert_eq!(copy.frame.size, Size::new(400.0, 100.0));
+        assert_eq!(ws.selection, vec![copy.id]);
+        assert_eq!(ws.project.surfaces[0].objects.len(), 1, "source unchanged");
+        ws.undo();
+        assert!(ws.project.surfaces[1].objects.is_empty());
+    }
+
+    #[test]
+    fn cabin_sources_are_main_textures_of_the_same_vehicle() {
+        let mut textures = default_textures(&truck("1.1.0").manifest);
+        textures.push("high_roof".into());
+        let mut project = fleet_project("p", &truck("1.1.0"), &textures).unwrap();
+        let names: Vec<&str> = project.surfaces.iter().map(|s| s.name.as_str()).collect();
+        let high_roof = names.iter().position(|n| *n == "High roof").unwrap();
+        let chassis = names.iter().position(|n| *n == "Chassis").unwrap();
+        assert_eq!(cabin_sources(&project, 0), vec![high_roof]);
+        assert_eq!(cabin_sources(&project, high_roof), vec![0]);
+        assert!(cabin_sources(&project, chassis).is_empty(), "an accessory");
+        let mut ws = Workspace::new(project);
+        ws.add_vehicle(&trailer(), &default_textures(&trailer().manifest), 1.0)
+            .unwrap();
+        project = ws.project;
+        let base = project
+            .surfaces
+            .iter()
+            .position(|s| s.name == "Base")
+            .unwrap();
+        assert!(cabin_sources(&project, base).is_empty(), "a trailer");
     }
 }

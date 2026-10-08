@@ -121,6 +121,10 @@ pub struct PanelState {
     pub renaming_asset: Option<(tp_core::document::AssetId, String)>,
     /// What the align commands align to (session only).
     pub align_to: crate::arrange::AlignTo,
+    /// Open Edit Swatch popup.
+    pub editing_swatch: Option<crate::brand_ops::SwatchEdit>,
+    /// Style being renamed in the Styles panel, with its edit buffer.
+    pub renaming_style: Option<(tp_core::document::StyleId, String)>,
 }
 
 /// State of the font family picker popup.
@@ -328,11 +332,29 @@ impl Workspace {
             tp_i18n::exists(label),
             "undo label {label:?} is not a message id"
         );
+        // Links to swatches and styles hold while the values still match:
+        // whatever changed a look detached it.
+        self.project.relink();
         let after = self.snapshot();
         if before.same_document(&after) {
             return;
         }
         self.history.record(label, before, after, now, coalesce);
+    }
+
+    /// Runs a change of text styles as one undoable step, then lays the
+    /// texts out again: their character settings may have changed on
+    /// every texture.
+    pub fn text_style_edit(
+        &mut self,
+        label: &'static str,
+        now: f64,
+        edit: impl FnOnce(&mut Project, &mut Vec<ObjectId>),
+    ) {
+        let before = self.snapshot();
+        edit(&mut self.project, &mut self.selection);
+        self.relayout_all_texts();
+        self.record(label, before, now, false);
     }
 
     /// Runs `edit` on the project and selection as one undoable step.
@@ -527,6 +549,25 @@ impl Workspace {
     pub fn duplicate_selection(&mut self, now: f64) {
         self.edit("cmd-duplicate", now, false, |project, selection| {
             *selection = project.duplicate(selection, Vec2::new(COPY_OFFSET, COPY_OFFSET));
+        });
+    }
+
+    /// Copies the artwork of surface `source`, another main texture of the
+    /// active texture's vehicle, onto the active texture: same positions
+    /// (scaled when the sizes differ), on top, selected. One undo step.
+    pub fn copy_from_texture(&mut self, source: usize, now: f64) {
+        let target = self.project.active_surface;
+        let Some(from) = self.project.surfaces.get(source) else {
+            return;
+        };
+        if source == target || from.objects.is_empty() {
+            return;
+        }
+        let objects: Vec<Object> = from.objects.iter().map(|o| (**o).clone()).collect();
+        let copies =
+            crate::vehicle_project::scale_objects(&objects, from.size, self.project.surface().size);
+        self.edit("undo-copy-from-cabin", now, false, |project, selection| {
+            *selection = project.add_copies(&copies, Vec2::ZERO, None);
         });
     }
 
