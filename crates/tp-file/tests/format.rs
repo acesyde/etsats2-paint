@@ -993,11 +993,41 @@ fn document_text(bytes: &[u8]) -> String {
     text
 }
 
+/// `text` with every decimal number rounded to 9 significant digits:
+/// frames rebuilt on opening (instances, through sin and cos) can differ in
+/// their last bit from one platform's math library to another.
+fn rounded_numbers(text: &str) -> String {
+    let mut out = String::new();
+    let mut number = String::new();
+    let flush = |number: &mut String, out: &mut String| {
+        match number.parse::<f64>() {
+            Ok(v) if number.contains('.') => out.push_str(&format!("{v:.8e}")),
+            _ => out.push_str(number),
+        }
+        number.clear();
+    };
+    for c in text.chars() {
+        let continues = !number.is_empty() && matches!(c, '.' | 'e' | 'E' | '+' | '-');
+        if c.is_ascii_digit() || continues || (c == '-' && number.is_empty()) {
+            number.push(c);
+        } else {
+            flush(&mut number, &mut out);
+            out.push(c);
+        }
+    }
+    flush(&mut number, &mut out);
+    out
+}
+
 #[test]
 fn unmirrored_objects_write_nothing_new() {
     let fixture = std::fs::read(fixture(1)).unwrap();
     let opened = tp_file::from_bytes(&fixture).unwrap().project;
     let written = document_text(&tp_file::to_bytes(&opened).unwrap());
     assert!(!written.contains("mirrored"));
-    assert_eq!(written, document_text(&fixture), "the fixture is unchanged");
+    assert_eq!(
+        rounded_numbers(&written),
+        rounded_numbers(&document_text(&fixture)),
+        "the fixture is unchanged"
+    );
 }

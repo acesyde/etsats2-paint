@@ -29,7 +29,7 @@
 
 - [x] 3.1 Add `FileObject.mirrored` with `#[serde(default, skip_serializing_if = …)]`, written by `object_to_file` and read by `object_from_file`. Verify with tests:
   - a round trip of a mirrored image, a vertically flipped text and an unmirrored image restores each flag and rotation;
-  - the `v1.truckpaint` fixture still loads and writes byte-for-byte as before (no `mirrored` key for unmirrored objects).
+  - the `v1.truckpaint` fixture still loads and writes as before, numbers compared to 9 significant digits since instance frames are rebuilt through sin and cos, whose last bit differs between platforms (no `mirrored` key for unmirrored objects).
 
 ## 4. Commands and UI (tp-app, tp-ui, tp-i18n)
 
