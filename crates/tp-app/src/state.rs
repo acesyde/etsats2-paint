@@ -64,6 +64,8 @@ pub enum Modal {
     AddVehicle(crate::ui::vehicle_dialogs::AddVehicleDialog),
     /// The textures a project's vehicle paints.
     Textures(crate::ui::vehicle_dialogs::TexturesDialog),
+    /// Copy From Cabin: the main texture to copy the artwork of.
+    CopyFromCabin(crate::ui::vehicle_dialogs::CopyFromCabinDialog),
     /// Custom Vehicle dialog (or New Version…), over the dialog it came
     /// from.
     CustomVehicle(Box<crate::ui::custom_vehicle::CustomVehicleDialog>),
@@ -426,6 +428,11 @@ impl AppState {
                     .project
                     .vehicle_of(ws.project.active_surface)
                     .is_some_and(|v| self.vehicles.update_for(v).is_some()),
+                cabin_sources: crate::vehicle_project::cabin_sources(
+                    &ws.project,
+                    ws.project.active_surface,
+                )
+                .len(),
             },
             None => EditContext::default(),
         }
@@ -624,6 +631,14 @@ impl AppState {
                 ));
             }
             CommandId::UpdateTemplate => self.open_update_dialog(None),
+            CommandId::CopyFromCabin => {
+                if let Some(ws) = self.workspace() {
+                    let dialog = crate::ui::vehicle_dialogs::CopyFromCabinDialog::new(&ws.project);
+                    if !dialog.sources.is_empty() {
+                        self.modal = Some(Modal::CopyFromCabin(dialog));
+                    }
+                }
+            }
             CommandId::Snapping => self.prefs.view_aids.snapping = !self.prefs.view_aids.snapping,
             CommandId::ClearGuides => self.with_workspace(|ws| {
                 ws.edit("cmd-clear-guides", now, false, |project, _| {

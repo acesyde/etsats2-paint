@@ -17,8 +17,9 @@ pub use color::{DEFAULT_FILL, Hsla, Hsva, Rgba};
 pub use history::{COALESCE_WINDOW, DEFAULT_MAX_STEPS, History};
 pub use object::{
     AssetId, Cap, CharStyle, DEFAULT_MITER_LIMIT, Dash, Frame, Join, LineStyle, MIN_SIZE, Object,
-    ObjectId, ShapeKind, StrokeAlign, StrokeStyle, TextAlign, TextBlock, convex_polygons_overlap,
-    flatten_closed, flatten_subpaths, normalize_degrees, segments_intersect,
+    ObjectId, ShapeKind, StrokeAlign, StrokeStyle, StyleId, SwatchId, TextAlign, TextBlock,
+    convex_polygons_overlap, flatten_closed, flatten_subpaths, normalize_degrees,
+    segments_intersect,
 };
 pub use paint::{
     ColorStop, Gradient, GradientKind, MAX_STOPS, MIN_STOPS, Paint, PaintKind, unit_to_document,

@@ -261,25 +261,29 @@ impl Workspace {
         }
     }
 
-    /// Lays out every text again (fonts changed).
+    /// Lays out every text of every texture again (fonts or text styles
+    /// changed).
     pub fn relayout_all_texts(&mut self) {
-        let mut changed = Vec::new();
         let engine = &mut self.text;
-        for object in &self.project.surface().objects {
-            let mut copy = (**object).clone();
-            let mut any = false;
-            copy.for_each_shape(&mut |shape| {
-                if let Some(block) = shape.text.clone() {
-                    engine.relayout(shape, &block);
-                    any |= shape.text.as_ref().map(|t| t.layout_size) != Some(block.layout_size);
+        for surface in &mut self.project.surfaces {
+            let mut changed = Vec::new();
+            for object in &surface.objects {
+                let mut copy = (**object).clone();
+                let mut any = false;
+                copy.for_each_shape(&mut |shape| {
+                    if let Some(block) = shape.text.clone() {
+                        engine.relayout(shape, &block);
+                        any |=
+                            shape.text.as_ref().map(|t| t.layout_size) != Some(block.layout_size);
+                    }
+                });
+                if any {
+                    changed.push(copy);
                 }
-            });
-            if any {
-                changed.push(copy);
             }
-        }
-        if !changed.is_empty() {
-            self.project.surface_mut().replace(&changed);
+            if !changed.is_empty() {
+                surface.replace(&changed);
+            }
         }
     }
 }

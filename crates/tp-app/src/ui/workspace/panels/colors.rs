@@ -603,6 +603,7 @@ fn recent_colors(ui: &mut Ui, env: &mut PanelEnv<'_>) {
 }
 
 fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
+    let target = env.ws.panels.color_target;
     ui.horizontal(|ui| {
         ui.label(
             RichText::new(tr("colors-palette"))
@@ -617,10 +618,8 @@ fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
         if add.clicked()
             && let Some(c) = current
         {
-            env.ws
-                .edit("colors-add-to-palette", env.now, false, |project, _| {
-                    project.add_to_palette(c);
-                });
+            env.ws.panels.picker = None;
+            env.ws.add_to_palette(target, c, env.now);
         }
     });
     let palette = env.ws.project.palette.clone();
@@ -632,33 +631,121 @@ fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
         );
         return;
     }
+    // The swatch the target is linked to: a ring, and its name below.
+    let linked = env.ws.linked_swatch(target);
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = space::XXS;
-        for c in palette {
-            let name = tr!("colors-palette-item", color = label_for(c));
+        for s in &palette {
+            let c = s.color;
             let swatch = SwatchColor::Solid(Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a));
-            let response = ColorSwatch::new(swatch, &name).size(18.0).show(ui);
+            let response = ColorSwatch::new(swatch, &s.name)
+                .size(18.0)
+                .selected(linked == Some(s.id))
+                .show(ui);
             if response.clicked() {
-                apply_now(env, c);
+                env.ws.panels.picker = None;
+                env.ws.apply_swatch(target, s.id);
+                env.ws.commit_pending(env.now);
             }
             response.context_menu(|ui| {
                 if ui
-                    .add(tp_ui::widgets::MenuRow::new(&tr(
-                        "colors-remove-from-palette",
-                    )))
+                    .add(tp_ui::widgets::MenuRow::new(&tr("colors-edit-swatch")))
                     .clicked()
                 {
-                    env.ws.edit(
-                        "colors-remove-from-palette",
-                        env.now,
-                        false,
-                        |project, _| {
-                            project.palette.retain(|p| *p != c);
-                        },
-                    );
+                    env.ws.start_swatch_edit(s.id);
+                    ui.close();
+                }
+                if ui
+                    .add(tp_ui::widgets::MenuRow::new(&tr("colors-delete-swatch")))
+                    .clicked()
+                {
+                    env.ws.delete_swatch(s.id, env.now);
                     ui.close();
                 }
             });
         }
     });
+    if let Some(s) = linked.and_then(|id| palette.iter().find(|s| s.id == id)) {
+        let text = tr!("colors-linked-to", name = s.name.as_str());
+        ui.label(
+            RichText::new(format!("{} {text}", icons::LINKED))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        )
+        .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+    }
+    edit_swatch_popup(ui.ctx(), env);
+}
+
+/// The Edit Swatch popup: name, picker and hex. Changes show live on every
+/// linked color; OK records one step, Cancel or Escape restores.
+fn edit_swatch_popup(ctx: &egui::Context, env: &mut PanelEnv<'_>) {
+    let Some(mut edit) = env.ws.panels.editing_swatch.clone() else {
+        return;
+    };
+    let (mut ok, mut cancel) = (false, false);
+    let mut new_color = None;
+    crate::ui::dialogs::modal("edit_swatch_modal").show(ctx, |ui| {
+        ui.set_width(300.0);
+        ui.label(
+            RichText::new(tr("colors-edit-swatch").trim_end_matches('…'))
+                .text_style(tp_ui::theme::title_style())
+                .color(color::TEXT_PRIMARY),
+        );
+        ui.add_space(space::SM);
+        let label = tr("colors-swatch-name");
+        ui.label(RichText::new(&label).color(color::TEXT_SECONDARY));
+        let name = ui.add(TextEdit::singleline(&mut edit.name).desired_width(f32::INFINITY));
+        name.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
+        ui.add_space(space::SM);
+        let responses = [
+            sv_square(ui, &mut edit.hsv, 140.0),
+            hue_slider(ui, &mut edit.hsv),
+            alpha_slider(ui, &mut edit.hsv),
+        ];
+        if responses.iter().any(|r| r.changed()) {
+            let c = from_color32(edit.hsv.to_color32());
+            edit.hex = c.to_hex();
+            new_color = Some(c);
+        }
+        ui.horizontal(|ui| {
+            let label = tr("colors-swatch-hex");
+            ui.label(RichText::new(tr("colors-hex")).color(color::TEXT_SECONDARY));
+            let hex = ui.add(TextEdit::singleline(&mut edit.hex).desired_width(100.0));
+            hex.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
+            if hex.changed()
+                && let Some(c) = Rgba::from_hex(&edit.hex)
+            {
+                edit.hsv = to_widget_hsv(c);
+                new_color = Some(c);
+            }
+        });
+        let empty = edit.name.trim().is_empty();
+        if empty {
+            ui.label(
+                RichText::new(tr("colors-swatch-name-empty"))
+                    .small()
+                    .color(color::ERROR),
+            );
+        }
+        ui.add_space(space::LG);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ok |= ui
+                .add_enabled(!empty, tp_ui::widgets::primary_button(&tr("button-ok")))
+                .clicked();
+            cancel |= ui
+                .add(tp_ui::widgets::secondary_button(&tr("button-cancel")))
+                .clicked();
+        });
+    });
+    cancel |= ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
+    env.ws.panels.editing_swatch = Some(edit);
+    if let Some(c) = new_color {
+        env.ws.preview_swatch_color(c);
+    }
+    if cancel {
+        env.ws.cancel_swatch_edit();
+    } else if ok {
+        env.ws.finish_swatch_edit(env.now);
+    }
 }

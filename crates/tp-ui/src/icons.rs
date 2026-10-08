@@ -90,6 +90,7 @@ pub const RENAME: &str = ph::PENCIL_SIMPLE;
 pub const PROPERTIES: &str = ph::SLIDERS;
 pub const LAYERS: &str = ph::STACK;
 pub const COLORS: &str = ph::PALETTE;
+pub const STYLES: &str = ph::SWATCHES;
 pub const STROKE: &str = ph::CIRCLE_HALF;
 pub const STROKE_CENTER: &str = ph::SQUARE_HALF;
 pub const STROKE_INSIDE: &str = ph::CORNERS_IN;

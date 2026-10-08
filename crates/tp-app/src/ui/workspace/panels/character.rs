@@ -366,6 +366,11 @@ fn draw_preview(ui: &Ui, ws: &mut Workspace, family: &str, rect: egui::Rect) {
         return;
     }
     let preview = ws.text.preview(family);
+    draw_preview_mesh(ui, &preview, rect);
+}
+
+/// Draws a laid-out preview at a 15 pt size, left-aligned in `rect`.
+pub fn draw_preview_mesh(ui: &Ui, preview: &crate::text_engine::FontPreview, rect: egui::Rect) {
     let target = 15.0;
     let scale = target / PREVIEW_SIZE as f32;
     let origin = Pos2::new(

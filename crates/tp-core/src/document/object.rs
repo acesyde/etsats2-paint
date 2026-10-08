@@ -44,6 +44,14 @@ pub enum ShapeKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AssetId(pub u64);
 
+/// Identifier of a palette swatch.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct SwatchId(pub u64);
+
+/// Identifier of a shared style (graphic or text).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct StyleId(pub u64);
+
 /// Horizontal text alignment around the text anchor.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum TextAlign {
@@ -92,6 +100,8 @@ pub struct TextBlock {
     pub layout_size: Size,
     /// Scale applied by resizing with handles.
     pub scale: Vec2,
+    /// The text style the character style follows.
+    pub style_id: Option<StyleId>,
 }
 
 impl TextBlock {
@@ -101,6 +111,7 @@ impl TextBlock {
             style,
             layout_size: Size::new(MIN_SIZE, MIN_SIZE),
             scale: Vec2::new(1.0, 1.0),
+            style_id: None,
         }
     }
 }
@@ -222,6 +233,8 @@ pub struct StrokeStyle {
     pub align: StrokeAlign,
     /// Dashes, caps and joins (for lines, the line's own style is used).
     pub line: LineStyle,
+    /// The swatch a solid paint is linked to.
+    pub swatch: Option<SwatchId>,
 }
 
 impl Default for StrokeStyle {
@@ -231,6 +244,7 @@ impl Default for StrokeStyle {
             width: 1.0,
             align: StrokeAlign::Center,
             line: LineStyle::default(),
+            swatch: None,
         }
     }
 }
@@ -310,7 +324,11 @@ pub struct Object {
     pub name: String,
     pub frame: Frame,
     pub fill: Paint,
+    /// The swatch a solid fill is linked to.
+    pub fill_swatch: Option<SwatchId>,
     pub stroke: Option<StrokeStyle>,
+    /// The graphic style the fill, stroke and opacity follow.
+    pub style: Option<StyleId>,
     /// 0.0..=1.0; for groups, multiplied into the children.
     pub opacity: f32,
     pub visible: bool,
@@ -332,7 +350,9 @@ impl Object {
             name: kind.name().to_owned(),
             frame: frame.sanitized(),
             fill: Paint::Solid(DEFAULT_FILL),
+            fill_swatch: None,
             stroke: None,
+            style: None,
             opacity: 1.0,
             visible: true,
             locked: false,

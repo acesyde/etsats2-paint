@@ -590,14 +590,22 @@ fn palette_add_and_apply() {
     type_into(&mut h, "Hex color", "#123456");
     h.get_by_label("Add to Palette").click();
     h.run();
-    assert_eq!(ws(&h).project.palette, vec![Rgba::rgb(0x12, 0x34, 0x56)]);
+    let palette = &ws(&h).project.palette;
+    assert_eq!(palette.len(), 1);
+    assert_eq!(
+        (palette[0].name.as_str(), palette[0].color),
+        ("Color 1", Rgba::rgb(0x12, 0x34, 0x56))
+    );
+    let swatch = palette[0].id;
+    assert_eq!(obj(&h, a).fill_swatch, Some(swatch), "the target is linked");
     select(&mut h, &[b]);
-    h.get_by_label("Palette color #123456").click();
+    h.get_by_label("Color 1").click();
     h.run();
     assert_eq!(
         obj(&h, b).fill,
         tp_core::document::Paint::from(Rgba::rgb(0x12, 0x34, 0x56))
     );
+    assert_eq!(obj(&h, b).fill_swatch, Some(swatch), "linked to the swatch");
 }
 
 #[test]

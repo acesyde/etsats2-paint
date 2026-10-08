@@ -1,12 +1,13 @@
 //! Right-hand stack of collapsible, closable panels.
 
 mod assets;
-mod character;
+pub mod character;
 mod colors;
 mod layers;
 pub mod line_style;
 mod properties;
 mod stroke;
+mod styles;
 mod transform;
 pub mod vehicle;
 
@@ -142,6 +143,7 @@ fn body(
         PanelKind::Properties => properties::show(ui, env, layout),
         PanelKind::Transform => transform::show(ui, cmds, env),
         PanelKind::Colors => colors::show(ui, env),
+        PanelKind::Styles => styles::show(ui, env),
         PanelKind::Stroke => stroke::show(ui, env),
         PanelKind::Layers => layers::show(ui, cmds, env),
         PanelKind::Assets => assets::show(ui, cmds, env),

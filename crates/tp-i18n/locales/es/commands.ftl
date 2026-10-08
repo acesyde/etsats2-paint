@@ -157,3 +157,5 @@ cmd-sidebar = Barra lateral
 cmd-next-texture = Textura siguiente
 cmd-previous-texture = Textura anterior
 reason-one-texture = El proyecto tiene una sola textura.
+cmd-copy-from-cabin = Copiar desde la cabina…
+reason-no-other-cabin = Copia entre texturas principales de un mismo camión: la textura activa es un accesorio, la de un remolque o la única cabina pintada.

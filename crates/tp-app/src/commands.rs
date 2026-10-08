@@ -66,6 +66,7 @@ pub enum CommandId {
     AddVehicle,
     NextTexture,
     PreviousTexture,
+    CopyFromCabin,
     VehicleInfo,
     UpdateTemplate,
     ShowTemplate,
@@ -146,6 +147,9 @@ pub struct EditContext {
     pub template_visible: bool,
     /// A newer installed version of the project's vehicle can be applied.
     pub update_available: bool,
+    /// Other main textures of the active texture's vehicle (Copy From
+    /// Cabin).
+    pub cabin_sources: usize,
 }
 
 fn can_align(c: &EditContext) -> bool {
@@ -257,6 +261,7 @@ impl CommandId {
             AddVehicle,
             NextTexture,
             PreviousTexture,
+            CopyFromCabin,
             VehicleInfo,
             UpdateTemplate,
             ShowTemplate,
@@ -721,6 +726,16 @@ impl CommandId {
                 const { &[sc(CMD, Key::PageUp)] },
                 Workspace,
                 When(|c| c.texture_count > 1, "reason-one-texture"),
+            ),
+            CopyFromCabin => m(
+                "cmd-copy-from-cabin",
+                None,
+                &[],
+                Workspace,
+                When(
+                    |c| c.cabin_sources > 0 && !c.gesture_active,
+                    "reason-no-other-cabin",
+                ),
             ),
             VehicleInfo => m(
                 "cmd-vehicle-information",

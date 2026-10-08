@@ -238,4 +238,11 @@ textures-missing-version = Version { $version } of this vehicle is not installed
 textures-remove-confirm = The artwork of { $textures } will be removed with them.
 textures-remove = Remove
 textures-apply = Apply
+copy-cabin-hint = Copies every object of the chosen cabin onto { $texture }, at the same positions.
+copy-cabin-objects = { $count ->
+    [one] { $count } object
+   *[other] { $count } objects
+}
+copy-cabin-empty = This texture holds no object to copy.
+copy-cabin-copy = Copy
 remove-vehicle-confirm = Remove { $name } and its artwork from the project?

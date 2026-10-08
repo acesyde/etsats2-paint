@@ -10,12 +10,13 @@ use serde::{Deserialize, Serialize};
 use tp_core::document::{
     AssetId, Cap, CharStyle, ColorStop, DEFAULT_MITER_LIMIT, Dash, Frame, Gradient, GradientKind,
     Join, LineStyle, MIN_STOPS, Node, Object, ObjectId, Paint, PathData, Rgba, ShapeKind,
-    StrokeAlign, StrokeStyle, Subpath, TextAlign, TextBlock,
+    StrokeAlign, StrokeStyle, StyleId, Subpath, SwatchId, TextAlign, TextBlock,
 };
 use tp_core::kurbo::{Point, Size, Vec2};
 use tp_core::{
-    Asset, AssetKind, Axis, Guide, Project, ProjectVehicle, Surface, SurfaceTemplate,
-    TemplateStatus, TexturePart, TextureResolution,
+    Asset, AssetKind, Axis, BrandKit, DEFAULT_SWATCH_PREFIX, GraphicStyle, Guide, Look, Project,
+    ProjectVehicle, Surface, SurfaceTemplate, Swatch, TemplateStatus, TextStyle, TexturePart,
+    TextureResolution,
 };
 
 /// The document (`project.ron`). Asset bytes live in separate ZIP entries.
@@ -26,14 +27,68 @@ pub struct FileProject {
     /// Texture side in pixels (2048, 4096 or 8192).
     pub resolution: u32,
     pub active_surface: usize,
-    #[serde(default)]
+    /// Colors of the palette before swatches had names (read only: opened
+    /// as "Color N" swatches).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub palette: Vec<[u8; 4]>,
+    /// The palette's named swatches.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub swatches: Vec<FileSwatch>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub graphic_styles: Vec<FileGraphicStyle>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub text_styles: Vec<FileTextStyle>,
     pub surfaces: Vec<FileSurface>,
     #[serde(default)]
     pub assets: Vec<FileAsset>,
     /// The vehicles of the fleet.
     #[serde(default)]
     pub vehicles: Vec<FileVehicle>,
+}
+
+/// A named palette color.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileSwatch {
+    pub id: u64,
+    pub name: String,
+    pub color: [u8; 4],
+}
+
+/// A named fill, stroke and opacity.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileGraphicStyle {
+    pub id: u64,
+    pub name: String,
+    pub fill: FilePaint,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fill_swatch: Option<u64>,
+    #[serde(default)]
+    pub stroke: Option<FileStroke>,
+    pub opacity: f32,
+}
+
+/// A named character style.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileTextStyle {
+    pub id: u64,
+    pub name: String,
+    pub family: String,
+    pub weight: u16,
+    pub italic: bool,
+    pub size: f64,
+    pub align: FileAlign,
+    pub letter_spacing: f64,
+    pub line_height: f64,
+    /// The lettering's fill, stroke and opacity (missing: the default
+    /// look of a new text).
+    #[serde(default)]
+    pub fill: Option<FilePaint>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fill_swatch: Option<u64>,
+    #[serde(default)]
+    pub stroke: Option<FileStroke>,
+    #[serde(default)]
+    pub opacity: Option<f32>,
 }
 
 /// A vehicle of the project: the package its templates come from.
@@ -138,6 +193,9 @@ pub struct FileSubpath {
 pub struct FileStop {
     pub offset: f32,
     pub color: [u8; 4],
+    /// The swatch the color is linked to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub swatch: Option<u64>,
 }
 
 /// A fill or stroke paint. Gradient points are in frame units: (0, 0) is
@@ -168,6 +226,9 @@ pub struct FileStroke {
     /// Dash pattern, caps and joins of the outline.
     #[serde(default)]
     pub line: FileLineStyle,
+    /// The swatch a solid paint is linked to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub swatch: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -279,6 +340,9 @@ pub struct FileText {
     pub line_height: f64,
     pub layout_size: [f64; 2],
     pub scale: [f64; 2],
+    /// The text style followed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style_id: Option<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -290,8 +354,14 @@ pub struct FileObject {
     pub size: [f64; 2],
     pub rotation: f64,
     pub fill: FilePaint,
+    /// The swatch a solid fill is linked to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fill_swatch: Option<u64>,
     #[serde(default)]
     pub stroke: Option<FileStroke>,
+    /// The graphic style followed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<u64>,
     pub opacity: f32,
     pub visible: bool,
     pub locked: bool,
@@ -344,6 +414,7 @@ fn paint_to_file(p: &Paint) -> FilePaint {
         .map(|s| FileStop {
             offset: s.offset,
             color: color(s.color),
+            swatch: s.swatch.map(|w| w.0),
         })
         .collect();
     match g.kind {
@@ -384,7 +455,10 @@ fn paint_from_file(f: &FilePaint, id: u64) -> Result<Paint, String> {
     }
     let stops: Vec<ColorStop> = stops
         .iter()
-        .map(|s| ColorStop::new(s.offset, rgba(s.color)))
+        .map(|s| ColorStop {
+            swatch: s.swatch.map(SwatchId),
+            ..ColorStop::new(s.offset, rgba(s.color))
+        })
         .collect();
     let mut g = Gradient::new(kind, &stops);
     let pt = |p: &[f64; 2]| Point::new(p[0], p[1]);
@@ -406,6 +480,165 @@ pub fn asset_entry(asset: &Asset) -> String {
     format!("assets/{}.{ext}", asset.id.0)
 }
 
+fn align_to_file(a: TextAlign) -> FileAlign {
+    match a {
+        TextAlign::Left => FileAlign::Left,
+        TextAlign::Center => FileAlign::Center,
+        TextAlign::Right => FileAlign::Right,
+    }
+}
+
+fn align_from_file(a: FileAlign) -> TextAlign {
+    match a {
+        FileAlign::Left => TextAlign::Left,
+        FileAlign::Center => TextAlign::Center,
+        FileAlign::Right => TextAlign::Right,
+    }
+}
+
+fn stroke_to_file(s: &StrokeStyle) -> FileStroke {
+    FileStroke {
+        paint: paint_to_file(&s.paint),
+        width: s.width,
+        align: match s.align {
+            StrokeAlign::Center => FileStrokeAlign::Center,
+            StrokeAlign::Inside => FileStrokeAlign::Inside,
+            StrokeAlign::Outside => FileStrokeAlign::Outside,
+        },
+        line: line_style_to_file(&s.line),
+        swatch: s.swatch.map(|w| w.0),
+    }
+}
+
+/// The stroke of `s`; `id` names the object or style in errors.
+fn stroke_from_file(s: &FileStroke, id: u64) -> Result<StrokeStyle, String> {
+    Ok(StrokeStyle {
+        paint: paint_from_file(&s.paint, id)?,
+        width: s.width,
+        align: match s.align {
+            FileStrokeAlign::Center => StrokeAlign::Center,
+            FileStrokeAlign::Inside => StrokeAlign::Inside,
+            FileStrokeAlign::Outside => StrokeAlign::Outside,
+        },
+        line: line_style_from_file(&s.line),
+        swatch: s.swatch.map(SwatchId),
+    })
+}
+
+fn brand_to_file(project: &Project, file: &mut FileProject) {
+    file.swatches = project
+        .palette
+        .iter()
+        .map(|s| FileSwatch {
+            id: s.id.0,
+            name: s.name.clone(),
+            color: color(s.color),
+        })
+        .collect();
+    file.graphic_styles = project
+        .graphic_styles
+        .iter()
+        .map(|s| FileGraphicStyle {
+            id: s.id.0,
+            name: s.name.clone(),
+            fill: paint_to_file(&s.look.fill),
+            fill_swatch: s.look.fill_swatch.map(|w| w.0),
+            stroke: s.look.stroke.as_ref().map(stroke_to_file),
+            opacity: s.look.opacity,
+        })
+        .collect();
+    file.text_styles = project
+        .text_styles
+        .iter()
+        .map(|s| FileTextStyle {
+            id: s.id.0,
+            name: s.name.clone(),
+            family: s.style.family.clone(),
+            weight: s.style.weight,
+            italic: s.style.italic,
+            size: s.style.size,
+            align: align_to_file(s.style.align),
+            letter_spacing: s.style.letter_spacing,
+            line_height: s.style.line_height,
+            fill: Some(paint_to_file(&s.look.fill)),
+            fill_swatch: s.look.fill_swatch.map(|w| w.0),
+            stroke: s.look.stroke.as_ref().map(stroke_to_file),
+            opacity: Some(s.look.opacity),
+        })
+        .collect();
+}
+
+/// The palette and styles of `file` (an earlier palette of plain colors
+/// is added afterwards, see [`into_project`]).
+fn brand_from_file(file: &FileProject) -> Result<BrandKit, String> {
+    let palette = file
+        .swatches
+        .iter()
+        .map(|s| Swatch {
+            id: SwatchId(s.id),
+            name: s.name.clone(),
+            color: rgba(s.color),
+        })
+        .collect();
+    let graphic_styles = file
+        .graphic_styles
+        .iter()
+        .map(|s| {
+            Ok(GraphicStyle {
+                id: StyleId(s.id),
+                name: s.name.clone(),
+                look: Look {
+                    fill: paint_from_file(&s.fill, s.id)?,
+                    fill_swatch: s.fill_swatch.map(SwatchId),
+                    stroke: s
+                        .stroke
+                        .as_ref()
+                        .map(|st| stroke_from_file(st, s.id))
+                        .transpose()?,
+                    opacity: s.opacity.clamp(0.0, 1.0),
+                },
+            })
+        })
+        .collect::<Result<_, String>>()?;
+    let text_styles = file
+        .text_styles
+        .iter()
+        .map(|s| {
+            Ok(TextStyle {
+                id: StyleId(s.id),
+                name: s.name.clone(),
+                style: CharStyle {
+                    family: s.family.clone(),
+                    weight: s.weight,
+                    italic: s.italic,
+                    size: s.size,
+                    align: align_from_file(s.align),
+                    letter_spacing: s.letter_spacing,
+                    line_height: s.line_height,
+                },
+                look: Look {
+                    fill: match &s.fill {
+                        Some(f) => paint_from_file(f, s.id)?,
+                        None => Paint::Solid(tp_core::document::DEFAULT_FILL),
+                    },
+                    fill_swatch: s.fill_swatch.map(SwatchId),
+                    stroke: s
+                        .stroke
+                        .as_ref()
+                        .map(|st| stroke_from_file(st, s.id))
+                        .transpose()?,
+                    opacity: s.opacity.unwrap_or(1.0).clamp(0.0, 1.0),
+                },
+            })
+        })
+        .collect::<Result<_, String>>()?;
+    Ok(BrandKit {
+        palette,
+        graphic_styles,
+        text_styles,
+    })
+}
+
 fn object_to_file(o: &Object) -> FileObject {
     FileObject {
         id: o.id.0,
@@ -423,16 +656,9 @@ fn object_to_file(o: &Object) -> FileObject {
         size: [o.frame.size.width, o.frame.size.height],
         rotation: o.frame.rotation_deg,
         fill: paint_to_file(&o.fill),
-        stroke: o.stroke.map(|s| FileStroke {
-            paint: paint_to_file(&s.paint),
-            width: s.width,
-            align: match s.align {
-                StrokeAlign::Center => FileStrokeAlign::Center,
-                StrokeAlign::Inside => FileStrokeAlign::Inside,
-                StrokeAlign::Outside => FileStrokeAlign::Outside,
-            },
-            line: line_style_to_file(&s.line),
-        }),
+        fill_swatch: o.fill_swatch.map(|s| s.0),
+        stroke: o.stroke.as_ref().map(stroke_to_file),
+        style: o.style.map(|s| s.0),
         opacity: o.opacity,
         visible: o.visible,
         locked: o.locked,
@@ -443,15 +669,12 @@ fn object_to_file(o: &Object) -> FileObject {
             weight: t.style.weight,
             italic: t.style.italic,
             size: t.style.size,
-            align: match t.style.align {
-                TextAlign::Left => FileAlign::Left,
-                TextAlign::Center => FileAlign::Center,
-                TextAlign::Right => FileAlign::Right,
-            },
+            align: align_to_file(t.style.align),
             letter_spacing: t.style.letter_spacing,
             line_height: t.style.line_height,
             layout_size: [t.layout_size.width, t.layout_size.height],
             scale: [t.scale.x, t.scale.y],
+            style_id: t.style_id.map(|s| s.0),
         }),
         path: o.path_data().map(|p| {
             let xy = |p: tp_core::kurbo::Point| [p.x, p.y];
@@ -479,12 +702,15 @@ fn object_to_file(o: &Object) -> FileObject {
 
 /// The document of `project` (asset bytes are written separately).
 pub fn from_project(project: &Project) -> FileProject {
-    FileProject {
+    let mut file = FileProject {
         format: 1,
         name: project.name.clone(),
         resolution: project.resolution.side(),
         active_surface: project.active_surface,
-        palette: project.palette.iter().map(|c| color(*c)).collect(),
+        palette: Vec::new(),
+        swatches: Vec::new(),
+        graphic_styles: Vec::new(),
+        text_styles: Vec::new(),
         surfaces: project
             .surfaces
             .iter()
@@ -545,7 +771,9 @@ pub fn from_project(project: &Project) -> FileProject {
                 game: v.game.clone(),
             })
             .collect(),
-    }
+    };
+    brand_to_file(project, &mut file);
+    file
 }
 
 /// The project's vehicles.
@@ -629,19 +857,13 @@ fn object_from_file(
     let mut o = Object::new(ObjectId(f.id), kind, frame);
     o.name.clone_from(&f.name);
     o.fill = paint_from_file(&f.fill, f.id)?;
-    o.stroke = match &f.stroke {
-        Some(s) => Some(StrokeStyle {
-            paint: paint_from_file(&s.paint, f.id)?,
-            width: s.width,
-            align: match s.align {
-                FileStrokeAlign::Center => StrokeAlign::Center,
-                FileStrokeAlign::Inside => StrokeAlign::Inside,
-                FileStrokeAlign::Outside => StrokeAlign::Outside,
-            },
-            line: line_style_from_file(&s.line),
-        }),
-        None => None,
-    };
+    o.fill_swatch = f.fill_swatch.map(SwatchId);
+    o.stroke = f
+        .stroke
+        .as_ref()
+        .map(|s| stroke_from_file(s, f.id))
+        .transpose()?;
+    o.style = f.style.map(StyleId);
     o.opacity = f.opacity.clamp(0.0, 1.0);
     o.visible = f.visible;
     o.locked = f.locked;
@@ -660,16 +882,13 @@ fn object_from_file(
             weight: t.weight,
             italic: t.italic,
             size: t.size,
-            align: match t.align {
-                FileAlign::Left => TextAlign::Left,
-                FileAlign::Center => TextAlign::Center,
-                FileAlign::Right => TextAlign::Right,
-            },
+            align: align_from_file(t.align),
             letter_spacing: t.letter_spacing,
             line_height: t.line_height,
         },
         layout_size: Size::new(t.layout_size[0], t.layout_size[1]),
         scale: Vec2::new(t.scale[0], t.scale[1]),
+        style_id: t.style_id.map(StyleId),
     });
     if kind == ShapeKind::Path {
         let pt = |p: [f64; 2]| Point::new(p[0], p[1]);
@@ -796,9 +1015,16 @@ pub fn into_project(
         resolution,
         surfaces,
         file.active_surface,
-        file.palette.iter().map(|c| rgba(*c)).collect(),
+        brand_from_file(file)?,
         assets,
     );
+    if file.swatches.is_empty() {
+        for c in &file.palette {
+            project.add_swatch(rgba(*c), DEFAULT_SWATCH_PREFIX);
+        }
+    }
+    // A link that disagrees with its source (a hand-edited file) is dropped.
+    project.relink();
     project.vehicles = vehicles_from_file(file);
     check_fleet(&project.vehicles, &project.surfaces)?;
     Ok(project)

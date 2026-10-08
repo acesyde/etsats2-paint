@@ -1076,6 +1076,7 @@ fn render_stroke_options() {
                     join: Join::Round,
                     ..LineStyle::default()
                 },
+                swatch: None,
             });
             ws.project.add(base);
             // Outside-outlined lettering.
@@ -1098,6 +1099,7 @@ fn render_stroke_options() {
                         join: Join::Round,
                         ..LineStyle::default()
                     },
+                    swatch: None,
                 }),
             );
             // A dashed pinstripe and a dotted line under the lettering.
@@ -1208,6 +1210,7 @@ fn gradient_scene(
                 join: Join::Round,
                 ..LineStyle::default()
             },
+            swatch: None,
         }),
     );
     let mut lettering = (**ws.project.surface().get(text).unwrap()).clone();
@@ -1639,5 +1642,113 @@ fn render_custom_vehicle() {
         h.state_mut().vehicles.install_bytes(&packed.bytes).unwrap();
         h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
         save(&mut h, &format!("custom_vehicle_library_{code}"));
+    }
+}
+
+/// The brand kit: the palette with a linked swatch marked, the Edit Swatch
+/// popup, the Styles panel with both sections, and the Copy From Cabin
+/// dialog, in English and German.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_brand_kit() {
+    use tp_app::layout::PanelKind;
+    use tp_app::state::Modal;
+    use tp_core::document::{
+        CharStyle, ColorStop, Frame, Gradient, GradientKind, Object, ObjectId, Paint, Rgba,
+        ShapeKind, StrokeStyle, TextBlock,
+    };
+    use tp_core::kurbo::{Point, Size};
+    for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
+        let mut prefs = Prefs::default();
+        prefs.set_language(Some(language));
+        for slot in &mut prefs.layout.panels {
+            slot.collapsed = !matches!(slot.kind, PanelKind::Colors | PanelKind::Styles);
+        }
+        let code = language.code();
+        let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 1100.0));
+        let package = tp_vehicles::Package::read(tp_app::vehicles::SAMPLES[0].bytes).unwrap();
+        let mut textures = tp_app::vehicle_project::default_textures(&package.manifest);
+        textures.push("high_roof".into());
+        let project =
+            tp_app::vehicle_project::fleet_project("ACE Logistics", &package, &textures).unwrap();
+        h.state_mut().open_project(project);
+        let ws = h.state_mut().workspace_mut().unwrap();
+        let p = &mut ws.project;
+        let (red, _) = p.add_swatch(Rgba::rgb(0xC0, 0x10, 0x20), "Color");
+        p.rename_swatch(red, "Company red");
+        let (grey, _) = p.add_swatch(Rgba::rgb(0x50, 0x55, 0x5A), "Color");
+        p.rename_swatch(grey, "Company grey");
+        p.add_swatch(Rgba::rgb(0xF0, 0xB4, 0x4C), "Color");
+        let frame = |x, y, w, h| Frame::new(Point::new(x, y), Size::new(w, h), 0.0);
+        let mut stripe = Object::new(
+            ObjectId(0),
+            ShapeKind::rectangle(),
+            frame(2048.0, 2600.0, 3600.0, 260.0),
+        );
+        stripe.name = "Stripe".into();
+        let mut stop = ColorStop::new(0.0, Rgba::rgb(0xC0, 0x10, 0x20));
+        stop.swatch = Some(red);
+        stripe.fill = Paint::Gradient(Gradient::new(
+            GradientKind::Linear,
+            &[stop, ColorStop::new(1.0, Rgba::rgb(0x50, 0x55, 0x5A))],
+        ));
+        let stripe = p.add(stripe);
+        p.new_graphic_style(stripe, "Style");
+        p.rename_style(p.graphic_styles[0].id, "Stripe");
+        let mut band = Object::new(
+            ObjectId(0),
+            ShapeKind::rectangle(),
+            frame(2048.0, 3000.0, 3600.0, 120.0),
+        );
+        band.fill = Paint::Solid(Rgba::rgb(0x50, 0x55, 0x5A));
+        band.fill_swatch = Some(grey);
+        band.stroke = Some(StrokeStyle {
+            paint: Paint::Solid(Rgba::rgb(0xC0, 0x10, 0x20)),
+            swatch: Some(red),
+            width: 12.0,
+            ..StrokeStyle::default()
+        });
+        let band = p.add(band);
+        p.new_graphic_style(band, "Style");
+        p.rename_style(p.graphic_styles[1].id, "Band");
+        let mut lettering = Object::new(
+            ObjectId(0),
+            ShapeKind::Text,
+            frame(1200.0, 1500.0, 10.0, 10.0),
+        );
+        lettering.fill = Paint::Solid(Rgba::rgb(0xC0, 0x10, 0x20));
+        lettering.fill_swatch = Some(red);
+        lettering.text = Some(TextBlock::new(
+            "ACE LOGISTICS",
+            CharStyle {
+                size: 260.0,
+                ..CharStyle::default()
+            },
+        ));
+        let lettering = p.add(lettering);
+        p.new_text_style(lettering, "Text style");
+        p.rename_style(p.text_styles[0].id, "Lettering");
+        ws.relayout_all_texts();
+        ws.selection = vec![band];
+        ws.panels.color_target = tp_app::workspace::ColorTarget::Fill;
+        for _ in 0..20 {
+            h.step();
+        }
+        save(&mut h, &format!("brand_palette_styles_{code}"));
+        let ws = h.state_mut().workspace_mut().unwrap();
+        ws.start_swatch_edit(red);
+        save(&mut h, &format!("brand_edit_swatch_{code}"));
+        let ws = h.state_mut().workspace_mut().unwrap();
+        ws.cancel_swatch_edit();
+        let high_roof = ws
+            .project
+            .surfaces
+            .iter()
+            .position(|s| s.name == "High roof")
+            .unwrap();
+        ws.set_active_surface(high_roof);
+        let dialog = tp_app::ui::vehicle_dialogs::CopyFromCabinDialog::new(&ws.project);
+        h.state_mut().modal = Some(Modal::CopyFromCabin(dialog));
+        save(&mut h, &format!("brand_copy_from_cabin_{code}"));
     }
 }

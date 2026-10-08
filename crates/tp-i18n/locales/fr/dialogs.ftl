@@ -237,4 +237,11 @@ textures-missing-version = La version { $version } de ce véhicule n’est pas i
 textures-remove-confirm = Le travail sur { $textures } sera supprimé avec elles.
 textures-remove = Supprimer
 textures-apply = Appliquer
+copy-cabin-hint = Copie tous les objets de la cabine choisie sur { $texture }, aux mêmes positions.
+copy-cabin-objects = { $count ->
+    [one] { $count } objet
+   *[other] { $count } objets
+    }
+copy-cabin-empty = Cette texture ne contient aucun objet à copier.
+copy-cabin-copy = Copier
 remove-vehicle-confirm = Retirer { $name } et son travail du projet ?

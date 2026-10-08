@@ -228,23 +228,37 @@ impl TextEngine {
 
     /// The family name drawn in its own font, regular weight.
     pub fn preview(&mut self, family: &str) -> Arc<FontPreview> {
-        if let Some(p) = self.previews.get(family) {
+        self.styled_preview(family, family, 400, false)
+    }
+
+    /// `text` drawn in `family` at `weight`, upright or italic (a text
+    /// style's name in its own look).
+    pub fn styled_preview(
+        &mut self,
+        text: &str,
+        family: &str,
+        weight: u16,
+        italic: bool,
+    ) -> Arc<FontPreview> {
+        let key = format!("{family}\u{1}{weight}\u{1}{italic}\u{1}{text}");
+        if let Some(p) = self.previews.get(&key) {
             return p.clone();
         }
         let style = CharStyle {
             family: family.to_owned(),
-            weight: 400,
+            weight,
+            italic,
             size: PREVIEW_SIZE,
             ..CharStyle::default()
         };
-        let layout = tp_text::layout(&mut self.fonts, family, &style);
+        let layout = tp_text::layout(&mut self.fonts, text, &style);
         let outline = self.glyphs.outline(&mut self.fonts, &layout);
         let preview = Arc::new(FontPreview {
             mesh: mesh::fill(&outline, 0.05),
             size: layout.size,
             baseline: layout.anchor().y,
         });
-        self.previews.insert(family.to_owned(), preview.clone());
+        self.previews.insert(key, preview.clone());
         preview
     }
 

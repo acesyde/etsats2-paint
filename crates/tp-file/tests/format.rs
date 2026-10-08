@@ -47,6 +47,7 @@ fn rich_project() -> Project {
             join: Join::Round,
             miter_limit: 4.0,
         },
+        swatch: None,
     });
     let base = p.add(base);
     let mut stripe = shape(ShapeKind::Ellipse, 1500.0);
@@ -100,8 +101,57 @@ fn rich_project() -> Project {
     }
     p.add_guide(tp_core::Guide::new(tp_core::Axis::Vertical, 2048.0));
     p.add_guide(tp_core::Guide::new(tp_core::Axis::Horizontal, 1200.5));
+    add_brand(&mut p);
     add_vehicle(&mut p);
     p
+}
+
+const COMPANY_RED: Rgba = Rgba::rgb(0xC0, 0x10, 0x20);
+const COMPANY_GREY: Rgba = Rgba::rgb(0x50, 0x55, 0x5A);
+
+/// The swatches "Company red" and "Company grey"; the graphic style
+/// "Style 1", a gradient whose first stop is linked to "Company red", and
+/// an ellipse "Styled" following it; the text style "Text style 1" and the
+/// text "Brand lettering" following it, its fill linked to "Company grey".
+fn add_brand(p: &mut Project) {
+    let (red, _) = p.add_swatch(COMPANY_RED, "Color");
+    let (grey, _) = p.add_swatch(COMPANY_GREY, "Color");
+    p.rename_swatch(red, "Company red");
+    p.rename_swatch(grey, "Company grey");
+    let mut stop = ColorStop::new(0.0, COMPANY_RED);
+    stop.swatch = Some(red);
+    let mut source = Object::new(
+        ObjectId(0),
+        ShapeKind::rectangle(),
+        Frame::new(Point::new(500.0, 3500.0), Size::new(400.0, 80.0), 0.0),
+    );
+    source.name = "Stripe".into();
+    source.fill = Paint::Gradient(Gradient::new(
+        GradientKind::Linear,
+        &[stop, ColorStop::new(1.0, COMPANY_GREY)],
+    ));
+    source.opacity = 0.9;
+    let source = p.add(source);
+    let style = p.new_graphic_style(source, "Style").unwrap();
+    let mut styled = Object::new(
+        ObjectId(0),
+        ShapeKind::Ellipse,
+        Frame::new(Point::new(900.0, 3500.0), Size::new(80.0, 80.0), 0.0),
+    );
+    styled.name = "Styled".into();
+    let styled = p.add(styled);
+    p.apply_graphic_style(style, &[styled]);
+    let mut lettering = Object::new(
+        ObjectId(0),
+        ShapeKind::Text,
+        Frame::new(Point::new(1500.0, 3500.0), Size::new(600.0, 120.0), 0.0),
+    );
+    lettering.name = "Brand lettering".into();
+    lettering.fill = Paint::Solid(COMPANY_GREY);
+    lettering.fill_swatch = Some(grey);
+    lettering.text = Some(TextBlock::new("ACE", CharStyle::default()));
+    let lettering = p.add(lettering);
+    p.new_text_style(lettering, "Text style").unwrap();
 }
 
 /// Makes `p` a fleet: the Volvo FH16 2012 with its main textures
@@ -311,6 +361,8 @@ fn assert_same_document(a: &Project, b: &Project) {
     assert_eq!(a.resolution, b.resolution);
     assert_eq!(a.active_surface, b.active_surface);
     assert_eq!(a.palette, b.palette);
+    assert_eq!(a.graphic_styles, b.graphic_styles);
+    assert_eq!(a.text_styles, b.text_styles);
     assert_eq!(a.surfaces, b.surfaces);
     assert_eq!(a.assets, b.assets);
     assert_eq!(a.vehicles, b.vehicles);
@@ -477,6 +529,7 @@ fn every_stroke_option_round_trips() {
             width: 5.0,
             align: aligns[i],
             line,
+            swatch: None,
         });
         p.add(o);
         let mut l = Object::from_path(
@@ -556,7 +609,8 @@ fn v1_fixture_opens() {
     assert!(!opened.migrated);
     assert_same_document(&opened.project, &rich_project());
     let objects = &opened.project.surface().objects;
-    assert_eq!(objects.len(), 10);
+    // The vector and gradient objects, then the brand kit's three.
+    assert_eq!(objects.len(), 13);
     let fade = objects[7].fill.gradient().unwrap();
     assert_eq!(fade.kind, GradientKind::Linear);
     assert_eq!(fade.stops(), stops3().as_slice());
@@ -678,4 +732,109 @@ fn inconsistent_fleets_are_damaged() {
         f.vehicles.push(v);
     });
     assert!(matches!(twice, Error::Damaged(_)), "{twice:?}");
+}
+
+/// The object named `name` on the main surface.
+fn named(p: &Project, name: &str) -> Object {
+    fn find(list: &[Arc<Object>], name: &str) -> Option<Object> {
+        list.iter().find_map(|o| {
+            if o.name == name {
+                Some((**o).clone())
+            } else {
+                find(&o.children, name)
+            }
+        })
+    }
+    find(&p.surfaces[0].objects, name).expect("object")
+}
+
+#[test]
+fn brand_kit_round_trip() {
+    let p = rich_project();
+    let mut opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap())
+        .unwrap()
+        .project;
+    assert_same_document(&p, &opened);
+    let names: Vec<&str> = opened.palette.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(names, ["Color 1", "Company red", "Company grey"]);
+    let style = opened.graphic_styles[0].id;
+    assert_eq!(named(&opened, "Styled").style, Some(style));
+    let lettering = named(&opened, "Brand lettering");
+    assert!(lettering.fill_swatch.is_some());
+    assert_eq!(
+        lettering.text.unwrap().style_id,
+        Some(opened.text_styles[0].id)
+    );
+    // Editing "Company red" still recolors the style and its users.
+    let red = opened.palette[1].id;
+    let dark = Rgba::rgb(0x8B, 0, 0);
+    opened.set_swatch_color(red, dark);
+    opened.relink();
+    let stop = |paint: &Paint| paint.gradient().unwrap().stops()[0].color;
+    assert_eq!(stop(&opened.graphic_styles[0].look.fill), dark);
+    let styled = named(&opened, "Styled");
+    assert_eq!(stop(&styled.fill), dark);
+    assert_eq!(styled.style, Some(style));
+}
+
+#[test]
+fn inconsistent_links_are_dropped_when_opening() {
+    let p = rich_project();
+    let mut file = tp_file::current::from_project(&p);
+    // A hand-edited swatch color no longer matches the linked colors.
+    let grey = file
+        .swatches
+        .iter_mut()
+        .find(|s| s.name == "Company grey")
+        .unwrap();
+    grey.color = [1, 2, 3, 255];
+    let bytes: std::collections::HashMap<String, Vec<u8>> = p
+        .assets
+        .values()
+        .map(|a| (tp_file::current::asset_entry(a), a.bytes.to_vec()))
+        .collect();
+    let back = tp_file::current::into_project(&file, |e| bytes.get(e).cloned()).unwrap();
+    let lettering = named(&back, "Brand lettering");
+    assert_eq!(lettering.fill_swatch, None);
+    assert_eq!(
+        lettering.fill,
+        Paint::Solid(COMPANY_GREY),
+        "the look is kept"
+    );
+}
+
+#[test]
+fn palette_of_an_earlier_file() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/v1-palette-colors.truckpaint");
+    let p = tp_file::read(&path).unwrap().project;
+    let swatches: Vec<(&str, Rgba)> = p
+        .palette
+        .iter()
+        .map(|s| (s.name.as_str(), s.color))
+        .collect();
+    assert_eq!(swatches, [("Color 1", Rgba::rgb(0xF0, 0xB4, 0x4C))]);
+    assert!(p.graphic_styles.is_empty() && p.text_styles.is_empty());
+}
+
+#[test]
+fn text_style_without_its_look_opens_with_the_default_look() {
+    let p = rich_project();
+    let mut file = tp_file::current::from_project(&p);
+    let style = &mut file.text_styles[0];
+    style.fill = None;
+    style.fill_swatch = None;
+    style.stroke = None;
+    style.opacity = None;
+    let bytes: std::collections::HashMap<String, Vec<u8>> = p
+        .assets
+        .values()
+        .map(|a| (tp_file::current::asset_entry(a), a.bytes.to_vec()))
+        .collect();
+    let back = tp_file::current::into_project(&file, |e| bytes.get(e).cloned()).unwrap();
+    let look = back.text_styles[0].look;
+    assert_eq!(look.fill, Paint::Solid(tp_core::document::DEFAULT_FILL));
+    assert_eq!((look.stroke, look.opacity), (None, 1.0));
+    // The grey lettering no longer matches it.
+    assert_eq!(named(&back, "Brand lettering").text.unwrap().style_id, None);
 }

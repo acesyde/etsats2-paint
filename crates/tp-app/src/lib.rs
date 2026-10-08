@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod arrange;
+pub mod brand_ops;
 pub mod combine;
 pub mod commands;
 pub mod custom_vehicles;
