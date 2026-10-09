@@ -7,21 +7,21 @@ The theme SHALL be low in saturation so that livery colors read true. Its surfac
 
 | Token | Value | Use |
 |---|---|---|
-| Canvas surface | `#121214` | pasteboard and canvas area |
-| Panel surface | `#161618` | bars, panels, dialogs (outlined `#333336`, radius 14) |
-| Raised surface | `#232326` | hovered rows and cards |
-| Field surface (sunken) | `#121214` with a `#2A2A2E` outline, radius 6 | text and numeric fields |
-| Control surface | `#1C1C1F` | buttons and dropdowns, tracks of segmented controls and sliders, menus, popovers, the breadcrumb pill |
-| Chip surface | `#262629` | the game badge, the active space of the switcher, the open menu |
+| Canvas surface | `#1C1C1F` | pasteboard and canvas area |
+| Panel surface | `#222225` | bars, panels, dialogs (outlined `#3E3E43`, radius 14) |
+| Raised surface | `#2E2E33` | hovered rows and cards |
+| Field surface (sunken) | `#1C1C1F` with a `#343439` outline, radius 6 | text and numeric fields |
+| Control surface | `#28282C` | buttons and dropdowns, tracks of segmented controls and sliders, menus, popovers, the breadcrumb pill |
+| Chip surface | `#34343A` | the game badge, the active space of the switcher, the open menu |
 | Ink | `#EDEDED` | primary text |
-| Muted text | `#8B8B92` | inactive tabs and options, shortcuts, the status bar's text, section headings, the labels inside inset fields; only where it keeps 4.5:1 |
+| Muted text | `#9A9AA2` | inactive tabs and options, shortcuts, the status bar's text, section headings, the labels inside inset fields; only where it keeps 4.5:1 |
 
 The theme SHALL have three accents, each with one meaning and used for nothing else:
 
 | Accent | Value | Meaning |
 |---|---|---|
 | Primary (white) | `#ECECEC` | the primary action of a screen or dialog, the active option of a segmented control, the active tool |
-| Signal (red) | `#F05252` | alerts, "update available", the selection on the canvas |
+| Signal (red) | `#F56B6B` | alerts, "update available", the selection on the canvas |
 | Link (blue) | `#50B9DF` (oklch 0.74 0.11 225) | everything linked to the brand: a fill or stroke linked to a palette swatch, an object following a shared style, a symbol instance |
 
 Success, warning and error SHALL keep their own semantic tokens, distinct from the three accents.
@@ -32,11 +32,11 @@ Success, warning and error SHALL keep their own semantic tokens, distinct from t
 
 #### Scenario: Visual hierarchy between surfaces
 - **WHEN** a panel, the canvas area and a popup menu are visible at the same time
-- **THEN** the canvas area is drawn with the canvas surface `#121214`, the panel with the panel surface `#161618` and the popup menu with the control surface `#1C1C1F`
+- **THEN** the canvas area is drawn with the canvas surface `#1C1C1F`, the panel with the panel surface `#222225` and the popup menu with the control surface `#28282C`
 
 #### Scenario: Sunken fields
 - **WHEN** a rectangle is selected and the inspector shows its position fields
-- **THEN** the fields are drawn on the field surface `#121214` with a `#2A2A2E` outline, below the panel surface around them
+- **THEN** the fields are drawn on the field surface `#1C1C1F` with a `#343439` outline, below the panel surface around them
 
 #### Scenario: Primary action in white
 - **WHEN** the Export Mod dialog is open
@@ -64,7 +64,7 @@ These ratios SHALL hold on each surface (canvas, panel, raised, field, control, 
 - **THEN** every text/background token pair used by the theme meets its minimum ratio
 
 #### Scenario: Accents on the raised surface
-- **WHEN** the automated contrast test checks the signal and link accents against the raised surface `#232326`
+- **WHEN** the automated contrast test checks the signal and link accents against the raised surface `#2E2E33`
 - **THEN** both reach at least 4.5:1
 
 #### Scenario: Text on the white pill

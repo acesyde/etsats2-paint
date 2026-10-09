@@ -17,15 +17,15 @@ pub mod color {
     use egui::Color32;
 
     /// Canvas surface: pasteboard and canvas area (lowest elevation).
-    pub const SURFACE_0: Color32 = Color32::from_rgb(0x12, 0x12, 0x14);
+    pub const SURFACE_0: Color32 = Color32::from_rgb(0x1C, 0x1C, 0x1F);
     /// Panel surface: bars, panels, dialogs.
-    pub const SURFACE_1: Color32 = Color32::from_rgb(0x16, 0x16, 0x18);
+    pub const SURFACE_1: Color32 = Color32::from_rgb(0x22, 0x22, 0x25);
     /// Raised surface: hovered rows and cards, picture placeholders.
-    pub const SURFACE_2: Color32 = Color32::from_rgb(0x23, 0x23, 0x26);
+    pub const SURFACE_2: Color32 = Color32::from_rgb(0x2E, 0x2E, 0x33);
     /// Hovered controls.
-    pub const SURFACE_3: Color32 = Color32::from_rgb(0x2C, 0x2C, 0x30);
+    pub const SURFACE_3: Color32 = Color32::from_rgb(0x3A, 0x3A, 0x40);
     /// Pressed controls.
-    pub const SURFACE_4: Color32 = Color32::from_rgb(0x36, 0x36, 0x3A);
+    pub const SURFACE_4: Color32 = Color32::from_rgb(0x44, 0x44, 0x4A);
 
     /// The canvas surface, by meaning.
     pub const CANVAS: Color32 = SURFACE_0;
@@ -41,21 +41,21 @@ pub mod color {
     /// Control surface: buttons and dropdowns, the tracks of segmented
     /// controls and sliders, menus and popovers, the breadcrumb and zoom
     /// pills.
-    pub const CONTROL: Color32 = Color32::from_rgb(0x1C, 0x1C, 0x1F);
+    pub const CONTROL: Color32 = Color32::from_rgb(0x28, 0x28, 0x2C);
     /// Chip surface: the game badge, the active tab of the space switcher,
     /// the open menu of the menu bar.
-    pub const CHIP: Color32 = Color32::from_rgb(0x26, 0x26, 0x29);
+    pub const CHIP: Color32 = Color32::from_rgb(0x34, 0x34, 0x3A);
 
     /// Background of the selected row of a list (with an indicator bar, so
     /// the selection does not rely on color alone).
-    pub const SELECTED: Color32 = Color32::from_rgb(0x34, 0x34, 0x3A);
+    pub const SELECTED: Color32 = Color32::from_rgb(0x3D, 0x3D, 0x43);
 
     /// Hairline separators between regions.
-    pub const BORDER: Color32 = Color32::from_rgb(0x2A, 0x2A, 0x2E);
+    pub const BORDER: Color32 = Color32::from_rgb(0x34, 0x34, 0x39);
     /// Control outlines (inputs, popups).
-    pub const BORDER_STRONG: Color32 = Color32::from_rgb(0x3A, 0x3A, 0x3F);
+    pub const BORDER_STRONG: Color32 = Color32::from_rgb(0x46, 0x46, 0x4C);
     /// Outlines of dialogs and of thumbnail tiles (textures, layers).
-    pub const OUTLINE: Color32 = Color32::from_rgb(0x33, 0x33, 0x36);
+    pub const OUTLINE: Color32 = Color32::from_rgb(0x3E, 0x3E, 0x43);
 
     /// Ink: primary text.
     pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(0xED, 0xED, 0xED);
@@ -64,15 +64,15 @@ pub mod color {
     /// bar's text. Only on the canvas, panel, control, field and raised
     /// surfaces (it misses 4.5:1 on the chip, hover and selected fills, where
     /// [`TEXT_SECONDARY`] takes over).
-    pub const TEXT_MUTED: Color32 = Color32::from_rgb(0x8B, 0x8B, 0x92);
-    pub const TEXT_DISABLED: Color32 = Color32::from_rgb(0x76, 0x76, 0x7D);
+    pub const TEXT_MUTED: Color32 = Color32::from_rgb(0x9A, 0x9A, 0xA2);
+    pub const TEXT_DISABLED: Color32 = Color32::from_rgb(0x86, 0x86, 0x8E);
 
     /// Primary accent (white): primary button, active segment, active tool.
     pub const ACCENT_PRIMARY: Color32 = Color32::from_rgb(0xEC, 0xEC, 0xEC);
     /// Dark text drawn on [`ACCENT_PRIMARY`] (primary button, active segment).
     pub const TEXT_ON_PRIMARY: Color32 = SURFACE_0;
     /// Signal accent (red): alerts, update available, canvas selection.
-    pub const SIGNAL: Color32 = Color32::from_rgb(0xF0, 0x52, 0x52);
+    pub const SIGNAL: Color32 = Color32::from_rgb(0xF5, 0x6B, 0x6B);
     /// Link accent (blue, oklch 0.74 0.11 225): linked to the brand.
     pub const LINK: Color32 = Color32::from_rgb(0x50, 0xB9, 0xDF);
 
@@ -225,8 +225,11 @@ pub mod canvas {
     pub const GUIDE: Color32 = Color32::from_rgb(0x00, 0xC8, 0xE8);
     /// Distance at which a press grabs a guide, in points.
     pub const GUIDE_HIT: f32 = 4.0;
-    pub const GRID_MINOR: Color32 = Color32::from_rgba_premultiplied(40, 40, 48, 40);
-    pub const GRID_MAJOR: Color32 = Color32::from_rgba_premultiplied(30, 30, 40, 90);
+    /// Grid lines: a mid grey (#8A8A92, premultiplied) that reads on the
+    /// light template and on dark paint alike; 35 % for minor lines, 60 %
+    /// for major ones.
+    pub const GRID_MINOR: Color32 = Color32::from_rgba_premultiplied(48, 48, 51, 89);
+    pub const GRID_MAJOR: Color32 = Color32::from_rgba_premultiplied(83, 83, 88, 153);
     /// Minimum distance between drawn grid lines, in points.
     pub const GRID_MIN_GAP: f32 = 8.0;
     /// Alignment lines and marks of snapping.

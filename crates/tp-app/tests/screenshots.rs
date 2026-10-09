@@ -1151,6 +1151,14 @@ fn render_precision_aids() {
             );
             b.fill = Rgba::rgb(0x2E, 0x86, 0xDE).into();
             let b = ws.project.add(b);
+            // A dark livery area, to check the grid reads on dark paint too.
+            let mut dark = Object::new(
+                ObjectId(0),
+                ShapeKind::rectangle(),
+                Frame::new(Point::new(2048.0, 3600.0), Size::new(4096.0, 1000.0), 0.0),
+            );
+            dark.fill = Rgba::rgb(0x1F, 0x24, 0x2B).into();
+            ws.project.add(dark);
             ws.project.add_guide(Guide::new(Axis::Horizontal, 3000.0));
             ws.project.add_guide(Guide::new(Axis::Vertical, 2048.0));
             ws.selection = vec![b];

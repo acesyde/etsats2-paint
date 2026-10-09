@@ -67,20 +67,22 @@ A small `tp-ui` popover (an `egui::Area` about 252 pt wide, opened beside the in
 
 ### 5. Tokens and theme
 `tokens.rs` is rewritten around meanings, keeping the existing elevation levels so most call sites only change names:
+
+The surfaces are one step lighter than the mockup's near-black (canvas `#121214`, panel `#161618`): the mockup sat on a slate page background that the app doesn't have, and the user found the near-black too dark once the app ran. The steps between surfaces are kept, and muted text, disabled text and the signal red were lifted to keep their contrast.
 | Token | Value | Use |
 |---|---|---|
-| `SURFACE_0` canvas | `#121214` | pasteboard, canvas area |
-| `SURFACE_1` panel | `#161618` | bars, panels, dialogs |
-| `SURFACE_2` raised | `#232326` | hovered rows and cards |
-| `FIELD` sunken | `#121214`, outlined `#2A2A2E`, radius 6 | text and numeric fields |
-| `CONTROL` | `#1C1C1F` | buttons and dropdowns, tracks of segmented controls and sliders, menus, popovers, the breadcrumb pill |
-| `CHIP` | `#262629` | the game badge, the active space of the switcher, the open menu |
-| `OUTLINE` | `#333336` | outline of dialogs and of thumbnail tiles (textures, layers, library rows) |
+| `SURFACE_0` canvas | `#1C1C1F` | pasteboard, canvas area |
+| `SURFACE_1` panel | `#222225` | bars, panels, dialogs |
+| `SURFACE_2` raised | `#2E2E33` | hovered rows and cards |
+| `FIELD` sunken | `#1C1C1F`, outlined `#343439`, radius 6 | text and numeric fields |
+| `CONTROL` | `#28282C` | buttons and dropdowns, tracks of segmented controls and sliders, menus, popovers, the breadcrumb pill |
+| `CHIP` | `#34343A` | the game badge, the active space of the switcher, the open menu |
+| `OUTLINE` | `#3E3E43` | outline of dialogs and of thumbnail tiles (textures, layers, library rows) |
 | `TEXT_PRIMARY` ink | `#EDEDED` | text |
 | `TEXT_SECONDARY` | `#A9A9B0` | secondary text, and labels on chip, hover and selected fills |
-| `TEXT_MUTED` | `#8B8B92` | inactive tabs and segments, shortcuts, the status bar's text, section headings (small capitals: the inspector's, the Resources tab's, Mod information), the Textures and Layers headings, the prefixes of inset fields (only on canvas, panel, field, control and raised: it misses 4.5:1 on the chip, hover and selected fills) |
+| `TEXT_MUTED` | `#9A9AA2` | inactive tabs and segments, shortcuts, the status bar's text, section headings (small capitals: the inspector's, the Resources tab's, Mod information), the Textures and Layers headings, the prefixes of inset fields (only on canvas, panel, field, control and raised: it misses 4.5:1 on the chip, hover and selected fills) |
 | `ACCENT_PRIMARY` | `#ECECEC` | primary button, active segment, active tool |
-| `SIGNAL` | `#F05252` | alerts, update available, selection on the canvas |
+| `SIGNAL` | `#F56B6B` | alerts, update available, selection on the canvas |
 | `LINK` | `#50B9DF` (oklch 0.74 0.11 225) | linked swatch, styled object, symbol instance |
 
 Success / warning / error keep their own tokens. The segmented control gets a white pill with dark text for the active option (a fill change, so it stays visible in grayscale), on a `CONTROL` track (a `FIELD` track inside a popover, which is itself on `CONTROL`); the left panel's tabs spread over its width. The space switcher of the top bar is drawn as ghost tabs: muted text, the active space on a `CHIP` fill. Sliders are thin (a 3 pt track filled up to the value, no knob at rest). The inspector's Layout fields are **inset**: one `FIELD` box holding the short label as a muted prefix (still dragged to scrub), the value in mono 12 and the unit (`NumericField::inset`), in two even columns whose gutter holds the proportion lock; its align, distribute and combine buttons are equal `CONTROL` buttons, six to a row. Dialogs use radius 14 and the `OUTLINE` hairline, their single-line fields are 34 pt tall; Brand cards and boxes inside dialogs (Your fleet, In the mod) use radius 10, the boxes on `CONTROL`. Choices among a few named items (the cabins of New Project) are chips: white with dark text when on, outlined when off. The existing contrast test (`tp-ui/src/contrast.rs`) is extended to the new pairs, including dark text on the white pill, `LINK` / `SIGNAL` on every surface, `TEXT_MUTED` on the surfaces that carry it and ink / secondary text on `CHIP`.
@@ -128,7 +130,7 @@ Kittest tests that click panel headers, the sidebar or F-keys are rewritten agai
 
 ## Risks / Trade-offs
 
-- [`SIGNAL` on `SURFACE_2` is 4.50:1, at the limit of the 4.5:1 rule] → The contrast test fails on any drift; red text is kept off raised surfaces where possible.
+- [Lighter surfaces lower the contrast of every text color] → `TEXT_MUTED`, `TEXT_DISABLED` and `SIGNAL` were lifted (`#9A9AA2`, `#86868E`, `#F56B6B`) and the contrast test covers every pair; the selected-row fill (`#3D3D43`) is the lightest that keeps secondary and link text at 4.5:1.
 - [Muscle memory: eight shortcuts move] → The Keyboard Shortcuts window (`Cmd/Ctrl+/`) lists them. The change is noted in the release notes when `distribution` ships.
 - [Popovers hide the canvas while editing a color] → The popover opens beside the inspector, never over the selection's bounds when there is room.
 - [German strings overflow buttons and tabs] → Free-width buttons and labels above fields; `screenshots.rs` renders German at 200 % for review, and the localization test checks that no new string is missing in any language.

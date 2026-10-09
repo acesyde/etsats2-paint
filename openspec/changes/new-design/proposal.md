@@ -5,8 +5,8 @@ The feature set is in place (fleet projects, paint jobs, brand kit, symbols, sha
 ## What Changes
 
 **Look (design tokens)**
-- New dark theme, low in saturation so livery colors read true: surfaces canvas `#121214`, panel `#161618`, raised `#232326`, ink `#ededed`.
-- Three accents, each with one meaning: **white** for the primary action and the active option, **red** `#f05252` for signals (alert, update available, selection), **blue** `oklch(0.74 0.11 225)` for everything linked to the brand (a fill linked to a palette swatch, an object following a style, a symbol instance).
+- New dark theme, low in saturation so livery colors read true: surfaces canvas `#1C1C1F`, panel `#222225`, raised `#2E2E33`, ink `#ededed`.
+- Three accents, each with one meaning: **white** for the primary action and the active option, **red** `#F56B6B` for signals (alert, update available, selection), **blue** `oklch(0.74 0.11 225)` for everything linked to the brand (a fill linked to a palette swatch, an object following a style, a symbol instance).
 - Segmented controls with a white pill for the active option.
 - **BREAKING (look):** fonts Geist (interface) and JetBrains Mono (values, paths, pixels) embedded under the OFL, replacing Inter as the UI typeface. Type scale: titles 22/600, interface 13/400, mono 12.
 
