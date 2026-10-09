@@ -12,7 +12,7 @@ use egui::{
 use tp_core::document::tree::{self, Placement};
 use tp_core::document::{Object, ObjectId};
 use tp_ui::icons;
-use tp_ui::tokens::{color, size, space, stroke};
+use tp_ui::tokens::{color, radius, size, space, stroke};
 use tp_ui::widgets::{EmptyState, MenuRow, toggle_icon_button};
 
 use super::PanelEnv;
@@ -177,17 +177,13 @@ fn row_ui(
         WidgetInfo::selected(WidgetType::SelectableLabel, true, selected, &object.name)
     });
 
-    // Background and selection indicator.
+    // Background: selected rows are filled (their name in ink), as on the
+    // Textures tab.
     let painter = ui.painter();
     if selected {
-        painter.rect_filled(rect, 0, color::SELECTED);
-        painter.rect_filled(
-            Rect::from_min_size(rect.min, Vec2::new(stroke::INDICATOR, rect.height())),
-            0,
-            color::INDICATOR,
-        );
+        painter.rect_filled(rect, radius::MD, color::SURFACE_3);
     } else if response.hovered() {
-        painter.rect_filled(rect, 0, color::SURFACE_3);
+        painter.rect_filled(rect, radius::MD, color::SURFACE_2);
     }
 
     let mut x = rect.left() + space::SM + row.depth as f32 * INDENT;

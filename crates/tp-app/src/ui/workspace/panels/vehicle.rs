@@ -269,8 +269,8 @@ const THUMB: f32 = 26.0;
 const ROW_HEIGHT: f32 = THUMB + 10.0;
 
 /// A texture: thumbnail of its artwork, name, size and the update's flag;
-/// clicking makes it active. The active texture's row is filled, marked by
-/// an indicator bar and its thumbnail ringed.
+/// clicking makes it active. The active texture's row is filled and its
+/// name drawn in ink, as in the mockup.
 fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     // No texture is highlighted while a symbol is edited.
     let active = env.ws.project.active_surface == i && !env.ws.is_editing_symbol();
@@ -296,22 +296,12 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     let painter = ui.painter().clone();
     if active {
         painter.rect_filled(rect, radius::MD, color::SURFACE_3);
-        // An indicator bar, as on the Layers tab's selected rows.
-        painter.rect_filled(
-            Rect::from_min_size(
-                rect.min,
-                Vec2::new(tp_ui::tokens::stroke::INDICATOR, rect.height()),
-            ),
-            0,
-            color::INDICATOR,
-        );
     } else if row.hovered() {
         painter.rect_filled(rect, radius::MD, color::SURFACE_2);
     }
     tp_ui::widgets::paint_focus_ring(ui, rect, &row, radius::MD);
 
-    // The thumbnail, over the artboard's color (as on the canvas); the
-    // active texture's is ringed, so the highlight is not color alone.
+    // The thumbnail, over the artboard's color (as on the canvas).
     let thumb = Rect::from_min_size(
         egui::pos2(rect.left() + space::XS + 2.0, rect.center().y - THUMB / 2.0),
         Vec2::splat(THUMB),
@@ -325,15 +315,10 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
             egui::Color32::WHITE,
         );
     }
-    let (ring, width) = if active {
-        (color::ACCENT_PRIMARY, 1.5)
-    } else {
-        (color::BORDER_STRONG, 1.0)
-    };
     painter.rect_stroke(
         thumb,
         radius::SM,
-        Stroke::new(width, ring),
+        Stroke::new(1.0, color::BORDER_STRONG),
         StrokeKind::Outside,
     );
 

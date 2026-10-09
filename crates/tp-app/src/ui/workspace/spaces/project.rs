@@ -444,17 +444,8 @@ fn texture_tile(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
         painter.rect_stroke(
             rect,
             radius::LG,
-            Stroke::new(1.5, color::ACCENT_PRIMARY),
+            Stroke::new(1.0, color::BORDER_STRONG),
             StrokeKind::Inside,
-        );
-        // An indicator bar, as on the Textures tab's active row.
-        painter.rect_filled(
-            Rect::from_min_size(
-                rect.min + Vec2::new(0.0, space::SM),
-                Vec2::new(tp_ui::tokens::stroke::INDICATOR, TILE_THUMB),
-            ),
-            0,
-            color::INDICATOR,
         );
     } else if tile.hovered() {
         painter.rect_filled(rect, radius::LG, color::SURFACE_2);

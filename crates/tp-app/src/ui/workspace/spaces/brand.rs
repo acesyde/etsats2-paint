@@ -129,8 +129,7 @@ fn index(ui: &mut Ui, env: &PanelEnv<'_>) {
     }
 }
 
-/// "Palette · 5": the current entry is filled and marked by an indicator
-/// bar.
+/// "Palette · 5": the current entry is filled and its title drawn in ink.
 fn index_entry(ui: &mut Ui, title: &str, count: usize, current: bool) -> Response {
     let (rect, response) =
         ui.allocate_exact_size(Vec2::new(ui.available_width(), 34.0), Sense::click());
@@ -140,14 +139,6 @@ fn index_entry(ui: &mut Ui, title: &str, count: usize, current: bool) -> Respons
     let painter = ui.painter();
     if current {
         painter.rect_filled(rect, radius::MD, color::SURFACE_3);
-        painter.rect_filled(
-            Rect::from_min_size(
-                rect.min,
-                Vec2::new(tp_ui::tokens::stroke::INDICATOR, rect.height()),
-            ),
-            0,
-            color::INDICATOR,
-        );
     } else if response.hovered() {
         painter.rect_filled(rect, radius::MD, color::SURFACE_2);
     }
