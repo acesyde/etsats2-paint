@@ -29,7 +29,7 @@ The space SHALL never show an empty panel: a project always holds at least one v
 Each vehicle of the project SHALL be shown as a card holding:
 - a **thumbnail**: the artwork of the vehicle's first painted main texture, drawn over its template, updated when that artwork changes;
 - its **name**, and below it its **kind and package version** ("Truck · package 1.1.0"). Hovering it SHALL show the game versions the recorded package version supports, or that the package isn't installed;
-- **Cabins**, for a truck: the names of the main textures it paints, each followed by its cabins' internal names when the package gives them. A trailer shows no Cabins line;
+- **Cabins**, for a truck: the names of the main textures it paints. Hovering them SHALL show their cabins' internal names when the package gives them; the internal names are not shown otherwise. A trailer shows no Cabins line;
 - **Main texture**: the main texture mode, read only, from the package: "One per cabin layout" when the package has several main textures, "One for every cabin" for a truck with a single main texture, "Single main texture" for a trailer;
 - when a newer version of the vehicle's package is installed, an "Update <version> available" notice in the signal color, with a text label and an icon (never color alone), and an **Update Template…** button that opens Update Template for that vehicle;
 - a **Textures…** button, which opens the vehicle's Textures dialog (see the vehicle-projects capability);
@@ -42,7 +42,7 @@ The actions SHALL be named for assistive technologies with the vehicle's name (f
 
 #### Scenario: Truck card
 - **WHEN** a project holds the sample truck 1.1.0 painting Standard cab and High roof, and no newer version is installed
-- **THEN** its card shows "TruckPaint Sample Truck", "Truck · package 1.1.0", Cabins "Standard cab (standard), High roof (high_roof)", Main texture "One per cabin layout", and no update notice
+- **THEN** its card shows "TruckPaint Sample Truck", "Truck · package 1.1.0", Cabins "Standard cab, High roof" (hovering it shows "standard" and "high_roof"), Main texture "One per cabin layout", and no update notice
 
 #### Scenario: Trailer card
 - **WHEN** a project holds the sample trailer
@@ -93,8 +93,8 @@ Clicking a texture row, or pressing Enter or Space while it has keyboard focus, 
 
 ### Requirement: Mod information column
 The Project space SHALL show a **Mod information** column holding, from top to bottom:
-- the **shop icon** (256 × 64) and the **Mod Manager image** (276 × 162) as previews, generated or chosen as described by the mod-export capability, and updated when the artwork or the chosen pictures change;
-- the mod's **Name**, **Author**, **Version** and **Description**, read only, each with its label above it. An empty Author or Description SHALL be shown as "Not set" in the secondary text color, not as a blank;
+- the **shop icon** (256 × 64) and the **Mod Manager image** (276 × 162) as previews, generated or chosen as described by the mod-export capability, and updated when the artwork or the chosen pictures change. A generated picture of a project whose first texture holds no artwork SHALL be shown as a placeholder (a dashed outline saying it is generated from the first main texture) instead of a blank picture;
+- the mod's **Name**, **Author**, **Version** and **Description**, read only, each with its label above it and shown as plain text (not as a field). An empty Author or Description SHALL be shown as "Not set" in the secondary text color, not as a blank;
 - an **Edit in Export Mod…** button that opens the Export Mod dialog (see the mod-export capability). It SHALL be disabled when Export Mod… is, with the same reason as a tooltip;
 - the editable **Game versions** field and its supported-versions hint (see Game versions field).
 
@@ -102,7 +102,7 @@ The project's game is not listed: it can't change once chosen and is shown in th
 
 #### Scenario: New project
 - **WHEN** a new project named "ACE Logistics" is open in the Project space
-- **THEN** the Mod information column shows the Name "ACE Logistics", the Version "1.0", Author and Description "Not set", both pictures generated from the first main texture, and an empty, editable Game versions field
+- **THEN** the Mod information column shows the Name "ACE Logistics", the Version "1.0", Author and Description "Not set", both pictures as placeholders saying they are generated from the first main texture (it holds no artwork yet), and an empty, editable Game versions field
 
 #### Scenario: Version follows the mod settings
 - **WHEN** the user clicks Edit in Export Mod…, sets the Version to "1.2" and exports

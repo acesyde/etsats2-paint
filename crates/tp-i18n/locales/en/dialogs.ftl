@@ -236,6 +236,9 @@ new-project-custom-hint = Make it from its template files (DDS, PNG or SVG) and 
 new-project-fleet = Your fleet
 new-project-pick-vehicle = Pick a vehicle in the list.
 new-project-cabins = Cabins
+new-project-column-vehicle = Vehicle
+new-project-column-type = Type
+new-project-column-package = Package
 new-project-counts = { $accessories ->
     [0] { $main } main
     [one] { $main } main + { $accessories } accessory

@@ -29,6 +29,8 @@ use crate::ui::CommandUi;
 const INDEX_WIDTH: f32 = 220.0;
 /// Height of a card's text area (title and detail).
 const CARD_TEXT: f32 = 56.0;
+/// Height of a palette card's color block.
+const PALETTE_BLOCK: f32 = 96.0;
 /// Padding of a card's text area.
 const CARD_PAD: Vec2 = Vec2::new(12.0, 10.0);
 
@@ -234,7 +236,7 @@ fn card(
         info
     });
     super::paint_card(ui, rect, response.hovered(), marked);
-    paint_focus_ring(ui, rect, &response, radius::LG);
+    paint_focus_ring(ui, rect, &response, radius::CARD);
     let preview_rect = Rect::from_min_size(rect.min, Vec2::new(width, preview));
     let text = Rect::from_min_max(egui::pos2(rect.left(), preview_rect.bottom()), rect.max)
         .shrink2(CARD_PAD);
@@ -280,22 +282,14 @@ fn buttons(ui: &mut Ui, text: Rect) -> Ui {
 /// The ⋯ menu button of a card, showing the same `items` as its context
 /// menu.
 fn card_menu<R>(ui: &mut Ui, name: &str, items: impl FnOnce(&mut Ui) -> R) -> Option<R> {
-    let menu = ui.menu_button(icons::rich(icons::MORE), items);
-    menu.response.widget_info(|| {
-        WidgetInfo::labeled(
-            WidgetType::Button,
-            true,
-            tr!("brand-actions-named", name = name),
-        )
-    });
-    menu.inner
+    tp_ui::widgets::more_menu(ui, &tr!("brand-actions-named", name = name), items)
 }
 
 /// The top corners of a card, for a preview filling its top.
 fn top_corners() -> CornerRadius {
     CornerRadius {
-        nw: radius::LG,
-        ne: radius::LG,
+        nw: radius::CARD,
+        ne: radius::CARD,
         sw: 0,
         se: 0,
     }
@@ -326,7 +320,7 @@ fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>) -> Response {
         let swatch = &palette[i];
         let c = swatch.color;
         let hex = c.to_hex();
-        let (response, preview, text) = card(ui, width, 72.0, &swatch.name, &hex, false);
+        let (response, preview, text) = card(ui, width, PALETTE_BLOCK, &swatch.name, &hex, false);
         let block = preview.shrink(1.0);
         if c.a < 255 {
             paint_checkerboard(ui.painter(), block, 8.0);
@@ -462,21 +456,16 @@ fn style_section(ui: &mut Ui, env: &mut PanelEnv<'_>, text: bool, workshop: &mut
         let size = item.font.as_ref().map_or("", |f| f.3.as_str());
         let (response, preview, area) = card(ui, width, 56.0, &label, size, marked);
         paint_look(ui, preview.shrink(space::MD), &item.look);
-        if marked {
-            // Marked by an icon too, not by the outline alone.
-            ui.painter().text(
-                preview.right_top() + Vec2::new(-space::SM, space::SM),
-                Align2::RIGHT_TOP,
-                icons::LINKED,
-                icons::font(14.0),
-                color::LINK,
-            );
-        }
         let mut actions = buttons(ui, area);
         if let Some(true) = card_menu(&mut actions, &item.name, |ui| {
             styles::menu_items(ui, env, item.id, &item.name)
         }) {
             *workshop = true;
+        }
+        if marked {
+            // Marked by an icon too, not by the outline alone: beside the
+            // menu, clear of the look.
+            actions.label(icons::rich(icons::LINKED).color(color::LINK));
         }
         let right = actions.min_rect().left() - space::XS;
         if styles::is_renaming(env, item.id) {

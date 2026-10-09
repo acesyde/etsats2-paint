@@ -450,10 +450,11 @@ fn recent_card(
             label_strong_style().resolve(ui.style()),
             name_color,
         ),
+        // Paths are values: in the mono face.
         (
             project.path.display().to_string(),
             26.0,
-            egui::TextStyle::Small.resolve(ui.style()),
+            egui::FontId::monospace(egui::TextStyle::Small.resolve(ui.style()).size),
             color::TEXT_SECONDARY,
         ),
     ] {

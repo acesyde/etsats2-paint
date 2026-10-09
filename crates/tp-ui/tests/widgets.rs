@@ -422,9 +422,9 @@ mod segmented_controls {
                 .unwrap_or_else(|| panic!("{label} not painted"))
         };
         assert_eq!(color_of("Linear"), color::TEXT_ON_PRIMARY);
-        assert_eq!(color_of("Solid"), color::TEXT_SECONDARY);
-        // The options sit in one raised track.
-        let track = rects_filled(&h, color::RAISED);
+        assert_eq!(color_of("Solid"), color::TEXT_MUTED);
+        // The options sit in one track on the control surface.
+        let track = rects_filled(&h, color::CONTROL);
         assert!(
             track.iter().any(|t| t.contains_rect(pills[0])
                 && t.contains(h.get_by_label("Solid").rect().center())),
@@ -439,7 +439,7 @@ mod segmented_controls {
         let mut h = harness();
         h.run();
         assert_eq!(rects_filled(&h, color::ACCENT_PRIMARY).len(), 1);
-        assert!(luma(color::ACCENT_PRIMARY) - luma(color::RAISED) > 150.0);
+        assert!(luma(color::ACCENT_PRIMARY) - luma(color::CONTROL) > 150.0);
         assert!(luma(color::ACCENT_PRIMARY) - luma(color::TEXT_ON_PRIMARY) > 150.0);
     }
 
@@ -557,6 +557,36 @@ mod popovers {
         h.run();
     }
 
+    /// With room on the left of its row, the popover opens there, its top
+    /// on the row's.
+    #[test]
+    fn opens_beside_its_row_when_there_is_room() {
+        let mut h = themed(
+            |ui, _: &mut ()| {
+                ui.add_space(40.0);
+                ui.horizontal(|ui| {
+                    ui.add_space(400.0);
+                    let row = ui.button("Fill");
+                    let id = Popover::id("beside");
+                    if row.clicked() {
+                        Popover::toggle(ui.ctx(), id);
+                    }
+                    Popover::new(id, row.rect).show(ui, |ui| ui.label("Fill settings"));
+                });
+            },
+            (),
+        );
+        h.run();
+        h.get_by_label("Fill").click();
+        h.run();
+        let row = h.get_by_label("Fill").rect();
+        let label = h.get_by_label("Fill settings").rect();
+        assert!(label.right() <= row.left(), "{row:?} {label:?}");
+        assert!(label.top() >= row.top() - 1.0, "{row:?} {label:?}");
+    }
+
+    /// Without room on the left (the row at the window's edge), it opens
+    /// under its row.
     #[test]
     fn opens_under_its_row_and_stays_open_for_its_own_widgets() {
         let mut h = harness();

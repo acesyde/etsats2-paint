@@ -166,12 +166,14 @@ fn file_name(path: &std::path::Path) -> String {
         .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
 }
 
-/// A labelled whole-number field filling its column.
+/// A labelled whole-number field filling its column, as tall as the text
+/// fields.
 fn number_field(ui: &mut Ui, label: &str, value: &mut u32, max: u32) {
     super::dialogs::labelled(ui, label, |ui| {
         let event = NumericField::new("", label, Some(f64::from(*value)))
             .range(0.0..=f64::from(max))
             .fill()
+            .inset(super::dialogs::FIELD_HEIGHT)
             .show(ui);
         if let FieldEvent::Live(v) | FieldEvent::Commit(v) = event {
             *value = v.round() as u32;
@@ -189,31 +191,34 @@ fn is_internal_name_problem(problem: &Problem) -> bool {
     )
 }
 
-/// The settings fields, each labelled above: Name and Version, Author,
-/// Description, Price and Unlock level.
+/// The settings fields, each labelled above: Name and Version (in the
+/// monospace face), Author with Price and Unlock level, then Description.
 fn settings_ui(ui: &mut Ui, settings: &mut ModSettings) {
-    use super::dialogs::{columns, labelled, text_field};
+    use super::dialogs::{columns, labelled, mono_text_field, text_field};
     columns(ui, &[2.0, 1.0], |ui, column| match column {
         0 => {
             text_field(ui, &tr("mod-name"), &mut settings.name);
         }
         _ => {
-            text_field(ui, &tr("mod-version"), &mut settings.version);
+            mono_text_field(ui, &tr("mod-version"), &mut settings.version);
         }
     });
-    text_field(ui, &tr("mod-author"), &mut settings.author);
+    columns(ui, &[2.0, 1.0, 1.0], |ui, column| match column {
+        0 => {
+            text_field(ui, &tr("mod-author"), &mut settings.author);
+        }
+        1 => number_field(ui, &tr("mod-price"), &mut settings.price, 100_000_000),
+        _ => number_field(ui, &tr("mod-unlock"), &mut settings.unlock_level, 1000),
+    });
     let label = tr("mod-description");
     labelled(ui, &label, |ui| {
         let response = ui.add(
             TextEdit::multiline(&mut settings.description)
-                .desired_rows(3)
+                .desired_rows(2)
+                .margin(egui::Margin::symmetric(10, 8))
                 .desired_width(f32::INFINITY),
         );
         response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
-    });
-    columns(ui, &[1.0, 1.0], |ui, column| match column {
-        0 => number_field(ui, &tr("mod-price"), &mut settings.price, 100_000_000),
-        _ => number_field(ui, &tr("mod-unlock"), &mut settings.unlock_level, 1000),
     });
 }
 
@@ -296,7 +301,7 @@ fn picture_ui(
         ui.painter().rect_stroke(
             rect,
             CornerRadius::ZERO,
-            Stroke::new(1.0, color::BORDER_STRONG),
+            Stroke::new(1.0, color::OUTLINE),
             egui::StrokeKind::Outside,
         );
         ui.add_space(space::XS);
@@ -312,13 +317,13 @@ fn picture_ui(
     clicked
 }
 
-/// The summary of what the mod holds, in a raised box.
+/// The summary of what the mod holds, in a box on the control surface.
 fn summary_ui(ui: &mut Ui, summary: &[VehicleSummary]) {
     egui::Frame::new()
-        .fill(color::SURFACE_2)
+        .fill(color::CONTROL)
         .stroke(Stroke::new(1.0, color::BORDER))
-        .corner_radius(radius::LG)
-        .inner_margin(egui::Margin::same(space::MD as i8 + 2))
+        .corner_radius(radius::CARD)
+        .inner_margin(egui::Margin::same(space::MD as i8))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.spacing_mut().item_spacing.y = space::XS;
@@ -435,11 +440,16 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ModExportDia
         ws.project.name,
         super::vehicle_dialogs::game_name(game)
     );
-    // Room under the scrolled fields for the problems and the buttons.
+    // Sized to its content; the fields only scroll when the window is too
+    // short for them, the title, the problems and the buttons.
+    // The chrome: the dialog's margins, title, footer and a little room
+    // around it.
+    let chrome = 2.0 * space::XL + 70.0 + 64.0 + 2.0 * space::LG;
     let body_height =
-        (ctx.content_rect().height() - 230.0 - 24.0 * problems.len() as f32).max(240.0);
+        (ctx.content_rect().height() - chrome - 24.0 * problems.len() as f32).max(240.0);
     super::dialogs::modal("mod_export_modal").show(ctx, |ui| {
-        ui.set_width(640.0);
+        // 640 points wide with the dialog's margins.
+        ui.set_width(640.0 - 2.0 * space::XL);
         super::dialogs::title(ui, &tr("dialog-export-mod"), Some(&subtitle));
         ui.add_space(space::LG);
         ui.add_enabled_ui(exporting.is_none(), |ui| {
@@ -448,7 +458,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ModExportDia
                 .max_height(body_height)
                 .show(ui, |ui| {
                     ui.set_width(ui.available_width());
-                    ui.spacing_mut().item_spacing.y = space::MD;
+                    ui.spacing_mut().item_spacing.y = space::SM + 2.0;
                     settings_ui(ui, &mut dialog.settings);
                     advanced_ui(ui, &mut dialog.settings, limit, &mut dialog.advanced);
                     let previews = dialog.previews.as_ref().filter(|_| dialog.preview_ready());

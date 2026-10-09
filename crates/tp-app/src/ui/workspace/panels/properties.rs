@@ -2,14 +2,14 @@
 //! corner radius, polygon settings, line width, dashes, caps and joins,
 //! image information, and the fill and stroke swatches.
 
-use egui::{RichText, Slider, Ui, WidgetInfo, WidgetType};
+use egui::{RichText, Ui, WidgetInfo, WidgetType};
 use tp_core::AssetKind;
 use tp_core::document::{GradientKind, LineStyle, Object, Paint, ShapeKind};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, space};
-use tp_ui::widgets::{NumericField, SwatchColor, secondary_button};
+use tp_ui::widgets::{NumericField, SwatchColor, ThinSlider, secondary_button};
 
 use super::line_style::{Change, LineEdit};
 use super::{PanelEnv, apply_field};
@@ -261,14 +261,15 @@ pub fn opacity(ui: &mut Ui, env: &mut PanelEnv<'_>, objects: &[Object]) {
             .width(36.0)
             .show(ui);
         apply_field(env, e, set_opacity);
-        let mut value = opacity.unwrap_or(100.0);
-        ui.spacing_mut().slider_width = ui.available_width().max(40.0);
-        let slider = ui.add(Slider::new(&mut value, 0.0..=100.0).show_value(false));
-        slider.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::Slider, true, tr("props-opacity-slider"))
-        });
+        let mut value = opacity.unwrap_or(100.0) as f32;
+        let name = tr("props-opacity-slider");
+        let slider = ui.add(
+            ThinSlider::new(&mut value, 0.0..=100.0, &name)
+                .width(ui.available_width().max(40.0))
+                .step(1.0),
+        );
         if slider.changed() {
-            set_opacity(env.ws, value);
+            set_opacity(env.ws, f64::from(value));
         }
         if slider.drag_stopped() || (slider.changed() && !slider.dragged()) {
             env.ws.commit_pending(env.now);

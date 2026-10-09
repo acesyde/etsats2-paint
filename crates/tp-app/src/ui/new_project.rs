@@ -23,8 +23,33 @@ use crate::vehicles::{SAMPLE_ID, VehicleLibrary};
 
 /// Width of the "Your fleet" column.
 const FLEET_WIDTH: f32 = 340.0;
-/// Height of a row of the vehicle list.
-const ROW_HEIGHT: f32 = 44.0;
+/// Height of a row of the vehicle list, and of its column headers.
+const ROW_HEIGHT: f32 = 32.0;
+const HEADER_HEIGHT: f32 = 30.0;
+
+/// The x positions of the vehicle list's columns in a row `rect`: the
+/// choice mark's center, then the left edges of Vehicle, Type and Package.
+struct Columns {
+    mark: f32,
+    name: f32,
+    kind: f32,
+    package: f32,
+}
+
+impl Columns {
+    fn of(rect: Rect) -> Self {
+        let pad = space::MD + 2.0;
+        let gap = space::MD;
+        let package = rect.right() - pad - 140.0;
+        let kind = package - gap - 100.0;
+        Self {
+            mark: rect.left() + pad + 8.0,
+            name: rect.left() + pad + 28.0 + gap,
+            kind,
+            package,
+        }
+    }
+}
 
 /// What the dialog asks for this frame.
 enum Outcome {
@@ -311,7 +336,7 @@ fn vehicle_column(
     Frame::new()
         .fill(color::SURFACE_1)
         .stroke(Stroke::new(1.0, color::BORDER))
-        .corner_radius(radius::LG)
+        .corner_radius(radius::CARD)
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.set_height(list_height);
@@ -367,9 +392,10 @@ fn list(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary, heig
         });
         return;
     }
+    column_headers(ui);
     ScrollArea::vertical()
         .id_salt("new_project_vehicles")
-        .max_height(height)
+        .max_height(height - HEADER_HEIGHT)
         .auto_shrink([false, false])
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
@@ -383,15 +409,45 @@ fn list(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary, heig
         });
 }
 
-/// One vehicle: a choice mark, its name and brand, its kind and its newest
-/// version. Returns whether it was clicked.
+/// The headers of the list's columns: Vehicle, Type and Package, in small
+/// muted capitals over a hairline.
+fn column_headers(ui: &mut Ui) {
+    let (rect, _) = ui.allocate_exact_size(
+        Vec2::new(ui.available_width(), HEADER_HEIGHT),
+        Sense::hover(),
+    );
+    let columns = Columns::of(rect);
+    let painter = ui.painter();
+    let font = egui::FontId::new(typography::CAPTION, tp_ui::fonts::semibold_family());
+    for (x, key) in [
+        (columns.name, "new-project-column-vehicle"),
+        (columns.kind, "new-project-column-type"),
+        (columns.package, "new-project-column-package"),
+    ] {
+        painter.text(
+            egui::pos2(x, rect.center().y),
+            Align2::LEFT_CENTER,
+            tr(key).to_uppercase(),
+            font.clone(),
+            color::TEXT_MUTED,
+        );
+    }
+    painter.hline(
+        rect.x_range(),
+        rect.bottom() - 0.5,
+        Stroke::new(1.0, color::BORDER),
+    );
+}
+
+/// One vehicle: a choice mark, its name, its kind, and its brand with its
+/// newest version (the package). Returns whether it was clicked.
 fn vehicle_row(ui: &mut Ui, m: &Manifest, selected: bool) -> bool {
     let (rect, response) =
         ui.allocate_exact_size(Vec2::new(ui.available_width(), ROW_HEIGHT), Sense::click());
     response.widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, true, selected, &m.name));
     let painter = ui.painter();
     if selected {
-        painter.rect_filled(rect, CornerRadius::ZERO, color::SELECTED);
+        painter.rect_filled(rect, CornerRadius::ZERO, color::CONTROL);
     } else if response.hovered() {
         painter.rect_filled(rect, CornerRadius::ZERO, color::SURFACE_2);
     }
@@ -400,9 +456,10 @@ fn vehicle_row(ui: &mut Ui, m: &Manifest, selected: bool) -> bool {
         rect.bottom() - 0.5,
         Stroke::new(1.0, color::BORDER),
     );
+    let columns = Columns::of(rect);
     // The choice mark: a filled disc with a check when chosen, a ring
     // otherwise (the shape tells them apart, not only the color).
-    let mark = egui::pos2(rect.left() + space::LG + 8.0, rect.center().y);
+    let mark = egui::pos2(columns.mark, rect.center().y);
     if selected {
         painter.circle_filled(mark, 8.0, color::ACCENT_PRIMARY);
         painter.text(
@@ -415,40 +472,36 @@ fn vehicle_row(ui: &mut Ui, m: &Manifest, selected: bool) -> bool {
     } else {
         painter.circle_stroke(mark, 7.5, Stroke::new(1.0, color::BORDER_STRONG));
     }
-    let text_x = mark.x + 8.0 + space::MD;
-    let right = rect.right() - space::LG;
-    let version = painter.text(
-        egui::pos2(right, rect.center().y),
-        Align2::RIGHT_CENTER,
-        m.version.to_string(),
-        egui::FontId::monospace(typography::MONO),
-        color::TEXT_SECONDARY,
+    let y = rect.center().y;
+    let cell = |from: f32, to: f32| {
+        painter.with_clip_rect(
+            Rect::from_x_y_ranges(from..=to - space::SM, rect.y_range()).intersect(ui.clip_rect()),
+        )
+    };
+    cell(columns.name, columns.kind).text(
+        egui::pos2(columns.name, y),
+        Align2::LEFT_CENTER,
+        &m.name,
+        egui::TextStyle::Body.resolve(ui.style()),
+        if selected {
+            color::TEXT_PRIMARY
+        } else {
+            color::TEXT_SECONDARY
+        },
     );
-    let kind = painter.text(
-        egui::pos2(version.left() - space::XL, rect.center().y),
-        Align2::RIGHT_CENTER,
+    cell(columns.kind, columns.package).text(
+        egui::pos2(columns.kind, y),
+        Align2::LEFT_CENTER,
         kind_label(m.kind),
         egui::TextStyle::Body.resolve(ui.style()),
         color::TEXT_SECONDARY,
     );
-    let clip = Rect::from_min_max(
-        egui::pos2(text_x, rect.top()),
-        egui::pos2(kind.left() - space::MD, rect.bottom()),
-    );
-    let painter = painter.with_clip_rect(clip.intersect(ui.clip_rect()));
-    painter.text(
-        egui::pos2(text_x, rect.top() + 14.0),
+    cell(columns.package, rect.right()).text(
+        egui::pos2(columns.package, y),
         Align2::LEFT_CENTER,
-        &m.name,
-        egui::TextStyle::Body.resolve(ui.style()),
-        color::TEXT_PRIMARY,
-    );
-    painter.text(
-        egui::pos2(text_x, rect.top() + 30.0),
-        Align2::LEFT_CENTER,
-        &m.brand,
-        egui::TextStyle::Small.resolve(ui.style()),
-        color::TEXT_SECONDARY,
+        format!("{} {}", m.brand, m.version),
+        egui::FontId::monospace(typography::CAPTION),
+        color::TEXT_MUTED,
     );
     paint_focus_ring(ui, rect.shrink(1.0), &response, 0);
     response.on_hover_text(summary(m)).clicked()
@@ -561,8 +614,9 @@ fn fleet(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary) {
                     ui.set_width(ui.available_width());
                     ui.spacing_mut().item_spacing.y = space::SM;
                     Frame::new()
-                        .fill(color::SURFACE_2)
-                        .corner_radius(radius::LG)
+                        .fill(color::CONTROL)
+                        .stroke(Stroke::new(1.0, color::BORDER))
+                        .corner_radius(radius::CARD)
                         .inner_margin(Margin::same(space::MD as i8 + 2))
                         .show(ui, |ui| {
                             ui.set_width(ui.available_width());

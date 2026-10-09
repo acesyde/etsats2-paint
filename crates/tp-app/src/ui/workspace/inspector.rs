@@ -75,7 +75,7 @@ fn section(ui: &mut Ui, heading: Option<&str>, body: impl FnOnce(&mut Ui)) {
             ui.set_width(ui.available_width());
             ui.spacing_mut().item_spacing.y = space::SM;
             if let Some(heading) = heading {
-                section_heading(ui, heading);
+                panels::section_heading(ui, heading);
             }
             body(ui);
         })
@@ -86,18 +86,6 @@ fn section(ui: &mut Ui, heading: Option<&str>, body: impl FnOnce(&mut Ui)) {
         y,
         egui::Stroke::new(1.0, color::BORDER),
     );
-}
-
-/// A section heading: small semibold capitals, read as written.
-fn section_heading(ui: &mut Ui, text: &str) {
-    ui.label(
-        RichText::new(text.to_uppercase())
-            .size(typography::CAPTION)
-            .family(tp_ui::fonts::semibold_family())
-            .extra_letter_spacing(0.6)
-            .color(color::TEXT_SECONDARY),
-    )
-    .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
 }
 
 /// A title (14/600), shortened when it does not fit.
@@ -225,6 +213,19 @@ fn selection(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     }
 }
 
+/// The name of `object` in the inspector's header: its own, or for a text
+/// still named after its kind ("Text"), its first line, so that the header
+/// doesn't read the kind twice.
+pub fn display_name(object: &Object) -> String {
+    if let Some(text) = &object.text
+        && object.name == crate::workspace::object_name(object.kind)
+        && let Some(line) = text.content.lines().map(str::trim).find(|l| !l.is_empty())
+    {
+        return line.to_owned();
+    }
+    object.name.clone()
+}
+
 /// What is selected (name and kind, or "N objects") and its symbol
 /// actions: Convert to Symbol, or for instances their symbol, Edit Symbol
 /// and Detach Instance.
@@ -236,17 +237,19 @@ fn header(
     instances_only: bool,
 ) {
     let (name, kind) = match objects {
-        [single] => (
-            single.name.clone(),
-            crate::workspace::object_name(single.kind),
-        ),
+        [single] => {
+            let (name, kind) = (
+                display_name(single),
+                crate::workspace::object_name(single.kind),
+            );
+            // A shape still named after its kind says it once.
+            let kind = if name == kind { String::new() } else { kind };
+            (name, kind)
+        }
         many => (tr!("props-objects", count = many.len()), String::new()),
     };
     // The kind at the right end, the name shortened before it.
     ui.horizontal(|ui| {
-        if let [single] = objects {
-            ui.label(icons::rich(properties::kind_icon(single.kind)).color(color::TEXT_SECONDARY));
-        }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if !kind.is_empty() {
                 caption(ui, &kind);
@@ -388,12 +391,18 @@ fn paint_rows(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         ColorTarget::Fill => fill_row.row,
         ColorTarget::Stroke => stroke_row.row,
     };
-    Popover::new(color_popover(), anchor).show(ui, |ui| {
+    Popover::new(color_popover(), popover_anchor(ui, anchor)).show(ui, |ui| {
         panels::colors::popover(ui, env);
     });
-    Popover::new(stroke_popover(), stroke_row.row).show(ui, |ui| {
+    Popover::new(stroke_popover(), popover_anchor(ui, stroke_row.row)).show(ui, |ui| {
         panels::stroke::popover(ui, env);
     });
+}
+
+/// The anchor of a popover opened from `row`: the row across the whole
+/// inspector, so the popover opens beside the inspector, over the canvas.
+fn popover_anchor(ui: &Ui, row: Rect) -> Rect {
+    Rect::from_x_y_ranges(ui.clip_rect().x_range(), row.y_range())
 }
 
 /// Makes `target` the color target and opens the color popover on its
@@ -430,8 +439,7 @@ fn line_settings(
         })
         .response
         .rect;
-    let anchor = Rect::from_x_y_ranges(ui.max_rect().x_range(), row.y_range());
-    Popover::new(line_popover(), anchor).show(ui, |ui| {
+    Popover::new(line_popover(), popover_anchor(ui, row)).show(ui, |ui| {
         properties::line_popover(ui, env);
     });
 }

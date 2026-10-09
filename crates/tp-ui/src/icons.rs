@@ -51,7 +51,7 @@ pub const SETTINGS: &str = ph::GEAR;
 pub const RESET: &str = ph::ARROW_COUNTER_CLOCKWISE;
 pub const ROTATE: &str = ph::ARROW_CLOCKWISE;
 pub const REMOVE: &str = ph::TRASH;
-pub const MORE: &str = ph::DOTS_THREE_VERTICAL;
+pub const MORE: &str = ph::DOTS_THREE;
 
 pub const EXPANDED: &str = ph::CARET_DOWN;
 pub const COLLAPSED: &str = ph::CARET_RIGHT;

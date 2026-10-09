@@ -53,14 +53,12 @@ impl<'q> CommandUi<'q> {
     }
 
     fn menu_row(&mut self, ui: &mut Ui, id: CommandId, checked: Option<bool>) -> Response {
-        let meta = id.meta();
         let label = self.label(id);
         let shortcut = self.shortcuts.command(id);
         let enabled = self.enabled(id);
         let mut response = ui.add_enabled(
             enabled,
             MenuRow::new(&label)
-                .icon(meta.icon)
                 .shortcut(shortcut.as_deref())
                 .checked(checked),
         );
@@ -77,12 +75,19 @@ impl<'q> CommandUi<'q> {
     /// Icon-only button for `id`.
     pub fn icon_button(&mut self, ui: &mut Ui, id: CommandId, selected: bool) -> Response {
         let icon = id.meta().icon.unwrap_or("?");
-        self.icon_button_with(ui, id, icon, selected)
+        self.icon_button_with(ui, id, icon, selected, None)
+    }
+
+    /// An icon button for `id` of `size` on the control surface (the
+    /// inspector's align buttons).
+    pub fn framed_icon_button(&mut self, ui: &mut Ui, id: CommandId, size: egui::Vec2) -> Response {
+        let icon = id.meta().icon.unwrap_or("?");
+        self.icon_button_with(ui, id, icon, false, Some(size))
     }
 
     /// An add (+) button for `id`, in a list's heading.
     pub fn add_button(&mut self, ui: &mut Ui, id: CommandId) -> Response {
-        self.icon_button_with(ui, id, tp_ui::icons::ADD, false)
+        self.icon_button_with(ui, id, tp_ui::icons::ADD, false, None)
     }
 
     fn icon_button_with(
@@ -91,6 +96,7 @@ impl<'q> CommandUi<'q> {
         id: CommandId,
         icon: &str,
         selected: bool,
+        framed: Option<egui::Vec2>,
     ) -> Response {
         let meta = id.meta();
         let shortcut = self.shortcuts.command(id);
@@ -100,6 +106,9 @@ impl<'q> CommandUi<'q> {
         let mut button = IconButton::new(icon, &label)
             .shortcut(shortcut.as_deref())
             .selected(selected);
+        if let Some(size) = framed {
+            button = button.framed(size);
+        }
         if let Some(reason) = &reason {
             button = button.disabled_reason(reason);
         }
@@ -119,6 +128,22 @@ impl<'q> CommandUi<'q> {
     /// A neutral text button for `id`, as [`Self::primary_button`].
     pub fn secondary_button(&mut self, ui: &mut Ui, id: CommandId, label: &str) -> Response {
         self.text_button(ui, id, tp_ui::widgets::secondary_button(label))
+    }
+
+    /// The same with `icon` before its label (named by its label alone).
+    pub fn secondary_icon_button(
+        &mut self,
+        ui: &mut Ui,
+        id: CommandId,
+        icon: &str,
+        label: &str,
+    ) -> Response {
+        let button = tp_ui::widgets::secondary_icon_button(icon, label);
+        let enabled = self.enabled(id);
+        let response = self.text_button(ui, id, button);
+        response
+            .widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, label));
+        response
     }
 
     fn text_button(&mut self, ui: &mut Ui, id: CommandId, button: egui::Button<'_>) -> Response {

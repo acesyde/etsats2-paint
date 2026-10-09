@@ -73,35 +73,47 @@ fn set_rotation(ws: &mut Workspace, degrees: f64) {
     });
 }
 
-/// A row of two equal columns around a middle one as wide as a button.
-fn three_columns(
+/// Height of the Layout section's fields and buttons.
+const ROW: f32 = 28.0;
+/// Height of the align buttons.
+const BUTTON: f32 = 26.0;
+
+/// A row of two even columns around a gutter as wide as a button (the
+/// proportion lock sits in it, between W and H).
+fn two_columns(
     ui: &mut Ui,
     left: impl FnOnce(&mut Ui),
     middle: impl FnOnce(&mut Ui),
     right: impl FnOnce(&mut Ui),
 ) {
-    let gap = space::XS;
-    let column = ((ui.available_width() - size::HIT_MIN - 2.0 * gap) / 2.0).floor();
+    let column = ((ui.available_width() - size::HIT_MIN) / 2.0).floor();
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = gap;
+        ui.spacing_mut().item_spacing.x = 0.0;
         for (width, body) in [
             (column, Box::new(left) as Box<dyn FnOnce(&mut Ui)>),
             (size::HIT_MIN, Box::new(middle)),
             (column, Box::new(right)),
         ] {
-            ui.allocate_ui(egui::vec2(width, size::HIT_MIN), |ui| {
-                ui.set_width(width);
-                body(ui);
-            });
+            ui.allocate_ui_with_layout(
+                egui::vec2(width, ROW),
+                egui::Layout::left_to_right(egui::Align::Center),
+                |ui| {
+                    ui.set_width(width);
+                    ui.set_min_height(ROW);
+                    body(ui);
+                },
+            );
         }
     });
 }
 
-/// A field of the Layout section, filling its column.
+/// A field of the Layout section: an inset box filling its column, its
+/// short label inside as a prefix.
 fn field<'a>(label: &'a str, name: &'a str, value: f64) -> NumericField<'a> {
     NumericField::new(label, name, Some(value))
         .width(28.0)
         .fill()
+        .inset(ROW)
 }
 
 /// Rotation shown by the panel: the shared value, or `None` ("Mixed").
@@ -120,32 +132,28 @@ pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv
     };
     let (w, h) = (bounds.size.width, bounds.size.height);
     let locked = env.ws.panels.lock_proportions;
-    // Two columns of fields, each as wide as the section allows; the lock
-    // toggle sits between W and H.
+    // Two even columns of inset fields (X Y, W H, rotation and scale); the
+    // lock toggle sits between W and H. Positions and sizes are in pixels,
+    // the unit of the whole section.
     let none = FieldEvent::None;
     let (mut x, mut y, mut width, mut height, mut rotation, mut scale) =
         (none, none, none, none, none, none);
     let mut toggle_lock = false;
     ui.spacing_mut().item_spacing.y = space::XS + 2.0;
-    three_columns(
+    two_columns(
         ui,
         |ui| {
-            x = field("X", &tr("transform-x"), bounds.center.x)
-                .suffix("px")
-                .show(ui);
+            x = field("X", &tr("transform-x"), bounds.center.x).show(ui);
         },
         |_| {},
         |ui| {
-            y = field("Y", &tr("transform-y"), bounds.center.y)
-                .suffix("px")
-                .show(ui);
+            y = field("Y", &tr("transform-y"), bounds.center.y).show(ui);
         },
     );
-    three_columns(
+    two_columns(
         ui,
         |ui| {
             width = field(&tr("field-w"), &tr("field-width"), w)
-                .suffix("px")
                 .range(1.0..=100_000.0)
                 .show(ui);
         },
@@ -161,12 +169,11 @@ pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv
         },
         |ui| {
             height = field(&tr("field-h"), &tr("field-height"), h)
-                .suffix("px")
                 .range(1.0..=100_000.0)
                 .show(ui);
         },
     );
-    three_columns(
+    two_columns(
         ui,
         |ui| {
             rotation = NumericField::new(
@@ -176,6 +183,7 @@ pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv
             )
             .width(28.0)
             .fill()
+            .inset(ROW)
             .suffix("°")
             .decimals(1)
             .range(-360.0..=360.0)
@@ -230,6 +238,7 @@ fn align_rows(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelE
         ui.label(RichText::new(&label).small().color(color::TEXT_SECONDARY));
         let current = env.ws.panels.align_to;
         let combo = egui::ComboBox::from_id_salt("align_to")
+            .icon(tp_ui::widgets::dropdown_icon)
             .width(ui.available_width().min(140.0))
             .selected_text(tr(current.label()))
             .show_ui(ui, |ui| {
@@ -241,32 +250,50 @@ fn align_rows(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelE
             .response
             .widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, &label));
     });
+    // Six even columns: the align buttons fill a row; the distribute
+    // buttons take the first four of the next, the flip buttons (apart from
+    // them) share one box over the last two.
+    let gap = space::XS;
+    let column = ((ui.available_width() - 5.0 * gap) / 6.0).floor();
+    let button = egui::vec2(column, BUTTON);
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 2.0;
+        ui.spacing_mut().item_spacing.x = gap;
         for edge in Edge::ALL {
-            cmds.icon_button(ui, CommandId::Align(edge), false);
+            cmds.framed_icon_button(ui, CommandId::Align(edge), button);
         }
     });
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 2.0;
+        ui.spacing_mut().item_spacing.x = gap;
         for (axis, mode) in [
             (DistributeAxis::Horizontal, DistributeMode::Centers),
             (DistributeAxis::Vertical, DistributeMode::Centers),
             (DistributeAxis::Horizontal, DistributeMode::Spacing),
             (DistributeAxis::Vertical, DistributeMode::Spacing),
         ] {
-            cmds.icon_button(ui, CommandId::Distribute(axis, mode), false);
+            cmds.framed_icon_button(ui, CommandId::Distribute(axis, mode), button);
         }
-        // Apart from the distribute buttons.
-        ui.add_space(space::MD);
+        let flips = egui::vec2(2.0 * column + gap, BUTTON);
+        let (rect, _) = ui.allocate_exact_size(flips, egui::Sense::hover());
+        ui.painter()
+            .rect_filled(rect, tp_ui::tokens::radius::MD, color::CONTROL);
+        let mut inner = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(rect)
+                .layout(egui::Layout::left_to_right(egui::Align::Center)),
+        );
+        inner.spacing_mut().item_spacing.x = 0.0;
         for axis in tp_core::document::FlipAxis::ALL {
-            cmds.icon_button(ui, CommandId::Flip(axis), false);
+            cmds.framed_icon_button(
+                &mut inner,
+                CommandId::Flip(axis),
+                egui::vec2(flips.x / 2.0, BUTTON),
+            );
         }
     });
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 2.0;
+        ui.spacing_mut().item_spacing.x = gap;
         for op in tp_core::document::BooleanOp::ALL {
-            cmds.icon_button(ui, CommandId::Combine(op), false);
+            cmds.framed_icon_button(ui, CommandId::Combine(op), button);
         }
     });
 }

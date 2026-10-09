@@ -92,6 +92,7 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         // Room for the italic toggle at the end of the row.
         let width = (ui.available_width() - size::HIT_MIN - 2.0 * space::SM).max(80.0);
         let combo = egui::ComboBox::from_id_salt("font_weight")
+            .icon(tp_ui::widgets::dropdown_icon)
             .width(width)
             .selected_text(text)
             .show_ui(ui, |ui| {
@@ -187,11 +188,11 @@ fn family_button(ui: &mut Ui, family: Option<&str>, missing: bool) -> egui::Resp
     let fill = if response.hovered() {
         color::SURFACE_3
     } else {
-        color::SURFACE_2
+        color::CONTROL
     };
     painter.rect(
         rect,
-        radius::SM,
+        radius::MD,
         fill,
         Stroke::new(1.0, color::BORDER),
         StrokeKind::Inside,
@@ -214,12 +215,10 @@ fn family_button(ui: &mut Ui, family: Option<&str>, missing: bool) -> egui::Resp
         egui::TextStyle::Body.resolve(ui.style()),
         color::TEXT_PRIMARY,
     );
-    painter.text(
-        Pos2::new(rect.right() - space::SM, rect.center().y),
-        Align2::RIGHT_CENTER,
-        icons::EXPANDED,
-        icons::font(12.0),
-        color::TEXT_SECONDARY,
+    tp_ui::widgets::paint_dropdown_arrow(
+        painter,
+        Pos2::new(rect.right() - space::SM - 3.5, rect.center().y),
+        color::TEXT_MUTED,
     );
     if missing {
         response.on_hover_text(tr!("char-font-not-found", family = label.as_str()))

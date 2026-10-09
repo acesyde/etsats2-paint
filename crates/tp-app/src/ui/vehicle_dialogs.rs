@@ -5,7 +5,6 @@
 use egui::{Align, Checkbox, Layout, RichText, ScrollArea, TextEdit, Ui, WidgetInfo, WidgetType};
 use tp_i18n::tr;
 use tp_ui::icons;
-use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, radius, space};
 use tp_ui::widgets::{EmptyState, SegmentedControl, primary_button, secondary_button};
 use tp_vehicles::{Game, Kind, Manifest, Package, Part};
@@ -46,6 +45,7 @@ impl VehicleFilter {
             let game_name = |g: Option<Game>| g.map_or_else(|| tr("vehicles-all-games"), game_name);
             if !self.game_locked {
                 let combo = egui::ComboBox::from_id_salt((id, "game"))
+                    .icon(tp_ui::widgets::dropdown_icon)
                     .selected_text(game_name(self.game))
                     .show_ui(ui, |ui| {
                         for g in [None, Some(Game::Ets2), Some(Game::Ats)] {
@@ -61,6 +61,7 @@ impl VehicleFilter {
                 Some(k) => kind_label(k),
             };
             let combo = egui::ComboBox::from_id_salt((id, "kind"))
+                .icon(tp_ui::widgets::dropdown_icon)
                 .selected_text(kind_name(self.kind))
                 .show_ui(ui, |ui| {
                     for k in [None, Some(Kind::Truck), Some(Kind::Trailer)] {
@@ -186,9 +187,9 @@ pub fn texture_checkboxes(ui: &mut Ui, m: &Manifest, chosen: &mut Vec<String>) {
     textures_to_paint(ui, m, chosen, &tr("vehicles-main-textures"), None);
 }
 
-/// The same checkboxes under `main_heading`, each main texture followed by
-/// the cabins it covers, and `mode`, the main texture mode, read only
-/// between the main textures and the accessories (New Project).
+/// The same checkboxes under `main_heading`; with `mode` (New Project), the
+/// main textures as chips (the cabins each covers in its tooltip), then the
+/// main texture mode, read only, before the accessories.
 pub fn textures_to_paint(
     ui: &mut Ui,
     m: &Manifest,
@@ -199,36 +200,38 @@ pub fn textures_to_paint(
     let job = &m.paint_job;
     let checked_main = job.main.iter().filter(|p| chosen.contains(&p.id)).count();
     let order: Vec<&str> = job.parts().map(|(_, p)| p.id.as_str()).collect();
-    let mut toggle = |ui: &mut Ui, part: &Part, locked: bool, cabins: bool| {
+    let toggle = |ui: &mut Ui, chosen: &mut Vec<String>, part: &Part, locked: bool| {
         let always = is_always_painted(m, &part.id);
         let mut on = always || chosen.contains(&part.id);
         let enabled = !always && !(locked && on);
-        let response = ui
-            .horizontal(|ui| {
-                let response = ui.add_enabled(enabled, Checkbox::new(&mut on, &part.name));
-                if cabins && !part.game_ids.is_empty() {
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new(part.game_ids.join(", "))
-                                .small()
-                                .color(color::TEXT_SECONDARY),
-                        )
-                        .truncate(),
-                    );
-                }
-                response
-            })
-            .inner;
+        let response = ui.add_enabled(enabled, Checkbox::new(&mut on, &part.name));
         response
             .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, enabled, on, &part.name));
         let response = response.on_hover_text(format!("{0} × {0}", part.texture.size));
         if response.changed() {
-            if on {
-                chosen.push(part.id.clone());
-                chosen.sort_by_key(|id| order.iter().position(|o| o == id));
-            } else {
-                chosen.retain(|id| *id != part.id);
-            }
+            set_painted(chosen, &order, &part.id, on);
+        }
+    };
+    // New Project: the main textures as chips, their cabins' internal names
+    // in the tooltip.
+    let chip = |ui: &mut Ui, chosen: &mut Vec<String>, part: &Part, locked: bool| {
+        let always = is_always_painted(m, &part.id);
+        let on = always || chosen.contains(&part.id);
+        let enabled = !always && !(locked && on);
+        let mut tip = format!("{0} × {0}", part.texture.size);
+        if !part.game_ids.is_empty() {
+            let ids = tr!("project-cabin-ids", ids = part.game_ids.join(", "));
+            tip = format!("{tip}\n{ids}");
+        }
+        let response = ui
+            .add_enabled_ui(enabled, |ui| {
+                tp_ui::widgets::chip_toggle(ui, on, &part.name)
+            })
+            .inner
+            .on_hover_text(&tip)
+            .on_disabled_hover_text(&tip);
+        if response.changed() {
+            set_painted(chosen, &order, &part.id, !on);
         }
     };
     let heading = |ui: &mut Ui, text: &str| {
@@ -237,8 +240,18 @@ pub fn textures_to_paint(
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = space::XXS;
         heading(ui, main_heading);
-        for part in &job.main {
-            toggle(ui, part, checked_main <= 1, mode.is_some());
+        if mode.is_some() {
+            ui.add_space(space::XXS);
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(space::XS + 2.0, space::XS + 2.0);
+                for part in &job.main {
+                    chip(ui, chosen, part, checked_main <= 1);
+                }
+            });
+        } else {
+            for part in &job.main {
+                toggle(ui, chosen, part, checked_main <= 1);
+            }
         }
     });
     if let Some(mode) = mode {
@@ -254,9 +267,22 @@ pub fn textures_to_paint(
             ui.spacing_mut().item_spacing.y = space::XXS;
             heading(ui, &tr("vehicles-accessories"));
             for part in &job.accessories {
-                toggle(ui, part, false, false);
+                toggle(ui, chosen, part, false);
             }
         });
+    }
+}
+
+/// Adds texture `id` to the `chosen` ones, keeping the package's `order`,
+/// or removes it.
+fn set_painted(chosen: &mut Vec<String>, order: &[&str], id: &str, on: bool) {
+    if on {
+        if !chosen.iter().any(|c| c == id) {
+            chosen.push(id.to_owned());
+        }
+        chosen.sort_by_key(|c| order.iter().position(|o| o == c));
+    } else {
+        chosen.retain(|c| c != id);
     }
 }
 
@@ -406,12 +432,28 @@ impl VehicleStatus {
             ),
         }
     }
+
+    /// Text, text color and outline of the status pill of a list row: the
+    /// text says it; the update and custom statuses in their accent, up to
+    /// date muted.
+    fn pill(self) -> (String, egui::Color32, egui::Color32) {
+        match self {
+            Self::Custom => (tr("vehicles-status-custom"), color::LINK, color::LINK),
+            Self::Update => (tr("vehicles-status-update"), color::SIGNAL, color::SIGNAL),
+            Self::UpToDate => (
+                tr("vehicles-status-current"),
+                color::TEXT_MUTED,
+                color::BORDER_STRONG,
+            ),
+        }
+    }
 }
 
 /// Width of the Vehicle Library's detail pane.
 const DETAIL_WIDTH: f32 = 380.0;
-/// Height of a row of the Vehicle Library's list.
-const LIBRARY_ROW: f32 = 52.0;
+/// Height of a row of the Vehicle Library's list, and its thumbnail.
+const LIBRARY_ROW: f32 = 69.0;
+const LIBRARY_THUMB: egui::Vec2 = egui::vec2(64.0, 44.0);
 
 /// What the Vehicle Library asks for this frame.
 #[derive(Default)]
@@ -455,7 +497,9 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
         .copied()
         .find(|v| dialog.selected.as_ref() == Some(&v.id))
         .or(listed.first().copied());
-    if let Some(v) = shown {
+    // The shown vehicle's preview first, then the listed ones' (for their
+    // thumbnails), one package read at a time.
+    for v in shown.into_iter().chain(listed.iter().copied()) {
         let newest = v.newest();
         state
             .package_previews
@@ -541,8 +585,14 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
                                     for v in &listed {
                                         let selected = shown.is_some_and(|s| s.id == v.id);
                                         let status = VehicleStatus::of(v, library, &project);
-                                        if library_row(ui, &v.newest().manifest, status, selected)
-                                            .clicked()
+                                        if library_row(
+                                            ui,
+                                            &v.newest().manifest,
+                                            status,
+                                            selected,
+                                            previews,
+                                        )
+                                        .clicked()
                                         {
                                             dialog.selected = Some(v.id.clone());
                                         }
@@ -645,9 +695,17 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
     keep
 }
 
-/// A vehicle of the library's list: its name, brand, kind and game, its
-/// newest version and its status.
-fn library_row(ui: &mut Ui, m: &Manifest, status: VehicleStatus, selected: bool) -> egui::Response {
+/// A vehicle of the library's list: its thumbnail (the package's preview),
+/// its name, brand, kind and game, its newest version and its status. The
+/// selected row is a full-width band on the control surface, its name in
+/// ink.
+fn library_row(
+    ui: &mut Ui,
+    m: &Manifest,
+    status: VehicleStatus,
+    selected: bool,
+    previews: &crate::package_previews::PackagePreviews,
+) -> egui::Response {
     let (rect, response) = ui.allocate_exact_size(
         egui::vec2(ui.available_width(), LIBRARY_ROW),
         egui::Sense::click(),
@@ -655,41 +713,75 @@ fn library_row(ui: &mut Ui, m: &Manifest, status: VehicleStatus, selected: bool)
     response.widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, true, selected, &m.name));
     let painter = ui.painter();
     if selected {
-        painter.rect_filled(rect, radius::MD, color::SELECTED);
+        painter.rect_filled(rect, 0, color::CONTROL);
     } else if response.hovered() {
-        painter.rect_filled(rect, radius::MD, color::SURFACE_2);
+        painter.rect_filled(rect, 0, color::SURFACE_2);
     }
     painter.hline(
         rect.x_range(),
         rect.bottom() - 0.5,
         egui::Stroke::new(1.0, color::BORDER),
     );
-    let (icon, text, tint) = status.look();
-    let right = rect.right() - space::MD;
-    let pill = status_pill(ui, egui::pos2(right, rect.center().y), icon, &text, tint);
+
+    // The thumbnail: the middle of the preview, or a placeholder.
+    let thumb = egui::Rect::from_min_size(
+        egui::pos2(
+            rect.left() + space::MD,
+            rect.center().y - LIBRARY_THUMB.y / 2.0,
+        ),
+        LIBRARY_THUMB,
+    );
+    match previews.get(&m.id, &m.version) {
+        crate::package_previews::Preview::Ready(texture) => {
+            let size = texture.size_vec2();
+            let uv = cover_uv(size, thumb.size());
+            painter.rect_filled(thumb, radius::MD, tp_ui::tokens::canvas::ARTBOARD);
+            egui::Image::new((texture.id(), thumb.size()))
+                .uv(uv)
+                .corner_radius(radius::MD)
+                .paint_at(ui, thumb);
+        }
+        _ => {
+            painter.rect_filled(thumb, radius::MD, color::CONTROL);
+        }
+    }
+    let painter = ui.painter();
+    painter.rect_stroke(
+        thumb,
+        radius::MD,
+        egui::Stroke::new(1.0, color::OUTLINE),
+        egui::StrokeKind::Inside,
+    );
+
+    let right = rect.right() - space::LG;
+    let pill = status_pill(ui, egui::pos2(right, rect.center().y), status);
     let painter = ui.painter();
     let version = painter.text(
-        egui::pos2(pill.left() - space::LG, rect.center().y),
+        egui::pos2(pill.left() - space::XL, rect.center().y),
         egui::Align2::RIGHT_CENTER,
         m.version.to_string(),
         egui::FontId::monospace(tp_ui::tokens::typography::MONO),
         color::TEXT_SECONDARY,
     );
-    let left = rect.left() + space::MD;
+    let left = thumb.right() + space::LG;
     let clip = egui::Rect::from_min_max(
         egui::pos2(left, rect.top()),
         egui::pos2(version.left() - space::MD, rect.bottom()),
     );
     let painter = painter.with_clip_rect(clip.intersect(ui.clip_rect()));
     painter.text(
-        egui::pos2(left, rect.top() + 17.0),
+        egui::pos2(left, rect.center().y - 9.0),
         egui::Align2::LEFT_CENTER,
         &m.name,
-        label_strong_style().resolve(ui.style()),
-        color::TEXT_PRIMARY,
+        egui::FontId::proportional(tp_ui::tokens::typography::BODY + 1.0),
+        if selected {
+            color::TEXT_PRIMARY
+        } else {
+            color::TEXT_SECONDARY
+        },
     );
     painter.text(
-        egui::pos2(left, rect.top() + 35.0),
+        egui::pos2(left, rect.center().y + 10.0),
         egui::Align2::LEFT_CENTER,
         format!(
             "{} · {} · {}",
@@ -697,56 +789,46 @@ fn library_row(ui: &mut Ui, m: &Manifest, status: VehicleStatus, selected: bool)
             kind_label(m.kind),
             game_label(m.game.id)
         ),
-        egui::TextStyle::Small.resolve(ui.style()),
-        color::TEXT_SECONDARY,
+        egui::FontId::proportional(tp_ui::tokens::typography::CONTROL),
+        color::TEXT_MUTED,
     );
-    tp_ui::widgets::paint_focus_ring(ui, rect, &response, radius::MD);
+    tp_ui::widgets::paint_focus_ring(ui, rect.shrink(1.0), &response, 0);
     response
 }
 
-/// A status as an outlined pill ending at `right`: its icon and its text in
-/// `tint`. Returns its rectangle.
-fn status_pill(
-    ui: &Ui,
-    right: egui::Pos2,
-    icon: &str,
-    text: &str,
-    tint: egui::Color32,
-) -> egui::Rect {
+/// The part of an image of `size` that covers a box of `target` (centered).
+fn cover_uv(size: egui::Vec2, target: egui::Vec2) -> egui::Rect {
+    let image = size.x / size.y.max(1.0);
+    let wanted = target.x / target.y.max(1.0);
+    let (w, h) = if image > wanted {
+        (wanted / image, 1.0)
+    } else {
+        (1.0, image / wanted)
+    };
+    egui::Rect::from_center_size(egui::pos2(0.5, 0.5), egui::vec2(w, h))
+}
+
+/// A status as an outlined pill ending at `right`: its text in its color
+/// (see [`VehicleStatus::pill`]). Returns its rectangle.
+fn status_pill(ui: &Ui, right: egui::Pos2, status: VehicleStatus) -> egui::Rect {
+    let (text, tint, outline) = status.pill();
     let painter = ui.painter();
     let label = painter.layout_no_wrap(
-        text.to_owned(),
-        egui::TextStyle::Small.resolve(ui.style()),
+        text,
+        egui::FontId::proportional(tp_ui::tokens::typography::CONTROL),
         tint,
     );
-    let glyph = painter.layout_no_wrap(icon.to_owned(), icons::font(12.0), tint);
     let pad = egui::vec2(space::SM, space::XXS + 1.0);
-    let size = egui::vec2(
-        glyph.size().x + space::XS + label.size().x + 2.0 * pad.x,
-        label.size().y.max(glyph.size().y) + 2.0 * pad.y,
-    );
+    let size = label.size() + 2.0 * pad;
     let rect =
         egui::Rect::from_min_size(egui::pos2(right.x - size.x, right.y - size.y / 2.0), size);
     painter.rect_stroke(
         rect,
         rect.height() / 2.0,
-        egui::Stroke::new(1.0, tint.gamma_multiply(0.6)),
+        egui::Stroke::new(1.0, outline),
         egui::StrokeKind::Inside,
     );
-    let x = rect.left() + pad.x;
-    painter.galley(
-        egui::pos2(x, rect.center().y - glyph.size().y / 2.0),
-        glyph.clone(),
-        tint,
-    );
-    painter.galley(
-        egui::pos2(
-            x + glyph.size().x + space::XS,
-            rect.center().y - label.size().y / 2.0,
-        ),
-        label,
-        tint,
-    );
+    painter.galley(rect.min + pad, label, tint);
     rect
 }
 

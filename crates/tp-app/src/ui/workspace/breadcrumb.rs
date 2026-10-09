@@ -73,23 +73,32 @@ impl Crumbs {
     }
 
     /// The breadcrumb laid out on one line: the path dimmed, the name in
-    /// ink, the size in the mono font.
-    fn job(&self, ui: &Ui) -> LayoutJob {
-        let body = egui::TextStyle::Body.resolve(ui.style());
-        let strong = tp_ui::theme::label_strong_style().resolve(ui.style());
+    /// ink, the size in the mono font. `compact` (the canvas pill) sets it
+    /// a point smaller, the path and size muted.
+    fn job(&self, ui: &Ui, compact: bool) -> LayoutJob {
+        let mut body = egui::TextStyle::Body.resolve(ui.style());
+        let mut strong = tp_ui::theme::label_strong_style().resolve(ui.style());
+        let (dim, gap) = if compact {
+            let scale = typography::CONTROL / typography::BODY;
+            body.size *= scale;
+            strong.size *= scale;
+            (color::TEXT_MUTED, "  ")
+        } else {
+            (color::TEXT_SECONDARY, " ")
+        };
         let mono = FontId::monospace(typography::CAPTION);
         let mut job = LayoutJob::default();
         let mut add = |text: &str, font: &FontId, color: Color32| {
             job.append(text, 0.0, TextFormat::simple(font.clone(), color));
         };
         for part in &self.path {
-            add(part, &body, color::TEXT_SECONDARY);
-            add(" › ", &body, color::TEXT_SECONDARY);
+            add(part, &body, dim);
+            add(" › ", &body, dim);
         }
         add(&self.name, &strong, color::TEXT_PRIMARY);
         if let Some(size) = &self.size {
-            add(" ", &body, color::TEXT_SECONDARY);
-            add(size, &mono, color::TEXT_SECONDARY);
+            add(gap, &body, dim);
+            add(size, &mono, dim);
         }
         job.wrap.max_rows = 1;
         job.wrap.break_anywhere = true;
@@ -100,9 +109,13 @@ impl Crumbs {
 /// The breadcrumb as a label, shortened with an ellipsis when it does not
 /// fit and shown in full on hover.
 pub fn label(ui: &mut Ui, crumbs: &Crumbs) -> egui::Response {
+    label_job(ui, crumbs, false)
+}
+
+fn label_job(ui: &mut Ui, crumbs: &Crumbs, compact: bool) -> egui::Response {
     let text = crumbs.text();
     let response = ui.add(
-        Label::new(crumbs.job(ui))
+        Label::new(crumbs.job(ui, compact))
             .truncate()
             .selectable(false)
             .sense(Sense::hover()),
@@ -132,13 +145,13 @@ pub fn inlaid(ui: &mut Ui, ws: &Workspace) {
         return;
     }
     let pad = egui::vec2(space::SM + 2.0, space::XS);
-    let galley = ui.painter().layout_job(crumbs.job(ui));
+    let galley = ui.painter().layout_job(crumbs.job(ui, true));
     let width = (galley.size().x + 2.0 * pad.x).min(max.width());
     let chip = Rect::from_min_size(max.min, egui::vec2(width, galley.size().y + 2.0 * pad.y));
     ui.painter().rect(
         chip,
         CornerRadius::same(radius::LG),
-        color::SURFACE_2,
+        color::CONTROL,
         Stroke::new(stroke::HAIRLINE, color::BORDER),
         StrokeKind::Inside,
     );
@@ -148,5 +161,5 @@ pub fn inlaid(ui: &mut Ui, ws: &Workspace) {
             .layout(egui::Layout::left_to_right(egui::Align::Center)),
     );
     child.set_clip_rect(chip.intersect(ui.clip_rect()));
-    label(&mut child, &crumbs);
+    label_job(&mut child, &crumbs, true);
 }

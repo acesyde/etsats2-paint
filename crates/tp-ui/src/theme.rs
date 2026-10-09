@@ -169,10 +169,11 @@ pub fn visuals() -> Visuals {
         radius::MD,
         0.0,
     );
-    // Idle controls sit on the raised surface.
+    // Idle controls sit on the control surface, outlined by a hairline
+    // (text fields keep this outline over their sunken fill).
     v.widgets.inactive = widget(
-        color::SURFACE_2,
-        color::BORDER_STRONG,
+        color::CONTROL,
+        color::BORDER,
         color::TEXT_PRIMARY,
         radius::MD,
         0.0,
@@ -192,8 +193,9 @@ pub fn visuals() -> Visuals {
         radius::MD,
         0.0,
     );
+    // An open menu (of the menu bar) or combo box sits on a chip.
     v.widgets.open = widget(
-        color::SURFACE_3,
+        color::CHIP,
         color::BORDER_STRONG,
         color::TEXT_PRIMARY,
         radius::MD,
@@ -208,17 +210,18 @@ pub fn visuals() -> Visuals {
     v.hyperlink_color = color::TEXT_PRIMARY;
     v.faint_bg_color = color::SURFACE_2;
     v.extreme_bg_color = color::SURFACE_0;
-    // Fields are raised.
-    v.text_edit_bg_color = Some(color::SURFACE_2);
+    // Fields are sunken.
+    v.text_edit_bg_color = Some(color::FIELD);
     v.code_bg_color = color::SURFACE_0;
     v.warn_fg_color = color::WARNING;
     v.error_fg_color = color::ERROR;
 
     v.window_corner_radius = CornerRadius::same(radius::LG);
-    v.menu_corner_radius = CornerRadius::same(radius::MD);
-    // egui draws popups, menus and tooltips with the window fill: raised.
-    // Modal dialogs use their own frame on the panel surface.
-    v.window_fill = color::SURFACE_2;
+    v.menu_corner_radius = CornerRadius::same(radius::LG + 2);
+    // egui draws popups, menus and tooltips with the window fill: the
+    // control surface. Modal dialogs use their own frame on the panel
+    // surface.
+    v.window_fill = color::CONTROL;
     v.window_stroke = Stroke::new(stroke::HAIRLINE, color::BORDER_STRONG);
     v.window_shadow = Shadow {
         offset: [0, 8],
@@ -269,8 +272,9 @@ mod tests {
     fn visuals_use_tokens() {
         let v = visuals();
         assert_eq!(v.panel_fill, color::SURFACE_1);
-        assert_eq!(v.window_fill, color::SURFACE_2);
-        assert_eq!(v.text_edit_bg_color, Some(color::SURFACE_2));
+        assert_eq!(v.window_fill, color::CONTROL);
+        assert_eq!(v.text_edit_bg_color, Some(color::FIELD));
+        assert_eq!(v.widgets.inactive.bg_fill, color::CONTROL);
         assert_eq!(v.widgets.hovered.bg_fill, color::SURFACE_3);
         assert_eq!(v.selection.bg_fill, color::SELECTED);
     }

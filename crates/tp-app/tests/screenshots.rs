@@ -101,8 +101,19 @@ fn render_screens() {
             save(&mut h, &name("workshop_layers"));
             h.state_mut().prefs.layout.left_tab = LeftTab::Resources;
             save(&mut h, &name("workshop_resources"));
+            // The Polygon tool's options bar.
+            h.state_mut().workspace_mut().unwrap().tool = tp_app::tool::Tool::Polygon;
+            save(&mut h, &name("workshop_polygon"));
+            h.state_mut().workspace_mut().unwrap().tool = tp_app::tool::Tool::Select;
             h.state_mut().prefs.layout.left_tab = LeftTab::Textures;
             demo_brand(&mut h, &ids);
+            // The Resources tab with content, and the Layers tab's linked
+            // rows (objects following a style, a symbol instance).
+            h.state_mut().prefs.layout.left_tab = LeftTab::Resources;
+            save(&mut h, &name("workshop_resources_content"));
+            h.state_mut().prefs.layout.left_tab = LeftTab::Layers;
+            save(&mut h, &name("workshop_layers_linked"));
+            h.state_mut().prefs.layout.left_tab = LeftTab::Textures;
             common::show_space(&mut h, Space::Brand);
             save(&mut h, &name("brand"));
 
@@ -111,6 +122,39 @@ fn render_screens() {
             save(&mut h, &name("export_mod"));
             h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
             save(&mut h, &name("vehicle_library"));
+            h.state_mut().modal = None;
+
+            // The size pill while a selection is resized (mid-drag on the
+            // band's bottom right handle).
+            common::show_space(&mut h, Space::Workshop);
+            h.state_mut().workspace_mut().unwrap().selection = vec![ids[0]];
+            h.run();
+            resize_mid_drag(&mut h, (3948.0, 1350.0), Vec2::new(-60.0, 40.0));
+            let image = h.render().expect("render");
+            image
+                .save(out_dir().join(format!("{}.png", name("workshop_resize"))))
+                .unwrap();
+            h.event(egui::Event::PointerButton {
+                pos: h
+                    .state()
+                    .workspace()
+                    .unwrap()
+                    .screen_map(1.0)
+                    .unwrap()
+                    .to_screen(tp_core::kurbo::Point::new(3948.0, 1350.0)),
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+            });
+            h.run();
+
+            // An update installed for the project's vehicle: its card and
+            // the Vehicle Library say so.
+            h.state_mut().workspace_mut().unwrap().project.vehicles[0].version = "1.0.0".into();
+            common::show_space(&mut h, Space::Project);
+            save(&mut h, &name("project_update"));
+            h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+            save(&mut h, &name("vehicle_library_update"));
         }
     }
 
@@ -119,6 +163,34 @@ fn render_screens() {
     h.get_by_label("Edit").click();
     h.run();
     save(&mut h, "menu_edit");
+}
+
+/// Presses at document point `at` (a selection handle) and drags by `by`
+/// points without releasing.
+fn resize_mid_drag(
+    h: &mut egui_kittest::Harness<'static, tp_app::AppState>,
+    at: (f64, f64),
+    by: Vec2,
+) {
+    let from = h
+        .state()
+        .workspace()
+        .unwrap()
+        .screen_map(1.0)
+        .unwrap()
+        .to_screen(tp_core::kurbo::Point::new(at.0, at.1));
+    h.event(egui::Event::PointerMoved(from));
+    h.event(egui::Event::PointerButton {
+        pos: from,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.step();
+    for i in 1..=8 {
+        h.event(egui::Event::PointerMoved(from + by * (i as f32 / 8.0)));
+        h.step();
+    }
 }
 
 /// Steps until the open Export Mod dialog has rendered its preview.
@@ -1795,6 +1867,17 @@ fn render_custom_vehicle() {
         h.state_mut().vehicles.install_bytes(&packed.bytes).unwrap();
         h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
         save(&mut h, &format!("custom_vehicle_library_{code}"));
+        // My vehicles: the custom status among the sample vehicles.
+        h.state_mut().vehicles.install_samples().unwrap();
+        h.state_mut().modal = Some(Modal::VehicleLibrary(
+            tp_app::ui::vehicle_dialogs::LibraryDialog {
+                tab: tp_app::ui::vehicle_dialogs::LibraryTab::Mine,
+                ..Default::default()
+            },
+        ));
+        save(&mut h, &format!("custom_vehicle_library_mine_{code}"));
+        h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+        save(&mut h, &format!("custom_vehicle_library_all_{code}"));
     }
 }
 

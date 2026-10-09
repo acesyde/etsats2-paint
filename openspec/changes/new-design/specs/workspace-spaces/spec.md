@@ -10,7 +10,7 @@ An open project SHALL be shown in exactly one of three spaces at a time:
 - **Workshop:** painting the active texture, with the tool rail, the left panel, the canvas and the inspector (see the workspace-layout capability);
 - **Brand:** the project's palette, graphic styles, text styles, symbols and images (see the brand-space capability).
 
-The top bar SHALL show a segmented control Project / Workshop / Brand in that order. Clicking one of its options SHALL show that space. View › Project (Cmd/Ctrl+1), View › Workshop (Cmd/Ctrl+2) and View › Brand (Cmd/Ctrl+3) SHALL do the same. The active option SHALL be identifiable without relying on color alone (its fill differs from the other options), and each option SHALL be reachable by keyboard navigation and announce its name and selected state to assistive technologies.
+The top bar SHALL show a space switcher Project / Workshop / Brand in that order, drawn as tabs (see the ui-design-system capability). Clicking one of its options SHALL show that space. View › Project (Cmd/Ctrl+1), View › Workshop (Cmd/Ctrl+2) and View › Brand (Cmd/Ctrl+3) SHALL do the same. The active option SHALL be identifiable without relying on color alone (its fill differs from the other options), and each option SHALL be reachable by keyboard navigation and announce its name and selected state to assistive technologies.
 
 The menu bar, the top bar and the status bar SHALL stay in every space. Dialogs opened from one space (Export Mod…, Vehicle Library, Add Vehicle…, Preferences) SHALL work the same in all three.
 
@@ -62,9 +62,9 @@ Switching spaces SHALL NOT change the document, the selection, the undo history,
 ### Requirement: Top bar
 Under the menu bar, every space SHALL show a top bar, 44 px high, with from left to right:
 - the project name and a badge naming its game ("ETS2" or "ATS");
-- in the Workshop, the breadcrumb of the active texture;
 - the space switcher;
-- the **Export…** button.
+- in the Workshop, the breadcrumb of the active texture;
+- the **Export…** button, at the right end.
 
 Its texts SHALL be free width: no label is cut in any of the four languages; when the window is too narrow, the project name is shortened with an ellipsis first and shown in full on hover.
 

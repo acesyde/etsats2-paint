@@ -9,11 +9,11 @@
 pub mod brand;
 pub mod project;
 
-use egui::{Frame, Margin, Response, RichText, Ui, WidgetInfo, WidgetType};
+use egui::{Response, RichText, Ui, WidgetInfo, WidgetType};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::title_style;
-use tp_ui::tokens::{color, radius, space, typography};
+use tp_ui::tokens::{color, radius, space};
 
 /// Size of a section title of a space ("Palette", "Symbols").
 const SECTION_TITLE: f32 = 20.0;
@@ -39,14 +39,7 @@ fn section_title(ui: &mut Ui, text: &str) -> Response {
 
 /// A column's heading: small semibold capitals ("MOD INFORMATION").
 fn caps_heading(ui: &mut Ui, text: &str) {
-    let label = ui.label(
-        RichText::new(text.to_uppercase())
-            .size(typography::CAPTION)
-            .family(tp_ui::fonts::semibold_family())
-            .extra_letter_spacing(0.6)
-            .color(color::TEXT_SECONDARY),
-    );
-    label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
+    super::panels::section_heading(ui, text);
 }
 
 /// The label above a value.
@@ -54,36 +47,28 @@ fn field_label(ui: &mut Ui, text: &str) {
     ui.label(RichText::new(text).small().color(color::TEXT_SECONDARY));
 }
 
-/// A value shown read only under its `label`, in a field-like box: it
-/// can't be focused nor typed in. An empty value reads "Not set" in the
-/// secondary text color.
-fn read_only(ui: &mut Ui, label: &str, value: &str, mono: bool, multiline: bool) {
+/// A value shown read only under its `label`, as plain text (it doesn't
+/// look like a field: it can't be focused nor typed in). An empty value
+/// reads "Not set" in the secondary text color.
+fn value(ui: &mut Ui, label: &str, value: &str, mono: bool, multiline: bool) {
     ui.vertical(|ui| {
-        ui.spacing_mut().item_spacing.y = space::XS;
+        ui.spacing_mut().item_spacing.y = space::XXS;
         field_label(ui, label);
-        Frame::new()
-            .fill(color::SURFACE_0)
-            .stroke(egui::Stroke::new(1.0, color::BORDER))
-            .corner_radius(radius::MD)
-            .inner_margin(Margin::symmetric(10, 7))
-            .show(ui, |ui| {
-                ui.set_width(ui.available_width());
-                let empty = value.trim().is_empty();
-                let mut text = if empty {
-                    RichText::new(tr("project-not-set")).color(color::TEXT_SECONDARY)
-                } else {
-                    RichText::new(value).color(color::TEXT_PRIMARY)
-                };
-                if mono && !empty {
-                    text = text.monospace();
-                }
-                let label = egui::Label::new(text).selectable(false);
-                ui.add(if multiline {
-                    label.wrap()
-                } else {
-                    label.truncate()
-                });
-            });
+        let empty = value.trim().is_empty();
+        let mut text = if empty {
+            RichText::new(tr("project-not-set")).color(color::TEXT_SECONDARY)
+        } else {
+            RichText::new(value).color(color::TEXT_PRIMARY)
+        };
+        if mono && !empty {
+            text = text.monospace();
+        }
+        let label = egui::Label::new(text).selectable(false);
+        ui.add(if multiline {
+            label.wrap()
+        } else {
+            label.truncate()
+        });
     });
 }
 
@@ -105,13 +90,13 @@ fn add_button(ui: &mut Ui, label: &str, name: &str, disabled_reason: Option<&str
     response
 }
 
-/// Paints the card frame of `rect`: the panel surface with a hairline,
+/// Paints the card frame of `rect` (radius 10): the panel surface with a hairline,
 /// raised when hovered; a `marked` card has a strong outline.
 fn paint_card(ui: &Ui, rect: egui::Rect, hovered: bool, marked: bool) {
     let painter = ui.painter();
     painter.rect_filled(
         rect,
-        radius::LG,
+        radius::CARD,
         if hovered {
             color::SURFACE_2
         } else {
@@ -127,7 +112,7 @@ fn paint_card(ui: &Ui, rect: egui::Rect, hovered: bool, marked: bool) {
     };
     painter.rect_stroke(
         rect,
-        radius::LG,
+        radius::CARD,
         egui::Stroke::new(width, outline),
         egui::StrokeKind::Inside,
     );

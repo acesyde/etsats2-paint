@@ -47,13 +47,13 @@ Clicking an available card SHALL open that project. When the list is empty, it S
 Choosing New Project SHALL open a modal dialog on one page:
 
 - **On top:** the **Project name** field and the **Game**, ETS2 or ATS, as a segmented control. The name defaults to the chosen vehicle's name when left empty. The game starts on the game of the installed vehicles, or ETS2 when vehicles of both games or none are installed. A note says that vehicles can be added to the project at any time.
-- **On the left, the vehicle list:** the installed vehicles of the chosen game (name, brand, kind, newest version).
+- **On the left, the vehicle list:** the installed vehicles of the chosen game, one row each under the column headers Vehicle, Type and Package (name, kind, brand and newest version).
   - It is searchable by name and brand, and filterable by kind with a segmented control **All / Trucks / Trailers**.
   - Under the list, a **Custom vehicle…** entry explains that a vehicle without a package can be created from its template files (DDS, PNG or SVG) and its game data, and opens the Custom Vehicle dialog (see the custom-vehicles capability). An **Install…** button installs packages (see the vehicle-packages capability).
   - With no vehicle installed, the list offers Install…, Install the sample vehicles and Custom vehicle….
   - Clicking a vehicle chooses it; choosing another one replaces it.
 - **On the right, "Your fleet":** the chosen vehicle, with:
-  - under **Cabins**, one checkbox per main texture, named after it and followed by the cabins it covers. The first one is checked when the vehicle is chosen; the last checked main texture (and so a single main texture) can't be unchecked;
+  - under **Cabins**, one chip per main texture, named after it, that toggles it (filled when it is checked, outlined otherwise; the cabins it covers in its tooltip). The first one is checked when the vehicle is chosen; the last checked main texture (and so a single main texture) can't be unchecked;
   - the **main texture mode**, read only, from the package: "One per cabin layout" when the package has several main textures, "One for every cabin" for a truck with a single main texture, "Single main texture" for a trailer. The user can't change it;
   - under **Accessories**, one checkbox per accessory, all checked when the vehicle is chosen;
   - the count of the textures that will be created ("2 main + 3 accessories");
@@ -63,7 +63,7 @@ Choosing New Project SHALL open a modal dialog on one page:
 
 A vehicle created with Custom vehicle… SHALL be chosen when the dialog is shown again, with its textures checked as for any chosen vehicle. The game, search and kind filter SHALL be changed if needed so it is listed. Cancelling the Custom Vehicle dialog SHALL show the New Project dialog as it was.
 
-Confirming SHALL open the editor workspace, in the Project space, with a new project for that vehicle and its chosen textures (see the vehicle-projects capability). Cancelling SHALL return to the home screen without side effects. The dialog SHALL be fully operable by keyboard (Tab to move, Space to toggle a checkbox or choose a vehicle, Enter to create when Create Project is enabled, Escape to cancel).
+Confirming SHALL open the editor workspace, in the Project space, with a new project for that vehicle and its chosen textures (see the vehicle-projects capability). Cancelling SHALL return to the home screen without side effects. The dialog SHALL be fully operable by keyboard (Tab to move, Space to toggle a checkbox or a chip or choose a vehicle, Enter to create when Create Project is enabled, Escape to cancel).
 
 #### Scenario: Creating a project
 - **WHEN** the user opens New Project, picks the sample truck, keeps "Standard cab" and the accessories checked, and clicks Create Project

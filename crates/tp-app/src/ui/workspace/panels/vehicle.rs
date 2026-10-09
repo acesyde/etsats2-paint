@@ -15,7 +15,7 @@ use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, radius, space};
-use tp_ui::widgets::{IconButton, MenuRow};
+use tp_ui::widgets::{IconButton, MenuRow, more_menu};
 
 use super::PanelEnv;
 use crate::commands::CommandId;
@@ -45,8 +45,10 @@ pub fn game_versions_field(ui: &mut Ui, env: &mut PanelEnv<'_>) {
             .id(edit_id)
             .hint_text("1.56.*, 1.57.*")
             .desired_width(f32::INFINITY)
-            // As tall as the dialogs' fields and the read-only boxes above.
-            .margin(egui::Margin::symmetric(8, 5)),
+            // As tall as the dialogs' fields.
+            .margin(egui::Margin::symmetric(10, 0))
+            .vertical_align(Align::Center)
+            .min_size(egui::vec2(0.0, crate::ui::dialogs::FIELD_HEIGHT)),
     );
     response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
     if response.has_focus() {
@@ -141,24 +143,26 @@ fn vehicle_group(ui: &mut Ui, env: &mut PanelEnv<'_>, vehicle: &ProjectVehicle, 
                         request = Some(VehicleRequest::Update(vehicle.package_id.clone()));
                     }
                 }
-                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                // Kind and package version, on the name's line.
+                ui.add_space(space::XS);
+                ui.label(
+                    RichText::new(format!("{} · {}", kind_text(vehicle), vehicle.version))
+                        .size(tp_ui::tokens::typography::CAPTION)
+                        .color(color::TEXT_DISABLED),
+                )
+                .on_hover_text(package_text(env, vehicle));
+                // The name takes the room left, on two lines if needed.
+                ui.with_layout(Layout::top_down(Align::Min), |ui| {
                     ui.add(
                         egui::Label::new(
                             RichText::new(&vehicle.name).text_style(label_strong_style()),
                         )
-                        .truncate(),
+                        .wrap(),
                     );
                 });
             });
         })
         .body_unindented(|ui| {
-            let kind = kind_text(vehicle);
-            ui.label(
-                RichText::new(format!("{kind} · {}", vehicle.version))
-                    .small()
-                    .color(color::TEXT_DISABLED),
-            )
-            .on_hover_text(package_text(env, vehicle));
             ui.spacing_mut().item_spacing.y = 1.0;
             // Surfaces are ordered main textures first, then accessories: a
             // heading before the first of each.
@@ -194,7 +198,8 @@ pub fn vehicle_menu(
     last: bool,
     request: &mut Option<VehicleRequest>,
 ) {
-    let menu = ui.menu_button(icons::rich(icons::MORE), |ui| {
+    let name = tr!("vehicle-actions-named", name = vehicle.name.as_str());
+    more_menu(ui, &name, |ui| {
         if ui.add(MenuRow::new(&tr("vehicles-textures"))).clicked() {
             *request = Some(VehicleRequest::Textures(vehicle.package_id.clone()));
             ui.close();
@@ -210,13 +215,6 @@ pub fn vehicle_menu(
             *request = Some(VehicleRequest::Remove(vehicle.package_id.clone()));
             ui.close();
         }
-    });
-    menu.response.widget_info(|| {
-        WidgetInfo::labeled(
-            WidgetType::Button,
-            true,
-            tr!("vehicle-actions-named", name = vehicle.name.as_str()),
-        )
     });
 }
 
@@ -318,7 +316,7 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     painter.rect_stroke(
         thumb,
         radius::SM,
-        Stroke::new(1.0, color::BORDER_STRONG),
+        Stroke::new(1.0, color::OUTLINE),
         StrokeKind::Outside,
     );
 
@@ -355,7 +353,7 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
         egui::pos2(name_rect.left(), rect.center().y),
         Align2::LEFT_CENTER,
         &name,
-        egui::TextStyle::Body.resolve(ui.style()),
+        egui::FontId::proportional(tp_ui::tokens::typography::CONTROL),
         if active {
             color::TEXT_PRIMARY
         } else {

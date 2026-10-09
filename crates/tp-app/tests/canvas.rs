@@ -587,7 +587,7 @@ fn status_bar_coordinates_follow_navigation() {
     let p = screen(&h, x + 0.5, y + 0.5);
     h.hover_at(p);
     h.run();
-    h.get_by_label_contains(&format!("X {x}  Y {y} px"));
+    h.get_by_label_contains(&format!("x {x}  y {y} px"));
     h.get_by_label_contains("Zoom 100%");
 }
 

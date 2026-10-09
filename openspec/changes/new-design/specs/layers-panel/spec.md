@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Tree view
-The Layers panel SHALL be the **Layers** tab of the Workshop's left panel (key 2, see the workspace-layout capability). The tab SHALL have a header reading "<texture> · N layers", where N is the number of top-level objects of the active surface, with an **add** button that runs New Layer. Below it, the tab SHALL list the active surface's objects as a tree, topmost first, with groups expandable and collapsible and their children indented. Each row SHALL show a kind icon, the name, a visibility toggle and a lock toggle; hidden and locked states SHALL be shown by icon shape and by dimming the name, not only by color. An empty surface SHALL show an empty state in the list, under the header.
+The Layers panel SHALL be the **Layers** tab of the Workshop's left panel (key 2, see the workspace-layout capability). The tab SHALL have a header reading "<texture> · N layers", where N is the number of top-level objects of the active surface, with an **add** button that runs New Layer. Below it, the tab SHALL list the active surface's objects as a tree, topmost first, with groups expandable and collapsible and their children indented. Each row SHALL show its kind icon on a tile, the name, its kind in small type (left out when the name is the kind's), a visibility toggle and a lock toggle; names are in the secondary text color and in ink when selected; hidden and locked states SHALL be shown by icon shape and by dimming the name, not only by color. An empty surface SHALL show an empty state in the list, under the header.
 
 #### Scenario: Group shown as a tree
 - **WHEN** the surface contains a group "Branding" with "Logo" and "Company name", above a rectangle "Background"

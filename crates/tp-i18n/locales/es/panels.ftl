@@ -38,6 +38,7 @@ assets-place = Colocar recurso
 assets-drop-zone = Suelta un logo aquí o
 assets-import = Importar…
 resources-images = Imágenes
+resources-footer = Arrastre un elemento al lienzo para colocarlo. Abra el espacio Marca para gestionarlo todo.
 assets-name = Nombre del recurso
 
 ## Panel Trazo
@@ -310,6 +311,7 @@ stroke-width-px = { $width } px
 stroke-options = Opciones del trazo
 line-settings = Ajustes de línea
 colors-brand-palette = Paleta de marca
+colors-add-short = + Añadir
 
 ## Project space
 
@@ -333,6 +335,8 @@ project-texture-accessory = Accesorio
 project-mod-information = Información del mod
 project-not-set = Sin definir
 project-edit-in-export = Editar en Exportar mod…
+project-picture-generated = Generada a partir de la primera textura principal
+project-cabin-ids = Nombres internos: { $ids }
 
 ## Brand space
 

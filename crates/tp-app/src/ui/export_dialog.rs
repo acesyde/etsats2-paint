@@ -254,6 +254,7 @@ fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
             DdsEncoding::Rgba => tr("export-dds-rgba"),
         };
         let combo = egui::ComboBox::from_id_salt("dds_encoding")
+            .icon(tp_ui::widgets::dropdown_icon)
             .width(220.0)
             .selected_text(label(settings.dds))
             .show_ui(ui, |ui| {

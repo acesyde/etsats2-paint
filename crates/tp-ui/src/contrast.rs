@@ -71,16 +71,21 @@ pub fn theme_pairs() -> Vec<ContrastPair> {
         });
     };
 
-    // The three surfaces carry every kind of text, the accents used as text
-    // or informative icons, and the semantic colors.
+    // The surfaces carry every kind of text, the accents used as text or
+    // informative icons, and the semantic colors: the three elevation
+    // levels, the sunken fields and the control surface (buttons, tracks,
+    // menus, popovers, pills).
     for (bg_name, bg) in [
         ("canvas", color::SURFACE_0),
         ("panel", color::SURFACE_1),
         ("raised", color::SURFACE_2),
+        ("field", color::FIELD),
+        ("control", color::CONTROL),
     ] {
         for (fg_name, fg, emphasis) in [
             ("ink", color::TEXT_PRIMARY, Primary),
             ("text_secondary", color::TEXT_SECONDARY, Secondary),
+            ("text_muted", color::TEXT_MUTED, Secondary),
             ("text_disabled", color::TEXT_DISABLED, Disabled),
             ("signal", color::SIGNAL, Secondary),
             ("link", color::LINK, Secondary),
@@ -111,6 +116,15 @@ pub fn theme_pairs() -> Vec<ContrastPair> {
         "hover",
         color::SURFACE_3,
         Disabled,
+    );
+    // Chips (the game badge, the active space) show ink or secondary text.
+    add("ink", color::TEXT_PRIMARY, "chip", color::CHIP, Primary);
+    add(
+        "text_secondary",
+        color::TEXT_SECONDARY,
+        "chip",
+        color::CHIP,
+        Secondary,
     );
     // Pressed state only ever shows primary text.
     add(
@@ -175,13 +189,14 @@ mod tests {
     #[test]
     fn required_pairs_are_checked() {
         let names: Vec<String> = theme_pairs().into_iter().map(|p| p.name).collect();
-        for surface in ["canvas", "panel", "raised"] {
-            for fg in ["ink", "signal", "link"] {
+        for surface in ["canvas", "panel", "raised", "field", "control"] {
+            for fg in ["ink", "text_muted", "signal", "link"] {
                 let name = format!("{fg} on {surface}");
                 assert!(names.contains(&name), "missing pair {name}");
             }
         }
         assert!(names.contains(&"text_on_primary on primary pill".to_owned()));
+        assert!(names.contains(&"ink on chip".to_owned()));
     }
 
     /// The check is not vacuous: darkening a token below its minimum is

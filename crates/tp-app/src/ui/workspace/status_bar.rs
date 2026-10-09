@@ -2,10 +2,11 @@
 //! template (shown, opacity, key G), the Snapping, Grid and Guides toggles
 //! and the save state; in the Project and Brand spaces, the save state only.
 
-use egui::{Align, Layout, RichText, Sense, Slider, Ui, WidgetInfo, WidgetType};
+use egui::{Align, Layout, RichText, Sense, Ui, WidgetInfo, WidgetType};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, space, typography};
+use tp_ui::widgets::{SWITCH_SIZE, ThinSlider, paint_switch};
 
 use crate::commands::CommandId;
 use crate::layout::Space;
@@ -21,7 +22,7 @@ fn item(ui: &mut Ui, text: impl Into<String>) {
         RichText::new(text.into())
             .monospace()
             .size(typography::CAPTION)
-            .color(color::TEXT_SECONDARY),
+            .color(color::TEXT_MUTED),
     );
 }
 
@@ -44,10 +45,14 @@ fn fixed_item(ui: &mut Ui, text: String, widest: &str) {
     );
 }
 
+/// A short vertical hairline between groups.
 fn divider(ui: &mut Ui) {
-    ui.add_space(space::XS);
-    ui.separator();
-    ui.add_space(space::XS);
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(1.0, 14.0), Sense::hover());
+    ui.painter().vline(
+        rect.center().x,
+        rect.y_range(),
+        egui::Stroke::new(1.0, color::BORDER),
+    );
 }
 
 /// Formats a zoom percentage compactly (`12.5%`, `67%`).
@@ -61,15 +66,20 @@ pub fn format_zoom(percent: f32) -> String {
 
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace, aids: ViewAids) {
     ui.horizontal_centered(|ui| {
+        ui.spacing_mut().item_spacing.x = space::SM;
         if ws.space == Space::Workshop {
             view(ui, ws);
+            ui.add_space(space::SM);
             divider(ui);
+            ui.add_space(space::SM);
             template(ui, cmds, ws);
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             save_state(ui, ws);
             if ws.space == Space::Workshop {
+                ui.add_space(space::SM);
                 divider(ui);
+                ui.add_space(space::SM);
                 // Right to left: Guides, Grid, Snapping read left to right.
                 toggle(
                     ui,
@@ -102,7 +112,9 @@ fn view(ui: &mut Ui, ws: &Workspace) {
         tr!("status-zoom", zoom = zoom),
         &tr!("status-zoom", zoom = "6400%"),
     );
+    ui.add_space(space::SM);
     divider(ui);
+    ui.add_space(space::SM);
 
     let ppp = ui.ctx().pixels_per_point();
     let pointer = ui.ctx().pointer_hover_pos();
@@ -116,10 +128,10 @@ fn view(ui: &mut Ui, ws: &Workspace) {
         _ => None,
     };
     let position = position.map_or_else(
-        || "X —  Y —".to_owned(),
-        |(x, y)| format!("X {x}  Y {y} px"),
+        || "x —  y —".to_owned(),
+        |(x, y)| format!("x {x}  y {y} px"),
     );
-    fixed_item(ui, position, "X 00000  Y 00000 px");
+    fixed_item(ui, position, "x 00000  y 00000 px");
 }
 
 /// The active texture's template: shown or hidden (View › Show Template,
@@ -130,21 +142,16 @@ fn template(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     let template = ws.project.surface().template.clone();
     let visible = template.as_ref().is_some_and(|t| t.visible);
     ui.add_enabled_ui(enabled, |ui| {
-        toggle(
-            ui,
-            cmds,
-            CommandId::ShowTemplate,
-            "status-template",
-            visible,
-        );
+        template_switch(ui, cmds, visible);
         let mut percent = template
             .as_ref()
             .map_or(0.0, |t| (t.opacity * 100.0).round());
-        ui.spacing_mut().slider_width = OPACITY_WIDTH;
-        let slider = ui.add(Slider::new(&mut percent, 0.0..=100.0).show_value(false));
-        slider.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::Slider, true, tr("vehicle-panel-opacity-name"))
-        });
+        let name = tr("vehicle-panel-opacity-name");
+        let slider = ui.add(
+            ThinSlider::new(&mut percent, 0.0..=100.0, &name)
+                .width(OPACITY_WIDTH)
+                .step(1.0),
+        );
         if slider.changed()
             && let Some(t) = ws.project.surface_mut().template.as_mut()
         {
@@ -166,6 +173,48 @@ fn template(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     });
 }
 
+/// Show Template as a switch (its knob's side shows the state) and a
+/// label, announced as a checkbox.
+fn template_switch(ui: &mut Ui, cmds: &mut CommandUi<'_>, on: bool) {
+    let id = CommandId::ShowTemplate;
+    let label = tr("status-template");
+    let enabled = ui.is_enabled() && cmds.enabled(id);
+    let font = egui::FontId::proportional(typography::CAPTION);
+    let ink = if !enabled {
+        color::TEXT_DISABLED
+    } else if on {
+        color::TEXT_PRIMARY
+    } else {
+        color::TEXT_MUTED
+    };
+    let galley = ui.painter().layout_no_wrap(label.clone(), font, ink);
+    let gap = space::SM;
+    let size = egui::vec2(
+        SWITCH_SIZE.x + gap + galley.size().x,
+        tp_ui::tokens::size::HIT_MIN,
+    );
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    let switch = egui::Rect::from_min_size(
+        egui::pos2(rect.left(), rect.center().y - SWITCH_SIZE.y / 2.0),
+        SWITCH_SIZE,
+    );
+    paint_switch(ui, switch, on, enabled);
+    ui.painter().galley(
+        egui::pos2(
+            switch.right() + gap,
+            rect.center().y - galley.size().y / 2.0,
+        ),
+        galley,
+        ink,
+    );
+    tp_ui::widgets::paint_focus_ring(ui, rect, &response, tp_ui::tokens::radius::SM);
+    let response = response.on_hover_text(cmds.shortcuts.command(id).unwrap_or_default());
+    response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, enabled, on, &label));
+    if enabled && response.clicked() {
+        cmds.push(id);
+    }
+}
+
 /// A toggle running `id`: a switch icon (its knob's side shows the state)
 /// and a label, announced as a checkbox.
 fn toggle(ui: &mut Ui, cmds: &mut CommandUi<'_>, id: CommandId, label: &str, on: bool) {
@@ -173,7 +222,7 @@ fn toggle(ui: &mut Ui, cmds: &mut CommandUi<'_>, id: CommandId, label: &str, on:
     let (icon, ink) = if on {
         (icons::TOGGLE_ON, color::TEXT_PRIMARY)
     } else {
-        (icons::TOGGLE_OFF, color::TEXT_SECONDARY)
+        (icons::TOGGLE_OFF, color::TEXT_MUTED)
     };
     let enabled = ui.is_enabled() && cmds.enabled(id);
     let response = ui
@@ -203,9 +252,9 @@ fn save_state(ui: &mut Ui, ws: &Workspace) {
     ui.label(
         RichText::new(text)
             .size(typography::CAPTION)
-            .color(color::TEXT_PRIMARY),
+            .color(color::TEXT_MUTED),
     );
-    ui.label(icons::rich(icon).color(tint));
+    ui.label(icons::rich(icon).size(typography::BODY).color(tint));
 }
 
 #[cfg(test)]

@@ -154,6 +154,7 @@ pub fn popover(ui: &mut Ui, env: &mut PanelEnv<'_>) {
                     &tr("stroke-outside"),
                     &tr("stroke-outside-name"),
                 )
+                .track(tp_ui::tokens::color::FIELD)
                 .show(ui, align)
         })
         .inner;

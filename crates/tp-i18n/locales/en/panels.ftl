@@ -39,6 +39,7 @@ assets-place = Place Asset
 assets-drop-zone = Drop a logo here or
 assets-import = Import…
 resources-images = Images
+resources-footer = Drag an element onto the canvas to place it. Open the Brand space to manage everything.
 assets-name = Asset name
 
 ## Stroke panel
@@ -311,6 +312,7 @@ stroke-width-px = { $width } px
 stroke-options = Stroke options
 line-settings = Line settings
 colors-brand-palette = Brand palette
+colors-add-short = + Add
 
 ## Project space
 
@@ -334,6 +336,8 @@ project-texture-accessory = Accessory
 project-mod-information = Mod information
 project-not-set = Not set
 project-edit-in-export = Edit in Export Mod…
+project-picture-generated = Generated from the first main texture
+project-cabin-ids = Internal names: { $ids }
 
 ## Brand space
 

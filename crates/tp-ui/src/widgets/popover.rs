@@ -21,15 +21,22 @@ struct OpenPopover {
     typing: bool,
 }
 
-/// Positions tried in turn: under the anchor, above it, then beside it.
-const ALIGNS: [RectAlign; 3] = [
-    RectAlign::TOP_END,
-    RectAlign::LEFT_START,
+/// Positions tried in turn after the first one: on the left of the anchor
+/// (top aligned, then bottom aligned, then centered), then under it and
+/// above it when there is no room on the left.
+const ALIGNS: [RectAlign; 6] = [
     RectAlign::LEFT_END,
+    RectAlign::LEFT,
+    RectAlign::BOTTOM_END,
+    RectAlign::BOTTOM_START,
+    RectAlign::TOP_END,
+    RectAlign::TOP_START,
 ];
 
-/// A small floating panel anchored under a row (the inspector's Fill and
-/// Stroke rows), holding settings that don't stay open on their own.
+/// A small floating panel opened from a row (the inspector's Fill and
+/// Stroke rows), holding settings that don't stay open on their own. It
+/// opens on the left of its anchor (beside the inspector, over the canvas,
+/// when the anchor spans the inspector's width), else under or above it.
 ///
 /// Only one popover is open at a time: opening one closes the other.
 /// Escape, a press outside the popover and its anchor, or not drawing it
@@ -135,7 +142,7 @@ impl Popover {
         let typing = state.typing || ctx.text_edit_focused();
 
         let frame = Frame::new()
-            .fill(color::SURFACE_2)
+            .fill(color::CONTROL)
             .stroke(egui::Stroke::new(stroke::HAIRLINE, color::BORDER_STRONG))
             .corner_radius(radius::LG + 4)
             .inner_margin(Margin::same(space::MD as i8))
@@ -146,9 +153,9 @@ impl Popover {
             .close_behavior(PopupCloseBehavior::IgnoreClicks)
             // Not a menu: buttons and menus inside behave as anywhere else.
             .info(UiStackInfo::new(UiKind::GenericArea))
-            .align(RectAlign::BOTTOM_END)
+            .align(RectAlign::LEFT_START)
             .align_alternatives(&ALIGNS)
-            .gap(space::XS)
+            .gap(space::MD)
             .width(self.width)
             .frame(frame)
             .show(|ui| {

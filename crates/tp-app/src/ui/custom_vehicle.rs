@@ -282,6 +282,7 @@ fn combo<T: Copy + PartialEq>(
     let response = ui
         .add_enabled_ui(enabled, |ui| {
             egui::ComboBox::from_id_salt(id)
+                .icon(tp_ui::widgets::dropdown_icon)
                 .width(
                     ui.available_width()
                         - ui.spacing().icon_width

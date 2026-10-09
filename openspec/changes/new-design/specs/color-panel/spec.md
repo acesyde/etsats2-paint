@@ -4,14 +4,14 @@
 The Colors panel SHALL be replaced by the **Fill** and **Stroke** rows of the inspector (see the properties-panel capability) and a **color popover**. There SHALL be no color picker that stays open on its own.
 
 - **Fill row:** a swatch of the fill paint, followed by its value: the hex code of a solid color, the linked swatch's name when the fill is linked to the palette, "Linear" or "Radial" for a gradient, or "Mixed".
-- **Opening:** clicking a row's swatch SHALL make that row the target and open the color popover anchored to the row.
+- **Opening:** clicking a row's swatch SHALL make that row the target and open the color popover anchored to the row: beside the inspector, over the canvas, level with the row; under or above the row when there is no room beside the inspector.
 - **Closing:** Escape, a click outside the popover, or opening another popover SHALL close it. Only one popover is open at a time. Closing SHALL NOT undo the edits made in it.
 - **Content, in this order:** the Solid / Linear / Radial control and, for a gradient, the gradient bar (see the gradients capability); the picker with its color models and the hex field; the **brand palette** (the project's palette); then the **recent colors**. With the stroke as target, the popover SHALL also offer the "None" swatch.
 - **Live edits:** edits in the popover SHALL apply to the selection live and be recorded as they are today: one undo step per committed edit or drag.
 
 #### Scenario: Open and close the picker
 - **WHEN** a rectangle is selected and the user clicks the Fill row's swatch, then presses Escape
-- **THEN** the color popover opens under the Fill row, and Escape closes it, keeping the color chosen in it
+- **THEN** the color popover opens beside the inspector, level with the Fill row, and Escape closes it, keeping the color chosen in it
 
 #### Scenario: Palette before recents
 - **WHEN** the color popover is open on a project with a palette and recent colors

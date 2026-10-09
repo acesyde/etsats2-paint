@@ -351,22 +351,16 @@ pub fn inspector_row(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     let (value, text) = match (&followed, &name) {
         (Followed::Style(_), Some(name)) => (
             name.clone(),
-            RichText::new(format!("{} {name}  {}", icons::STYLES, icons::EXPANDED))
-                .color(color::LINK),
+            RichText::new(format!("{} {name}{ARROW_ROOM}", icons::STYLES)).color(color::LINK),
         ),
         (Followed::Mixed, _) => (
             tr("mixed"),
-            RichText::new(format!("{}  {}", tr("mixed"), icons::EXPANDED))
-                .color(color::TEXT_SECONDARY),
+            RichText::new(format!("{}{ARROW_ROOM}", tr("mixed"))).color(color::TEXT_SECONDARY),
         ),
         _ => (
             tr("inspector-style-none"),
-            RichText::new(format!(
-                "{}  {}",
-                tr("inspector-style-none"),
-                icons::EXPANDED
-            ))
-            .color(color::TEXT_SECONDARY),
+            RichText::new(format!("{}{ARROW_ROOM}", tr("inspector-style-none")))
+                .color(color::TEXT_SECONDARY),
         ),
     };
     let holds_text = !env.ws.selected_texts().is_empty();
@@ -378,6 +372,14 @@ pub fn inspector_row(ui: &mut Ui, env: &mut PanelEnv<'_>) {
             let button = egui::Button::new(text).truncate();
             let (response, _) = egui::containers::menu::MenuButton::from_button(button)
                 .ui(ui, |ui| style_menu(ui, env, holds_text));
+            tp_ui::widgets::paint_dropdown_arrow(
+                ui.painter(),
+                egui::pos2(
+                    response.rect.right() - space::SM - 3.5,
+                    response.rect.center().y,
+                ),
+                color::TEXT_MUTED,
+            );
             response.widget_info(|| {
                 let mut info = WidgetInfo::labeled(WidgetType::Button, true, &label);
                 info.current_text_value = Some(value.clone());
@@ -386,6 +388,9 @@ pub fn inspector_row(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         });
     });
 }
+
+/// Room left at the end of a dropdown's text for its painted ▾.
+const ARROW_ROOM: &str = "    ";
 
 fn style_menu(ui: &mut Ui, env: &mut PanelEnv<'_>, holds_text: bool) {
     let mut chosen = None;

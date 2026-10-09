@@ -235,6 +235,9 @@ new-project-custom-hint = Créez-le à partir de ses fichiers de gabarit (DDS, P
 new-project-fleet = Votre flotte
 new-project-pick-vehicle = Choisissez un véhicule dans la liste.
 new-project-cabins = Cabines
+new-project-column-vehicle = Véhicule
+new-project-column-type = Type
+new-project-column-package = Package
 new-project-counts = { $accessories ->
     [0] { $main } { $main ->
         [one] principale

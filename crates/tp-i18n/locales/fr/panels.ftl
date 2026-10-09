@@ -38,6 +38,7 @@ assets-place = Importer la ressource
 assets-drop-zone = Déposez un logo ici ou
 assets-import = Importer…
 resources-images = Images
+resources-footer = Glissez un élément sur la zone de travail pour le placer. Ouvrez l'espace Marque pour tout gérer.
 assets-name = Nom de la ressource
 
 ## Panneau Contour
@@ -313,6 +314,7 @@ stroke-width-px = { $width } px
 stroke-options = Options du contour
 line-settings = Réglages du trait
 colors-brand-palette = Palette de marque
+colors-add-short = + Ajouter
 
 ## Project space
 
@@ -336,6 +338,8 @@ project-texture-accessory = Accessoire
 project-mod-information = Informations du mod
 project-not-set = Non renseigné
 project-edit-in-export = Modifier dans Exporter le mod…
+project-picture-generated = Générée à partir de la première texture principale
+project-cabin-ids = Noms internes : { $ids }
 
 ## Brand space
 

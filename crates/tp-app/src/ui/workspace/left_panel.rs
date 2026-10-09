@@ -31,6 +31,9 @@ pub fn show(
         .show(ui, |ui| {
             tabs(ui, cmds, tab);
             ui.add_space(space::SM + 2.0);
+            if tab == LeftTab::Resources {
+                resources_footer(ui);
+            }
             ScrollArea::vertical()
                 .id_salt(("left_panel_scroll", tab))
                 .auto_shrink([false, false])
@@ -57,7 +60,8 @@ fn tabs(ui: &mut Ui, cmds: &mut CommandUi<'_>, shown: LeftTab) {
         let shortcut = cmds.shortcuts.command(CommandId::ShowLeftTab(tab));
         control = control.segment(tab, "", label, shortcut);
     }
-    if let Some(tab) = control.show(ui, shown) {
+    // Three equal tabs across the panel.
+    if let Some(tab) = control.fill().show(ui, shown) {
         cmds.push(CommandId::ShowLeftTab(tab));
     }
 }
@@ -65,10 +69,49 @@ fn tabs(ui: &mut Ui, cmds: &mut CommandUi<'_>, shown: LeftTab) {
 /// Side of a swatch of the Resources tab's palette, in points.
 const SWATCH: f32 = 28.0;
 
-/// The heading of a Resources section: its title and number of elements.
+/// The heading of a Resources section: its title and number of elements in
+/// small capitals (as the inspector's sections), its actions at the right.
 fn heading(ui: &mut Ui, title: &str, count: usize, actions: impl FnOnce(&mut Ui)) {
     ui.add_space(space::SM);
-    panels::list_heading(ui, &format!("{title} · {count}"), actions);
+    ui.horizontal(|ui| {
+        ui.set_min_height(size::HIT_MIN);
+        panels::section_heading(ui, &format!("{title} · {count}"));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.spacing_mut().item_spacing.x = space::XXS;
+            actions(ui);
+        });
+    });
+}
+
+/// The Resources tab's footer, pinned under its list: how its elements are
+/// placed, and where they are managed.
+fn resources_footer(ui: &mut Ui) {
+    let margin = space::SM + 2.0;
+    egui::Panel::bottom("resources_footer")
+        .resizable(false)
+        .show_separator_line(false)
+        .frame(Frame::new().inner_margin(Margin {
+            top: (space::MD) as i8,
+            ..Margin::ZERO
+        }))
+        .show(ui, |ui| {
+            // A hairline across the whole panel, over its margins.
+            let rect = ui.max_rect();
+            let top = rect.top() - space::MD;
+            ui.painter().hline(
+                (rect.left() - margin)..=(rect.right() + margin),
+                top,
+                egui::Stroke::new(1.0, color::BORDER),
+            );
+            ui.add(
+                egui::Label::new(
+                    egui::RichText::new(tr("resources-footer"))
+                        .size(tp_ui::tokens::typography::CONTROL)
+                        .color(color::TEXT_MUTED),
+                )
+                .wrap(),
+            );
+        });
 }
 
 /// The Resources tab: the project's Palette, Symbols, Styles and Images,

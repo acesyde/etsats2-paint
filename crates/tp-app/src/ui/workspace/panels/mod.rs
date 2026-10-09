@@ -80,20 +80,37 @@ pub fn import_from_library_button(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
     }
 }
 
-/// The heading of a list (a left panel tab's content, a Resources section):
-/// a short title in small semibold type, with `actions` at its right end.
+/// The heading of a list (the Textures and Layers tabs): a short title in
+/// the muted color, with `actions` at its right end.
 pub fn list_heading(ui: &mut Ui, title: &str, actions: impl FnOnce(&mut Ui)) {
     ui.horizontal(|ui| {
         ui.set_min_height(tp_ui::tokens::size::HIT_MIN);
-        ui.label(
-            egui::RichText::new(title)
-                .small()
-                .family(tp_ui::fonts::semibold_family())
-                .color(tp_ui::tokens::color::TEXT_SECONDARY),
+        ui.add(
+            egui::Label::new(
+                egui::RichText::new(title)
+                    .size(tp_ui::tokens::typography::CONTROL)
+                    .color(tp_ui::tokens::color::TEXT_MUTED),
+            )
+            .truncate(),
         );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = tp_ui::tokens::space::XXS;
             actions(ui);
         });
     });
+}
+
+/// A section heading (the inspector's sections, the Resources tab's, the
+/// Project space's columns): small semibold capitals in the muted color,
+/// read as written by assistive technologies.
+pub fn section_heading(ui: &mut Ui, text: &str) -> egui::Response {
+    let label = ui.label(
+        egui::RichText::new(text.to_uppercase())
+            .size(tp_ui::tokens::typography::CAPTION)
+            .family(tp_ui::fonts::semibold_family())
+            .extra_letter_spacing(0.6)
+            .color(tp_ui::tokens::color::TEXT_MUTED),
+    );
+    label.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Label, true, text));
+    label
 }

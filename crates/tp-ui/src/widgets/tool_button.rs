@@ -61,7 +61,7 @@ impl Widget for ToolButton<'_> {
             } else if hovered {
                 (Some(color::SURFACE_3), color::TEXT_PRIMARY)
             } else {
-                (None, color::TEXT_SECONDARY)
+                (None, color::TEXT_PRIMARY)
             };
             if let Some(bg) = bg {
                 painter.rect_filled(rect, corner, bg);
@@ -70,7 +70,7 @@ impl Widget for ToolButton<'_> {
                 rect.center(),
                 Align2::CENTER_CENTER,
                 self.icon,
-                crate::icons::font(size::ICON_LG),
+                crate::icons::font(size::ICON),
                 fg,
             );
             paint_focus_ring(ui, rect, &response, radius::LG);

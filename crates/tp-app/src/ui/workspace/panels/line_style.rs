@@ -220,6 +220,7 @@ pub fn controls(ui: &mut Ui, styles: &[LineStyle], last: Dash) -> Option<Change>
                         &tr("line-square"),
                         &tr("line-square-cap"),
                     )
+                    .track(color::FIELD)
                     .show(ui, cap)
             })
             .inner;
@@ -254,6 +255,7 @@ pub fn controls(ui: &mut Ui, styles: &[LineStyle], last: Dash) -> Option<Change>
                         &tr("line-bevel"),
                         &tr("line-bevel-join"),
                     )
+                    .track(color::FIELD)
                     .show(ui, join)
             })
             .inner;

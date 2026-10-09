@@ -20,7 +20,7 @@ pub mod color {
     pub const SURFACE_0: Color32 = Color32::from_rgb(0x12, 0x12, 0x14);
     /// Panel surface: bars, panels, dialogs.
     pub const SURFACE_1: Color32 = Color32::from_rgb(0x16, 0x16, 0x18);
-    /// Raised surface: fields, rows, popovers, menus.
+    /// Raised surface: hovered rows and cards, picture placeholders.
     pub const SURFACE_2: Color32 = Color32::from_rgb(0x23, 0x23, 0x26);
     /// Hovered controls.
     pub const SURFACE_3: Color32 = Color32::from_rgb(0x2C, 0x2C, 0x30);
@@ -34,6 +34,18 @@ pub mod color {
     /// The raised surface, by meaning.
     pub const RAISED: Color32 = SURFACE_2;
 
+    /// Sunken surface of text and numeric fields (outlined with
+    /// [`BORDER`]): the canvas level, so a field reads as a well in its
+    /// panel.
+    pub const FIELD: Color32 = SURFACE_0;
+    /// Control surface: buttons and dropdowns, the tracks of segmented
+    /// controls and sliders, menus and popovers, the breadcrumb and zoom
+    /// pills.
+    pub const CONTROL: Color32 = Color32::from_rgb(0x1C, 0x1C, 0x1F);
+    /// Chip surface: the game badge, the active tab of the space switcher,
+    /// the open menu of the menu bar.
+    pub const CHIP: Color32 = Color32::from_rgb(0x26, 0x26, 0x29);
+
     /// Background of the selected row of a list (with an indicator bar, so
     /// the selection does not rely on color alone).
     pub const SELECTED: Color32 = Color32::from_rgb(0x34, 0x34, 0x3A);
@@ -42,10 +54,17 @@ pub mod color {
     pub const BORDER: Color32 = Color32::from_rgb(0x2A, 0x2A, 0x2E);
     /// Control outlines (inputs, popups).
     pub const BORDER_STRONG: Color32 = Color32::from_rgb(0x3A, 0x3A, 0x3F);
+    /// Outlines of dialogs and of thumbnail tiles (textures, layers).
+    pub const OUTLINE: Color32 = Color32::from_rgb(0x33, 0x33, 0x36);
 
     /// Ink: primary text.
     pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(0xED, 0xED, 0xED);
     pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(0xA9, 0xA9, 0xB0);
+    /// Muted labels: inactive tabs, section headings, shortcuts, the status
+    /// bar's text. Only on the canvas, panel, control, field and raised
+    /// surfaces (it misses 4.5:1 on the chip, hover and selected fills, where
+    /// [`TEXT_SECONDARY`] takes over).
+    pub const TEXT_MUTED: Color32 = Color32::from_rgb(0x8B, 0x8B, 0x92);
     pub const TEXT_DISABLED: Color32 = Color32::from_rgb(0x76, 0x76, 0x7D);
 
     /// Primary accent (white): primary button, active segment, active tool.
@@ -90,6 +109,10 @@ pub mod radius {
     pub const SM: u8 = 4;
     pub const MD: u8 = 6;
     pub const LG: u8 = 8;
+    /// Cards of the Brand space, boxes of dialogs.
+    pub const CARD: u8 = 10;
+    /// Modal dialogs.
+    pub const DIALOG: u8 = 14;
 }
 
 /// Stroke widths.
@@ -138,6 +161,8 @@ pub mod typography {
     /// Home screen hero text.
     pub const DISPLAY: f32 = 30.0;
     pub const MONO: f32 = 12.0;
+    /// Compact controls: segmented options, the left panel's tabs.
+    pub const CONTROL: f32 = 12.0;
 }
 
 /// Canvas overlay styling (selection, handles, guides drawn over artwork).

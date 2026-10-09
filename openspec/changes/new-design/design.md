@@ -31,7 +31,7 @@ The reference is the design spec "TruckPaint 5" (claude.ai design project *Truck
 +---------------------------------------------------------------------+
 | menu bar (unchanged, in the window)                                 |
 +---------------------------------------------------------------------+
-| top bar 44: name + game badge | breadcrumb | spaces | Export…       |
+| top bar 44: name + game badge | spaces | breadcrumb | Export…       |
 +---------------------------------------------------------------------+
 | tool options bar (Workshop only)                                    |
 +----+------------+-------------------------------------+-------------+
@@ -62,7 +62,7 @@ The functions in `ui/workspace/panels/*.rs` are kept and called from new contain
 `PanelKind`, `PanelSlot` and the right column go away. The empty-state widgets stay for lists that can be empty (Layers of an empty texture, Resources with no symbol) but no container is ever an empty panel.
 
 ### 4. Popovers for colors and strokes
-A small `tp-ui` popover (an `egui::Area` anchored under its row, closed by Escape, by a click outside, or by opening another one) hosts the existing color picker and stroke options. In the color popover: Solid / Linear / Radial as a segmented control, then the picker, then the **brand palette**, then the recent colors. Only one popover is open at a time; edits inside it are applied live and recorded as they are today (one undo step per committed edit).
+A small `tp-ui` popover (an `egui::Area` about 252 pt wide, opened beside the inspector over the canvas, level with its row; under or above the row when there is no room on the left; closed by Escape, by a click outside, or by opening another one) hosts the existing color picker and stroke options. In the color popover: Solid / Linear / Radial as a segmented control, then the picker, then the **brand palette**, then the recent colors. Only one popover is open at a time; edits inside it are applied live and recorded as they are today (one undo step per committed edit).
 - *Alternative:* keep an always-open Colors section. Rejected by the design ("plus de sélecteur de couleur ouvert en permanence").
 
 ### 5. Tokens and theme
@@ -71,13 +71,19 @@ A small `tp-ui` popover (an `egui::Area` anchored under its row, closed by Escap
 |---|---|---|
 | `SURFACE_0` canvas | `#121214` | pasteboard, canvas area |
 | `SURFACE_1` panel | `#161618` | bars, panels, dialogs |
-| `SURFACE_2` raised | `#232326` | fields, rows, popovers |
+| `SURFACE_2` raised | `#232326` | hovered rows and cards |
+| `FIELD` sunken | `#121214`, outlined `#2A2A2E`, radius 6 | text and numeric fields |
+| `CONTROL` | `#1C1C1F` | buttons and dropdowns, tracks of segmented controls and sliders, menus, popovers, the breadcrumb pill |
+| `CHIP` | `#262629` | the game badge, the active space of the switcher, the open menu |
+| `OUTLINE` | `#333336` | outline of dialogs and of thumbnail tiles (textures, layers, library rows) |
 | `TEXT_PRIMARY` ink | `#EDEDED` | text |
+| `TEXT_SECONDARY` | `#A9A9B0` | secondary text, and labels on chip, hover and selected fills |
+| `TEXT_MUTED` | `#8B8B92` | inactive tabs and segments, shortcuts, the status bar's text, section headings (small capitals: the inspector's, the Resources tab's, Mod information), the Textures and Layers headings, the prefixes of inset fields (only on canvas, panel, field, control and raised: it misses 4.5:1 on the chip, hover and selected fills) |
 | `ACCENT_PRIMARY` | `#ECECEC` | primary button, active segment, active tool |
 | `SIGNAL` | `#F05252` | alerts, update available, selection on the canvas |
 | `LINK` | `#50B9DF` (oklch 0.74 0.11 225) | linked swatch, styled object, symbol instance |
 
-Success / warning / error keep their own tokens. The segmented control gets a white pill with dark text for the active option (a fill change, so it stays visible in grayscale). The existing contrast test (`tp-ui/src/contrast.rs`) is extended to the new pairs, including dark text on the white pill and `LINK` / `SIGNAL` on every surface.
+Success / warning / error keep their own tokens. The segmented control gets a white pill with dark text for the active option (a fill change, so it stays visible in grayscale), on a `CONTROL` track (a `FIELD` track inside a popover, which is itself on `CONTROL`); the left panel's tabs spread over its width. The space switcher of the top bar is drawn as ghost tabs: muted text, the active space on a `CHIP` fill. Sliders are thin (a 3 pt track filled up to the value, no knob at rest). The inspector's Layout fields are **inset**: one `FIELD` box holding the short label as a muted prefix (still dragged to scrub), the value in mono 12 and the unit (`NumericField::inset`), in two even columns whose gutter holds the proportion lock; its align, distribute and combine buttons are equal `CONTROL` buttons, six to a row. Dialogs use radius 14 and the `OUTLINE` hairline, their single-line fields are 34 pt tall; Brand cards and boxes inside dialogs (Your fleet, In the mod) use radius 10, the boxes on `CONTROL`. Choices among a few named items (the cabins of New Project) are chips: white with dark text when on, outlined when off. The existing contrast test (`tp-ui/src/contrast.rs`) is extended to the new pairs, including dark text on the white pill, `LINK` / `SIGNAL` on every surface, `TEXT_MUTED` on the surfaces that carry it and ink / secondary text on `CHIP`.
 
 ### 6. Fonts
 Geist (Regular, Medium, SemiBold) and JetBrains Mono (Regular, Medium) are added to `assets/fonts/` with their OFL licenses. Geist becomes the Proportional family, JetBrains Mono the Monospace family (numeric fields, paths, pixel values, hex codes). Inter stays in `assets/fonts/` as a document font. Type scale: title 22/600, heading 15/600, body and label 13/400, mono 12, caption 11.
@@ -113,9 +119,9 @@ The Brand space shows the **project's** palette, graphic styles, text styles, sy
 
 ### 11. Screens
 - **Home:** recent projects as cards with their thumbnail, New Project and Open… as primary and secondary buttons; recovered projects as today.
-- **New Project:** still one vehicle, as today (more are added with Add Vehicle…). Left, the vehicle list (search, All / Trucks / Trailers, Custom vehicle…; no "Installed only" filter since every listed vehicle is installed); right, "Your fleet": the chosen vehicle, its main textures (cabins) to tick, the main texture mode as read-only text, and the textures that will be created ("2 main + 3 accessories"), with the total. The project name and the game are on top; Create Project is the primary action.
-- **Project:** vehicle cards (thumbnail, package version, cabins, main texture mode, Update available with Update Template…, Textures…, ⋯ for Remove from Project), each listing its textures with their real thumbnail; right column "Mod information" read only (with **Edit in Export Mod…**) and the editable Game versions field with its supported-versions hint.
-- **Export Mod dialog** and **Vehicle Library:** same fields and actions, laid out as in the mockup (fields labelled above, problems listed before the button, Advanced collapsed).
+- **New Project:** still one vehicle, as today (more are added with Add Vehicle…). Left, the vehicle list as a table (column headers Vehicle, Type, Package; 32 pt rows; search, All / Trucks / Trailers, Custom vehicle…; no "Installed only" filter since every listed vehicle is installed); right, "Your fleet": the chosen vehicle, its main textures (cabins) as chips to toggle (the cabins' internal names in their tooltips), the main texture mode as read-only text, and the textures that will be created ("2 main + 3 accessories"), with the total. The project name and the game are on top; Create Project is the primary action.
+- **Project:** vehicle cards (thumbnail, package version, cabins, main texture mode, Update available with Update Template…, Textures…, ⋯ for Remove from Project), each listing its textures with their real thumbnail; right column "Mod information" read only, as plain text under labels (with **Edit in Export Mod…**), and the editable Game versions field with its supported-versions hint. Cabins are named by their main textures; the internal cabin ids are only in a tooltip. Generated pictures of a project with no artwork on its first texture show a dashed placeholder saying where they come from instead of a blank picture.
+- **Export Mod dialog** and **Vehicle Library:** same fields and actions, laid out as in the mockup (fields labelled above, problems listed before the button, Advanced collapsed). Export Mod is 640 pt wide and sized to its content (Name and Version, then Author with Price and Unlock level, then Description); its fields scroll only when the window is too short. The Library's rows are 69 pt with a 64 × 44 thumbnail of the package's preview, the name in regular 14, and a text-only status pill (muted when up to date); the selected row is a full-width `CONTROL` band, its name in ink.
 
 ### 12. Tests
 Kittest tests that click panel headers, the sidebar or F-keys are rewritten against the spaces, tabs and inspector. `screenshots.rs` renders each space and dialog at 100 % and 200 %, in English and German, for visual QA. New unit tests cover the layout model (defaults, old preferences), the shortcut table and the Tab/1/2/3 focus rule.

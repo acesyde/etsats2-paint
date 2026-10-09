@@ -375,7 +375,7 @@ fn tool_rail_is_48_px_with_one_active_tool() {
     let tabs = h
         .get_by_role_and_label(Role::RadioButton, "Textures")
         .rect();
-    let margin = tp_ui::tokens::space::SM + 2.0 + 2.0;
+    let margin = tp_ui::tokens::space::SM + 2.0 + 4.0;
     let rail_half = tabs.left() - margin - select.center().x;
     assert!(
         (rail_half - size::TOOL_RAIL_WIDTH / 2.0).abs() < 1.0,
@@ -664,7 +664,7 @@ fn status_bar_shows_the_pointer_position() {
         .to_screen(Point::new(1000.5, 2000.5));
     h.event(Event::PointerMoved(at));
     h.run();
-    assert!(h.query_by_label("X 1000  Y 2000 px").is_some());
+    assert!(h.query_by_label("x 1000  y 2000 px").is_some());
 }
 
 #[test]
@@ -704,9 +704,8 @@ fn template_opacity_in_the_status_bar() {
     let slider = h
         .get_by_role_and_label(Role::Slider, "Template opacity")
         .rect();
-    // egui keeps the handle's radius at both ends of the track.
-    let radius = slider.height() / 2.5;
-    let x = slider.left() + radius + (slider.width() - 2.0 * radius) * 0.35;
+    // The thin slider's track spans its whole width.
+    let x = slider.left() + slider.width() * 0.35;
     h.event(Event::PointerMoved(Pos2::new(x, slider.center().y)));
     h.step();
     for pressed in [true, false] {

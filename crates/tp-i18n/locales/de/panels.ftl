@@ -38,6 +38,7 @@ assets-place = Asset platzieren
 assets-drop-zone = Logo hier ablegen oder
 assets-import = Importieren…
 resources-images = Bilder
+resources-footer = Ziehen Sie ein Element auf die Arbeitsfläche, um es zu platzieren. Im Bereich Marke verwalten Sie alles.
 assets-name = Asset-Name
 
 ## Bedienfeld Kontur
@@ -313,6 +314,7 @@ stroke-width-px = { $width } px
 stroke-options = Konturoptionen
 line-settings = Linieneinstellungen
 colors-brand-palette = Markenpalette
+colors-add-short = + Hinzufügen
 
 ## Project space
 
@@ -336,6 +338,8 @@ project-texture-accessory = Zubehör
 project-mod-information = Mod-Informationen
 project-not-set = Nicht festgelegt
 project-edit-in-export = In „Mod exportieren“ bearbeiten…
+project-picture-generated = Wird aus der ersten Haupttextur erzeugt
+project-cabin-ids = Interne Namen: { $ids }
 
 ## Brand space
 

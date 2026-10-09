@@ -126,7 +126,7 @@ The Appearance section SHALL show a **Fill** row and, under it, a **Stroke** row
 
 #### Scenario: Clicking the stroke swatch
 - **WHEN** a stroked rectangle is selected and the user clicks the Stroke row's swatch
-- **THEN** the stroke becomes the color target and the color popover opens under the Stroke row
+- **THEN** the stroke becomes the color target and the color popover opens beside the inspector, level with the Stroke row
 
 #### Scenario: Look of new objects
 - **WHEN** nothing is selected and the user sets the Fill row of new objects to red, then draws a rectangle

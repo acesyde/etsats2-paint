@@ -9,9 +9,13 @@ mod numeric_field;
 mod paint_row;
 mod popover;
 mod segmented;
+mod thin_slider;
 mod tool_button;
 
-pub use buttons::{IconButton, primary_button, secondary_button, toggle_icon_button};
+pub use buttons::{
+    IconButton, SWITCH_SIZE, chip_toggle, dropdown_icon, more_menu, paint_dropdown_arrow,
+    paint_switch, primary_button, secondary_button, secondary_icon_button, toggle_icon_button,
+};
 pub use color_widgets::{
     ColorSwatch, FillOrStroke, FillStrokeSwatches, GradientPreview, Hsv, PREVIEW_STOPS,
     SwatchColor, alpha_slider, hue_slider, paint_checkerboard, sv_square,
@@ -23,6 +27,7 @@ pub use numeric_field::{FieldEvent, NumericField, parse_number, remember_escape,
 pub use paint_row::{PAINT_ROW_HEIGHT, PaintRow, PaintRowResponse};
 pub use popover::Popover;
 pub use segmented::{Segment, SegmentedControl};
+pub use thin_slider::ThinSlider;
 pub use tool_button::ToolButton;
 
 use egui::{CornerRadius, Rect, Response, Stroke, StrokeKind, Ui};

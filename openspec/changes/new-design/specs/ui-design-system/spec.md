@@ -8,9 +8,13 @@ The theme SHALL be low in saturation so that livery colors read true. Its surfac
 | Token | Value | Use |
 |---|---|---|
 | Canvas surface | `#121214` | pasteboard and canvas area |
-| Panel surface | `#161618` | bars, panels, dialogs |
-| Raised surface | `#232326` | fields, rows, popovers |
+| Panel surface | `#161618` | bars, panels, dialogs (outlined `#333336`, radius 14) |
+| Raised surface | `#232326` | hovered rows and cards |
+| Field surface (sunken) | `#121214` with a `#2A2A2E` outline, radius 6 | text and numeric fields |
+| Control surface | `#1C1C1F` | buttons and dropdowns, tracks of segmented controls and sliders, menus, popovers, the breadcrumb pill |
+| Chip surface | `#262629` | the game badge, the active space of the switcher, the open menu |
 | Ink | `#EDEDED` | primary text |
+| Muted text | `#8B8B92` | inactive tabs and options, shortcuts, the status bar's text, section headings, the labels inside inset fields; only where it keeps 4.5:1 |
 
 The theme SHALL have three accents, each with one meaning and used for nothing else:
 
@@ -28,7 +32,11 @@ Success, warning and error SHALL keep their own semantic tokens, distinct from t
 
 #### Scenario: Visual hierarchy between surfaces
 - **WHEN** a panel, the canvas area and a popup menu are visible at the same time
-- **THEN** the canvas area is drawn with the canvas surface `#121214`, the panel with the panel surface `#161618` and the popup menu with the raised surface `#232326`
+- **THEN** the canvas area is drawn with the canvas surface `#121214`, the panel with the panel surface `#161618` and the popup menu with the control surface `#1C1C1F`
+
+#### Scenario: Sunken fields
+- **WHEN** a rectangle is selected and the inspector shows its position fields
+- **THEN** the fields are drawn on the field surface `#121214` with a `#2A2A2E` outline, below the panel surface around them
 
 #### Scenario: Primary action in white
 - **WHEN** the Export Mod dialog is open
@@ -45,8 +53,9 @@ Success, warning and error SHALL keep their own semantic tokens, distinct from t
 ### Requirement: Text contrast
 Primary text SHALL have a contrast ratio of at least 7:1 against its background, and secondary text and icons used to convey information SHALL have a contrast ratio of at least 4.5:1. Disabled content SHALL remain at least 3:1.
 
-These ratios SHALL hold on each of the three surfaces (canvas, panel, raised) for every pair the theme uses, including:
+These ratios SHALL hold on each surface (canvas, panel, raised, field, control, chip) for every pair the theme uses, including:
 - ink on each surface (at least 7:1);
+- muted text on each surface it is used on (at least 4.5:1);
 - the signal and link accents, used as text or informative icons, on each surface (at least 4.5:1);
 - the dark text of the active option on the white pill of a segmented control and on a primary button (at least 7:1).
 
@@ -94,7 +103,9 @@ The application SHALL use this typographic scale consistently across screens:
 ## ADDED Requirements
 
 ### Requirement: Segmented controls
-Choices between a few mutually exclusive options (for example Solid / Linear / Radial, or the Project / Workshop / Brand spaces) SHALL be shown as a segmented control: the options side by side in one raised track, the active option drawn as a white pill (primary accent) with dark text, the other options as text on the track. Clicking an option SHALL make it active. The active option SHALL be marked by the pill's fill, not only by its color, so that it stays visible in a grayscale rendering.
+Choices between a few mutually exclusive options (for example Solid / Linear / Radial, or the Textures / Layers / Resources tabs) SHALL be shown as a segmented control: the options side by side in one track on the control surface, the active option drawn as a white pill (primary accent) with dark text, the other options as muted text on the track. Clicking an option SHALL make it active. The active option SHALL be marked by the pill's fill, not only by its color, so that it stays visible in a grayscale rendering.
+
+The space switcher of the top bar (Project / Workshop / Brand) SHALL be the same choice drawn as tabs: no track, the other options as muted text, the active option on the chip surface. Its active option SHALL also be marked by a fill.
 
 #### Scenario: Choosing an option
 - **WHEN** a segmented control shows Solid active and the user clicks Linear

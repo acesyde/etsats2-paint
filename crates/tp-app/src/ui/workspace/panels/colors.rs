@@ -145,6 +145,7 @@ pub fn popover(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         .segment(ColorModel::Rgb, "", "RGB", None)
         .segment(ColorModel::Hsv, "", "HSV", None)
         .segment(ColorModel::Hsl, "", "HSL", None)
+        .track(color::FIELD)
         .show(ui, model)
     {
         env.ws.panels.color_model = picked;
@@ -164,25 +165,29 @@ fn paint_kind(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     let kind = current_kind(env.ws, target);
     let picked = ui
         .push_id("paint_kind", |ui| {
+            // Text only, spread over the popover, on a sunken track (the
+            // popover is on the control surface).
             SegmentedControl::new()
                 .named_segment(
                     Some(PaintKind::Solid),
-                    icons::PAINT_SOLID,
+                    "",
                     &tr("colors-solid"),
                     &tr("colors-solid-paint"),
                 )
                 .named_segment(
                     Some(PaintKind::Linear),
-                    icons::PAINT_LINEAR,
+                    "",
                     &tr("colors-linear"),
                     &tr("colors-linear-gradient"),
                 )
                 .named_segment(
                     Some(PaintKind::Radial),
-                    icons::PAINT_RADIAL,
+                    "",
                     &tr("colors-radial"),
                     &tr("colors-radial-gradient"),
                 )
+                .fill()
+                .track(color::FIELD)
                 .show(ui, kind)
         })
         .inner;
@@ -579,7 +584,7 @@ fn recent_colors(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     ui.label(
         RichText::new(tr("colors-recent"))
             .small()
-            .color(color::TEXT_SECONDARY),
+            .color(color::TEXT_MUTED),
     );
     let recent: Vec<Rgba> = env
         .recent_colors
@@ -602,23 +607,46 @@ fn recent_colors(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     });
 }
 
-/// The brand palette with its heading and Add to Palette button.
+/// The brand palette with its heading and a "+ Add" link (Add to
+/// Palette), in the link color as everything tied to the brand.
 fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
     ui.horizontal(|ui| {
         ui.label(
             RichText::new(tr("colors-brand-palette"))
                 .small()
-                .color(color::TEXT_SECONDARY),
+                .color(color::TEXT_MUTED),
         );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            add_to_palette_button_for(ui, env, current);
+            let name = tr("colors-add-to-palette");
+            let ink = if current.is_some() {
+                color::LINK
+            } else {
+                color::TEXT_DISABLED
+            };
+            let add = ui
+                .add_enabled(
+                    current.is_some(),
+                    egui::Button::new(RichText::new(tr("colors-add-short")).small().color(ink))
+                        .frame(false)
+                        .min_size(egui::vec2(0.0, tp_ui::tokens::size::HIT_MIN)),
+                )
+                .on_hover_text(&name)
+                .on_disabled_hover_text(tr("colors-differ"));
+            add.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::Button, current.is_some(), &name)
+            });
+            if add.clicked()
+                && let Some(c) = current
+            {
+                add_color(env, c);
+            }
         });
     });
     if env.ws.project.palette.is_empty() {
         palette_empty_hint(ui);
         return;
     }
-    palette_swatches(ui, env, 18.0);
+    palette_swatches(ui, env, 22.0);
     linked_swatch_label(ui, env);
 }
 

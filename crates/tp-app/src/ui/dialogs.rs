@@ -18,8 +18,8 @@ use crate::state::{AppState, Modal};
 fn dialog_frame() -> Frame {
     Frame::new()
         .fill(color::SURFACE_1)
-        .stroke(Stroke::new(1.0, color::BORDER_STRONG))
-        .corner_radius(CornerRadius::same(radius::LG))
+        .stroke(Stroke::new(1.0, color::OUTLINE))
+        .corner_radius(CornerRadius::same(radius::DIALOG))
         .inner_margin(Margin::same(space::XL as i8))
         .shadow(egui::Shadow {
             offset: [0, 12],
@@ -66,15 +66,31 @@ pub(crate) fn labelled<R>(ui: &mut Ui, label: &str, body: impl FnOnce(&mut Ui) -
     .inner
 }
 
+/// Height of a dialog's single-line fields.
+pub(crate) const FIELD_HEIGHT: f32 = 34.0;
+
 /// A labelled single-line text field filling the width; returns its
 /// response.
 pub(crate) fn text_field(ui: &mut Ui, label: &str, text: &mut String) -> egui::Response {
+    text_field_in(ui, label, text, false)
+}
+
+/// The same field with its value in the monospace face (versions, paths).
+pub(crate) fn mono_text_field(ui: &mut Ui, label: &str, text: &mut String) -> egui::Response {
+    text_field_in(ui, label, text, true)
+}
+
+fn text_field_in(ui: &mut Ui, label: &str, text: &mut String, mono: bool) -> egui::Response {
     labelled(ui, label, |ui| {
-        let response = ui.add(
-            TextEdit::singleline(text)
-                .desired_width(f32::INFINITY)
-                .margin(Margin::symmetric(8, 5)),
-        );
+        let mut edit = TextEdit::singleline(text)
+            .desired_width(f32::INFINITY)
+            .margin(Margin::symmetric(10, 0))
+            .vertical_align(Align::Center)
+            .min_size(egui::vec2(0.0, FIELD_HEIGHT));
+        if mono {
+            edit = edit.font(egui::TextStyle::Monospace);
+        }
+        let response = ui.add(edit);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, label));
         response
     })
@@ -355,6 +371,31 @@ fn message(ctx: &egui::Context, title: &str, text: &str) -> bool {
         })
 }
 
+/// A scale in percent: a thin slider by steps of 5 % and its value, which
+/// can be dragged or typed. Returns the slider's response and whether the
+/// value was changed through the value.
+fn scale_slider(
+    ui: &mut Ui,
+    pct: &mut f32,
+    range: std::ops::RangeInclusive<f32>,
+    name: &str,
+    width: f32,
+) -> (egui::Response, bool) {
+    let r = ui.add(
+        tp_ui::widgets::ThinSlider::new(pct, range.clone(), name)
+            .width(width)
+            .step(5.0),
+    );
+    let value = ui.add(
+        egui::DragValue::new(pct)
+            .range(range)
+            .speed(1.0)
+            .suffix("%")
+            .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
+    );
+    (r, value.changed())
+}
+
 /// Returns true when the dialog should close.
 fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
     let response = modal("preferences_modal").show(ctx, |ui| {
@@ -365,38 +406,22 @@ fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
         section(ui, &tr("prefs-interface"));
         let slider_width = ui.available_width() - 60.0;
         labelled(ui, &tr("prefs-ui-scale"), |ui| {
-            ui.spacing_mut().slider_width = slider_width;
             let mut ui_pct = (prefs.ui_scale * 100.0).round();
-            let r = ui.add(
-                egui::Slider::new(
-                    &mut ui_pct,
-                    (UI_SCALE_RANGE.start() * 100.0)..=(UI_SCALE_RANGE.end() * 100.0),
-                )
-                .step_by(5.0)
-                .suffix("%")
-                .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
-            );
-            r.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, tr("prefs-ui-scale")));
+            let range = (UI_SCALE_RANGE.start() * 100.0)..=(UI_SCALE_RANGE.end() * 100.0);
+            let name = tr("prefs-ui-scale");
+            let (r, typed) = scale_slider(ui, &mut ui_pct, range, &name, slider_width);
             // Apply on release while dragging, so the slider does not move
             // under the pointer as the interface rescales.
-            if r.changed() && !r.dragged() || r.drag_stopped() {
+            if r.changed() && !r.dragged() || r.drag_stopped() || typed {
                 prefs.ui_scale = ui_pct / 100.0;
             }
         });
         labelled(ui, &tr("prefs-text-size"), |ui| {
-            ui.spacing_mut().slider_width = slider_width;
             let mut text_pct = (prefs.text_scale * 100.0).round();
-            let r = ui.add(
-                egui::Slider::new(
-                    &mut text_pct,
-                    (TEXT_SCALE_RANGE.start() * 100.0)..=(TEXT_SCALE_RANGE.end() * 100.0),
-                )
-                .step_by(5.0)
-                .suffix("%")
-                .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
-            );
-            r.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, tr("prefs-text-size")));
-            if r.changed() {
+            let range = (TEXT_SCALE_RANGE.start() * 100.0)..=(TEXT_SCALE_RANGE.end() * 100.0);
+            let name = tr("prefs-text-size");
+            let (r, typed) = scale_slider(ui, &mut text_pct, range, &name, slider_width);
+            if r.changed() || typed {
                 prefs.text_scale = text_pct / 100.0;
             }
         });
@@ -412,6 +437,7 @@ fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
             };
             let mut picked = current;
             let combo = egui::ComboBox::from_id_salt("prefs_language")
+                .icon(tp_ui::widgets::dropdown_icon)
                 .width(220.0)
                 .selected_text(name(current))
                 .show_ui(ui, |ui| {

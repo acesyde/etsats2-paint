@@ -341,7 +341,7 @@ fn an_instance_in_the_layers_tab() {
         h.query_by_label(&format!("Expand {}", object.name))
             .is_none()
     );
-    let (icon, name) = tp_app::ui::workspace::panels::layers::row_colors(&object, false);
+    let (icon, name) = tp_app::ui::workspace::panels::layers::row_colors(&object, false, false);
     assert_eq!(
         (icon, name),
         (tp_ui::tokens::color::LINK, tp_ui::tokens::color::LINK)

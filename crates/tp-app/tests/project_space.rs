@@ -120,10 +120,9 @@ fn truck_and_trailer_cards() {
         Some(&["base", "mudflaps"]),
     );
     assert!(h.query_by_label("Truck · package 1.1.0").is_some());
-    assert!(
-        h.query_by_label("Standard cab (standard), High roof (high_roof)")
-            .is_some()
-    );
+    // The cabins by name; their internal names are in the tooltip only.
+    assert!(h.query_by_label("Standard cab, High roof").is_some());
+    assert!(h.query_by_label_contains("high_roof").is_none());
     assert!(h.query_by_label("One per cabin layout").is_some());
     assert!(h.query_by_label("Trailer · package 1.0.0").is_some());
     assert!(h.query_by_label("Single main texture").is_some());

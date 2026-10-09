@@ -27,10 +27,11 @@ const COLUMN_WIDTH: f32 = 360.0;
 const VEHICLE_THUMB: Vec2 = Vec2::new(72.0, 48.0);
 /// Padding of a vehicle card's header.
 const HEADER_PAD: Vec2 = Vec2::new(16.0, 14.0);
-/// Width of a texture tile, its padding and its square thumbnail.
-const TILE_WIDTH: f32 = 136.0;
+/// A texture tile's thumbnail (the middle of the square texture), its
+/// padding and its width.
+const TILE_THUMB: Vec2 = Vec2::new(150.0, 108.0);
 const TILE_PAD: f32 = 8.0;
-const TILE_THUMB: f32 = TILE_WIDTH - 2.0 * TILE_PAD;
+const TILE_WIDTH: f32 = TILE_THUMB.x + 2.0 * TILE_PAD;
 /// Height of a tile's text under the thumbnail: name, kind and size, and
 /// the update's flag.
 const TILE_TEXT: f32 = 58.0;
@@ -78,7 +79,12 @@ fn vehicles(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
             ui.label(RichText::new(&counts).color(color::TEXT_SECONDARY));
         });
         ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
-            cmds.secondary_button(ui, CommandId::AddVehicle, &tr("cmd-add-vehicle"));
+            cmds.secondary_icon_button(
+                ui,
+                CommandId::AddVehicle,
+                icons::ADD,
+                &tr("cmd-add-vehicle"),
+            );
         });
     });
 
@@ -216,9 +222,13 @@ fn card_header(
     // texture mode, read only.
     if v.kind != "trailer" {
         let cabins = cabins_text(&env.ws.project, v);
+        let ids = cabin_ids_text(&env.ws.project, v);
         block(&mut info, 320.0, |ui| {
             caption(ui, &tr("project-cabins"));
-            ui.add(egui::Label::new(&cabins).truncate());
+            let label = ui.add(egui::Label::new(&cabins).truncate());
+            if let Some(ids) = ids {
+                label.on_hover_text(ids);
+            }
         });
     }
     block(&mut info, 220.0, |ui| {
@@ -291,28 +301,33 @@ fn first_main(env: &PanelEnv<'_>, v: &ProjectVehicle) -> Option<usize> {
         .or_else(|| range.next())
 }
 
-/// A truck's main textures, each followed by its cabins' internal names
-/// when the package gives them: "Standard cab (standard), High roof
-/// (high_roof)".
+/// A truck's main textures by name: "Standard cab, High roof".
 fn cabins_text(project: &Project, v: &ProjectVehicle) -> String {
+    main_surfaces(project, v)
+        .map(|i| project.surfaces[i].name.clone())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// The cabins' internal names of a truck's main textures, when the package
+/// gives them (the tooltip of the Cabins value): "Standard cab: standard;
+/// High roof: high_roof".
+fn cabin_ids_text(project: &Project, v: &ProjectVehicle) -> Option<String> {
+    let ids: Vec<String> = main_surfaces(project, v)
+        .filter_map(|i| {
+            let surface = &project.surfaces[i];
+            let ids = surface.template.as_ref()?.game_ids.join(", ");
+            (!ids.is_empty()).then(|| format!("{}: {ids}", surface.name))
+        })
+        .collect();
+    (!ids.is_empty()).then(|| tr!("project-cabin-ids", ids = ids.join("; ")))
+}
+
+/// The indices of a vehicle's main textures.
+fn main_surfaces<'a>(project: &'a Project, v: &ProjectVehicle) -> impl Iterator<Item = usize> + 'a {
     project
         .vehicle_range(&v.package_id)
         .filter(|i| vehicle::part_of(project, *i) == TexturePart::Main)
-        .map(|i| {
-            let surface = &project.surfaces[i];
-            let cabins = surface
-                .template
-                .as_ref()
-                .map(|t| t.game_ids.join(", "))
-                .unwrap_or_default();
-            if cabins.is_empty() {
-                surface.name.clone()
-            } else {
-                format!("{} ({cabins})", surface.name)
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(", ")
 }
 
 /// The main texture mode given by the package: one per cabin layout when
@@ -425,7 +440,7 @@ fn texture_tile(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
         .surface_names(i)
         .map_or_else(|| name.clone(), |(v, t)| format!("{v} › {t}"));
 
-    let size = Vec2::new(TILE_WIDTH, TILE_PAD + TILE_THUMB + TILE_TEXT);
+    let size = Vec2::new(TILE_WIDTH, TILE_PAD + TILE_THUMB.y + TILE_TEXT);
     let (rect, tile) = ui.allocate_exact_size(size, Sense::click());
     tile.widget_info(|| {
         WidgetInfo::selected(
@@ -458,14 +473,8 @@ fn texture_tile(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     }
     paint_focus_ring(ui, rect, &tile, radius::LG);
 
-    let thumb = Rect::from_min_size(rect.min + Vec2::splat(TILE_PAD), Vec2::splat(TILE_THUMB));
-    paint_texture(
-        ui,
-        env,
-        i,
-        thumb,
-        Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-    );
+    let thumb = Rect::from_min_size(rect.min + Vec2::splat(TILE_PAD), TILE_THUMB);
+    paint_texture(ui, env, i, thumb, cover_uv(thumb));
     let (ring, width) = if active {
         (color::ACCENT_PRIMARY, 1.5)
     } else {
@@ -548,19 +557,29 @@ fn mod_information(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>
                 ui.set_width(ui.available_width());
                 ui.spacing_mut().item_spacing.y = space::MD;
                 super::caps_heading(ui, &tr("project-mod-information"));
+                // A generated picture of a blank first texture would be
+                // blank: a placeholder says where it comes from instead.
+                let blank = env
+                    .ws
+                    .project
+                    .surfaces
+                    .first()
+                    .is_none_or(|s| s.objects.is_empty());
                 picture(
                     ui,
                     &tr("mod-icon"),
                     previews.as_ref().map(|p| &p[0]),
                     ICON_SIZE,
+                    blank && settings.icon.is_none(),
                 );
                 picture(
                     ui,
                     &tr("mod-image"),
                     previews.as_ref().map(|p| &p[1]),
                     IMAGE_SIZE,
+                    blank && settings.image.is_none(),
                 );
-                super::read_only(ui, &tr("mod-name"), &settings.name, false, false);
+                super::value(ui, &tr("mod-name"), &settings.name, false, false);
                 ui.horizontal_top(|ui| {
                     let gap = space::SM + 2.0;
                     let version_width = 96.0;
@@ -575,12 +594,12 @@ fn mod_information(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>
                             Layout::top_down(Align::Min),
                             |ui| {
                                 ui.set_width(width);
-                                super::read_only(ui, &label, value, mono, false);
+                                super::value(ui, &label, value, mono, false);
                             },
                         );
                     }
                 });
-                super::read_only(
+                super::value(
                     ui,
                     &tr("mod-description"),
                     &settings.description,
@@ -596,17 +615,45 @@ fn mod_information(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>
 
 /// A picture of the mod at its size in pixels, under its title; an empty
 /// box until it is rendered (no spinner: the render wakes the UI when it
-/// ends, nothing needs to repaint meanwhile).
-fn picture(ui: &mut Ui, title: &str, texture: Option<&egui::TextureHandle>, size: (u32, u32)) {
+/// ends, nothing needs to repaint meanwhile). A `blank` picture (generated
+/// from a texture with nothing on it) shows a dashed placeholder saying
+/// where it comes from.
+fn picture(
+    ui: &mut Ui,
+    title: &str,
+    texture: Option<&egui::TextureHandle>,
+    size: (u32, u32),
+    blank: bool,
+) {
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = space::XS;
         super::field_label(ui, title);
         let (rect, response) =
             ui.allocate_exact_size(Vec2::new(size.0 as f32, size.1 as f32), Sense::hover());
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Image, true, title));
+        let painter = ui.painter();
+        if blank {
+            let text = tr("project-picture-generated");
+            painter.rect_filled(rect, radius::LG, color::CANVAS);
+            dashed_rect(painter, rect, color::BORDER_STRONG);
+            let galley = painter.layout(
+                text.clone(),
+                egui::FontId::proportional(typography::CAPTION),
+                color::TEXT_MUTED,
+                rect.width() - 2.0 * space::MD,
+            );
+            painter.galley(
+                rect.center() - galley.size() / 2.0,
+                galley,
+                color::TEXT_MUTED,
+            );
+            ui.interact(rect, response.id.with("blank"), Sense::hover())
+                .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+            return;
+        }
         match texture {
             Some(texture) => {
-                ui.painter().image(
+                painter.image(
                     texture.id(),
                     rect,
                     Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
@@ -614,16 +661,36 @@ fn picture(ui: &mut Ui, title: &str, texture: Option<&egui::TextureHandle>, size
                 );
             }
             None => {
-                ui.painter().rect_filled(rect, radius::SM, color::SURFACE_2);
+                painter.rect_filled(rect, radius::SM, color::CONTROL);
             }
         }
-        ui.painter().rect_stroke(
+        painter.rect_stroke(
             rect,
             radius::SM,
-            Stroke::new(1.0, color::BORDER_STRONG),
+            Stroke::new(1.0, color::OUTLINE),
             StrokeKind::Outside,
         );
     });
+}
+
+/// A dashed hairline around `rect`.
+fn dashed_rect(painter: &egui::Painter, rect: Rect, ink: egui::Color32) {
+    let rect = rect.shrink(0.5);
+    let corners = [
+        rect.left_top(),
+        rect.right_top(),
+        rect.right_bottom(),
+        rect.left_bottom(),
+        rect.left_top(),
+    ];
+    for pair in corners.windows(2) {
+        painter.extend(egui::Shape::dashed_line(
+            pair,
+            Stroke::new(1.0, ink),
+            5.0,
+            4.0,
+        ));
+    }
 }
 
 #[cfg(test)]
@@ -644,9 +711,10 @@ mod tests {
     fn a_truck_card_reads_its_cabins_and_mode() {
         let project = truck();
         let v = &project.vehicles[0];
+        assert_eq!(cabins_text(&project, v), "Standard cab, High roof");
         assert_eq!(
-            cabins_text(&project, v),
-            "Standard cab (standard), High roof (high_roof)"
+            cabin_ids_text(&project, v).as_deref(),
+            Some("Internal names: Standard cab: standard; High roof: high_roof")
         );
         assert_eq!(main_texture_mode(&project, v), "One per cabin layout");
         let mut single = v.clone();
