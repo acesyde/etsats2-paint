@@ -429,6 +429,7 @@ impl AppState {
             // frame's root `Ui` directly so the first frame is themed too.
             tp_ui::theme::configure_style(ui.style_mut(), self.prefs.theme().text_scale);
         }
+        tp_ui::theme::follow_display(&ctx);
         self.handle_close_request(&ctx);
         self.handle_keyboard(&ctx);
         let aids = self.prefs.view_aids;

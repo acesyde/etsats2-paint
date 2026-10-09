@@ -2,7 +2,7 @@
 
 use egui::{
     Color32, CornerRadius, FontFamily, FontId, Margin, Shadow, Stroke, Style, TextStyle,
-    ThemePreference, Vec2, Visuals, style::WidgetVisuals,
+    ThemePreference, Vec2, Visuals, epaint::FontColorTransferFunction, style::WidgetVisuals,
 };
 
 use crate::fonts;
@@ -77,6 +77,36 @@ pub fn apply(ctx: &egui::Context, settings: ThemeSettings) {
         ctx.set_zoom_factor(settings.ui_scale);
     }
     ctx.all_styles_mut(|style| configure_style(style, settings.text_scale));
+}
+
+/// How glyph coverage turns into alpha on a display with
+/// `pixels_per_point` physical pixels per point. egui's dark-mode curve
+/// thickens edges, which suits HiDPI screens; on 1× screens it leaves hard,
+/// stepped edges on dark-on-light text (the white pill, primary buttons),
+/// so a softer gamma is used there.
+pub fn text_smoothing(pixels_per_point: f32) -> FontColorTransferFunction {
+    if pixels_per_point < 1.5 {
+        FontColorTransferFunction::Gamma(0.7)
+    } else {
+        FontColorTransferFunction::DARK_MODE_DEFAULT
+    }
+}
+
+/// Keeps the text smoothing matched to the current display; call every
+/// frame (the window can move between a HiDPI and a 1× screen).
+pub fn follow_display(ctx: &egui::Context) {
+    let wanted = text_smoothing(ctx.pixels_per_point());
+    if ctx
+        .global_style()
+        .visuals
+        .text_options
+        .color_transfer_function
+        != wanted
+    {
+        ctx.all_styles_mut(|style| {
+            style.visuals.text_options.color_transfer_function = wanted;
+        });
+    }
 }
 
 /// Fills `style` from the design tokens.
@@ -248,6 +278,15 @@ pub fn visuals() -> Visuals {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn softer_text_smoothing_on_1x_displays() {
+        assert_eq!(text_smoothing(1.0), FontColorTransferFunction::Gamma(0.7));
+        assert_eq!(
+            text_smoothing(2.0),
+            FontColorTransferFunction::DARK_MODE_DEFAULT
+        );
+    }
 
     #[test]
     fn settings_are_clamped() {
