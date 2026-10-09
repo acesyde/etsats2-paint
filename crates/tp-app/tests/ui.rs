@@ -810,6 +810,8 @@ fn every_command_has_a_menu_entry() {
                     | CommandId::FinishSymbol
             )
         })
+        // The design gallery is in the Help menu of debug builds only.
+        .filter(|id| cfg!(debug_assertions) || *id != CommandId::DesignGallery)
         .filter(|id| !menus.contains(&tp_i18n::tr(id.meta().label)))
         .collect();
     assert!(missing.is_empty(), "{missing:?}");
