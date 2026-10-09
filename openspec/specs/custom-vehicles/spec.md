@@ -8,7 +8,7 @@ Lets a player create a vehicle package inside TruckPaint from the game's templat
 
 ### Requirement: Custom Vehicle dialog
 The **Custom Vehicle** dialog SHALL be reached from:
-- **Custom vehicle…** in the Vehicle step of New Project (see the start-screen capability);
+- **Custom vehicle…** in the vehicle list of New Project (see the start-screen capability);
 - **Custom vehicle…** in Add Vehicle… (see the vehicle-projects capability);
 - **Custom Vehicle…** in the Vehicle Library (see the vehicle-packages capability).
 
@@ -26,7 +26,7 @@ The dialog SHALL remind the player that templates from the base games belong to 
 Cancel or Escape SHALL close the dialog without installing anything and return to the dialog it was opened from, unchanged. The dialog SHALL be operable by keyboard.
 
 #### Scenario: Opened from New Project
-- **WHEN** the player clicks Custom vehicle… in the Vehicle step of New Project
+- **WHEN** the player clicks Custom vehicle… in the vehicle list of New Project
 - **THEN** the Custom Vehicle dialog opens with an empty form, Kind set to Truck and Game set to ETS2
 
 #### Scenario: Opened from Add Vehicle
@@ -130,8 +130,8 @@ A confirmation SHALL name the vehicle and its version.
 When a vehicle with the same id is already installed, Create SHALL be refused. The message SHALL say so and point to New Version… in the Vehicle Library. When building or validation fails, the dialog SHALL stay open with the reason. Nothing SHALL be installed then.
 
 #### Scenario: Create from New Project
-- **WHEN** the player creates the custom truck "R 2024" of brand "Scania", with one main texture "cabin" and one accessory, from the Vehicle step of New Project
-- **THEN** the package `custom.scania.r_2024` 1.0.0 is installed, and the Vehicle step shows "R 2024" selected with "cabin" and the accessory checked
+- **WHEN** the player creates the custom truck "R 2024" of brand "Scania", with one main texture "cabin" and one accessory, from the vehicle list of New Project
+- **THEN** the package `custom.scania.r_2024` 1.0.0 is installed, and the vehicle list of New Project shows "R 2024" selected with "cabin" and the accessory checked
 
 #### Scenario: DDS converted
 - **WHEN** a custom vehicle is created from a BC3 DDS template of 4096×4096

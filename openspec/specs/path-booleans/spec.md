@@ -16,7 +16,7 @@ The application SHALL provide four commands in an Object › Combine submenu:
 | Intersect | the area covered by every selected shape | |
 | Exclude | the area covered by an odd number of the selected shapes | |
 
-"Bottom" and "above" refer to the stacking order in the Layers panel.
+"Bottom" and "above" refer to the stacking order in the Layers tab.
 
 #### Scenario: Unite two overlapping squares
 - **WHEN** two overlapping squares are selected and the user chooses Unite

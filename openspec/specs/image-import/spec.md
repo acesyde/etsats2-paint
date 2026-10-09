@@ -50,4 +50,4 @@ Importing a file whose content is identical to an existing asset SHALL reuse tha
 
 #### Scenario: Same logo twice
 - **WHEN** the user places "logo.png" twice
-- **THEN** two image objects exist and the Assets panel lists one asset used 2 times
+- **THEN** two image objects exist and the images list of the Resources tab lists one asset used 2 times
