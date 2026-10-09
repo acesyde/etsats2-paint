@@ -1,41 +1,15 @@
 
 ## Panel titles and empty states
 
-panel-properties = Properties
-panel-layers = Layers
-panel-colors = Colors
 panel-styles = Styles
 panel-symbols = Symbols
 panel-stroke = Stroke
-panel-transform = Transform
-panel-assets = Assets
 panel-vehicle = Vehicles
-empty-properties = Nothing selected
-empty-properties-hint = Select an object on the canvas to edit its properties.
 empty-layers = No layers yet
-empty-layers-hint = Shapes, text and images you add will appear here.
-empty-colors = No color selected
-empty-colors-hint = Pick a fill or stroke to edit its color.
-empty-styles = No style yet
-empty-styles-hint = Save looks to reuse on every texture.
-empty-symbols = No symbol yet
-empty-symbols-hint = Convert a logo or a lettering to a symbol to place it on every texture.
-empty-stroke = No stroke
-empty-stroke-hint = Select an object to edit its outline.
-empty-transform = Nothing to transform
-empty-transform-hint = Select an object to edit position, size and rotation.
-empty-assets = No assets
 empty-assets-hint = Imported logos and images will be listed here.
-empty-vehicle = No vehicle
-empty-vehicle-hint = Vehicle templates will be available in a future update.
 
-## Panels and Layers
+## Layers
 
-panels-all-closed = All panels are closed
-panels-all-closed-hint = Reopen panels from the View menu, or reset the workspace.
-panel-expand = Expand
-panel-collapse = Collapse
-panel-close = Close Panel
 layers-empty-hint = Shapes you draw and layers you add appear here.
 layers-collapse = Collapse { $name }
 layers-expand = Expand { $name }
@@ -44,6 +18,10 @@ layers-show = Show { $name }
 layers-lock = Lock { $name }
 layers-unlock = Unlock { $name }
 layers-name = Layer name
+layers-heading = { $texture } · { $count ->
+    [one] { $count } layer
+   *[other] { $count } layers
+}
 
 ## Assets
 
@@ -58,6 +36,10 @@ assets-used-by = { $count ->
 assets-vector = Vector
 assets-item = Asset { $name }
 assets-place = Place Asset
+assets-drop-zone = Drop a logo here or
+assets-import = Import…
+resources-images = Images
+resources-footer = Drag an element onto the canvas to place it. Open the Brand space to manage everything.
 assets-name = Asset name
 
 ## Stroke panel
@@ -103,12 +85,9 @@ props-sides = Sides
 props-star = Star
 props-inner = Inner
 props-inner-radius = Inner radius
-props-surface-summary = { $size } × { $size } px · Select an object to edit it
 props-objects = { $count } objects
-props-multiple = Multiple selection
 props-source-svg = SVG · Vector
 props-source-image = Image · { $width } × { $height } px
-props-source = Source: { $name } · { $source }
 props-opacity = Opacity
 props-opacity-slider = Opacity slider
 props-radius = Radius
@@ -204,7 +183,6 @@ weight-semi-bold = Semi Bold
 weight-bold = Bold
 weight-extra-bold = Extra Bold
 weight-black = Black
-char-title = Character
 char-font-weight = Font weight
 char-italic = Italic
 char-size = Size
@@ -240,7 +218,6 @@ vehicle-panel-layout-changed = Layout changed
 vehicle-panel-dismiss = Dismiss
 vehicle-panel-dismiss-named = Dismiss layout change of { $name }
 vehicle-panel-removed = Not in this version
-vehicle-panel-opacity = Template
 vehicle-panel-opacity-name = Template opacity
 
 ## Fleet
@@ -251,22 +228,13 @@ vehicles-main-textures = Main textures
 vehicles-accessories = Accessories
 vehicles-remove-from-project = Remove from Project
 
-## Vehicles sidebar
+## Project
 
-
-## Sidebar
-
-sidebar-project = Project
-sidebar-show = Show Sidebar
-sidebar-hide = Hide Sidebar
-sidebar-vehicles-game = Vehicles · { $game }
-project-name = Name
-project-version = Version
+vehicle-panel-game = Vehicles · { $game }
 project-game-versions = Game versions
 project-game-versions-supported = Supported by every vehicle: { $versions }
 project-no-common-version = No game version is supported by every vehicle
 vehicle-actions-named = Actions for { $name }
-vehicle-panel-needs-check = A texture needs checking after an update
 texture-layout-changed = The layout of this texture changed in version { $version }: check your artwork.
 texture-not-in-version = This texture is not in version { $version } of the vehicle: it has no template.
 
@@ -324,3 +292,56 @@ library-update = Update in Library
 library-added = Added to the library
 library-updated = Library updated
 undo-import-from-library = Import from Library
+
+## Inspector
+
+inspector-layout = Layout
+inspector-text = Text
+inspector-appearance = Appearance
+inspector-polygon = Polygon
+inspector-image = Image
+inspector-new-objects = New objects
+inspector-hint = Select an object to set its layout, fill and stroke.
+inspector-main-texture = Main texture
+inspector-accessory-texture = Accessory texture
+inspector-texture-kind = { $kind } · { $size } × { $size } px
+inspector-style = Style
+inspector-style-none = None
+stroke-none = None
+stroke-width-px = { $width } px
+stroke-options = Stroke options
+line-settings = Line settings
+colors-brand-palette = Brand palette
+colors-add-short = + Add
+
+## Project space
+
+project-vehicles-count = { $vehicles ->
+    [one] { $vehicles } vehicle
+   *[other] { $vehicles } vehicles
+} · { $textures ->
+    [one] { $textures } texture
+   *[other] { $textures } textures
+}
+project-kind-package = { $kind } · package { $version }
+project-cabins = Cabins
+project-main-texture = Main texture
+project-mode-per-layout = One per cabin layout
+project-mode-every-cabin = One for every cabin
+project-mode-single = Single main texture
+project-update-available = Update { $version } available
+vehicle-textures-named = Textures of { $name }
+project-texture-main = Main
+project-texture-accessory = Accessory
+project-mod-information = Mod information
+project-not-set = Not set
+project-edit-in-export = Edit in Export Mod…
+project-picture-generated = Generated from the first main texture
+project-cabin-ids = Internal names: { $ids }
+
+## Brand space
+
+brand-new-color = New Color
+brand-new-style = New Style from Selection
+brand-create-from-selection = Create from Selection
+brand-actions-named = Actions for { $name }

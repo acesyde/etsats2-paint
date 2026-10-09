@@ -1,13 +1,11 @@
 //! Export Texture dialog: settings, live preview, progress.
 
 use egui::{
-    Align, Color32, CornerRadius, Key, Layout, Rect, RichText, Sense, Stroke, Ui, Vec2, WidgetInfo,
-    WidgetType,
+    Color32, CornerRadius, Key, Rect, RichText, Sense, Stroke, Ui, Vec2, WidgetInfo, WidgetType,
 };
 use tp_core::document::Rgba;
 use tp_i18n::tr;
 use tp_render::DdsEncoding;
-use tp_ui::theme::{label_strong_style, title_style};
 use tp_ui::tokens::{color, space};
 use tp_ui::widgets::{SegmentedControl, primary_button, secondary_button};
 
@@ -53,28 +51,6 @@ fn same_image(a: &ExportSettings, b: &ExportSettings) -> bool {
 
 const PREVIEW: f32 = 300.0;
 
-fn checkerboard(ui: &Ui, rect: Rect) {
-    let painter = ui.painter_at(rect);
-    let cell = 10.0;
-    painter.rect_filled(rect, 0, Color32::from_gray(200));
-    let (cols, rows) = (
-        (rect.width() / cell).ceil() as i32,
-        (rect.height() / cell).ceil() as i32,
-    );
-    for y in 0..rows {
-        for x in 0..cols {
-            if (x + y) % 2 == 0 {
-                let min = rect.min + Vec2::new(x as f32 * cell, y as f32 * cell);
-                painter.rect_filled(
-                    Rect::from_min_size(min, Vec2::splat(cell)),
-                    0,
-                    Color32::from_gray(150),
-                );
-            }
-        }
-    }
-}
-
 /// Shows the dialog; returns false when it should close.
 pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog) -> bool {
     let Some(ws) = state.workspace_mut() else {
@@ -84,6 +60,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
     // texture.
     let side = ws.project.surface().size.round() as u32;
     let name = crate::export::export_name(&ws.project);
+    let texture = format!("{} · {side} × {side} px", ws.project.surface().name);
 
     // Preview: pick up a finished render, start one when settings changed.
     if let Some(job) = &dialog.preview_job
@@ -143,18 +120,14 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
     let exporting = dialog.job.as_ref().map(|j| (j.progress(), j.path.clone()));
     super::dialogs::modal("export_modal").show(ctx, |ui| {
         ui.set_width(660.0);
-        ui.label(
-            RichText::new(tr("dialog-export-texture"))
-                .text_style(title_style())
-                .color(color::TEXT_PRIMARY),
-        );
+        super::dialogs::title(ui, &tr("dialog-export-texture"), Some(&texture));
         ui.add_space(space::LG);
         ui.horizontal_top(|ui| {
             // Preview.
             let (rect, response) = ui.allocate_exact_size(Vec2::splat(PREVIEW), Sense::hover());
             response
                 .widget_info(|| WidgetInfo::labeled(WidgetType::Image, true, tr("export-preview")));
-            checkerboard(ui, rect);
+            tp_ui::widgets::paint_checkerboard(&ui.painter_at(rect), rect, 10.0);
             match &dialog.preview {
                 Some(texture) => {
                     ui.painter().image(
@@ -206,15 +179,13 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
                 label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &info));
             });
         });
-        ui.add_space(space::XL);
         match &exporting {
             Some((progress, path)) => {
                 let file = path
                     .file_name()
                     .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
                 ui.add(egui::ProgressBar::new(*progress).text(tr!("export-progress", file = file)));
-                ui.add_space(space::SM);
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                super::dialogs::footer(ui, |ui| {
                     if ui.add(secondary_button(&tr("button-cancel"))).clicked()
                         && let Some(job) = &dialog.job
                     {
@@ -223,7 +194,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
                 });
             }
             None => {
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                super::dialogs::footer(ui, |ui| {
                     start_export |= ui.add(primary_button(&tr("export-start"))).clicked();
                     if ui.add(secondary_button(&tr("button-cancel"))).clicked() {
                         keep = false;
@@ -268,7 +239,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
 }
 
 fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
-    ui.label(RichText::new(tr("export-format")).text_style(label_strong_style()));
+    super::dialogs::field_label(ui, &tr("export-format"));
     if let Some(format) = SegmentedControl::new()
         .segment(ExportFormat::Png, tp_ui::icons::IMAGE, "PNG", None)
         .segment(ExportFormat::Dds, tp_ui::icons::VEHICLE, "DDS", None)
@@ -283,6 +254,7 @@ fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
             DdsEncoding::Rgba => tr("export-dds-rgba"),
         };
         let combo = egui::ComboBox::from_id_salt("dds_encoding")
+            .icon(tp_ui::widgets::dropdown_icon)
             .width(220.0)
             .selected_text(label(settings.dds))
             .show_ui(ui, |ui| {
@@ -295,7 +267,7 @@ fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
         });
     }
     ui.add_space(space::MD);
-    ui.label(RichText::new(tr("export-size")).text_style(label_strong_style()));
+    super::dialogs::field_label(ui, &tr("export-size"));
     ui.horizontal(|ui| {
         for divisor in [1, 2, 4] {
             let size = side / divisor;
@@ -303,7 +275,7 @@ fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
         }
     });
     ui.add_space(space::MD);
-    ui.label(RichText::new(tr("export-background")).text_style(label_strong_style()));
+    super::dialogs::field_label(ui, &tr("export-background"));
     ui.horizontal(|ui| {
         let mut transparent = settings.background.is_none();
         if ui

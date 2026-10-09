@@ -2,7 +2,7 @@
 
 use egui::{
     Color32, CornerRadius, FontFamily, FontId, Margin, Shadow, Stroke, Style, TextStyle,
-    ThemePreference, Vec2, Visuals, style::WidgetVisuals,
+    ThemePreference, Vec2, Visuals, epaint::FontColorTransferFunction, style::WidgetVisuals,
 };
 
 use crate::fonts;
@@ -77,6 +77,36 @@ pub fn apply(ctx: &egui::Context, settings: ThemeSettings) {
         ctx.set_zoom_factor(settings.ui_scale);
     }
     ctx.all_styles_mut(|style| configure_style(style, settings.text_scale));
+}
+
+/// How glyph coverage turns into alpha on a display with
+/// `pixels_per_point` physical pixels per point. egui's dark-mode curve
+/// thickens edges, which suits HiDPI screens; on 1× screens it leaves hard,
+/// stepped edges on dark-on-light text (the white pill, primary buttons),
+/// so a softer gamma is used there.
+pub fn text_smoothing(pixels_per_point: f32) -> FontColorTransferFunction {
+    if pixels_per_point < 1.5 {
+        FontColorTransferFunction::Gamma(0.7)
+    } else {
+        FontColorTransferFunction::DARK_MODE_DEFAULT
+    }
+}
+
+/// Keeps the text smoothing matched to the current display; call every
+/// frame (the window can move between a HiDPI and a 1× screen).
+pub fn follow_display(ctx: &egui::Context) {
+    let wanted = text_smoothing(ctx.pixels_per_point());
+    if ctx
+        .global_style()
+        .visuals
+        .text_options
+        .color_transfer_function
+        != wanted
+    {
+        ctx.all_styles_mut(|style| {
+            style.visuals.text_options.color_transfer_function = wanted;
+        });
+    }
 }
 
 /// Fills `style` from the design tokens.
@@ -161,6 +191,7 @@ pub fn visuals() -> Visuals {
     v.override_text_color = None;
     v.weak_text_color = Some(color::TEXT_SECONDARY);
 
+    // Labels and frames that don't react.
     v.widgets.noninteractive = widget(
         color::SURFACE_1,
         color::BORDER,
@@ -168,9 +199,11 @@ pub fn visuals() -> Visuals {
         radius::MD,
         0.0,
     );
+    // Idle controls sit on the control surface, outlined by a hairline
+    // (text fields keep this outline over their sunken fill).
     v.widgets.inactive = widget(
-        color::SURFACE_2,
-        color::BORDER_STRONG,
+        color::CONTROL,
+        color::BORDER,
         color::TEXT_PRIMARY,
         radius::MD,
         0.0,
@@ -182,35 +215,43 @@ pub fn visuals() -> Visuals {
         radius::MD,
         0.0,
     );
+    // Pressed: a darker fill change and a light outline, readable in grayscale.
     v.widgets.active = widget(
         color::SURFACE_4,
-        color::ACCENT,
+        color::TEXT_SECONDARY,
         color::TEXT_PRIMARY,
         radius::MD,
         0.0,
     );
+    // An open menu (of the menu bar) or combo box sits on a chip.
     v.widgets.open = widget(
-        color::SURFACE_3,
+        color::CHIP,
         color::BORDER_STRONG,
         color::TEXT_PRIMARY,
         radius::MD,
         0.0,
     );
 
-    v.selection.bg_fill = color::ACCENT_SUBTLE;
-    v.selection.stroke = Stroke::new(stroke::FOCUS, color::ACCENT);
+    // Selected items and text selections: a neutral fill (no accent) with ink
+    // text; the focus ring and the outlines of focused fields are ink too.
+    v.selection.bg_fill = color::SELECTED;
+    v.selection.stroke = Stroke::new(stroke::FOCUS, color::FOCUS);
 
-    v.hyperlink_color = color::ACCENT;
+    v.hyperlink_color = color::TEXT_PRIMARY;
     v.faint_bg_color = color::SURFACE_2;
     v.extreme_bg_color = color::SURFACE_0;
-    v.text_edit_bg_color = Some(color::SURFACE_0);
+    // Fields are sunken.
+    v.text_edit_bg_color = Some(color::FIELD);
     v.code_bg_color = color::SURFACE_0;
     v.warn_fg_color = color::WARNING;
     v.error_fg_color = color::ERROR;
 
     v.window_corner_radius = CornerRadius::same(radius::LG);
-    v.menu_corner_radius = CornerRadius::same(radius::MD);
-    v.window_fill = color::SURFACE_2;
+    v.menu_corner_radius = CornerRadius::same(radius::LG + 2);
+    // egui draws popups, menus and tooltips with the window fill: the
+    // control surface. Modal dialogs use their own frame on the panel
+    // surface.
+    v.window_fill = color::CONTROL;
     v.window_stroke = Stroke::new(stroke::HAIRLINE, color::BORDER_STRONG);
     v.window_shadow = Shadow {
         offset: [0, 8],
@@ -239,6 +280,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn softer_text_smoothing_on_1x_displays() {
+        assert_eq!(text_smoothing(1.0), FontColorTransferFunction::Gamma(0.7));
+        assert_eq!(
+            text_smoothing(2.0),
+            FontColorTransferFunction::DARK_MODE_DEFAULT
+        );
+    }
+
+    #[test]
     fn settings_are_clamped() {
         let s = ThemeSettings {
             ui_scale: 5.0,
@@ -261,7 +311,46 @@ mod tests {
     fn visuals_use_tokens() {
         let v = visuals();
         assert_eq!(v.panel_fill, color::SURFACE_1);
-        assert_eq!(v.window_fill, color::SURFACE_2);
+        assert_eq!(v.window_fill, color::CONTROL);
+        assert_eq!(v.text_edit_bg_color, Some(color::FIELD));
+        assert_eq!(v.widgets.inactive.bg_fill, color::CONTROL);
         assert_eq!(v.widgets.hovered.bg_fill, color::SURFACE_3);
+        assert_eq!(v.selection.bg_fill, color::SELECTED);
+    }
+
+    #[test]
+    fn widget_states_are_distinct() {
+        let w = visuals().widgets;
+        let fills = [
+            w.inactive.bg_fill,
+            w.hovered.bg_fill,
+            w.active.bg_fill,
+            visuals().selection.bg_fill,
+        ];
+        for (i, a) in fills.iter().enumerate() {
+            for b in &fills[i + 1..] {
+                assert_ne!(a, b, "two widget states share a fill");
+            }
+        }
+    }
+
+    #[test]
+    fn type_scale() {
+        let mut style = Style::default();
+        configure_style(&mut style, 1.0);
+        let size = |s: TextStyle| style.text_styles[&s].size;
+        assert_eq!(size(title_style()), 22.0);
+        assert_eq!(size(TextStyle::Heading), 15.0);
+        assert_eq!(size(TextStyle::Body), 13.0);
+        assert_eq!(size(TextStyle::Monospace), 12.0);
+        assert_eq!(size(TextStyle::Small), 11.0);
+        assert_eq!(
+            style.text_styles[&TextStyle::Monospace].family,
+            FontFamily::Monospace
+        );
+        assert_eq!(
+            style.text_styles[&title_style()].family,
+            fonts::semibold_family()
+        );
     }
 }

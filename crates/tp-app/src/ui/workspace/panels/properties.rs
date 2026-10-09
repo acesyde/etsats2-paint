@@ -1,19 +1,19 @@
-//! Properties panel: selection summary, opacity, corner radius, polygon
-//! settings, line width, dashes, caps and joins, and fill/stroke swatches.
+//! Settings of the selected objects shown by the inspector: opacity,
+//! corner radius, polygon settings, line width, dashes, caps and joins,
+//! image information, and the fill and stroke swatches.
 
-use egui::{RichText, Slider, Ui, WidgetInfo, WidgetType};
+use egui::{RichText, Ui, WidgetInfo, WidgetType};
 use tp_core::AssetKind;
 use tp_core::document::{GradientKind, LineStyle, Object, Paint, ShapeKind};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, space};
-use tp_ui::widgets::{ColorSwatch, NumericField, SwatchColor, secondary_button};
+use tp_ui::widgets::{NumericField, SwatchColor, ThinSlider, secondary_button};
 
 use super::line_style::{Change, LineEdit};
-use super::{PanelEnv, apply_field, reveal};
-use crate::layout::{PanelKind, WorkspaceLayout};
-use crate::workspace::{ColorTarget, Workspace};
+use super::{PanelEnv, apply_field};
+use crate::workspace::Workspace;
 
 pub fn kind_icon(kind: ShapeKind) -> &'static str {
     match kind {
@@ -157,16 +157,66 @@ fn edit_line_style(ws: &mut Workspace, edit: LineEdit) {
     });
 }
 
-/// Sides, Star and Inner radius of the selected polygons.
-fn polygon_settings(ui: &mut Ui, env: &mut PanelEnv<'_>, polygons: &[(u8, Option<f64>)]) {
-    let sides = common(polygons.iter().map(|(s, _)| *s)).map(f64::from);
-    let stars = common(polygons.iter().map(|(_, star)| star.is_some()));
-    ui.horizontal(|ui| {
+/// `(sides, star)` of every selected object when all of them are polygons.
+pub fn selected_polygons(ws: &Workspace) -> Option<Vec<(u8, Option<f64>)>> {
+    let objects = ws.selected_objects();
+    let polygons: Vec<(u8, Option<f64>)> = objects
+        .iter()
+        .filter_map(|o| match o.kind {
+            ShapeKind::Polygon { sides, star } => Some((sides, star)),
+            _ => None,
+        })
+        .collect();
+    (!objects.is_empty() && polygons.len() == objects.len()).then_some(polygons)
+}
+
+/// Routes a polygon field to the selected polygons (live edit, one undo step
+/// per change) or, with no polygon selected, to the settings for new
+/// polygons (not recorded).
+fn polygon_field(
+    env: &mut PanelEnv<'_>,
+    event: tp_ui::widgets::FieldEvent,
+    selected: bool,
+    edit: fn(&mut Workspace, f64),
+    setting: fn(&mut crate::path_edit::PolygonStyle, f64),
+) {
+    use tp_ui::widgets::FieldEvent;
+    if selected {
+        apply_field(env, event, edit);
+    } else if let FieldEvent::Live(v) | FieldEvent::Commit(v) = event {
+        setting(&mut env.ws.polygon_style, v);
+    }
+}
+
+/// Sides, Star and Inner radius: those of the selected polygons when every
+/// selected object is a polygon, otherwise the settings for new polygons.
+/// Shown by the Polygon tool's options bar and, with polygons selected, by
+/// the inspector; both edit the same values.
+pub fn polygon_settings(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+    let polygons = selected_polygons(env.ws);
+    let selected = polygons.is_some();
+    let style = env.ws.polygon_style;
+    let (sides, stars, inner) = match &polygons {
+        Some(p) => (
+            common(p.iter().map(|(s, _)| *s)).map(f64::from),
+            common(p.iter().map(|(_, star)| star.is_some())),
+            common(p.iter().map(|(_, star)| star.unwrap_or(style.inner)))
+                .map(|r| (r * 100.0).round()),
+        ),
+        None => (
+            Some(f64::from(style.sides)),
+            Some(style.star),
+            Some((style.inner * 100.0).round()),
+        ),
+    };
+    ui.horizontal_wrapped(|ui| {
         let e = NumericField::new(&tr("props-sides"), &tr("props-sides"), sides)
             .range(3.0..=12.0)
             .width(44.0)
             .show(ui);
-        apply_field(env, e, set_sides);
+        polygon_field(env, e, selected, set_sides, |s, v| {
+            s.sides = v.round().clamp(3.0, 12.0) as u8;
+        });
         ui.add_space(space::SM);
         let mut checked = stars == Some(true);
         let response = ui.add(
@@ -176,115 +226,133 @@ fn polygon_settings(ui: &mut Ui, env: &mut PanelEnv<'_>, polygons: &[(u8, Option
             WidgetInfo::selected(WidgetType::Checkbox, true, checked, tr("props-star"))
         });
         if response.changed() {
-            let inner = env.ws.polygon_style.inner;
-            edit_polygons(env.ws, "undo-change-star", |_, star| {
-                *star = checked.then_some(inner);
+            if selected {
+                let inner = env.ws.polygon_style.inner;
+                edit_polygons(env.ws, "undo-change-star", |_, star| {
+                    *star = checked.then_some(inner);
+                });
+                env.ws.commit_pending(env.now);
+            } else {
+                env.ws.polygon_style.star = checked;
+            }
+        }
+        if stars == Some(true) {
+            ui.add_space(space::SM);
+            let e = NumericField::new(&tr("props-inner"), &tr("props-inner-radius"), inner)
+                .suffix("%")
+                .range(10.0..=90.0)
+                .width(44.0)
+                .show(ui);
+            polygon_field(env, e, selected, set_inner_radius, |s, v| {
+                s.inner = (v / 100.0).clamp(0.1, 0.9);
             });
+        }
+    });
+}
+
+/// Opacity of the selection: a field and a slider (a slider drag is one
+/// undo step).
+pub fn opacity(ui: &mut Ui, env: &mut PanelEnv<'_>, objects: &[Object]) {
+    let opacity = common(objects.iter().map(|o| o.opacity)).map(|o| f64::from(o) * 100.0);
+    ui.horizontal(|ui| {
+        let e = NumericField::new(&tr("props-opacity"), &tr("props-opacity"), opacity)
+            .suffix("%")
+            .range(0.0..=100.0)
+            .width(36.0)
+            .show(ui);
+        apply_field(env, e, set_opacity);
+        let mut value = opacity.unwrap_or(100.0) as f32;
+        let name = tr("props-opacity-slider");
+        let slider = ui.add(
+            ThinSlider::new(&mut value, 0.0..=100.0, &name)
+                .width(ui.available_width().max(40.0))
+                .step(1.0),
+        );
+        if slider.changed() {
+            set_opacity(env.ws, f64::from(value));
+        }
+        if slider.drag_stopped() || (slider.changed() && !slider.dragged()) {
             env.ws.commit_pending(env.now);
         }
     });
-    if stars == Some(true) {
-        let inner = common(polygons.iter().map(|(_, star)| star.unwrap_or(0.5)))
-            .map(|r| (r * 100.0).round());
-        let e = NumericField::new(&tr("props-inner"), &tr("props-inner-radius"), inner)
-            .suffix("%")
-            .range(10.0..=90.0)
-            .width(44.0)
-            .show(ui);
-        apply_field(env, e, set_inner_radius);
-    }
 }
 
-fn summary(ui: &mut Ui, objects: &[Object], ws: &Workspace) {
-    let (icon, title, subtitle) = match objects {
-        [] => {
-            let surface = ws.project.surface();
-            (
-                icons::VEHICLE,
-                surface.name.clone(),
-                tr!("props-surface-summary", size = surface.size),
-            )
-        }
-        [single] => (
-            kind_icon(single.kind),
-            single.name.clone(),
-            crate::workspace::object_name(single.kind),
-        ),
-        many => (
-            icons::LAYERS,
-            tr!("props-objects", count = many.len()),
-            tr("props-multiple"),
-        ),
-    };
-    ui.horizontal(|ui| {
-        ui.label(icons::rich(icon).color(color::TEXT_SECONDARY));
-        let r = ui.label(RichText::new(&title).text_style(label_strong_style()));
-        r.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &title));
-    });
-    ui.label(RichText::new(subtitle).small().color(color::TEXT_SECONDARY));
-}
-
-/// Fixed body height: the panel's content changes with the selection, and a
-/// changing height would make the panels below it (Layers) jump under the
-/// pointer between two clicks.
-const BODY_HEIGHT: f32 = 136.0;
-
-pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
-    let top = ui.cursor().top();
-    ui.vertical(|ui| body(ui, env, layout));
-    let used = ui.cursor().top() - top;
-    // The body only grows (texts show more settings), so rows of the panels
-    // below do not move between two clicks.
-    let id = ui.id().with("properties_height");
-    let height = ui
-        .data(|d| d.get_temp::<f32>(id))
-        .unwrap_or(BODY_HEIGHT)
-        .max(used);
-    ui.data_mut(|d| d.insert_temp(id, height));
-    if used < height {
-        ui.add_space(height - used);
-    }
-}
-
-fn instance_section(ui: &mut Ui, env: &mut PanelEnv<'_>, objects: &[Object]) {
-    let symbols: Vec<tp_core::document::SymbolId> = objects
+/// The corner radius field, when every selected object is a rectangle.
+pub fn corner_radius(ui: &mut Ui, env: &mut PanelEnv<'_>, objects: &[Object]) {
+    let radii: Vec<f64> = objects
         .iter()
         .filter_map(|o| match o.kind {
-            ShapeKind::Instance { symbol, .. } => Some(symbol),
+            ShapeKind::Rectangle { corner_radius } => Some(corner_radius),
             _ => None,
         })
         .collect();
-    ui.add_space(space::XS);
-    if let [symbol] = symbols.as_slice()
-        && let Some(name) = env.ws.project.symbol(*symbol).map(|s| s.name.clone())
-    {
-        let text = tr!("props-instance-of", name = name.as_str());
-        ui.label(RichText::new(&text).color(color::TEXT_SECONDARY))
-            .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+    if objects.is_empty() || radii.len() != objects.len() {
+        return;
     }
-    ui.label(
-        RichText::new(tr("instance-look-in-symbol"))
-            .small()
-            .color(color::TEXT_SECONDARY),
-    );
-    ui.horizontal(|ui| {
-        if let [symbol] = symbols.as_slice()
-            && ui
-                .add(tp_ui::widgets::secondary_button(&tr("cmd-edit-symbol")))
-                .clicked()
-        {
-            env.ws.edit_symbol(*symbol, env.now);
-        }
-        if ui
-            .add(tp_ui::widgets::secondary_button(&tr("cmd-detach-instance")))
-            .clicked()
-        {
-            env.ws.detach_selected_instances(env.now);
-        }
-    });
+    let e = NumericField::new(
+        &tr("props-radius"),
+        &tr("props-corner-radius"),
+        common(radii.iter().copied()),
+    )
+    .suffix("px")
+    .range(0.0..=100_000.0)
+    .show(ui);
+    apply_field(env, e, set_corner_radius);
 }
 
-fn image_info(ui: &mut Ui, env: &mut PanelEnv<'_>, object: &Object) {
+/// Line styles of the selected objects when every one of them is a path
+/// with open subpaths.
+pub fn selected_lines(objects: &[Object]) -> Option<Vec<(f64, LineStyle)>> {
+    let lines: Vec<(f64, LineStyle)> = objects
+        .iter()
+        .filter(|o| o.has_open_path())
+        .filter_map(|o| o.path_data().map(|p| (p.line_width, p.line_style)))
+        .collect();
+    (!objects.is_empty() && lines.len() == objects.len()).then_some(lines)
+}
+
+/// The Width field of the selected lines.
+pub fn line_width(ui: &mut Ui, env: &mut PanelEnv<'_>, lines: &[(f64, LineStyle)]) {
+    let e = NumericField::new(
+        &tr("field-width"),
+        &tr("props-line-width"),
+        common(lines.iter().map(|(w, _)| *w)),
+    )
+    .suffix("px")
+    .range(0.5..=1000.0)
+    .show(ui);
+    apply_field(env, e, set_line_width);
+}
+
+/// The line settings popover's content: dashes, caps and joins of the
+/// selected lines.
+pub fn line_popover(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+    let objects = env.ws.selected_objects();
+    let Some(lines) = selected_lines(&objects) else {
+        return;
+    };
+    ui.label(
+        RichText::new(tr("line-settings"))
+            .text_style(label_strong_style())
+            .color(color::TEXT_PRIMARY),
+    );
+    let styles: Vec<LineStyle> = lines.iter().map(|(_, s)| *s).collect();
+    match super::line_style::controls(ui, &styles, env.ws.last_dash) {
+        Some(Change::Apply { edit, commit }) => {
+            super::stroke::remember_dash(env.ws, edit, &styles);
+            edit_line_style(env.ws, edit);
+            if commit {
+                env.ws.commit_pending(env.now);
+            }
+        }
+        Some(Change::Revert) => env.ws.cancel_pending(),
+        None => {}
+    }
+}
+
+/// The Image section of a single image: its asset's name, kind and source
+/// size, and Reset Size.
+pub fn image_info(ui: &mut Ui, env: &mut PanelEnv<'_>, object: &Object) {
     let ShapeKind::Image { asset } = object.kind else {
         return;
     };
@@ -299,176 +367,11 @@ fn image_info(ui: &mut Ui, env: &mut PanelEnv<'_>, object: &Object) {
             height = asset.size.height.round()
         ),
     };
-    ui.label(
-        RichText::new(tr!(
-            "props-source",
-            name = asset.name.as_str(),
-            source = source
-        ))
-        .small()
-        .color(color::TEXT_SECONDARY),
-    );
+    ui.label(RichText::new(&asset.name).color(color::TEXT_PRIMARY));
+    ui.label(RichText::new(source).small().color(color::TEXT_SECONDARY));
     if ui.add(secondary_button(&tr("undo-reset-size"))).clicked() {
         env.ws.reset_image_size(env.now);
     }
-}
-
-fn body(ui: &mut Ui, env: &mut PanelEnv<'_>, layout: &mut WorkspaceLayout) {
-    let objects = env.ws.selected_objects();
-    summary(ui, &objects, env.ws);
-    if objects.is_empty() {
-        super::vehicle::texture_section(ui, env);
-        if env.ws.tool == crate::tool::Tool::Text {
-            ui.add_space(space::XS);
-            super::character::show(ui, env);
-        }
-        return;
-    }
-    let shapes = env.ws.selected_shapes();
-    let only = |f: fn(&ShapeKind) -> bool| !shapes.is_empty() && shapes.iter().all(|o| f(&o.kind));
-    let only_images = only(|k| matches!(k, ShapeKind::Image { .. }));
-    let only_texts = only(|k| *k == ShapeKind::Text);
-    ui.add_space(space::XS);
-
-    // Opacity: field + slider.
-    let opacity = common(objects.iter().map(|o| o.opacity)).map(|o| f64::from(o) * 100.0);
-    ui.horizontal(|ui| {
-        let e = NumericField::new(&tr("props-opacity"), &tr("props-opacity"), opacity)
-            .suffix("%")
-            .range(0.0..=100.0)
-            .width(44.0)
-            .show(ui);
-        apply_field(env, e, set_opacity);
-        let mut value = opacity.unwrap_or(100.0);
-        let slider = ui.add(Slider::new(&mut value, 0.0..=100.0).show_value(false));
-        slider.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::Slider, true, tr("props-opacity-slider"))
-        });
-        if slider.changed() {
-            set_opacity(env.ws, value);
-        }
-        if slider.drag_stopped() || (slider.changed() && !slider.dragged()) {
-            env.ws.commit_pending(env.now);
-        }
-    });
-
-    // Instances: their symbol, Edit Symbol and Detach Instance; their look
-    // is edited in the symbol.
-    if objects.iter().all(|o| o.is_instance()) {
-        instance_section(ui, env, &objects);
-        return;
-    }
-
-    // Corner radius when every selected object is a rectangle.
-    let radii: Vec<f64> = objects
-        .iter()
-        .filter_map(|o| match o.kind {
-            ShapeKind::Rectangle { corner_radius } => Some(corner_radius),
-            _ => None,
-        })
-        .collect();
-    if radii.len() == objects.len() {
-        let e = NumericField::new(
-            &tr("props-radius"),
-            &tr("props-corner-radius"),
-            common(radii.iter().copied()),
-        )
-        .suffix("px")
-        .range(0.0..=100_000.0)
-        .show(ui);
-        apply_field(env, e, set_corner_radius);
-    }
-
-    // Sides and star settings when every selected object is a polygon.
-    let polygons: Vec<(u8, Option<f64>)> = objects
-        .iter()
-        .filter_map(|o| match o.kind {
-            ShapeKind::Polygon { sides, star } => Some((sides, star)),
-            _ => None,
-        })
-        .collect();
-    if polygons.len() == objects.len() {
-        polygon_settings(ui, env, &polygons);
-    }
-
-    // Line width when every selected object is a path with open subpaths.
-    let widths: Vec<f64> = objects
-        .iter()
-        .filter(|o| o.has_open_path())
-        .filter_map(|o| o.path_data().map(|p| p.line_width))
-        .collect();
-    if widths.len() == objects.len() {
-        let e = NumericField::new(
-            &tr("field-width"),
-            &tr("props-line-width"),
-            common(widths.iter().copied()),
-        )
-        .suffix("px")
-        .range(0.5..=1000.0)
-        .show(ui);
-        apply_field(env, e, set_line_width);
-        let styles: Vec<LineStyle> = objects
-            .iter()
-            .filter_map(|o| o.path_data().map(|p| p.line_style))
-            .collect();
-        match super::line_style::controls(ui, &styles, env.ws.last_dash) {
-            Some(Change::Apply { edit, commit }) => {
-                super::stroke::remember_dash(env.ws, edit, &styles);
-                edit_line_style(env.ws, edit);
-                if commit {
-                    env.ws.commit_pending(env.now);
-                }
-            }
-            Some(Change::Revert) => env.ws.cancel_pending(),
-            None => {}
-        }
-    }
-
-    if let [single] = objects.as_slice()
-        && only_images
-    {
-        image_info(ui, env, single);
-    }
-    if only_texts {
-        super::character::show(ui, env);
-    }
-    if only_images {
-        // Fill and stroke do not apply to images.
-        return;
-    }
-
-    // Fill / stroke swatches → Colors panel.
-    let (fill, stroke) = selection_swatches(env.ws);
-    let target = env.ws.panels.color_target;
-    ui.horizontal(|ui| {
-        ui.label(
-            RichText::new(tr("props-fill"))
-                .small()
-                .color(color::TEXT_SECONDARY),
-        );
-        if ColorSwatch::new(fill, &tr("props-fill-color"))
-            .selected(target == ColorTarget::Fill)
-            .show(ui)
-            .clicked()
-        {
-            env.ws.panels.color_target = ColorTarget::Fill;
-            reveal(layout, PanelKind::Colors);
-        }
-        ui.add_space(space::SM);
-        ui.label(
-            RichText::new(tr("panel-stroke"))
-                .small()
-                .color(color::TEXT_SECONDARY),
-        );
-        if ColorSwatch::new(stroke, &tr("props-stroke-color"))
-            .selected(target == ColorTarget::Stroke)
-            .show(ui)
-            .clicked()
-        {
-            env.ws.panels.color_target = ColorTarget::Stroke;
-            reveal(layout, PanelKind::Colors);
-        }
-    });
 }
 
 #[cfg(test)]

@@ -39,6 +39,7 @@ home-discard = Verwerfen
 app-tagline = Lackierungseditor für Euro Truck Simulator 2 und American Truck Simulator
 home-new-project = Neues Projekt
 home-new-project-tip = Neues Lackierungsprojekt erstellen ({ $shortcut })
+home-open-tip = Eine Projektdatei öffnen ({ $shortcut })
 home-preferences = Einstellungen
 home-recent = Zuletzt verwendete Projekte
 home-recent-empty = Keine zuletzt verwendeten Projekte
@@ -56,10 +57,8 @@ unsaved-hint = Ihre Änderungen gehen verloren, wenn Sie sie nicht speichern.
 button-dont-save = Nicht speichern
 button-cancel = Abbrechen
 button-ok = OK
-button-create = Erstellen
 button-done = Fertig
 button-close = Schließen
-new-project-step-name = Name
 new-project-name = Projektname
 prefs-interface = Oberfläche
 prefs-ui-scale = Skalierung der Oberfläche
@@ -130,7 +129,6 @@ custom-title = Eigenes Fahrzeug
 custom-new-version-title = Neue Version von { $name }
 custom-open = Eigenes Fahrzeug…
 custom-open-library = Eigenes Fahrzeug…
-custom-id = Kennung
 custom-version = Version
 custom-name = Name
 custom-brand = Marke
@@ -204,6 +202,16 @@ vehicles-any-version = jede Version
 vehicles-new-version = Neue Version…
 vehicles-new-version-of = Neue Version von { $name }
 vehicles-export-version = { $name } { $version } exportieren
+vehicles-tab-installed = Installiert · { $count }
+vehicles-tab-mine = Meine Fahrzeuge · { $count }
+vehicles-status-custom = Eigenes
+vehicles-status-update = Update
+vehicles-status-current = Aktuell
+vehicles-mine-empty = Eigene Fahrzeuge werden aus den Vorlagendateien des Spiels (DDS, PNG oder SVG) und ihren Spieldaten erstellt. Klicken Sie auf Eigenes Fahrzeug…, um eines zu erstellen.
+vehicles-preview = Vorlage von { $name }
+vehicles-details-of = Details zu { $name }
+vehicles-installed-versions = Installierte Versionen
+vehicles-export = Exportieren…
 vehicles-exported = { $file } exportiert
 vehicles-export-failed = { $file } konnte nicht geschrieben werden: { $reason }
 update-versions = { $name }: Version { $from } → { $to }
@@ -215,13 +223,44 @@ update-removed = { $name }: in dieser Version nicht mehr enthalten, Grafik bleib
 update-artwork-kept = Ihre Grafik bleibt erhalten. Sie können die Aktualisierung rückgängig machen.
 update-apply = Aktualisieren
 
-## New Project wizard
+## New Project
 
-new-project-step-vehicle = Fahrzeug
-new-project-no-vehicles-hint = Noch kein Fahrzeug? Probieren Sie den Beispiel-Lkw aus oder installieren Sie ein Paket.
-new-project-textures = Texturen
-button-next = Weiter
-button-back = Zurück
+new-project-no-vehicles-hint = Fahrzeugpakete enthalten die Vorlagen eines Lkw oder Anhängers. Probieren Sie die Beispielfahrzeuge aus, installieren Sie ein Paket oder erstellen Sie ein eigenes Fahrzeug.
+new-project-create = Projekt erstellen
+new-project-add-later = Sie können dem Projekt jederzeit Fahrzeuge hinzufügen.
+new-project-no-game-vehicles = Noch kein { $game }-Fahrzeug installiert.
+new-project-no-match = Kein Fahrzeug passt zur Suche.
+new-project-custom-title = Fahrzeug ohne Paket
+new-project-custom-hint = Erstellen Sie es aus seinen Vorlagendateien (DDS, PNG oder SVG) und seinen Spieldaten.
+new-project-fleet = Ihre Flotte
+new-project-pick-vehicle = Wählen Sie ein Fahrzeug aus der Liste.
+new-project-cabins = Kabinen
+new-project-column-vehicle = Fahrzeug
+new-project-column-type = Typ
+new-project-column-package = Paket
+new-project-counts = { $accessories ->
+    [0] { $main } { $main ->
+        [one] Haupttextur
+       *[other] Haupttexturen
+    }
+    [one] { $main } { $main ->
+        [one] Haupttextur
+       *[other] Haupttexturen
+    } + { $accessories } Zubehörteil
+   *[other] { $main } { $main ->
+        [one] Haupttextur
+       *[other] Haupttexturen
+    } + { $accessories } Zubehörteile
+}
+new-project-created = Erstellte Texturen
+new-project-texture = { $texture } ({ $size })
+new-project-total = { $count ->
+    [one] { $count } Textur insgesamt
+   *[other] { $count } Texturen insgesamt
+}
+vehicles-kind-all = Alle
+vehicles-kind-trucks = Lkw
+vehicles-kind-trailers = Anhänger
 
 ## Fleet
 
@@ -256,6 +295,7 @@ mod-author = Autor
 mod-description = Beschreibung
 mod-price = Preis
 mod-unlock = Freischaltstufe
+mod-advanced = Erweitert
 mod-internal-name = Interner Name
 mod-internal-name-help = Benennt die Lackierung im Spiel: a–z, 0–9 und _. Wählen Sie einen eindeutigen Namen.
 mod-icon = Shop-Symbol
@@ -294,7 +334,7 @@ library-graphic-styles = Grafikstile
 library-text-styles = Textstile
 library-in-project = In diesem Projekt
 library-import = Importieren
-library-empty = Ihre Bibliothek ist leer. Klicken Sie mit der rechten Maustaste auf ein Symbol, ein Farbfeld oder einen Stil in seinem Bedienfeld und wählen Sie Zur Bibliothek hinzufügen, um es in allen Projekten zu verwenden.
+library-empty = Ihre Bibliothek ist leer. Klicken Sie mit der rechten Maustaste auf ein Symbol, ein Farbfeld oder einen Stil im Bereich Marke oder auf der Registerkarte Ressourcen und wählen Sie Zur Bibliothek hinzufügen, um es in allen Projekten zu verwenden.
 library-remove = Aus Bibliothek entfernen
 library-remove-confirm = { $name } aus der Bibliothek entfernen? Projekte, die es importiert haben, behalten ihre Kopie.
 library-remove-button = Entfernen

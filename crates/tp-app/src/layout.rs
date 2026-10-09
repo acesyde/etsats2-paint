@@ -1,105 +1,69 @@
-//! Workspace layout model (panels, view mode), independent of rendering so it
-//! can be persisted and unit-tested.
+//! Workspace layout model (spaces, left panel tab, panel widths), independent
+//! of rendering so it can be persisted and unit-tested.
 
 use serde::{Deserialize, Serialize};
-use tp_ui::{icons, tokens::size};
+use tp_ui::tokens::size;
 
-/// The panels of the right-hand column, in default order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PanelKind {
-    Properties,
+/// The three spaces of an open project. Not persisted: opening a project
+/// chooses the space.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Space {
+    /// The fleet and the mod information.
+    Project,
+    /// Paints one texture.
+    Workshop,
+    /// The project's palette, styles, symbols and images.
+    Brand,
+}
+
+impl Space {
+    pub const ALL: [Self; 3] = [Self::Project, Self::Workshop, Self::Brand];
+
+    /// Label of the command that shows the space.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Project => "cmd-space-project",
+            Self::Workshop => "cmd-space-workshop",
+            Self::Brand => "cmd-space-brand",
+        }
+    }
+}
+
+/// The tabs of the Workshop's left panel, in display order.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum LeftTab {
+    #[default]
+    Textures,
     Layers,
-    Colors,
-    Styles,
-    Symbols,
-    Stroke,
-    Transform,
-    Assets,
-    /// Former panel of the column, now the Vehicles sidebar on the left;
-    /// kept so preferences saved by earlier builds still load (it is
-    /// dropped from the column when they are read).
-    Vehicle,
+    Resources,
 }
 
-impl PanelKind {
-    /// The panels of the right-hand column.
-    pub const ALL: [Self; 8] = [
-        Self::Properties,
-        Self::Layers,
-        Self::Colors,
-        Self::Styles,
-        Self::Symbols,
-        Self::Stroke,
-        Self::Transform,
-        Self::Assets,
-    ];
+impl LeftTab {
+    pub const ALL: [Self; 3] = [Self::Textures, Self::Layers, Self::Resources];
 
-    pub fn title(self) -> &'static str {
+    /// Label of the tab and of the command that shows it.
+    pub fn label(self) -> &'static str {
         match self {
-            Self::Properties => "panel-properties",
-            Self::Layers => "panel-layers",
-            Self::Colors => "panel-colors",
-            Self::Styles => "panel-styles",
-            Self::Symbols => "panel-symbols",
-            Self::Stroke => "panel-stroke",
-            Self::Transform => "panel-transform",
-            Self::Assets => "panel-assets",
-            Self::Vehicle => "panel-vehicle",
-        }
-    }
-
-    pub fn icon(self) -> &'static str {
-        match self {
-            Self::Properties => icons::PROPERTIES,
-            Self::Layers => icons::LAYERS,
-            Self::Colors => icons::COLORS,
-            Self::Styles => icons::STYLES,
-            Self::Symbols => icons::SYMBOL,
-            Self::Stroke => icons::STROKE,
-            Self::Transform => icons::TRANSFORM,
-            Self::Assets => icons::ASSETS,
-            Self::Vehicle => icons::VEHICLE,
-        }
-    }
-
-    /// Empty-state text shown until the panel's feature exists.
-    pub fn empty_state(self) -> (&'static str, &'static str) {
-        match self {
-            Self::Properties => ("empty-properties", "empty-properties-hint"),
-            Self::Layers => ("empty-layers", "empty-layers-hint"),
-            Self::Colors => ("empty-colors", "empty-colors-hint"),
-            Self::Styles => ("empty-styles", "empty-styles-hint"),
-            Self::Symbols => ("empty-symbols", "empty-symbols-hint"),
-            Self::Stroke => ("empty-stroke", "empty-stroke-hint"),
-            Self::Transform => ("empty-transform", "empty-transform-hint"),
-            Self::Assets => ("empty-assets", "empty-assets-hint"),
-            Self::Vehicle => ("empty-vehicle", "empty-vehicle-hint"),
+            Self::Textures => "cmd-tab-textures",
+            Self::Layers => "cmd-tab-layers",
+            Self::Resources => "cmd-tab-resources",
         }
     }
 }
-
-/// A panel's place and state in the column.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PanelSlot {
-    pub kind: PanelKind,
-    pub open: bool,
-    pub collapsed: bool,
-}
-
-/// Width of the Vehicles sidebar.
-pub const VEHICLES_WIDTH_DEFAULT: f32 = 260.0;
-pub const VEHICLES_WIDTH_RANGE: std::ops::RangeInclusive<f32> = 200.0..=420.0;
 
 /// Everything about the workspace arrangement that survives restarts.
+/// Fields of earlier builds (the panel stack, its column width, the
+/// Vehicles sidebar) are ignored when read.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct WorkspaceLayout {
-    /// Panels in display order; closed panels keep their position.
-    pub panels: Vec<PanelSlot>,
-    pub column_width: f32,
-    /// The Vehicles sidebar on the left: shown, or reduced to a strip.
-    pub vehicles_open: bool,
-    pub vehicles_width: f32,
+    /// The tab shown by the Workshop's left panel.
+    pub left_tab: LeftTab,
+    pub left_width: f32,
+    pub inspector_width: f32,
+    /// Hide Panels (focus mode): the left panel and the inspector are
+    /// hidden.
+    pub panels_hidden: bool,
     /// Bumped on reset so egui forgets remembered panel sizes.
     #[serde(skip)]
     pub generation: u32,
@@ -108,114 +72,55 @@ pub struct WorkspaceLayout {
 impl Default for WorkspaceLayout {
     fn default() -> Self {
         Self {
-            panels: PanelKind::ALL
-                .iter()
-                .map(|&kind| PanelSlot {
-                    kind,
-                    open: true,
-                    // Keep the default stack readable: secondary panels start collapsed.
-                    collapsed: matches!(
-                        kind,
-                        PanelKind::Styles
-                            | PanelKind::Symbols
-                            | PanelKind::Stroke
-                            | PanelKind::Transform
-                            | PanelKind::Assets
-                    ),
-                })
-                .collect(),
-            column_width: size::PANEL_COLUMN_DEFAULT,
-            vehicles_open: true,
-            vehicles_width: VEHICLES_WIDTH_DEFAULT,
+            left_tab: LeftTab::default(),
+            left_width: size::LEFT_PANEL_DEFAULT,
+            inspector_width: size::INSPECTOR_DEFAULT,
+            panels_hidden: false,
             generation: 0,
         }
     }
 }
 
 impl WorkspaceLayout {
-    /// Repairs a deserialized layout: every panel exactly once, values in range.
+    /// Repairs a deserialized layout: widths in range.
     pub fn sanitized(mut self) -> Self {
-        let mut seen = Vec::new();
-        self.panels.retain(|slot| {
-            let fresh = !seen.contains(&slot.kind) && PanelKind::ALL.contains(&slot.kind);
-            seen.push(slot.kind);
-            fresh
-        });
-        // A panel the saved layout doesn't know (it was added since) goes
-        // to its default place, after the panel before it, collapsed.
-        for (i, kind) in PanelKind::ALL.into_iter().enumerate() {
-            if !seen.contains(&kind) {
-                let at = PanelKind::ALL[..i]
-                    .iter()
-                    .rev()
-                    .find_map(|prev| self.panels.iter().position(|s| s.kind == *prev))
-                    .map_or(0, |p| p + 1);
-                self.panels.insert(
-                    at,
-                    PanelSlot {
-                        kind,
-                        open: true,
-                        collapsed: true,
-                    },
-                );
-            }
-        }
-        self.column_width = self
-            .column_width
-            .clamp(size::PANEL_COLUMN_MIN, size::PANEL_COLUMN_MAX);
-        self.vehicles_width = self
-            .vehicles_width
-            .clamp(*VEHICLES_WIDTH_RANGE.start(), *VEHICLES_WIDTH_RANGE.end());
+        self.left_width = clamp_width(
+            self.left_width,
+            size::LEFT_PANEL_MIN,
+            size::LEFT_PANEL_MAX,
+            size::LEFT_PANEL_DEFAULT,
+        );
+        self.inspector_width = clamp_width(
+            self.inspector_width,
+            size::INSPECTOR_MIN,
+            size::INSPECTOR_MAX,
+            size::INSPECTOR_DEFAULT,
+        );
         self
     }
 
-    pub fn slot(&self, kind: PanelKind) -> &PanelSlot {
-        self.panels
-            .iter()
-            .find(|slot| slot.kind == kind)
-            .expect("sanitized layout contains every panel")
+    /// Shows `tab`, and the panels when they are hidden.
+    pub fn show_tab(&mut self, tab: LeftTab) {
+        self.left_tab = tab;
+        self.panels_hidden = false;
     }
 
-    pub fn slot_mut(&mut self, kind: PanelKind) -> &mut PanelSlot {
-        self.panels
-            .iter_mut()
-            .find(|slot| slot.kind == kind)
-            .expect("sanitized layout contains every panel")
-    }
-
-    pub fn is_open(&self, kind: PanelKind) -> bool {
-        self.slot(kind).open
-    }
-
-    /// Opens a closed panel (expanded) or closes an open one.
-    pub fn toggle_open(&mut self, kind: PanelKind) {
-        let slot = self.slot_mut(kind);
-        slot.open = !slot.open;
-        if slot.open {
-            slot.collapsed = false;
-        }
-    }
-
-    pub fn toggle_collapsed(&mut self, kind: PanelKind) {
-        let slot = self.slot_mut(kind);
-        slot.collapsed = !slot.collapsed;
-    }
-
-    /// Restores defaults (all panels open, default order and sizes).
+    /// Restores defaults: both panels shown at their default widths, with
+    /// the Textures tab.
     pub fn reset(&mut self) {
         let generation = self.generation.wrapping_add(1);
         *self = Self {
-            panels: PanelKind::ALL
-                .iter()
-                .map(|&kind| PanelSlot {
-                    kind,
-                    open: true,
-                    collapsed: false,
-                })
-                .collect(),
             generation,
             ..Self::default()
         };
+    }
+}
+
+fn clamp_width(width: f32, min: f32, max: f32, default: f32) -> f32 {
+    if width.is_finite() {
+        width.clamp(min, max)
+    } else {
+        default
     }
 }
 
@@ -224,96 +129,62 @@ mod tests {
     use super::*;
 
     #[test]
-    fn closing_keeps_position_and_reopening_expands() {
-        let mut layout = WorkspaceLayout::default();
-        let index = layout
-            .panels
-            .iter()
-            .position(|s| s.kind == PanelKind::Colors)
-            .unwrap();
-        layout.toggle_collapsed(PanelKind::Colors);
-        layout.toggle_open(PanelKind::Colors);
-        assert!(!layout.is_open(PanelKind::Colors));
-        layout.toggle_open(PanelKind::Colors);
-        assert!(layout.is_open(PanelKind::Colors));
-        assert!(!layout.slot(PanelKind::Colors).collapsed);
-        assert_eq!(layout.panels[index].kind, PanelKind::Colors);
+    fn defaults() {
+        let layout = WorkspaceLayout::default();
+        assert_eq!(layout.left_tab, LeftTab::Textures);
+        assert_eq!(layout.left_width, size::LEFT_PANEL_DEFAULT);
+        assert_eq!(layout.inspector_width, size::INSPECTOR_DEFAULT);
+        assert!(!layout.panels_hidden);
+        assert_eq!(layout.clone().sanitized(), layout);
     }
 
     #[test]
-    fn sanitize_repairs_missing_and_duplicate_panels() {
+    fn widths_are_clamped() {
         let layout = WorkspaceLayout {
-            panels: vec![
-                PanelSlot {
-                    kind: PanelKind::Layers,
-                    open: false,
-                    collapsed: false,
-                },
-                PanelSlot {
-                    kind: PanelKind::Layers,
-                    open: true,
-                    collapsed: true,
-                },
-                // The former Vehicle panel of earlier builds.
-                PanelSlot {
-                    kind: PanelKind::Vehicle,
-                    open: true,
-                    collapsed: false,
-                },
-            ],
-            column_width: 10_000.0,
-            vehicles_width: 5.0,
+            left_width: 5.0,
+            inspector_width: 10_000.0,
             ..WorkspaceLayout::default()
         }
         .sanitized();
-        assert_eq!(layout.panels.len(), PanelKind::ALL.len());
-        assert!(layout.panels.iter().all(|s| s.kind != PanelKind::Vehicle));
-        assert_eq!(layout.vehicles_width, *VEHICLES_WIDTH_RANGE.start());
-        assert!(layout.vehicles_open);
-        assert!(!layout.is_open(PanelKind::Layers));
-        assert_eq!(layout.column_width, size::PANEL_COLUMN_MAX);
+        assert_eq!(layout.left_width, size::LEFT_PANEL_MIN);
+        assert_eq!(layout.inspector_width, size::INSPECTOR_MAX);
+        let layout = WorkspaceLayout {
+            left_width: f32::NAN,
+            inspector_width: f32::INFINITY,
+            ..WorkspaceLayout::default()
+        }
+        .sanitized();
+        assert_eq!(layout.left_width, size::LEFT_PANEL_DEFAULT);
+        assert_eq!(layout.inspector_width, size::INSPECTOR_DEFAULT);
     }
 
     #[test]
-    fn layout_from_before_the_styles_panel() {
-        let mut saved = WorkspaceLayout::default();
-        saved.panels.retain(|s| s.kind != PanelKind::Styles);
-        saved.slot_mut(PanelKind::Colors).collapsed = true;
-        saved.slot_mut(PanelKind::Stroke).open = false;
-        let layout = saved.clone().sanitized();
-        let kinds: Vec<PanelKind> = layout.panels.iter().map(|s| s.kind).collect();
-        assert_eq!(kinds, PanelKind::ALL);
-        let styles = layout.slot(PanelKind::Styles);
-        assert!(styles.open && styles.collapsed);
-        assert!(layout.slot(PanelKind::Colors).collapsed);
-        assert!(!layout.is_open(PanelKind::Stroke));
+    fn showing_a_tab_shows_the_panels() {
+        let mut layout = WorkspaceLayout {
+            panels_hidden: true,
+            ..WorkspaceLayout::default()
+        };
+        layout.show_tab(LeftTab::Resources);
+        assert_eq!(layout.left_tab, LeftTab::Resources);
+        assert!(!layout.panels_hidden);
     }
 
     #[test]
-    fn layout_from_before_the_symbols_panel() {
-        let mut saved = WorkspaceLayout::default();
-        saved.panels.retain(|s| s.kind != PanelKind::Symbols);
-        saved.slot_mut(PanelKind::Styles).collapsed = false;
-        let layout = saved.sanitized();
-        let kinds: Vec<PanelKind> = layout.panels.iter().map(|s| s.kind).collect();
-        assert_eq!(kinds, PanelKind::ALL);
-        let symbols = layout.slot(PanelKind::Symbols);
-        assert!(symbols.open && symbols.collapsed);
-        assert!(!layout.slot(PanelKind::Styles).collapsed);
-    }
-
-    #[test]
-    fn reset_reopens_everything_and_bumps_generation() {
-        let mut layout = WorkspaceLayout::default();
-        layout.toggle_open(PanelKind::Assets);
-        layout.column_width = 400.0;
-        layout.vehicles_open = false;
-        layout.vehicles_width = 400.0;
+    fn reset_workspace_restores_defaults_and_bumps_generation() {
+        let mut layout = WorkspaceLayout {
+            left_tab: LeftTab::Resources,
+            left_width: 400.0,
+            inspector_width: 420.0,
+            panels_hidden: true,
+            generation: 0,
+        };
         layout.reset();
-        assert!(layout.panels.iter().all(|s| s.open && !s.collapsed));
-        assert_eq!(layout.column_width, size::PANEL_COLUMN_DEFAULT);
-        assert!(layout.vehicles_open);
-        assert_eq!(layout.vehicles_width, VEHICLES_WIDTH_DEFAULT);
-        assert_eq!(layout.generation, 1);
+        assert_eq!(
+            layout,
+            WorkspaceLayout {
+                generation: 1,
+                ..WorkspaceLayout::default()
+            }
+        );
     }
 }

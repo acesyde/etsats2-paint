@@ -10,6 +10,7 @@ use std::path::PathBuf;
 
 use egui::Vec2;
 use egui_kittest::kittest::Queryable;
+use tp_app::layout::LeftTab;
 use tp_app::prefs::{Prefs, RecentProject};
 
 fn out_dir() -> PathBuf {
@@ -20,43 +21,141 @@ fn out_dir() -> PathBuf {
 
 fn save(harness: &mut egui_kittest::Harness<'static, tp_app::AppState>, name: &str) {
     harness.run();
+    wait_for_thumbnails(harness);
     let image = harness.render().expect("render");
     image.save(out_dir().join(format!("{name}.png"))).unwrap();
 }
 
+/// The screens of the "TruckPaint 5" mockup: home, New Project, the three
+/// spaces (the Workshop with nothing selected, with a text selected, and
+/// its left tabs), the Export Mod dialog and the Vehicle Library, in English
+/// and German (the longest labels) at 100 % and 200 %. Files are named
+/// `screen_<language>_<screen>_<scale>.png`.
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_screens() {
-    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
-        let mut prefs = Prefs::default();
-        prefs.ui_scale = scale;
-        prefs.recent = vec![
-            RecentProject {
-                name: "ACE Logistics".into(),
-                path: "/home/user/Liveries/ace.truckpaint".into(),
-                last_opened: tp_app::prefs::now_unix() - 7_200,
-            },
-            RecentProject {
-                name: "Old fleet".into(),
-                path: "/missing/old-fleet.truckpaint".into(),
-                last_opened: 0,
-            },
-        ];
-        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
-        let mut h = common::wgpu_harness_with(prefs.clone(), size);
-        save(&mut h, &format!("home_{suffix}"));
+    use tp_app::layout::Space;
+    use tp_app::state::Modal;
+    use tp_core::document::{CharStyle, Rgba};
+    use tp_i18n::Language;
+    // A recent project with artwork, for its card's thumbnail.
+    let dir = tempfile::tempdir().unwrap();
+    let ace = dir.path().join("ace.truckpaint");
+    {
+        let mut h = common::harness();
+        common::create_project(&mut h);
+        demo_scene(&mut h);
+        tp_file::write(&h.state().workspace().unwrap().project, &ace).unwrap();
+    }
+    for language in [Language::English, Language::German] {
+        for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+            let code = language.code();
+            let name = |screen: &str| format!("screen_{code}_{screen}_{suffix}");
+            let mut prefs = Prefs {
+                ui_scale: scale,
+                ..Prefs::default()
+            };
+            prefs.set_language(Some(language));
+            prefs.recent = vec![
+                RecentProject {
+                    name: "ACE Logistics".into(),
+                    path: ace.clone(),
+                    last_opened: tp_app::prefs::now_unix() - 7_200,
+                },
+                RecentProject {
+                    name: "Old fleet".into(),
+                    path: "/missing/old-fleet.truckpaint".into(),
+                    last_opened: 0,
+                },
+            ];
+            let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+            let mut h = common::wgpu_harness_with(prefs, size);
+            save(&mut h, &name("home"));
 
-        h.get_by_label("New Project").click();
-        h.run();
-        h.get_by_role_and_label(egui::accesskit::Role::RadioButton, common::SAMPLE)
-            .click();
-        h.run();
-        save(&mut h, &format!("new_project_{suffix}"));
+            h.get_by_label(&tp_i18n::tr("home-new-project")).click();
+            h.run();
+            h.get_by_role_and_label(egui::accesskit::Role::RadioButton, common::SAMPLE)
+                .click();
+            h.run();
+            save(&mut h, &name("new_project"));
 
-        h.get_by_label("Next").click();
-        h.run();
-        h.get_by_label("Create").click();
-        save(&mut h, &format!("workspace_{suffix}"));
+            h.get_by_label(&tp_i18n::tr("new-project-create")).click();
+            // New Project opens the Project space; then the Workshop.
+            save(&mut h, &name("project"));
+            common::show_space(&mut h, Space::Workshop);
+            let ids = demo_scene(&mut h);
+            let text = {
+                let ws = h.state_mut().workspace_mut().unwrap();
+                let style = CharStyle {
+                    size: 260.0,
+                    ..CharStyle::default()
+                };
+                let fill = Rgba::rgb(0x1B, 0x23, 0x40);
+                add_text(ws, "ACE Logistics", style, (300.0, 3950.0), fill, None)
+            };
+            save(&mut h, &name("workshop"));
+            h.state_mut().workspace_mut().unwrap().selection = vec![text];
+            save(&mut h, &name("workshop_text"));
+            h.state_mut().workspace_mut().unwrap().selection.clear();
+            h.state_mut().prefs.layout.left_tab = LeftTab::Layers;
+            save(&mut h, &name("workshop_layers"));
+            h.state_mut().prefs.layout.left_tab = LeftTab::Resources;
+            save(&mut h, &name("workshop_resources"));
+            // The Polygon tool's options bar.
+            h.state_mut().workspace_mut().unwrap().tool = tp_app::tool::Tool::Polygon;
+            save(&mut h, &name("workshop_polygon"));
+            h.state_mut().workspace_mut().unwrap().tool = tp_app::tool::Tool::Select;
+            h.state_mut().prefs.layout.left_tab = LeftTab::Textures;
+            demo_brand(&mut h, &ids);
+            // The Resources tab with content, and the Layers tab's linked
+            // rows (objects following a style, a symbol instance).
+            h.state_mut().prefs.layout.left_tab = LeftTab::Resources;
+            save(&mut h, &name("workshop_resources_content"));
+            h.state_mut().prefs.layout.left_tab = LeftTab::Layers;
+            save(&mut h, &name("workshop_layers_linked"));
+            h.state_mut().prefs.layout.left_tab = LeftTab::Textures;
+            common::show_space(&mut h, Space::Brand);
+            save(&mut h, &name("brand"));
+
+            h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::E);
+            wait_mod_preview(&mut h);
+            save(&mut h, &name("export_mod"));
+            h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+            save(&mut h, &name("vehicle_library"));
+            h.state_mut().modal = None;
+
+            // The size pill while a selection is resized (mid-drag on the
+            // band's bottom right handle).
+            common::show_space(&mut h, Space::Workshop);
+            h.state_mut().workspace_mut().unwrap().selection = vec![ids[0]];
+            h.run();
+            resize_mid_drag(&mut h, (3948.0, 1350.0), Vec2::new(-60.0, 40.0));
+            let image = h.render().expect("render");
+            image
+                .save(out_dir().join(format!("{}.png", name("workshop_resize"))))
+                .unwrap();
+            h.event(egui::Event::PointerButton {
+                pos: h
+                    .state()
+                    .workspace()
+                    .unwrap()
+                    .screen_map(1.0)
+                    .unwrap()
+                    .to_screen(tp_core::kurbo::Point::new(3948.0, 1350.0)),
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+            });
+            h.run();
+
+            // An update installed for the project's vehicle: its card and
+            // the Vehicle Library say so.
+            h.state_mut().workspace_mut().unwrap().project.vehicles[0].version = "1.0.0".into();
+            common::show_space(&mut h, Space::Project);
+            save(&mut h, &name("project_update"));
+            h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+            save(&mut h, &name("vehicle_library_update"));
+        }
     }
 
     let mut h = common::wgpu_harness_with(Prefs::default(), Vec2::new(1440.0, 900.0));
@@ -64,6 +163,48 @@ fn render_screens() {
     h.get_by_label("Edit").click();
     h.run();
     save(&mut h, "menu_edit");
+}
+
+/// Presses at document point `at` (a selection handle) and drags by `by`
+/// points without releasing.
+fn resize_mid_drag(
+    h: &mut egui_kittest::Harness<'static, tp_app::AppState>,
+    at: (f64, f64),
+    by: Vec2,
+) {
+    let from = h
+        .state()
+        .workspace()
+        .unwrap()
+        .screen_map(1.0)
+        .unwrap()
+        .to_screen(tp_core::kurbo::Point::new(at.0, at.1));
+    h.event(egui::Event::PointerMoved(from));
+    h.event(egui::Event::PointerButton {
+        pos: from,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.step();
+    for i in 1..=8 {
+        h.event(egui::Event::PointerMoved(from + by * (i as f32 / 8.0)));
+        h.step();
+    }
+}
+
+/// Steps until the open Export Mod dialog has rendered its preview.
+fn wait_mod_preview(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
+    use tp_app::state::Modal;
+    for _ in 0..400 {
+        h.step();
+        let ready = matches!(&h.state().modal, Some(Modal::ExportMod(d)) if d.preview_ready());
+        if ready {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    h.step();
 }
 
 #[test]
@@ -200,6 +341,53 @@ fn render_canvas_scene() {
     save(&mut h, "canvas_zoom_400");
 }
 
+/// Fills the Brand space from the demo scene `ids`: five swatches, two
+/// graphic styles (the selection follows the second), a text style, a
+/// symbol and an image.
+fn demo_brand(
+    h: &mut egui_kittest::Harness<'static, tp_app::AppState>,
+    ids: &[tp_core::document::ObjectId],
+) {
+    use tp_core::document::{CharStyle, Frame, Object, ObjectId, Rgba, ShapeKind, TextBlock};
+    use tp_core::kurbo::{Point, Size};
+    let ws = h.state_mut().workspace_mut().expect("project open");
+    let p = &mut ws.project;
+    for (name, c) in [
+        ("Burgundy", Rgba::rgb(0x7A, 0x1F, 0x2B)),
+        ("Cream", Rgba::rgb(0xEF, 0xE6, 0xCF)),
+        ("Forest", Rgba::rgb(0x1F, 0x4D, 0x3A)),
+        ("Gold", Rgba::rgb(0xB8, 0x91, 0x3E)),
+        ("Ink", Rgba::rgb(0x15, 0x15, 0x15)),
+    ] {
+        let (id, _) = p.add_swatch(c, "Color");
+        p.rename_swatch(id, name);
+    }
+    for (object, name) in [(ids[0], "Burgundy band"), (ids[1], "Plate")] {
+        let style = p.new_graphic_style(object, "Style").unwrap();
+        p.rename_style(style, name);
+    }
+    let mut lettering = Object::new(
+        ObjectId(0),
+        ShapeKind::Text,
+        Frame::new(Point::new(2048.0, 3000.0), Size::new(1200.0, 200.0), 0.0),
+    );
+    lettering.text = Some(TextBlock::new("ACE", CharStyle::default()));
+    let lettering = p.add(lettering);
+    let style = p.new_text_style(lettering, "Text style").unwrap();
+    p.rename_style(style, "Lettering");
+    let (logo, _) = p.convert_to_symbol(&[ids[3]], "Symbol").unwrap();
+    p.rename_symbol(logo, "Logo");
+    let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20" rx="4" fill="#1E8C3A"/></svg>"##;
+    p.add_asset(
+        "badge",
+        tp_core::AssetKind::Svg,
+        std::sync::Arc::from(&svg[..]),
+        Size::new(40.0, 20.0),
+    );
+    ws.relayout_all_texts();
+    ws.selection = vec![ids[1]];
+}
+
 /// A small livery tree: Background, Graphics (3 stripes), Branding (logo).
 fn livery_tree(
     h: &mut egui_kittest::Harness<'static, tp_app::AppState>,
@@ -283,20 +471,12 @@ fn livery_tree(
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_editing_panels() {
-    use tp_app::layout::PanelKind;
     for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
         let mut prefs = Prefs {
             ui_scale: scale,
             ..Prefs::default()
         };
-        for slot in &mut prefs.layout.panels {
-            slot.collapsed = false;
-            slot.open = !matches!(
-                slot.kind,
-                PanelKind::Assets | PanelKind::Colors | PanelKind::Stroke
-            );
-        }
-        prefs.layout.column_width = 300.0;
+        prefs.layout.inspector_width = 300.0;
         prefs.recent_colors = vec![
             [0x7A, 0x1F, 0x2B, 255],
             [255, 255, 255, 255],
@@ -304,15 +484,82 @@ fn render_editing_panels() {
         ];
         let size = Vec2::new(1440.0, 1000.0) * scale.max(1.0);
         let mut h = common::wgpu_harness_with(prefs.clone(), size);
+        h.state_mut().prefs.layout.left_tab = LeftTab::Layers;
         common::create_project(&mut h);
         let ids = livery_tree(&mut h);
         h.state_mut().workspace_mut().unwrap().selection = vec![ids[3]];
         save(&mut h, &format!("panels_layers_transform_{suffix}"));
 
-        for slot in &mut h.state_mut().prefs.layout.panels {
-            slot.open = matches!(slot.kind, PanelKind::Colors | PanelKind::Stroke);
-        }
+        // The color popover, then the stroke popover.
+        common::open_color_popover(&mut h, tp_app::workspace::ColorTarget::Fill);
         save(&mut h, &format!("panels_colors_stroke_{suffix}"));
+        common::open_stroke_popover(&mut h);
+        save(&mut h, &format!("panels_stroke_popover_{suffix}"));
+    }
+}
+
+/// The inspector as in the "TruckPaint 5" artboards 04 and 05: nothing
+/// selected on the Side skirts, then a text selected, then its color
+/// popover open.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_inspector() {
+    use tp_core::document::{CharStyle, Rgba, StrokeAlign, StrokeStyle};
+    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+        let mut prefs = Prefs {
+            ui_scale: scale,
+            ..Prefs::default()
+        };
+        prefs.recent_colors = vec![
+            [0x5B, 0x8D, 0xEF, 255],
+            [0xD9, 0x36, 0x36, 255],
+            [0x1B, 0x23, 0x40, 255],
+        ];
+        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        common::create_project(&mut h);
+        let text = {
+            let ws = h.state_mut().workspace_mut().unwrap();
+            let side_skirts = ws
+                .project
+                .surfaces
+                .iter()
+                .position(|s| s.name == "Side skirts")
+                .unwrap();
+            ws.set_active_surface(side_skirts);
+            for (name, hex) in [
+                ("Ardent green", (0x1F, 0x4D, 0x3A)),
+                ("Cream", (0xEF, 0xE6, 0xCF)),
+                ("Signal red", (0xC2, 0x3B, 0x2A)),
+            ] {
+                let (id, _) = ws
+                    .project
+                    .add_swatch(Rgba::rgb(hex.0, hex.1, hex.2), "Color");
+                ws.project.rename_swatch(id, name);
+            }
+            let style = CharStyle {
+                size: 180.0,
+                ..CharStyle::default()
+            };
+            add_text(
+                ws,
+                "test",
+                style,
+                (200.0, 650.0),
+                Rgba::rgb(0x5B, 0x8D, 0xEF),
+                Some(StrokeStyle {
+                    paint: Rgba::rgb(0xD9, 0x36, 0x36).into(),
+                    width: 6.0,
+                    align: StrokeAlign::Outside,
+                    ..Default::default()
+                }),
+            )
+        };
+        save(&mut h, &format!("inspector_nothing_selected_{suffix}"));
+        h.state_mut().workspace_mut().unwrap().selection = vec![text];
+        save(&mut h, &format!("inspector_text_{suffix}"));
+        common::open_color_popover(&mut h, tp_app::workspace::ColorTarget::Fill);
+        save(&mut h, &format!("inspector_color_popover_{suffix}"));
     }
 }
 
@@ -458,6 +705,24 @@ fn lettering_scene(
     ids
 }
 
+/// Steps until the texture thumbnails of the open project are rendered.
+fn wait_for_thumbnails(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
+    for _ in 0..200 {
+        let state = h.state();
+        let rendering = state
+            .workspace()
+            .is_some_and(|ws| ws.thumbnails.is_rendering() || ws.mod_previews.is_rendering())
+            || state.recent_thumbnails.is_reading()
+            || state.package_previews.is_reading();
+        if !rendering {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        h.step();
+    }
+    h.run();
+}
+
 /// Steps until SVG renders from the background thread are uploaded.
 fn wait_for_images(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
     for _ in 0..200 {
@@ -473,22 +738,15 @@ fn wait_for_images(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_text_and_images() {
-    use tp_app::layout::PanelKind;
     for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
         let mut prefs = Prefs {
             ui_scale: scale,
             ..Prefs::default()
         };
-        for slot in &mut prefs.layout.panels {
-            slot.collapsed = false;
-            slot.open = matches!(
-                slot.kind,
-                PanelKind::Properties | PanelKind::Layers | PanelKind::Assets
-            );
-        }
-        prefs.layout.column_width = 300.0;
+        prefs.layout.inspector_width = 300.0;
         let size = Vec2::new(1440.0, 1000.0) * scale.max(1.0);
         let mut h = common::wgpu_harness_with(prefs, size);
+        h.state_mut().prefs.layout.left_tab = LeftTab::Layers;
         common::create_project(&mut h);
         let ids = lettering_scene(&mut h);
         wait_for_images(&mut h);
@@ -624,7 +882,10 @@ fn render_export() {
         common::create_project(&mut h);
         lettering_scene(&mut h);
         wait_for_images(&mut h);
-        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::E);
+        h.key_press_modifiers(
+            egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+            egui::Key::E,
+        );
         wait_preview(&mut h);
         save(&mut h, &format!("export_png_{suffix}"));
         if let Some(Modal::Export(d)) = &mut h.state_mut().modal {
@@ -662,17 +923,6 @@ fn render_export() {
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_mod_export() {
     use tp_app::state::Modal;
-    let wait_preview = |h: &mut egui_kittest::Harness<'static, tp_app::AppState>| {
-        for _ in 0..400 {
-            h.step();
-            let ready = matches!(&h.state().modal, Some(Modal::ExportMod(d)) if d.preview_ready());
-            if ready {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
-        h.step();
-    };
     for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
         let prefs = Prefs {
             ui_scale: scale,
@@ -683,18 +933,16 @@ fn render_mod_export() {
         common::create_project(&mut h);
         lettering_scene(&mut h);
         wait_for_images(&mut h);
-        h.key_press_modifiers(
-            egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
-            egui::Key::E,
-        );
-        wait_preview(&mut h);
+        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::E);
+        wait_mod_preview(&mut h);
         save(&mut h, &format!("mod_export_{suffix}"));
-        // With problems listed.
+        // With problems listed, Advanced open on the internal name's.
         if let Some(Modal::ExportMod(d)) = &mut h.state_mut().modal {
             d.settings.name.clear();
             d.settings.price = 0;
+            d.settings.internal_name = Some("ace_logistic".into());
         }
-        wait_preview(&mut h);
+        wait_mod_preview(&mut h);
         save(&mut h, &format!("mod_export_problems_{suffix}"));
     }
 }
@@ -903,6 +1151,14 @@ fn render_precision_aids() {
             );
             b.fill = Rgba::rgb(0x2E, 0x86, 0xDE).into();
             let b = ws.project.add(b);
+            // A dark livery area, to check the grid reads on dark paint too.
+            let mut dark = Object::new(
+                ObjectId(0),
+                ShapeKind::rectangle(),
+                Frame::new(Point::new(2048.0, 3600.0), Size::new(4096.0, 1000.0), 0.0),
+            );
+            dark.fill = Rgba::rgb(0x1F, 0x24, 0x2B).into();
+            ws.project.add(dark);
             ws.project.add_guide(Guide::new(Axis::Horizontal, 3000.0));
             ws.project.add_guide(Guide::new(Axis::Vertical, 2048.0));
             ws.selection = vec![b];
@@ -946,25 +1202,13 @@ fn render_precision_aids() {
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_align() {
-    use tp_app::layout::PanelKind;
     use tp_core::document::{Frame, Object, ObjectId, Rgba, ShapeKind};
     use tp_core::kurbo::{Point, Size};
     for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
-        let mut prefs = Prefs {
+        let prefs = Prefs {
             ui_scale: scale,
             ..Prefs::default()
         };
-        for slot in &mut prefs.layout.panels {
-            match slot.kind {
-                PanelKind::Transform => {
-                    slot.open = true;
-                    slot.collapsed = false;
-                }
-                // Room for the Transform panel's align rows.
-                PanelKind::Colors | PanelKind::Layers => slot.collapsed = true,
-                _ => {}
-            }
-        }
         let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
         let mut h = common::wgpu_harness_with(prefs, size);
         common::create_project(&mut h);
@@ -1006,23 +1250,12 @@ fn render_align() {
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_combine() {
-    use tp_app::layout::PanelKind;
     use tp_core::document::{BooleanOp, Frame, Object, ObjectId, Rgba, ShapeKind};
     for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
-        let mut prefs = Prefs {
+        let prefs = Prefs {
             ui_scale: scale,
             ..Prefs::default()
         };
-        for slot in &mut prefs.layout.panels {
-            match slot.kind {
-                PanelKind::Transform => {
-                    slot.open = true;
-                    slot.collapsed = false;
-                }
-                PanelKind::Colors | PanelKind::Layers => slot.collapsed = true,
-                _ => {}
-            }
-        }
         let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
         let mut h = common::wgpu_harness_with(prefs, size);
         common::create_project(&mut h);
@@ -1070,29 +1303,16 @@ fn render_combine() {
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_stroke_options() {
-    use tp_app::layout::PanelKind;
     use tp_core::document::{
         Cap, CharStyle, Dash, Frame, Join, LineStyle, Node, Object, ObjectId, PathData, Rgba,
         ShapeKind, StrokeAlign, StrokeStyle, Subpath,
     };
     use tp_core::kurbo::Point;
     for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
-        let mut prefs = Prefs {
+        let prefs = Prefs {
             ui_scale: scale,
             ..Prefs::default()
         };
-        for slot in &mut prefs.layout.panels {
-            match slot.kind {
-                PanelKind::Stroke => {
-                    slot.open = true;
-                    slot.collapsed = false;
-                }
-                PanelKind::Colors | PanelKind::Layers | PanelKind::Transform => {
-                    slot.collapsed = true;
-                }
-                _ => {}
-            }
-        }
         let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
         let mut h = common::wgpu_harness_with(prefs, size);
         common::create_project(&mut h);
@@ -1288,26 +1508,13 @@ fn gradient_scene(
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_gradients() {
-    use tp_app::layout::PanelKind;
     use tp_app::tool::Tool;
     use tp_app::workspace::ColorTarget;
     for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
-        let mut prefs = Prefs {
+        let prefs = Prefs {
             ui_scale: scale,
             ..Prefs::default()
         };
-        for slot in &mut prefs.layout.panels {
-            match slot.kind {
-                PanelKind::Colors => {
-                    slot.open = true;
-                    slot.collapsed = false;
-                }
-                PanelKind::Stroke | PanelKind::Layers | PanelKind::Transform => {
-                    slot.collapsed = true;
-                }
-                _ => {}
-            }
-        }
         let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
         let mut h = common::wgpu_harness_with(prefs, size);
         common::create_project(&mut h);
@@ -1387,7 +1594,6 @@ fn canvas_matches_export_for_gradients() {
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_languages() {
-    use tp_app::layout::PanelKind;
     use tp_app::state::Modal;
     use tp_i18n::Language;
     for language in Language::ALL {
@@ -1397,9 +1603,6 @@ fn render_languages() {
                 ..Prefs::default()
             };
             prefs.set_language(Some(language));
-            for slot in &mut prefs.layout.panels {
-                slot.collapsed = !matches!(slot.kind, PanelKind::Properties | PanelKind::Colors);
-            }
             let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
             let code = language.code();
             let mut h = common::wgpu_harness_with(prefs, size);
@@ -1408,13 +1611,16 @@ fn render_languages() {
             save(&mut h, &format!("lang_{code}_new_project_{suffix}"));
             h.state_mut().modal = None;
             h.run();
-            // A project with a selected stroked text (Properties, Colors).
+            // A project with a selected stroked text (the inspector).
             h.get_by_label(&tp_i18n::tr("home-new-project")).click();
             h.run();
-            h.get_by_label(&tp_i18n::tr("button-next")).click();
+            h.get_by_role_and_label(egui::accesskit::Role::RadioButton, common::SAMPLE)
+                .click();
             h.run();
-            h.get_by_label(&tp_i18n::tr("button-create")).click();
+            h.get_by_label(&tp_i18n::tr("new-project-create")).click();
             h.run();
+            save(&mut h, &format!("lang_{code}_project_{suffix}"));
+            common::show_space(&mut h, tp_app::layout::Space::Workshop);
             let (text, _) = gradient_scene(&mut h);
             h.state_mut().workspace_mut().unwrap().selection = vec![text];
             save(&mut h, &format!("lang_{code}_workspace_{suffix}"));
@@ -1423,9 +1629,6 @@ fn render_languages() {
             h.state_mut().modal = None;
             h.run();
             h.state_mut().workspace_mut().unwrap().selection.clear();
-            for slot in &mut h.state_mut().prefs.layout.panels {
-                slot.collapsed = !matches!(slot.kind, PanelKind::Transform | PanelKind::Stroke);
-            }
             let r = h
                 .state_mut()
                 .workspace_mut()
@@ -1440,22 +1643,19 @@ fn render_languages() {
     }
 }
 
-/// A vehicle project (template overlay, sidebar with an update) and the New
-/// Project vehicle step, in English and German.
+/// A vehicle project (template overlay, Textures tab with an update) and
+/// the New Project vehicle step, in English and German.
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_vehicle_screens() {
-    use tp_app::layout::PanelKind;
     use tp_app::state::Modal;
     use tp_vehicles::sample::{self, SampleTexture};
     for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
         let dir = tempfile::tempdir().unwrap();
         let mut prefs = Prefs::default();
         prefs.set_language(Some(language));
-        for slot in &mut prefs.layout.panels {
-            slot.collapsed = !matches!(slot.kind, PanelKind::Layers);
-        }
         let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
+        h.state_mut().prefs.layout.left_tab = LeftTab::Layers;
         h.state_mut().vehicles =
             tp_app::vehicles::VehicleLibrary::open(&dir.path().join("library"));
         let tex = |id, name, size, layout| SampleTexture {
@@ -1497,7 +1697,7 @@ fn render_vehicle_screens() {
         let textures = tp_app::vehicle_project::default_textures(&package.manifest);
         let project =
             tp_app::vehicle_project::fleet_project("Sample Truck", &package, &textures).unwrap();
-        h.state_mut().open_project(project);
+        common::open_project(&mut h, project);
         save(&mut h, &format!("vehicle_project_{code}"));
     }
 }
@@ -1544,7 +1744,7 @@ fn render_sample_vehicle() {
             textures[0] = main.to_owned();
             let project =
                 tp_app::vehicle_project::fleet_project("Sample", package, &textures).unwrap();
-            h.state_mut().open_project(project);
+            common::open_project(&mut h, project);
             h.run();
             save(&mut h, &format!("sample_{name}_{code}"));
         }
@@ -1552,22 +1752,18 @@ fn render_sample_vehicle() {
 }
 
 /// A fleet: the sample truck's two main textures and the sample trailer,
-/// with the sidebar tree, the Add Vehicle and Textures dialogs, the Update
+/// with the Textures tab, the Add Vehicle and Textures dialogs, the Update
 /// Template dialog and the wizard's texture checkboxes, in English and
 /// German.
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_fleet_screens() {
-    use tp_app::layout::PanelKind;
     use tp_app::state::Modal;
     use tp_app::ui::vehicle_dialogs::{AddVehicleDialog, TexturesDialog, VehicleChoice};
     use tp_app::vehicles::{SAMPLE_ID, SAMPLE_TRAILER_ID};
     for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
         let mut prefs = Prefs::default();
         prefs.set_language(Some(language));
-        for slot in &mut prefs.layout.panels {
-            slot.collapsed = slot.kind != PanelKind::Properties;
-        }
         let code = language.code();
         let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
         // Wizard with both main textures checked.
@@ -1599,7 +1795,7 @@ fn render_fleet_screens() {
         let project =
             tp_app::vehicle_project::fleet_project("ACE Logistics", &truck, &both).unwrap();
         h.state_mut().modal = None;
-        h.state_mut().open_project(project);
+        common::open_project(&mut h, project);
         let trailer = load(&h, SAMPLE_TRAILER_ID, "1.0.0");
         let all = tp_app::vehicle_project::default_textures(&trailer.manifest);
         h.state_mut()
@@ -1609,8 +1805,8 @@ fn render_fleet_screens() {
             .unwrap();
         let ws = h.state_mut().workspace_mut().unwrap();
         ws.set_active_surface(2);
-        // A texture flagged by an update: ⚠ in the tree, the notice in
-        // Properties.
+        // A texture flagged by an update: ⚠ in the Textures tab, the notice
+        // in the inspector.
         ws.project.surfaces[2].template.as_mut().unwrap().status =
             tp_core::TemplateStatus::LayoutChanged;
         for _ in 0..20 {
@@ -1679,16 +1875,26 @@ fn render_custom_vehicle() {
         h.state_mut().vehicles.install_bytes(&packed.bytes).unwrap();
         h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
         save(&mut h, &format!("custom_vehicle_library_{code}"));
+        // My vehicles: the custom status among the sample vehicles.
+        h.state_mut().vehicles.install_samples().unwrap();
+        h.state_mut().modal = Some(Modal::VehicleLibrary(
+            tp_app::ui::vehicle_dialogs::LibraryDialog {
+                tab: tp_app::ui::vehicle_dialogs::LibraryTab::Mine,
+                ..Default::default()
+            },
+        ));
+        save(&mut h, &format!("custom_vehicle_library_mine_{code}"));
+        h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+        save(&mut h, &format!("custom_vehicle_library_all_{code}"));
     }
 }
 
 /// The brand kit: the palette with a linked swatch marked, the Edit Swatch
-/// popup, the Styles panel with both sections, and the Copy From Cabin
+/// popup, the Styles section with both groups, and the Copy From Cabin
 /// dialog, in English and German.
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_brand_kit() {
-    use tp_app::layout::PanelKind;
     use tp_app::state::Modal;
     use tp_core::document::{
         CharStyle, ColorStop, Frame, Gradient, GradientKind, Object, ObjectId, Paint, Rgba,
@@ -1698,17 +1904,15 @@ fn render_brand_kit() {
     for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
         let mut prefs = Prefs::default();
         prefs.set_language(Some(language));
-        for slot in &mut prefs.layout.panels {
-            slot.collapsed = !matches!(slot.kind, PanelKind::Colors | PanelKind::Styles);
-        }
         let code = language.code();
         let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 1100.0));
+        h.state_mut().prefs.layout.left_tab = LeftTab::Resources;
         let package = tp_vehicles::Package::read(tp_app::vehicles::SAMPLES[0].bytes).unwrap();
         let mut textures = tp_app::vehicle_project::default_textures(&package.manifest);
         textures.push("high_roof".into());
         let project =
             tp_app::vehicle_project::fleet_project("ACE Logistics", &package, &textures).unwrap();
-        h.state_mut().open_project(project);
+        common::open_project(&mut h, project);
         let ws = h.state_mut().workspace_mut().unwrap();
         let p = &mut ws.project;
         let (red, _) = p.add_swatch(Rgba::rgb(0xC0, 0x10, 0x20), "Color");
@@ -1790,13 +1994,12 @@ fn render_brand_kit() {
     }
 }
 
-/// Symbols: the Symbols panel with two instances of a logo on a texture
-/// (one selected, Properties showing it), then the logo edited in its own
+/// Symbols: the Symbols section with two instances of a logo on a texture
+/// (one selected, the inspector showing it), then the logo edited in its own
 /// view with its bar, in English and French.
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_symbols() {
-    use tp_app::layout::PanelKind;
     use tp_core::document::{
         CharStyle, Frame, Object, ObjectId, Paint, Rgba, ShapeKind, StrokeStyle, TextBlock,
     };
@@ -1804,11 +2007,9 @@ fn render_symbols() {
     for language in [tp_i18n::Language::English, tp_i18n::Language::French] {
         let mut prefs = Prefs::default();
         prefs.set_language(Some(language));
-        for slot in &mut prefs.layout.panels {
-            slot.collapsed = !matches!(slot.kind, PanelKind::Properties | PanelKind::Symbols);
-        }
         let code = language.code();
         let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 1000.0));
+        h.state_mut().prefs.layout.left_tab = LeftTab::Resources;
         common::create_project(&mut h);
         let ws = h.state_mut().workspace_mut().unwrap();
         let frame = |x, y, w, h| Frame::new(Point::new(x, y), Size::new(w, h), 0.0);
@@ -1868,18 +2069,14 @@ fn render_symbols() {
 }
 
 /// Flip: an SVG logo and a text, with flipped copies (horizontal under each,
-/// vertical for the text), the Transform panel's Flip buttons, and the Object
+/// vertical for the text), the inspector's Flip buttons, and the Object
 /// menu showing Flip Horizontal and Flip Vertical.
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_flip() {
-    use tp_app::layout::PanelKind;
     use tp_core::document::{CharStyle, FlipAxis, Object, ObjectId, Paint, Rgba, TextBlock};
     use tp_core::kurbo::{Point, Vec2 as V};
-    let mut prefs = Prefs::default();
-    for slot in &mut prefs.layout.panels {
-        slot.collapsed = slot.kind != PanelKind::Transform;
-    }
+    let prefs = Prefs::default();
     let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 1000.0));
     common::create_project(&mut h);
     let ws = h.state_mut().workspace_mut().unwrap();

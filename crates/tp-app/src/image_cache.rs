@@ -106,6 +106,23 @@ fn decode_raster(bytes: &[u8], max_side: u32) -> Option<ColorImage> {
     ))
 }
 
+/// A copy of `asset` whose longest side is at most `side` pixels, for
+/// thumbnails rendered off the UI thread; `None` when it can't be read.
+pub(crate) fn asset_image(asset: &Asset, side: u32) -> Option<ColorImage> {
+    image_of(asset.kind, &asset.bytes, side)
+}
+
+/// A copy of the image `bytes` of `kind` whose longest side is at most
+/// `side` pixels; `None` when it can't be read.
+pub(crate) fn image_of(kind: AssetKind, bytes: &[u8], side: u32) -> Option<ColorImage> {
+    match kind {
+        AssetKind::Raster => decode_raster(bytes, side),
+        AssetKind::Svg => usvg::Tree::from_data(bytes, svg_options())
+            .ok()
+            .and_then(|tree| render_svg(&tree, side)),
+    }
+}
+
 impl ImageCache {
     fn worker(&mut self, ctx: &egui::Context) -> &Worker {
         self.worker.get_or_insert_with(|| {

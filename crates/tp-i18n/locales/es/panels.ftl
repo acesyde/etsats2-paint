@@ -1,40 +1,14 @@
 ## Títulos de los paneles y estados vacíos
 
-panel-properties = Propiedades
-panel-layers = Capas
-panel-colors = Colores
 panel-styles = Estilos
 panel-symbols = Símbolos
 panel-stroke = Trazo
-panel-transform = Transformar
-panel-assets = Recursos
 panel-vehicle = Vehículos
-empty-properties = Nada seleccionado
-empty-properties-hint = Seleccione un objeto en el lienzo para editar sus propiedades.
 empty-layers = Aún no hay capas
-empty-layers-hint = Las formas, los textos y las imágenes que añada aparecerán aquí.
-empty-colors = Ningún color seleccionado
-empty-colors-hint = Elija un relleno o un trazo para editar su color.
-empty-styles = Aún no hay estilos
-empty-styles-hint = Guarde apariencias para reutilizarlas en cada textura.
-empty-symbols = Aún no hay símbolos
-empty-symbols-hint = Convierta un logotipo o una rotulación en símbolo para colocarlo en cada textura.
-empty-stroke = Sin trazo
-empty-stroke-hint = Seleccione un objeto para editar su contorno.
-empty-transform = Nada que transformar
-empty-transform-hint = Seleccione un objeto para editar su posición, tamaño y rotación.
-empty-assets = No hay recursos
 empty-assets-hint = Los logotipos y las imágenes importados aparecerán aquí.
-empty-vehicle = Ningún vehículo
-empty-vehicle-hint = Las plantillas de vehículos estarán disponibles en una próxima actualización.
 
-## Paneles y capas
+## Capas
 
-panels-all-closed = Todos los paneles están cerrados
-panels-all-closed-hint = Vuelva a abrir los paneles desde el menú Ver o restablezca el espacio de trabajo.
-panel-expand = Expandir
-panel-collapse = Contraer
-panel-close = Cerrar panel
 layers-empty-hint = Las formas que dibuje y las capas que añada aparecerán aquí.
 layers-collapse = Contraer { $name }
 layers-expand = Expandir { $name }
@@ -43,6 +17,10 @@ layers-show = Mostrar { $name }
 layers-lock = Bloquear { $name }
 layers-unlock = Desbloquear { $name }
 layers-name = Nombre de la capa
+layers-heading = { $texture } · { $count ->
+    [one] { $count } capa
+   *[other] { $count } capas
+ }
 
 ## Recursos
 
@@ -57,6 +35,10 @@ assets-used-by = { $count ->
 assets-vector = Vectorial
 assets-item = Recurso { $name }
 assets-place = Colocar recurso
+assets-drop-zone = Suelta un logo aquí o
+assets-import = Importar…
+resources-images = Imágenes
+resources-footer = Arrastre un elemento al lienzo para colocarlo. Abra el espacio Marca para gestionarlo todo.
 assets-name = Nombre del recurso
 
 ## Panel Trazo
@@ -102,12 +84,9 @@ props-sides = Lados
 props-star = Estrella
 props-inner = Interior
 props-inner-radius = Radio interior
-props-surface-summary = { $size } × { $size } px · Seleccione un objeto para editarlo
 props-objects = { $count } objetos
-props-multiple = Selección múltiple
 props-source-svg = SVG · Vectorial
 props-source-image = Imagen · { $width } × { $height } px
-props-source = Origen: { $name } · { $source }
 props-opacity = Opacidad
 props-opacity-slider = Control deslizante de opacidad
 props-radius = Radio
@@ -203,7 +182,6 @@ weight-semi-bold = Seminegrita
 weight-bold = Negrita
 weight-extra-bold = Extranegrita
 weight-black = Black
-char-title = Carácter
 char-font-weight = Grosor de la fuente
 char-italic = Cursiva
 char-size = Tamaño
@@ -239,7 +217,6 @@ vehicle-panel-layout-changed = Disposición cambiada
 vehicle-panel-dismiss = Descartar
 vehicle-panel-dismiss-named = Descartar el cambio de disposición de { $name }
 vehicle-panel-removed = No está en esta versión
-vehicle-panel-opacity = Plantilla
 vehicle-panel-opacity-name = Opacidad de la plantilla
 
 ## Fleet
@@ -250,22 +227,13 @@ vehicles-main-textures = Texturas principales
 vehicles-accessories = Accesorios
 vehicles-remove-from-project = Quitar del proyecto
 
-## Vehicles sidebar
+## Project
 
-
-## Sidebar
-
-sidebar-project = Proyecto
-sidebar-show = Mostrar la barra lateral
-sidebar-hide = Ocultar la barra lateral
-sidebar-vehicles-game = Vehículos · { $game }
-project-name = Nombre
-project-version = Versión
+vehicle-panel-game = Vehículos · { $game }
 project-game-versions = Versiones del juego
 project-game-versions-supported = Compatibles con todos los vehículos: { $versions }
 project-no-common-version = Ninguna versión del juego es compatible con todos los vehículos
 vehicle-actions-named = Acciones de { $name }
-vehicle-panel-needs-check = Hay que revisar una textura tras una actualización
 texture-layout-changed = La disposición de esta textura cambió en la versión { $version }: revise su diseño.
 texture-not-in-version = Esta textura no existe en la versión { $version } del vehículo: no tiene plantilla.
 
@@ -323,3 +291,56 @@ library-update = Actualizar en la biblioteca
 library-added = Añadido a la biblioteca
 library-updated = Biblioteca actualizada
 undo-import-from-library = Importar desde la biblioteca
+
+## Inspector
+
+inspector-layout = Disposición
+inspector-text = Texto
+inspector-appearance = Apariencia
+inspector-polygon = Polígono
+inspector-image = Imagen
+inspector-new-objects = Objetos nuevos
+inspector-hint = Seleccione un objeto para ajustar su disposición, relleno y trazo.
+inspector-main-texture = Textura principal
+inspector-accessory-texture = Textura de accesorio
+inspector-texture-kind = { $kind } · { $size } × { $size } px
+inspector-style = Estilo
+inspector-style-none = Ninguno
+stroke-none = Ninguno
+stroke-width-px = { $width } px
+stroke-options = Opciones del trazo
+line-settings = Ajustes de línea
+colors-brand-palette = Paleta de marca
+colors-add-short = + Añadir
+
+## Project space
+
+project-vehicles-count = { $vehicles ->
+    [one] { $vehicles } vehículo
+   *[other] { $vehicles } vehículos
+} · { $textures ->
+    [one] { $textures } textura
+   *[other] { $textures } texturas
+}
+project-kind-package = { $kind } · paquete { $version }
+project-cabins = Cabinas
+project-main-texture = Textura principal
+project-mode-per-layout = Una por disposición de cabina
+project-mode-every-cabin = Una para todas las cabinas
+project-mode-single = Textura principal única
+project-update-available = Actualización { $version } disponible
+vehicle-textures-named = Texturas de { $name }
+project-texture-main = Principal
+project-texture-accessory = Accesorio
+project-mod-information = Información del mod
+project-not-set = Sin definir
+project-edit-in-export = Editar en Exportar mod…
+project-picture-generated = Generada a partir de la primera textura principal
+project-cabin-ids = Nombres internos: { $ids }
+
+## Brand space
+
+brand-new-color = Nuevo color
+brand-new-style = Nuevo estilo a partir de la selección
+brand-create-from-selection = Crear a partir de la selección
+brand-actions-named = Acciones de { $name }

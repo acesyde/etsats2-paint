@@ -51,7 +51,7 @@ pub struct Hint {
 /// Default width of a newly added stroke, in texture pixels.
 pub const DEFAULT_STROKE_WIDTH: f64 = 4.0;
 
-/// Which color the Colors panel edits.
+/// Which color the color popover edits.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ColorTarget {
     #[default]
@@ -59,7 +59,7 @@ pub enum ColorTarget {
     Stroke,
 }
 
-/// Color model shown by the Colors panel sliders.
+/// Color model shown by the color popover's sliders.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ColorModel {
     #[default]
@@ -107,17 +107,17 @@ pub struct PanelState {
     /// saturation or value.
     pub picker: Option<(Rgba, tp_ui::widgets::Hsv)>,
     pub lock_proportions: bool,
-    /// Groups expanded in the Layers panel.
+    /// Groups expanded in the Layers tab.
     pub expanded: HashSet<ObjectId>,
-    /// Anchor row for Shift+click range selection in the Layers panel.
+    /// Anchor row for Shift+click range selection in the Layers tab.
     pub layers_anchor: Option<ObjectId>,
     /// Row being renamed, with its edit buffer.
     pub renaming: Option<(ObjectId, String)>,
-    /// Rows being dragged in the Layers panel.
+    /// Rows being dragged in the Layers tab.
     pub layers_drag: Option<Vec<ObjectId>>,
     /// Open font picker.
     pub font_picker: Option<FontPicker>,
-    /// Asset being renamed in the Assets panel, with its edit buffer.
+    /// Asset being renamed in the Images section, with its edit buffer.
     pub renaming_asset: Option<(tp_core::document::AssetId, String)>,
     /// What the align commands align to (session only).
     pub align_to: crate::arrange::AlignTo,
@@ -145,6 +145,8 @@ pub struct Workspace {
     /// Identifies this opening of the project in the session (a project
     /// closed and opened again gets a new one); not saved.
     pub session: u64,
+    /// The space shown (Project, Workshop or Brand); not saved.
+    pub space: crate::layout::Space,
     pub tool: Tool,
     /// Tool to restore when the temporary Hand tool (Space) is released.
     pub tool_before_space: Option<Tool>,
@@ -191,6 +193,11 @@ pub struct Workspace {
     pub text_session: Option<TextSession>,
     /// Display textures of image assets.
     pub images: ImageCache,
+    /// Thumbnails of the surfaces' artwork and of their templates (the
+    /// Textures tab, the Project space).
+    pub thumbnails: crate::surface_thumbnails::SurfaceThumbnails,
+    /// The mod's pictures shown by the Project space.
+    pub mod_previews: crate::mod_previews::ModPreviews,
     /// Ramp textures of the gradients drawn on the canvas.
     pub gradients: crate::gradient_textures::GradientTextures,
     /// The file dialog should open to place images, at a point or the view
@@ -227,6 +234,7 @@ impl Workspace {
         Self {
             project,
             session: 0,
+            space: crate::layout::Space::Project,
             tool: Tool::default(),
             tool_before_space: None,
             path: None,
@@ -253,6 +261,8 @@ impl Workspace {
             text_style: CharStyle::default(),
             text_session: None,
             images: ImageCache::default(),
+            thumbnails: Default::default(),
+            mod_previews: Default::default(),
             gradients: Default::default(),
             place_request: None,
             pen: None,

@@ -1,5 +1,5 @@
 //! Headless tests for boolean-operations: Object › Combine and the
-//! Transform panel buttons.
+//! inspector's Layout buttons.
 
 mod common;
 
@@ -13,20 +13,11 @@ use tp_core::kurbo::{Point, Size};
 
 type H = Harness<'static, AppState>;
 
-fn harness(panels: bool) -> H {
-    let mut prefs = tp_app::prefs::Prefs::default();
-    if panels {
-        for slot in &mut prefs.layout.panels {
-            slot.open = slot.kind != tp_app::layout::PanelKind::Assets;
-            slot.collapsed = false;
-        }
-    }
+fn harness(tall: bool) -> H {
+    let state = AppState::with_prefs(tp_app::prefs::Prefs::default(), None);
     let mut h = Harness::builder()
-        .with_size(egui::Vec2::new(1440.0, if panels { 2400.0 } else { 900.0 }))
-        .build_ui_state(
-            |ui, state: &mut AppState| state.show(ui),
-            AppState::with_prefs(prefs, None),
-        );
+        .with_size(egui::Vec2::new(1440.0, if tall { 2400.0 } else { 900.0 }))
+        .build_ui_state(|ui, state: &mut AppState| state.show(ui), state);
     common::create_project(&mut h);
     h.run();
     h
@@ -72,7 +63,7 @@ fn from_combine_menu(h: &mut H, label: &str) {
     h.run();
     h.get_by_label("Combine ⏵").click();
     h.run();
-    h.get_by_label(label).click();
+    common::last(h, label).click();
     h.run();
 }
 
@@ -253,7 +244,7 @@ fn groups_count_as_one_shape() {
 }
 
 #[test]
-fn unite_from_the_panel() {
+fn unite_from_the_inspector() {
     let mut h = harness(true);
     let a = shape(
         &mut h,

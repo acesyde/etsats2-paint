@@ -36,12 +36,19 @@ cmd-zoom-out = Zoom arrière
 cmd-fit-to-screen = Ajuster à l’écran
 cmd-actual-size-100pct = Taille réelle (100 %)
 cmd-reset-workspace = Réinitialiser l’espace de travail
+cmd-space-project = Projet
+cmd-space-workshop = Atelier
+cmd-space-brand = Marque
+cmd-tab-textures = Textures
+cmd-tab-layers = Calques
+cmd-tab-resources = Ressources
+cmd-hide-panels = Masquer les panneaux
+reason-not-in-workshop = Disponible dans l’Atelier.
 cmd-show-grid = Afficher la grille
 cmd-show-guides = Afficher les repères
 cmd-clear-guides = Effacer les repères
 cmd-snapping = Magnétisme
 cmd-design-system-gallery = Galerie du système de design
-cmd-vehicle-information = Informations sur le véhicule
 cmd-export-texture = Exporter la texture…
 cmd-export-mod = Exporter le mod…
 cmd-keyboard-shortcuts = Raccourcis clavier
@@ -160,7 +167,6 @@ reason-choose-vehicle = Choisissez un véhicule et au moins une texture principa
 
 ## Textures
 
-cmd-sidebar = Barre latérale
 cmd-next-texture = Texture suivante
 cmd-previous-texture = Texture précédente
 reason-one-texture = Le projet n’a qu’une texture.

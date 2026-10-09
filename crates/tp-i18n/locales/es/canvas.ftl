@@ -55,7 +55,12 @@ import-unreadable = no se puede leer ({ $detail })
 
 status-zoom = Zoom { $zoom }
 status-saved = Guardado
-status-symbol = Símbolo › { $name }
+status-template = Plantilla
+status-snapping = Ajuste
+status-grid = Cuadrícula
+status-guides = Guías
+breadcrumb-symbol = Símbolo
+top-bar-export = Exportar…
 status-unsaved = Cambios sin guardar
 status-saving = Guardando…
 

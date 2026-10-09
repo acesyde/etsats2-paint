@@ -37,12 +37,19 @@ cmd-zoom-out = Zoom Out
 cmd-fit-to-screen = Fit to Screen
 cmd-actual-size-100pct = Actual Size (100%)
 cmd-reset-workspace = Reset Workspace
+cmd-space-project = Project
+cmd-space-workshop = Workshop
+cmd-space-brand = Brand
+cmd-tab-textures = Textures
+cmd-tab-layers = Layers
+cmd-tab-resources = Resources
+cmd-hide-panels = Hide Panels
+reason-not-in-workshop = Available in the Workshop.
 cmd-show-grid = Show Grid
 cmd-show-guides = Show Guides
 cmd-clear-guides = Clear Guides
 cmd-snapping = Snapping
 cmd-design-system-gallery = Design System Gallery
-cmd-vehicle-information = Vehicle Information
 cmd-export-texture = Export Texture…
 cmd-export-mod = Export Mod…
 cmd-keyboard-shortcuts = Keyboard Shortcuts
@@ -161,7 +168,6 @@ reason-choose-vehicle = Choose a vehicle and at least one main texture.
 
 ## Textures
 
-cmd-sidebar = Sidebar
 cmd-next-texture = Next Texture
 cmd-previous-texture = Previous Texture
 reason-one-texture = The project has a single texture.

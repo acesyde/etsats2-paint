@@ -1,14 +1,16 @@
-//! Transform panel: X / Y (center), W / H, rotation and scale.
+//! The inspector's Layout section: X / Y (center), W / H, rotation and
+//! scale, then the align, distribute, flip and combine buttons. Shown only
+//! with a selection.
 
-use egui::{Grid, Ui};
+use egui::{RichText, Ui};
 use tp_core::document::{
     Frame, Handle, Object, ResizeOptions, resize, rotate, selection_frame, translate,
 };
 use tp_core::kurbo::{Point, Vec2};
 use tp_i18n::tr;
 use tp_ui::icons;
-use tp_ui::tokens::space;
-use tp_ui::widgets::{EmptyState, NumericField, toggle_icon_button};
+use tp_ui::tokens::{color, size, space};
+use tp_ui::widgets::{FieldEvent, NumericField, toggle_icon_button};
 
 use super::{PanelEnv, apply_field};
 use crate::workspace::Workspace;
@@ -71,6 +73,49 @@ fn set_rotation(ws: &mut Workspace, degrees: f64) {
     });
 }
 
+/// Height of the Layout section's fields and buttons.
+const ROW: f32 = 28.0;
+/// Height of the align buttons.
+const BUTTON: f32 = 26.0;
+
+/// A row of two even columns around a gutter as wide as a button (the
+/// proportion lock sits in it, between W and H).
+fn two_columns(
+    ui: &mut Ui,
+    left: impl FnOnce(&mut Ui),
+    middle: impl FnOnce(&mut Ui),
+    right: impl FnOnce(&mut Ui),
+) {
+    let column = ((ui.available_width() - size::HIT_MIN) / 2.0).floor();
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 0.0;
+        for (width, body) in [
+            (column, Box::new(left) as Box<dyn FnOnce(&mut Ui)>),
+            (size::HIT_MIN, Box::new(middle)),
+            (column, Box::new(right)),
+        ] {
+            ui.allocate_ui_with_layout(
+                egui::vec2(width, ROW),
+                egui::Layout::left_to_right(egui::Align::Center),
+                |ui| {
+                    ui.set_width(width);
+                    ui.set_min_height(ROW);
+                    body(ui);
+                },
+            );
+        }
+    });
+}
+
+/// A field of the Layout section: an inset box filling its column, its
+/// short label inside as a prefix.
+fn field<'a>(label: &'a str, name: &'a str, value: f64) -> NumericField<'a> {
+    NumericField::new(label, name, Some(value))
+        .width(28.0)
+        .fill()
+        .inset(ROW)
+}
+
 /// Rotation shown by the panel: the shared value, or `None` ("Mixed").
 fn common_rotation(objects: &[Object]) -> Option<f64> {
     let first = objects.first()?.frame.rotation_deg;
@@ -83,92 +128,104 @@ fn common_rotation(objects: &[Object]) -> Option<f64> {
 pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv<'_>) {
     let objects = env.ws.selected_objects();
     let Some(bounds): Option<Frame> = selection_frame(&objects) else {
-        EmptyState::new(
-            icons::TRANSFORM,
-            &tr("empty-transform"),
-            &tr("empty-transform-hint"),
-        )
-        .show(ui);
         return;
     };
     let (w, h) = (bounds.size.width, bounds.size.height);
     let locked = env.ws.panels.lock_proportions;
-
-    Grid::new("transform_grid")
-        .num_columns(3)
-        .spacing([space::SM, space::XS + 2.0])
-        .show(ui, |ui| {
-            let e = NumericField::new("X", &tr("transform-x"), Some(bounds.center.x))
-                .suffix("px")
-                .show(ui);
-            apply_field(env, e, |ws, v| move_center(ws, Some(v), None));
-            ui.label("");
-            let e = NumericField::new("Y", &tr("transform-y"), Some(bounds.center.y))
-                .suffix("px")
-                .show(ui);
-            apply_field(env, e, |ws, v| move_center(ws, None, Some(v)));
-            ui.end_row();
-
-            let e = NumericField::new(&tr("field-w"), &tr("field-width"), Some(w))
-                .suffix("px")
+    // Two even columns of inset fields (X Y, W H, rotation and scale); the
+    // lock toggle sits between W and H. Positions and sizes are in pixels,
+    // the unit of the whole section.
+    let none = FieldEvent::None;
+    let (mut x, mut y, mut width, mut height, mut rotation, mut scale) =
+        (none, none, none, none, none, none);
+    let mut toggle_lock = false;
+    ui.spacing_mut().item_spacing.y = space::XS + 2.0;
+    two_columns(
+        ui,
+        |ui| {
+            x = field("X", &tr("transform-x"), bounds.center.x).show(ui);
+        },
+        |_| {},
+        |ui| {
+            y = field("Y", &tr("transform-y"), bounds.center.y).show(ui);
+        },
+    );
+    two_columns(
+        ui,
+        |ui| {
+            width = field(&tr("field-w"), &tr("field-width"), w)
                 .range(1.0..=100_000.0)
                 .show(ui);
-            apply_field(env, e, |ws, v| {
-                let sx = v / w;
-                scale_selection(ws, "undo-resize", sx, if locked { sx } else { 1.0 });
-            });
-            if toggle_icon_button(
+        },
+        |ui| {
+            toggle_lock = toggle_icon_button(
                 ui,
                 locked,
                 icons::LINKED,
                 icons::UNLINKED,
                 &tr("transform-unlock-proportions"),
                 &tr("transform-lock-proportions"),
-            ) {
-                env.ws.panels.lock_proportions = !locked;
-            }
-            let e = NumericField::new(&tr("field-h"), &tr("field-height"), Some(h))
-                .suffix("px")
+            );
+        },
+        |ui| {
+            height = field(&tr("field-h"), &tr("field-height"), h)
                 .range(1.0..=100_000.0)
                 .show(ui);
-            apply_field(env, e, |ws, v| {
-                let sy = v / h;
-                scale_selection(ws, "undo-resize", if locked { sy } else { 1.0 }, sy);
-            });
-            ui.end_row();
-
-            let e = NumericField::new(
+        },
+    );
+    two_columns(
+        ui,
+        |ui| {
+            rotation = NumericField::new(
                 &tr("field-r"),
                 &tr("transform-rotation"),
                 common_rotation(&objects),
             )
+            .width(28.0)
+            .fill()
+            .inset(ROW)
             .suffix("°")
             .decimals(1)
             .range(-360.0..=360.0)
             .show(ui);
-            apply_field(env, e, set_rotation);
-            ui.label("");
-            let e = NumericField::new(&tr("field-s"), &tr("transform-scale"), Some(100.0))
+        },
+        |_| {},
+        |ui| {
+            scale = field(&tr("field-s"), &tr("transform-scale"), 100.0)
                 .suffix("%")
                 .range(1.0..=10_000.0)
                 .show(ui);
-            // Scale is relative to the current size: applying live values
-            // every frame would compound, so only the final value is applied.
-            let e = match e {
-                tp_ui::widgets::FieldEvent::Live(_) => tp_ui::widgets::FieldEvent::None,
-                other => other,
-            };
-            apply_field(env, e, |ws, v| {
-                let s = v / 100.0;
-                scale_selection(ws, "transform-scale", s, s);
-            });
-            ui.end_row();
-        });
+        },
+    );
+    if toggle_lock {
+        env.ws.panels.lock_proportions = !locked;
+    }
+    apply_field(env, x, |ws, v| move_center(ws, Some(v), None));
+    apply_field(env, y, |ws, v| move_center(ws, None, Some(v)));
+    apply_field(env, width, |ws, v| {
+        let sx = v / w;
+        scale_selection(ws, "undo-resize", sx, if locked { sx } else { 1.0 });
+    });
+    apply_field(env, height, |ws, v| {
+        let sy = v / h;
+        scale_selection(ws, "undo-resize", if locked { sy } else { 1.0 }, sy);
+    });
+    apply_field(env, rotation, set_rotation);
+    // Scale is relative to the current size: applying live values every
+    // frame would compound, so only the final value is applied.
+    let scale = match scale {
+        FieldEvent::Live(_) => FieldEvent::None,
+        other => other,
+    };
+    apply_field(env, scale, |ws, v| {
+        let s = v / 100.0;
+        scale_selection(ws, "transform-scale", s, s);
+    });
     align_rows(ui, cmds, env);
 }
 
-/// Align buttons with the Align to selector, then distribute and flip
-/// buttons.
+/// The Align to selector and the align buttons, then the distribute and
+/// flip buttons, then the combine buttons.
 fn align_rows(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv<'_>) {
     use tp_core::document::{DistributeAxis, DistributeMode, Edge};
 
@@ -177,44 +234,66 @@ fn align_rows(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelE
 
     ui.add_space(space::SM);
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 2.0;
-        for edge in Edge::ALL {
-            cmds.icon_button(ui, CommandId::Align(edge), false);
-        }
-        ui.add_space(space::XS);
+        let label = tr("transform-align-to");
+        ui.label(RichText::new(&label).small().color(color::TEXT_SECONDARY));
         let current = env.ws.panels.align_to;
         let combo = egui::ComboBox::from_id_salt("align_to")
-            .width(88.0)
+            .icon(tp_ui::widgets::dropdown_icon)
+            .width(ui.available_width().min(140.0))
             .selected_text(tr(current.label()))
             .show_ui(ui, |ui| {
                 for to in AlignTo::ALL {
                     ui.selectable_value(&mut env.ws.panels.align_to, to, tr(to.label()));
                 }
             });
-        combo.response.widget_info(|| {
-            egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, tr("transform-align-to"))
-        });
+        combo
+            .response
+            .widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, &label));
+    });
+    // Six even columns: the align buttons fill a row; the distribute
+    // buttons take the first four of the next, the flip buttons (apart from
+    // them) share one box over the last two.
+    let gap = space::XS;
+    let column = ((ui.available_width() - 5.0 * gap) / 6.0).floor();
+    let button = egui::vec2(column, BUTTON);
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = gap;
+        for edge in Edge::ALL {
+            cmds.framed_icon_button(ui, CommandId::Align(edge), button);
+        }
     });
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 2.0;
+        ui.spacing_mut().item_spacing.x = gap;
         for (axis, mode) in [
             (DistributeAxis::Horizontal, DistributeMode::Centers),
             (DistributeAxis::Vertical, DistributeMode::Centers),
             (DistributeAxis::Horizontal, DistributeMode::Spacing),
             (DistributeAxis::Vertical, DistributeMode::Spacing),
         ] {
-            cmds.icon_button(ui, CommandId::Distribute(axis, mode), false);
+            cmds.framed_icon_button(ui, CommandId::Distribute(axis, mode), button);
         }
-        // The align row is full at the column's default width.
-        ui.add_space(space::MD);
+        let flips = egui::vec2(2.0 * column + gap, BUTTON);
+        let (rect, _) = ui.allocate_exact_size(flips, egui::Sense::hover());
+        ui.painter()
+            .rect_filled(rect, tp_ui::tokens::radius::MD, color::CONTROL);
+        let mut inner = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(rect)
+                .layout(egui::Layout::left_to_right(egui::Align::Center)),
+        );
+        inner.spacing_mut().item_spacing.x = 0.0;
         for axis in tp_core::document::FlipAxis::ALL {
-            cmds.icon_button(ui, CommandId::Flip(axis), false);
+            cmds.framed_icon_button(
+                &mut inner,
+                CommandId::Flip(axis),
+                egui::vec2(flips.x / 2.0, BUTTON),
+            );
         }
     });
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 2.0;
+        ui.spacing_mut().item_spacing.x = gap;
         for op in tp_core::document::BooleanOp::ALL {
-            cmds.icon_button(ui, CommandId::Combine(op), false);
+            cmds.framed_icon_button(ui, CommandId::Combine(op), button);
         }
     });
 }

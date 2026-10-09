@@ -37,5 +37,3 @@ picker-saturation-value = Saturation and value
 picker-opacity = Opacity of color
 gradient-bar = Gradient bar
 gradient-stop = Stop { $index } at { $location }%
-panel-close-named = Close { $title }
-step-of = Step { $step } of { $total } — { $title }

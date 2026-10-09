@@ -61,52 +61,102 @@ pub struct ContrastPair {
 /// Every text/background pair the theme uses.
 pub fn theme_pairs() -> Vec<ContrastPair> {
     use Emphasis::{Disabled, Primary, Secondary};
-    let backgrounds = [
-        ("surface0", color::SURFACE_0),
-        ("surface1", color::SURFACE_1),
-        ("surface2", color::SURFACE_2),
-        ("surface3", color::SURFACE_3),
-        ("accent_subtle", color::ACCENT_SUBTLE),
-    ];
     let mut pairs = Vec::new();
-    for (bg_name, bg) in backgrounds {
+    let mut add = |fg_name: &str, fg, bg_name: &str, bg, emphasis| {
+        pairs.push(ContrastPair {
+            name: format!("{fg_name} on {bg_name}"),
+            fg,
+            bg,
+            emphasis,
+        });
+    };
+
+    // The surfaces carry every kind of text, the accents used as text or
+    // informative icons, and the semantic colors: the three elevation
+    // levels, the sunken fields and the control surface (buttons, tracks,
+    // menus, popovers, pills).
+    for (bg_name, bg) in [
+        ("canvas", color::SURFACE_0),
+        ("panel", color::SURFACE_1),
+        ("raised", color::SURFACE_2),
+        ("field", color::FIELD),
+        ("control", color::CONTROL),
+    ] {
         for (fg_name, fg, emphasis) in [
-            ("text_primary", color::TEXT_PRIMARY, Primary),
+            ("ink", color::TEXT_PRIMARY, Primary),
             ("text_secondary", color::TEXT_SECONDARY, Secondary),
+            ("text_muted", color::TEXT_MUTED, Secondary),
             ("text_disabled", color::TEXT_DISABLED, Disabled),
-            ("accent", color::ACCENT, Secondary),
+            ("signal", color::SIGNAL, Secondary),
+            ("link", color::LINK, Secondary),
             ("success", color::SUCCESS, Secondary),
             ("warning", color::WARNING, Secondary),
             ("error", color::ERROR, Secondary),
         ] {
-            pairs.push(ContrastPair {
-                name: format!("{fg_name} on {bg_name}"),
-                fg,
-                bg,
-                emphasis,
-            });
+            add(fg_name, fg, bg_name, bg, emphasis);
         }
     }
+
+    // Hovered controls and selected rows show plain text; disabled controls
+    // are never hovered or selected but may sit on a hover-colored row.
+    for (bg_name, bg) in [("hover", color::SURFACE_3), ("selected", color::SELECTED)] {
+        add("ink", color::TEXT_PRIMARY, bg_name, bg, Primary);
+        add(
+            "text_secondary",
+            color::TEXT_SECONDARY,
+            bg_name,
+            bg,
+            Secondary,
+        );
+        add("link", color::LINK, bg_name, bg, Secondary);
+    }
+    add(
+        "text_disabled",
+        color::TEXT_DISABLED,
+        "hover",
+        color::SURFACE_3,
+        Disabled,
+    );
+    // Chips (the game badge, the active space) show ink or secondary text.
+    add("ink", color::TEXT_PRIMARY, "chip", color::CHIP, Primary);
+    add(
+        "text_secondary",
+        color::TEXT_SECONDARY,
+        "chip",
+        color::CHIP,
+        Secondary,
+    );
     // Pressed state only ever shows primary text.
-    pairs.push(ContrastPair {
-        name: "text_primary on surface4".to_owned(),
-        fg: color::TEXT_PRIMARY,
-        bg: color::SURFACE_4,
-        emphasis: Primary,
-    });
-    pairs.push(ContrastPair {
-        name: "text_on_accent on accent_fill".to_owned(),
-        fg: color::TEXT_ON_ACCENT,
-        bg: color::ACCENT_FILL,
-        emphasis: Primary,
-    });
-    pairs.push(ContrastPair {
-        name: "text_on_accent on accent_fill_hover".to_owned(),
-        fg: color::TEXT_ON_ACCENT,
-        bg: color::ACCENT_FILL_HOVER,
-        emphasis: Secondary,
-    });
+    add(
+        "ink",
+        color::TEXT_PRIMARY,
+        "pressed",
+        color::SURFACE_4,
+        Primary,
+    );
+
+    // Dark text on the white pill of a segmented control and on primary
+    // buttons.
+    add(
+        "text_on_primary",
+        color::TEXT_ON_PRIMARY,
+        "primary pill",
+        color::ACCENT_PRIMARY,
+        Primary,
+    );
     pairs
+}
+
+/// The pairs below their minimum ratio, described for a test failure.
+pub fn failures(pairs: &[ContrastPair]) -> Vec<String> {
+    pairs
+        .iter()
+        .filter_map(|p| {
+            let ratio = contrast_ratio(p.fg, p.bg);
+            (ratio < p.emphasis.min_ratio())
+                .then(|| format!("{}: {ratio:.2} < {:.1}", p.name, p.emphasis.min_ratio()))
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -128,18 +178,62 @@ mod tests {
 
     #[test]
     fn theme_pairs_meet_minimums() {
-        let failures: Vec<String> = theme_pairs()
-            .into_iter()
-            .filter_map(|p| {
-                let ratio = contrast_ratio(p.fg, p.bg);
-                (ratio < p.emphasis.min_ratio())
-                    .then(|| format!("{}: {ratio:.2} < {:.1}", p.name, p.emphasis.min_ratio()))
-            })
-            .collect();
+        let failures = failures(&theme_pairs());
         assert!(
             failures.is_empty(),
             "contrast failures:\n{}",
             failures.join("\n")
+        );
+    }
+
+    #[test]
+    fn required_pairs_are_checked() {
+        let names: Vec<String> = theme_pairs().into_iter().map(|p| p.name).collect();
+        for surface in ["canvas", "panel", "raised", "field", "control"] {
+            for fg in ["ink", "text_muted", "signal", "link"] {
+                let name = format!("{fg} on {surface}");
+                assert!(names.contains(&name), "missing pair {name}");
+            }
+        }
+        assert!(names.contains(&"text_on_primary on primary pill".to_owned()));
+        assert!(names.contains(&"ink on chip".to_owned()));
+    }
+
+    /// The check is not vacuous: darkening a token below its minimum is
+    /// caught on the right pairs.
+    #[test]
+    fn darkened_tokens_fail() {
+        let darken = |c: Color32| Color32::from_rgb(c.r() / 2, c.g() / 2, c.b() / 2);
+        for token in [color::SIGNAL, color::LINK, color::TEXT_PRIMARY] {
+            let pairs: Vec<ContrastPair> = theme_pairs()
+                .into_iter()
+                .map(|mut p| {
+                    if p.fg == token {
+                        p.fg = darken(p.fg);
+                    }
+                    p
+                })
+                .collect();
+            let failures = failures(&pairs);
+            assert!(
+                failures.iter().any(|f| f.contains("on raised")),
+                "darkened {token:?} not caught: {failures:?}"
+            );
+        }
+        // A lighter pill loses its dark text.
+        let pairs: Vec<ContrastPair> = theme_pairs()
+            .into_iter()
+            .map(|mut p| {
+                if p.bg == color::ACCENT_PRIMARY {
+                    p.bg = darken(p.bg);
+                }
+                p
+            })
+            .collect();
+        assert!(
+            failures(&pairs)
+                .iter()
+                .any(|f| f.starts_with("text_on_primary"))
         );
     }
 }

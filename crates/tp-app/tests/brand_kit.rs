@@ -1,5 +1,5 @@
 //! Headless tests for the brand kit: linked palette swatches and Edit
-//! Swatch…, the Styles panel, and Copy From Cabin….
+//! Swatch…, the Styles section, and Copy From Cabin….
 
 mod common;
 
@@ -9,7 +9,6 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use tp_app::AppState;
 use tp_app::commands::CommandId;
-use tp_app::layout::PanelKind;
 use tp_app::prefs::Prefs;
 use tp_app::workspace::{ColorTarget, Workspace};
 use tp_core::document::{
@@ -23,14 +22,11 @@ type H = Harness<'static, AppState>;
 const RED: Rgba = Rgba::rgb(0xC0, 0x10, 0x20);
 const DARK_RED: Rgba = Rgba::rgb(0x8B, 0, 0);
 
-/// Tall window with every panel open and expanded; a project for the
+/// Tall window, so nothing scrolls; a project for the
 /// sample truck (Standard cab, Chassis, Cab accessories, Side skirts).
 fn open() -> H {
     let mut prefs = Prefs::default();
-    for slot in &mut prefs.layout.panels {
-        slot.open = !matches!(slot.kind, PanelKind::Assets | PanelKind::Transform);
-        slot.collapsed = false;
-    }
+    prefs.layout.left_tab = tp_app::layout::LeftTab::Resources;
     let mut h = Harness::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
         .with_step_dt(1.0 / 4.0)
@@ -94,6 +90,28 @@ fn toggled(h: &H, label: &str) -> bool {
         .is_some_and(|t| t == Toggled::True)
 }
 
+/// Whether the swatch `label` has its ring, in each list showing it: the
+/// Resources tab's palette, then the inspector's.
+fn rings(h: &H, label: &str) -> Vec<bool> {
+    h.get_all_by_label(label)
+        .map(|n| {
+            n.accesskit_node()
+                .toggled()
+                .is_some_and(|t| t == Toggled::True)
+        })
+        .collect()
+}
+
+/// What the inspector's Fill row reads.
+fn fill_row(h: &H) -> String {
+    h.get_by_label("Fill color").value().expect("a value")
+}
+
+/// The swatch `label` in the Resources tab (drawn before the inspector).
+fn resources_swatch<'h>(h: &'h H, label: &'h str) -> egui_kittest::Node<'h> {
+    h.get_all_by_label(label).next().expect("swatch")
+}
+
 /// A swatch "Company red" and a rectangle linked to it on the active
 /// texture and on surface `other`.
 fn company_red(h: &mut H, other: usize) -> (SwatchId, ObjectId, ObjectId) {
@@ -120,23 +138,31 @@ fn linked_swatch_marked_and_picking_another_color_unlinks() {
     select(&mut h, &[a]);
     ws_mut(&mut h).panels.color_target = ColorTarget::Fill;
     h.run();
-    assert!(toggled(&h, "Company red"), "the linked swatch has a ring");
-    assert!(h.query_by_label("Linked to Company red").is_some());
+    // The Fill row names the swatch.
+    assert_eq!(fill_row(&h), "Company red");
+    common::open_color_popover(&mut h, ColorTarget::Fill);
+    assert_eq!(
+        rings(&h, "Company red"),
+        [true, true],
+        "the linked swatch has a ring in the Resources tab and the color popover"
+    );
+    assert_eq!(h.query_all_by_label("Linked to Company red").count(), 2);
     // A recent color: no swatch marked, the fill no longer linked.
     h.state_mut().prefs.push_recent_color([1, 2, 3, 255]);
     h.run();
     h.get_by_label("Recent color #010203").click();
     h.run();
-    assert!(!toggled(&h, "Company red"));
+    assert_eq!(rings(&h, "Company red"), [false, false]);
     assert!(h.query_by_label("Linked to Company red").is_none());
     assert_eq!(get(&h, 0, a).fill_swatch, None);
+    assert_eq!(fill_row(&h), "#010203");
 }
 
 #[test]
 fn edit_the_company_red_across_textures() {
     let mut h = open();
     let (id, a, b) = company_red(&mut h, 1);
-    h.get_by_label("Company red").click_secondary();
+    resources_swatch(&h, "Company red").click_secondary();
     h.run();
     h.get_by_label("Edit Swatch…").click();
     h.run();
@@ -186,7 +212,7 @@ fn cancel_an_edit() {
     assert_eq!(ws(&h).history.len(), steps);
 }
 
-// ── Styles panel ────────────────────────────────────────────────────────
+// ── Styles section ──────────────────────────────────────────────────────
 
 fn red_stroked(x: f64) -> Object {
     let mut o = rect(x);
@@ -455,4 +481,67 @@ fn a_text_style_applies_the_whole_lettering_while_typing() {
     h.run();
     let t = get(&h, 0, left).text.unwrap();
     assert_eq!((t.content.as_str(), t.style_id), ("Left", None));
+}
+
+// ── Resources tab ───────────────────────────────────────────────────────
+
+#[test]
+fn resources_tab_sections_in_order() {
+    let mut h = open();
+    let (_, a, _) = company_red(&mut h, 1);
+    {
+        let ws = ws_mut(&mut h);
+        ws.project.new_graphic_style(a, "Style").unwrap();
+        let b = ws.project.add(rect(900.0));
+        ws.project.convert_to_symbol(&[b], "Symbol").unwrap();
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>"#;
+        let file = tp_app::import::read_bytes("logo.svg", svg.to_vec());
+        ws.place_files(vec![file], None, 1.0);
+    }
+    h.run();
+    let top = |label: &str| h.get_by_label(label).rect().top();
+    let order = [
+        top("Palette · 1"),
+        top("Symbols · 1"),
+        top("Styles · 1"),
+        top("Images · 1"),
+    ];
+    assert!(order.is_sorted(), "{order:?}");
+}
+
+#[test]
+fn applying_a_palette_swatch_from_the_resources_tab() {
+    let mut h = open();
+    let (id, _, _) = company_red(&mut h, 1);
+    let other = add_on(&mut h, 0, rect(900.0));
+    let before = get(&h, 0, other).fill;
+    select(&mut h, &[other]);
+    ws_mut(&mut h).panels.color_target = ColorTarget::Fill;
+    h.run();
+    resources_swatch(&h, "Company red").click();
+    h.run();
+    let o = get(&h, 0, other);
+    assert_eq!(o.fill, Paint::Solid(RED));
+    assert_eq!(o.fill_swatch, Some(id), "linked to the swatch");
+    assert_eq!(rings(&h, "Company red"), [true]);
+    assert_eq!(fill_row(&h), "Company red");
+    ws_mut(&mut h).undo();
+    h.run();
+    let o = get(&h, 0, other);
+    assert_eq!((o.fill, o.fill_swatch), (before, None), "one Undo");
+}
+
+#[test]
+fn swatch_context_menu_in_the_resources_tab() {
+    let mut h = open();
+    company_red(&mut h, 1);
+    resources_swatch(&h, "Company red").click_secondary();
+    h.run();
+    for item in ["Edit Swatch…", "Delete Swatch", "Add to Library"] {
+        assert!(h.query_by_label(item).is_some(), "{item}");
+    }
+    h.get_by_label("Delete Swatch").click();
+    h.run();
+    assert!(ws(&h).project.palette.is_empty());
+    assert!(h.query_by_label("Palette · 0").is_some());
 }

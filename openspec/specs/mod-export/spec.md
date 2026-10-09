@@ -7,17 +7,43 @@ Turns a project into the deliverable of the app: one ready-to-install Euro Truck
 ## Requirements
 
 ### Requirement: Export Mod dialog
-Export › Export Mod… (Cmd/Ctrl+Shift+E) SHALL be available when a project is open, except while a symbol is being edited. It SHALL open a dialog with:
-- **the mod settings** (see Mod settings);
+Export › Export Mod… (Cmd/Ctrl+E) SHALL be available when a project is open, except while a symbol is being edited. It SHALL also be reached from:
+- the **Export…** button of the top bar, shown in every space (see the workspace-spaces capability);
+- **Edit in Export Mod…** in the Mod information column of the Project space (see the project-screen capability), the place where the mod settings are shown when the dialog is closed.
+
+They SHALL be enabled and disabled together, with the same reason as a tooltip.
+
+The dialog SHALL be titled "Export Mod" with the project's name and game below the title, and SHALL hold, from top to bottom:
+- **the mod settings** (see Mod settings), each with its label above its field: Name, Version, Author, Description, Price and Unlock level;
+- **Advanced**, a collapsed section holding the internal name and its help. It SHALL open by itself while a problem concerns the internal name;
 - **the images:** the shop icon and the Mod Manager image (see Mod images);
 - **a summary of the mod:** each vehicle of the project, with the main textures and accessories it paints. For a truck with several main textures, each main texture lists its cabins, and the cabins of textures that aren't painted are listed as "not painted";
-- **the problems that block the export,** if any (see Checks before export).
+- **the problems that block the export,** if any (see Checks before export), listed just above the buttons, each with an icon and its text;
+- **Cancel** and **Export…**, the primary action.
+
+The dialog SHALL fit German labels without truncation: buttons have free widths and labels sit above their fields.
 
 Export… SHALL be disabled while a problem remains. Cancel (or Escape) SHALL close the dialog and leave the project unchanged, mod settings included.
 
 #### Scenario: Opening the dialog
-- **WHEN** a project named "ACE Logistics" holds the sample truck painting Standard cab, Chassis and Cab accessories, and the user presses Cmd/Ctrl+Shift+E
+- **WHEN** a project named "ACE Logistics" holds the sample truck painting Standard cab, Chassis and Cab accessories, and the user presses Cmd/Ctrl+E
 - **THEN** the Export Mod dialog opens with the Name "ACE Logistics", and its summary shows the TruckPaint Sample Truck with Standard cab (cabin "standard"), High roof not painted, and the accessories Chassis and Cab accessories
+
+#### Scenario: Export… in the top bar
+- **WHEN** the Brand space is shown and the user clicks Export… in the top bar
+- **THEN** the Export Mod dialog opens
+
+#### Scenario: From the Project space
+- **WHEN** the user clicks Edit in Export Mod… in the Project space's Mod information column
+- **THEN** the Export Mod dialog opens with the project's mod settings
+
+#### Scenario: Advanced is collapsed
+- **WHEN** the user opens Export Mod… on a project whose internal name has no problem
+- **THEN** the Advanced section is collapsed and the internal name field is hidden
+
+#### Scenario: Advanced opens on an internal name problem
+- **WHEN** a project's internal name was set to "ace_logistic" (12 characters) while it held only the sample trailer, the sample truck (whose package has two main textures) was then added, and the user opens Export Mod…
+- **THEN** the Advanced section is open, the problem saying the internal name can have at most 10 characters is listed above the buttons, and Export… is disabled
 
 #### Scenario: Cancel keeps the settings
 - **WHEN** the user changes the Price to 9000 in the dialog and presses Escape
@@ -140,7 +166,7 @@ Otherwise it SHALL open in the folder of the last mod export of the session, or 
 The export SHALL write one `.scs` file: a ZIP archive holding the mod at its root. All texts in it SHALL be in English, whatever the interface language, except what the player typed. With `<id>` the internal name, `<type>` `truck` for a truck and `trailer_owned` for a trailer, and `<path>` the vehicle's game path, it SHALL contain:
 
 **The mod:**
-- `manifest.sii`: a `mod_package` with the Version, the Name, the Author, the category `paint_job`, `mp_mod_optional: true`, the icon `icon.jpg`, the description file `description.txt`, and a copy of the project's Game versions (see workspace-layout): one `compatible_versions[]` line per version, in the order listed, none when the list is empty;
+- `manifest.sii`: a `mod_package` with the Version, the Name, the Author, the category `paint_job`, `mp_mod_optional: true`, the icon `icon.jpg`, the description file `description.txt`, and a copy of the project's Game versions (see the project-screen capability): one `compatible_versions[]` line per version, in the order listed, none when the list is empty;
 - `icon.jpg`: the Mod Manager image;
 - `description.txt`: the Description, followed by "Vehicles supported:" and the name of each vehicle. When vehicles require other mods, it also has "Requires:" and the name and version of each one;
 - `material/ui/accessory/<id>_icon.mat`, `.tobj` and `.dds`: the shop icon.

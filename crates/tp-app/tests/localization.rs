@@ -18,13 +18,9 @@ use tp_i18n::Language;
 
 type H = Harness<'static, AppState>;
 
-/// Tall window with every panel open and expanded, a project open.
+/// Tall window, a project open.
 fn open() -> H {
-    let mut prefs = Prefs::default();
-    for slot in &mut prefs.layout.panels {
-        slot.open = true;
-        slot.collapsed = false;
-    }
+    let prefs = Prefs::default();
     let mut h = Harness::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
         .with_step_dt(1.0 / 4.0)
@@ -159,6 +155,62 @@ fn no_screen_shows_a_raw_message_id() {
     }
 }
 
+/// The message ids written as literals in `tr("…")`, `tr!("…", …)` and
+/// `tr_args("…", …)` calls of `source`.
+fn literal_ids(source: &str) -> Vec<String> {
+    let mut ids = Vec::new();
+    for call in ["tr(", "tr!(", "tr_args("] {
+        for (at, _) in source.match_indices(call) {
+            let before = source[..at].chars().next_back();
+            if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
+                continue;
+            }
+            let rest = source[at + call.len()..].trim_start();
+            if let Some(rest) = rest.strip_prefix('"')
+                && let Some(end) = rest.find('"')
+            {
+                ids.push(rest[..end].to_owned());
+            }
+        }
+    }
+    ids
+}
+
+fn rust_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            rust_files(&path, out);
+        } else if path.extension().is_some_and(|e| e == "rs") {
+            out.push(path);
+        }
+    }
+}
+
+/// Every message id the code asks for by name exists (in English; the
+/// tp-i18n tests check that every language has every English message).
+#[test]
+fn every_message_id_in_the_code_exists() {
+    let crates = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let mut files = Vec::new();
+    for krate in ["tp-app", "tp-ui"] {
+        rust_files(&crates.join(krate).join("src"), &mut files);
+    }
+    let mut checked = 0;
+    let mut missing = Vec::new();
+    for file in files {
+        let source = std::fs::read_to_string(&file).unwrap();
+        for id in literal_ids(&source) {
+            checked += 1;
+            if !tp_i18n::exists(&id) {
+                missing.push(format!("{id} ({})", file.display()));
+            }
+        }
+    }
+    assert!(checked > 300, "only {checked} ids found");
+    assert!(missing.is_empty(), "unknown message ids: {missing:#?}");
+}
+
 #[test]
 fn german_menu_bar() {
     let mut h = open();
@@ -182,7 +234,7 @@ fn user_names_stay_as_typed() {
     let mut h = open();
     let id = add_rect(&mut h, "Stripes");
     set_language(&mut h, Language::German);
-    assert!(h.query_by_label("Ebenen").is_some(), "Layers panel title");
+    assert!(h.query_by_label("Ebenen").is_some(), "Layers tab");
     assert_eq!(ws(&h).project.surface().get(id).unwrap().name, "Stripes");
     assert!(h.query_all_by_label_contains("Stripes").count() > 0);
 }
@@ -198,7 +250,15 @@ fn decimal_comma_display_and_point_input() {
         });
     });
     ws_mut(&mut h).commit_pending(1.0);
+    h.run();
+    common::open_stroke_popover(&mut h);
     set_language(&mut h, Language::French);
+    // The Stroke row's summary too.
+    let summary = h
+        .get_by_label(&tp_i18n::tr("stroke-options"))
+        .value()
+        .unwrap_or_default();
+    assert!(summary.starts_with("12,5 px"), "{summary}");
     let name = tp_i18n::tr("stroke-width");
     assert_eq!(field_value(&h, &name), "12,5");
     set_language(&mut h, Language::German);
@@ -305,13 +365,13 @@ fn live_switch_keeps_the_document() {
     h.get_by_label("Español").click();
     h.run();
     assert_eq!(h.state().language(), Language::Spanish);
-    // The open dialog, the menu bar and the panels are in Spanish.
+    // The open dialog, the menu bar and the tabs are in Spanish.
     assert!(
         h.query_all_by_label("Idioma").count() > 0,
         "Preferences dialog"
     );
     assert!(h.query_by_label("Archivo").is_some(), "menu bar");
-    assert!(h.query_by_label("Capas").is_some(), "Layers panel");
+    assert!(h.query_by_label("Capas").is_some(), "Layers tab");
     assert_eq!(ws(&h).project.surface().objects, before);
     assert_eq!(ws(&h).history.len(), history);
     assert_eq!(ws(&h).save_state(), tp_app::workspace::SaveState::Unsaved);

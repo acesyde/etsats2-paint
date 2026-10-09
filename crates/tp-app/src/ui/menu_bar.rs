@@ -7,7 +7,7 @@ use tp_ui::tokens::{color, size, space};
 
 use super::CommandUi;
 use crate::commands::CommandId;
-use crate::layout::{PanelKind, WorkspaceLayout};
+use crate::layout::{LeftTab, Space, WorkspaceLayout};
 
 /// Menu titles, in order.
 pub const MENUS: [&str; 8] = [
@@ -32,7 +32,7 @@ pub fn show(
     egui::MenuBar::new().ui(ui, |ui| {
         ui.label(
             icons::rich(icons::VEHICLE)
-                .color(color::ACCENT)
+                .color(color::TEXT_PRIMARY)
                 .size(size::ICON_LG),
         )
         .on_hover_text(crate::paths::APP_NAME);
@@ -136,26 +136,29 @@ fn menu_contents(
             item(ui, cmds, DeleteLayer);
         }
         "menu-view" => {
+            let space = cmds.edit.space;
+            for s in Space::ALL {
+                cmds.menu_toggle(ui, ShowSpace(s), space == Some(s));
+            }
+            ui.separator();
+            let tab = layout.map(|l| l.left_tab);
+            for t in LeftTab::ALL {
+                cmds.menu_toggle(ui, ShowLeftTab(t), tab == Some(t));
+            }
+            ui.separator();
+            cmds.menu_toggle(ui, TogglePanels, layout.is_some_and(|l| l.panels_hidden));
+            ui.separator();
+            let template_shown = cmds.edit.template_visible;
+            cmds.menu_toggle(ui, ShowTemplate, template_shown);
+            cmds.menu_toggle(ui, ShowGrid, layout.is_some() && aids.grid);
+            cmds.menu_toggle(ui, ShowGuides, layout.is_some() && aids.guides);
+            item(ui, cmds, ClearGuides);
+            cmds.menu_toggle(ui, Snapping, layout.is_some() && aids.snapping);
+            ui.separator();
             item(ui, cmds, ZoomIn);
             item(ui, cmds, ZoomOut);
             item(ui, cmds, FitToScreen);
             item(ui, cmds, ActualSize);
-            ui.separator();
-            cmds.menu_toggle(ui, ShowGrid, layout.is_some() && aids.grid);
-            cmds.menu_toggle(ui, ShowGuides, layout.is_some() && aids.guides);
-            let template_shown = cmds.edit.template_visible;
-            cmds.menu_toggle(ui, ShowTemplate, template_shown);
-            item(ui, cmds, ClearGuides);
-            cmds.menu_toggle(ui, Snapping, layout.is_some() && aids.snapping);
-            ui.separator();
-            cmds.menu_toggle(ui, ToggleVehicles, layout.is_some_and(|l| l.vehicles_open));
-            for kind in PanelKind::ALL {
-                cmds.menu_toggle(
-                    ui,
-                    TogglePanel(kind),
-                    layout.is_some_and(|l| l.is_open(kind)),
-                );
-            }
             ui.separator();
             item(ui, cmds, ResetWorkspace);
             if cfg!(debug_assertions) {
@@ -166,7 +169,6 @@ fn menu_contents(
         "menu-vehicle" => {
             item(ui, cmds, VehicleLibrary);
             item(ui, cmds, AddVehicle);
-            item(ui, cmds, VehicleInfo);
             ui.separator();
             item(ui, cmds, NextTexture);
             item(ui, cmds, PreviousTexture);

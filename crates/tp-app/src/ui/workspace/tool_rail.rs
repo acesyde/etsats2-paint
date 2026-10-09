@@ -1,4 +1,5 @@
-//! Vertical tool bar.
+//! The Workshop's tool rail: one icon per tool, grouped, with its name and
+//! shortcut in a tooltip.
 
 use egui::{Align, Layout, Ui};
 use tp_ui::tokens::{color, space};
@@ -7,7 +8,7 @@ use crate::commands::CommandId;
 use crate::tool::Tool;
 use crate::ui::CommandUi;
 
-/// Tools grouped as separated clusters, in tool bar order.
+/// Tools grouped as separated clusters, in rail order.
 const GROUPS: [&[Tool]; 5] = [
     &[Tool::Select, Tool::DirectSelect, Tool::Move],
     &[
@@ -30,7 +31,7 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, active: Tool) {
                 ui.add_space(space::XS);
                 let rect = ui.available_rect_before_wrap();
                 ui.painter().hline(
-                    rect.x_range().shrink(6.0),
+                    rect.x_range().shrink(space::MD + 2.0),
                     rect.top(),
                     egui::Stroke::new(1.0, color::BORDER),
                 );

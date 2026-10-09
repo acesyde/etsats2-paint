@@ -1,9 +1,10 @@
 use egui::{
-    CursorIcon, Id, Key, Margin, Response, RichText, Sense, TextEdit, Ui, WidgetInfo, WidgetType,
+    Align, Align2, CursorIcon, FontId, Id, Key, Margin, Rect, Response, RichText, Sense, Stroke,
+    StrokeKind, TextEdit, Ui, Vec2, WidgetInfo, WidgetType,
 };
 use tp_i18n::tr;
 
-use crate::tokens::{color, space};
+use crate::tokens::{color, radius, space, stroke, typography};
 
 /// What happened to a [`NumericField`] this frame.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -19,6 +20,11 @@ pub enum FieldEvent {
 
 /// Compact numeric input: a short label that can be dragged to scrub the
 /// value, and a text box committed on Enter / Tab / focus loss.
+///
+/// By default the label and the suffix sit outside the text box. In the
+/// [`inset`](Self::inset) mode, one sunken box holds them all: the label as
+/// a muted prefix (still dragged to scrub), the value in the monospace face
+/// and the suffix at the right end.
 pub struct NumericField<'a> {
     label: &'a str,
     name: &'a str,
@@ -30,6 +36,10 @@ pub struct NumericField<'a> {
     /// Value change per point of horizontal drag.
     speed: f64,
     width: f32,
+    /// Text box as wide as the room left by the label and the suffix.
+    fill: bool,
+    /// Height of the inset box; `None`: label and suffix outside the box.
+    inset: Option<f32>,
 }
 
 #[derive(Clone, Default)]
@@ -51,6 +61,8 @@ impl<'a> NumericField<'a> {
             range: f64::MIN..=f64::MAX,
             speed: 1.0,
             width: 64.0,
+            fill: false,
+            inset: None,
         }
     }
 
@@ -79,6 +91,20 @@ impl<'a> NumericField<'a> {
         self
     }
 
+    /// Makes the text box take the width left in the row by the label and
+    /// the suffix (at least the set width), so a field fills a column.
+    pub fn fill(mut self) -> Self {
+        self.fill = true;
+        self
+    }
+
+    /// Draws the field as one sunken box of the given height holding the
+    /// label (a prefix), the value and the suffix.
+    pub fn inset(mut self, height: f32) -> Self {
+        self.inset = Some(height);
+        self
+    }
+
     fn format(&self, v: f64) -> String {
         tp_i18n::format_number(v, self.decimals)
     }
@@ -88,23 +114,29 @@ impl<'a> NumericField<'a> {
     }
 
     pub fn show(self, ui: &mut Ui) -> FieldEvent {
+        if let Some(height) = self.inset {
+            return self.show_inset(ui, height);
+        }
         let id = ui.id().with(("numeric_field", self.name));
         let mut event = FieldEvent::None;
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = space::XS;
-            // Scrubbable label.
-            let label = ui
-                .add(
-                    egui::Label::new(
-                        RichText::new(self.label)
-                            .small()
-                            .color(color::TEXT_SECONDARY),
+            // Scrubbable label (none when the field is labelled above, so
+            // that it lines up with the fields around it).
+            if !self.label.is_empty() {
+                let label = ui
+                    .add(
+                        egui::Label::new(
+                            RichText::new(self.label)
+                                .small()
+                                .color(color::TEXT_SECONDARY),
+                        )
+                        .sense(Sense::drag()),
                     )
-                    .sense(Sense::drag()),
-                )
-                .on_hover_cursor(CursorIcon::ResizeHorizontal)
-                .on_hover_text(self.name);
-            event = self.scrub(ui, &label, id);
+                    .on_hover_cursor(CursorIcon::ResizeHorizontal)
+                    .on_hover_text(self.name);
+                event = self.scrub(ui, &label, id);
+            }
 
             // Text box.
             let text_id = id.with("text");
@@ -122,15 +154,34 @@ impl<'a> NumericField<'a> {
                 .painter()
                 .layout_no_wrap(
                     hint.clone(),
-                    egui::TextStyle::Body.resolve(ui.style()),
+                    egui::TextStyle::Monospace.resolve(ui.style()),
                     egui::Color32::WHITE,
                 )
                 .size()
                 .x;
+            let margin = Margin::symmetric(6, 3);
+            let mut width = self.width.max(hint_width + 14.0);
+            if self.fill {
+                let suffix = if self.suffix.is_empty() {
+                    0.0
+                } else {
+                    let font = egui::TextStyle::Small.resolve(ui.style());
+                    ui.painter()
+                        .layout_no_wrap(self.suffix.to_owned(), font, egui::Color32::WHITE)
+                        .size()
+                        .x
+                        + ui.spacing().item_spacing.x
+                };
+                // The desired width of a `TextEdit` includes its margin.
+                let room = ui.available_width() - suffix;
+                width = width.max(room.floor());
+            }
+            // Values are set in the monospace face (JetBrains Mono).
             let edit = TextEdit::singleline(&mut buffer)
                 .id(text_id)
-                .desired_width(self.width.max(hint_width + 14.0))
-                .margin(Margin::symmetric(6, 3))
+                .font(egui::TextStyle::Monospace)
+                .desired_width(width)
+                .margin(margin)
                 .hint_text(hint);
             let response = ui.add(edit);
             response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, self.name));
@@ -145,6 +196,92 @@ impl<'a> NumericField<'a> {
                 event = self.text_events(ui, &response, text_id, buffer);
             }
         });
+        event
+    }
+
+    /// The inset box: a sunken fill outlined by a hairline (ink while the
+    /// value is typed), the prefix and the suffix in the muted color.
+    fn show_inset(self, ui: &mut Ui, height: f32) -> FieldEvent {
+        let id = ui.id().with(("numeric_field", self.name));
+        let width = if self.fill {
+            ui.available_width().max(self.width)
+        } else {
+            self.width
+        };
+        let (rect, _) = ui.allocate_exact_size(Vec2::new(width, height), Sense::hover());
+        let pad = space::SM;
+        let painter = ui.painter().clone();
+        painter.rect_filled(rect, radius::MD, color::FIELD);
+
+        // The prefix, dragged to scrub.
+        let mut left = rect.left() + pad;
+        let mut event = FieldEvent::None;
+        if !self.label.is_empty() {
+            let galley = painter.layout_no_wrap(
+                self.label.to_owned(),
+                FontId::proportional(typography::CONTROL),
+                color::TEXT_MUTED,
+            );
+            let pos = egui::pos2(left, rect.center().y - galley.size().y / 2.0);
+            painter.galley(pos, galley.clone(), color::TEXT_MUTED);
+            let area = Rect::from_min_max(
+                egui::pos2(rect.left(), rect.top()),
+                egui::pos2(left + galley.size().x + space::XS, rect.bottom()),
+            );
+            let label = ui
+                .interact(area, id.with("prefix"), Sense::drag())
+                .on_hover_cursor(CursorIcon::ResizeHorizontal)
+                .on_hover_text(self.name);
+            event = self.scrub(ui, &label, id);
+            left = area.right() + space::XXS;
+        }
+        // The suffix at the right end.
+        let mut right = rect.right() - pad;
+        if !self.suffix.is_empty() {
+            let suffix = painter.text(
+                egui::pos2(right, rect.center().y),
+                Align2::RIGHT_CENTER,
+                self.suffix,
+                FontId::proportional(typography::CAPTION),
+                color::TEXT_MUTED,
+            );
+            right = suffix.left() - space::XS;
+        }
+
+        let text_id = id.with("text");
+        remember_escape(ui, text_id);
+        let mut buffer = ui
+            .data(|d| d.get_temp::<String>(text_id))
+            .unwrap_or_else(|| self.value.map(|v| self.format(v)).unwrap_or_default());
+        let hint = if self.value.is_none() {
+            tr("mixed")
+        } else {
+            String::new()
+        };
+        let text_rect = Rect::from_min_max(
+            egui::pos2(left, rect.top() + 1.0),
+            egui::pos2(right.max(left + 8.0), rect.bottom() - 1.0),
+        );
+        let edit = TextEdit::singleline(&mut buffer)
+            .id(text_id)
+            .font(egui::TextStyle::Monospace)
+            .frame(egui::Frame::NONE)
+            .vertical_align(Align::Center)
+            .desired_width(text_rect.width())
+            .hint_text(hint);
+        let response = ui.put(text_rect, edit);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, self.name));
+        let outline = if response.has_focus() {
+            Stroke::new(stroke::FOCUS, color::FOCUS)
+        } else if ui.rect_contains_pointer(rect) {
+            Stroke::new(stroke::HAIRLINE, color::BORDER_STRONG)
+        } else {
+            Stroke::new(stroke::HAIRLINE, color::BORDER)
+        };
+        painter.rect_stroke(rect, radius::MD, outline, StrokeKind::Inside);
+        if let FieldEvent::None = event {
+            event = self.text_events(ui, &response, text_id, buffer);
+        }
         event
     }
 

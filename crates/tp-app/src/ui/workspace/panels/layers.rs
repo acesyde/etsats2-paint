@@ -1,4 +1,4 @@
-//! Layers panel: the object tree with selection, rename, visibility, lock,
+//! Layers tab: the object tree with selection, rename, visibility, lock,
 //! drag and drop, and grouping commands.
 
 use std::collections::HashSet;
@@ -12,7 +12,7 @@ use egui::{
 use tp_core::document::tree::{self, Placement};
 use tp_core::document::{Object, ObjectId};
 use tp_ui::icons;
-use tp_ui::tokens::{color, size, space, stroke};
+use tp_ui::tokens::{color, radius, size, space, stroke};
 use tp_ui::widgets::{EmptyState, MenuRow, toggle_icon_button};
 
 use super::PanelEnv;
@@ -20,8 +20,13 @@ use super::properties::kind_icon;
 use crate::commands::CommandId;
 use crate::ui::CommandUi;
 
-const ROW_HEIGHT: f32 = 26.0;
+/// Side of a row's tile (the kind of object on the artboard's color).
+const TILE: f32 = 26.0;
+/// Height of a row, as the Textures tab's.
+const ROW_HEIGHT: f32 = TILE + 10.0;
 const INDENT: f32 = 14.0;
+/// Room of a group's disclosure caret.
+const CARET: f32 = 14.0;
 
 /// One visible row of the tree.
 #[derive(Clone, Debug, PartialEq)]
@@ -90,7 +95,22 @@ fn reveal_selection(env: &mut PanelEnv<'_>) {
     }
 }
 
+/// The Layers tab: a heading naming the texture (or the symbol being
+/// edited) and its number of top-level objects, with New Layer (+); then
+/// the tree, and the footer's commands.
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
+    let project = &env.ws.project;
+    let name = project
+        .edited_symbol()
+        .map_or_else(|| project.surface().name.clone(), |s| s.name.clone());
+    let heading = tr!(
+        "layers-heading",
+        texture = name.as_str(),
+        count = project.surface().objects.len()
+    );
+    super::list_heading(ui, &heading, |ui| {
+        cmds.add_button(ui, CommandId::NewLayer);
+    });
     if env.ws.project.surface().objects.is_empty() {
         EmptyState::new(icons::LAYERS, &tr("empty-layers"), &tr("layers-empty-hint")).show(ui);
         footer(ui, cmds);
@@ -99,7 +119,7 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     reveal_selection(env);
     let rows = visible_rows(&env.ws.project.surface().objects, &env.ws.panels.expanded);
     let mut row_rects: Vec<(Row, Rect)> = Vec::with_capacity(rows.len());
-    ui.spacing_mut().item_spacing.y = 0.0;
+    ui.spacing_mut().item_spacing.y = 1.0;
     for row in &rows {
         let rect = row_ui(ui, cmds, env, row, &rows);
         row_rects.push((row.clone(), rect));
@@ -116,6 +136,46 @@ fn footer(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
         cmds.icon_button(ui, CommandId::Ungroup, false);
         cmds.icon_button(ui, CommandId::Delete, false);
     });
+}
+
+/// Whether `object` follows a graphic or text style.
+fn follows_style(object: &Object) -> bool {
+    object.style.is_some() || object.text.as_ref().is_some_and(|t| t.style_id.is_some())
+}
+
+/// Colors of a row's kind icon and name. Instances and objects following a
+/// style are linked to the brand: both in the link color, never alone (an
+/// instance shows the symbol icon, a styled object a link icon after its
+/// name). Other names are in the secondary color, in ink when `selected`
+/// (as the Textures tab's rows). Hidden and locked rows are dimmed.
+pub fn row_colors(object: &Object, dim: bool, selected: bool) -> (egui::Color32, egui::Color32) {
+    if dim {
+        (color::TEXT_DISABLED, color::TEXT_DISABLED)
+    } else if object.is_instance() || follows_style(object) {
+        (color::LINK, color::LINK)
+    } else if selected {
+        (color::TEXT_SECONDARY, color::TEXT_PRIMARY)
+    } else {
+        (color::TEXT_SECONDARY, color::TEXT_SECONDARY)
+    }
+}
+
+/// Color of the kind glyph on a row's tile (the artboard's color): the
+/// object's solid fill when it reads on the tile, a dark ink otherwise.
+fn tile_glyph(object: &Object) -> egui::Color32 {
+    let ink = color::SURFACE_4;
+    let tp_core::document::Paint::Solid(c) = &object.fill else {
+        return ink;
+    };
+    if c.a < 128 || object.is_instance() || object.is_group() {
+        return ink;
+    }
+    let fill = egui::Color32::from_rgb(c.r, c.g, c.b);
+    if tp_ui::contrast::contrast_ratio(fill, tp_ui::tokens::canvas::ARTBOARD) >= 2.0 {
+        fill
+    } else {
+        ink
+    }
 }
 
 /// Draws one row; returns its rectangle.
@@ -143,24 +203,25 @@ fn row_ui(
         WidgetInfo::selected(WidgetType::SelectableLabel, true, selected, &object.name)
     });
 
-    // Background and selection indicator.
+    // Background: selected rows are filled (their name in ink), as on the
+    // Textures tab.
     let painter = ui.painter();
     if selected {
-        painter.rect_filled(rect, 0, color::ACCENT_SUBTLE);
-        painter.rect_filled(
-            Rect::from_min_size(rect.min, Vec2::new(stroke::INDICATOR, rect.height())),
-            0,
-            color::ACCENT,
-        );
+        painter.rect_filled(rect, radius::MD, color::SURFACE_3);
     } else if response.hovered() {
-        painter.rect_filled(rect, 0, color::SURFACE_3);
+        painter.rect_filled(rect, radius::MD, color::SURFACE_2);
     }
 
-    let mut x = rect.left() + space::SM + row.depth as f32 * INDENT;
+    // Rows start at the panel's edge; a caret's room is kept in front of
+    // the tiles only when the list holds a group, so that tiles line up.
+    let carets = rows.iter().any(|r| r.is_group);
+    let mut x = rect.left() + space::XS + 2.0 + row.depth as f32 * INDENT;
     // Disclosure caret for groups.
     if row.is_group {
-        let caret_rect =
-            Rect::from_center_size(Pos2::new(x + 6.0, rect.center().y), Vec2::splat(18.0));
+        let caret_rect = Rect::from_center_size(
+            Pos2::new(x + CARET / 2.0, rect.center().y),
+            Vec2::splat(18.0),
+        );
         let caret = ui.interact(caret_rect, ui.id().with(("caret", row.id)), Sense::click());
         let name = if row.expanded {
             tr!("layers-collapse", name = object.name.as_str())
@@ -187,43 +248,85 @@ fn row_ui(
             }
         }
     }
-    x += 14.0;
+    if carets {
+        x += CARET;
+    }
     let dim = hidden || locked;
-    let text_color = if dim {
-        color::TEXT_DISABLED
-    } else {
-        color::TEXT_PRIMARY
-    };
-    ui.painter().text(
-        Pos2::new(x + 7.0, rect.center().y),
+    let styled = follows_style(&object);
+    let (_, text_color) = row_colors(&object, dim, selected);
+    // The tile: the kind's glyph on the artboard's color.
+    let tile = Rect::from_min_size(
+        Pos2::new(x, rect.center().y - TILE / 2.0),
+        Vec2::splat(TILE),
+    );
+    let fade = if dim { 0.5 } else { 1.0 };
+    let painter = ui.painter();
+    painter.rect_filled(
+        tile,
+        radius::SM,
+        tp_ui::tokens::canvas::ARTBOARD.gamma_multiply(fade),
+    );
+    painter.rect_stroke(
+        tile,
+        radius::SM,
+        Stroke::new(1.0, color::OUTLINE),
+        StrokeKind::Outside,
+    );
+    painter.text(
+        tile.center(),
         Align2::CENTER_CENTER,
         kind_icon(object.kind),
         icons::font(size::ICON - 2.0),
-        if dim {
-            color::TEXT_DISABLED
-        } else {
-            color::TEXT_SECONDARY
-        },
+        tile_glyph(&object).gamma_multiply(fade),
     );
-    x += 14.0 + space::SM;
+    x = tile.right() + space::SM;
+
+    // The kind, in small type before the toggles (unless the name says it
+    // already).
+    let toggles_width = 2.0 * size::HIT_MIN + space::XS;
+    let kind_name = crate::workspace::object_name(object.kind);
+    let kind_right = rect.right() - toggles_width - space::XS;
+    let kind = if object.name == kind_name {
+        Rect::from_min_max(
+            Pos2::new(kind_right, rect.top()),
+            Pos2::new(kind_right, rect.bottom()),
+        )
+    } else {
+        ui.painter().text(
+            Pos2::new(kind_right, rect.center().y),
+            Align2::RIGHT_CENTER,
+            kind_name,
+            egui::FontId::proportional(tp_ui::tokens::typography::CAPTION),
+            color::TEXT_DISABLED,
+        )
+    };
 
     // Name, or the inline rename editor.
-    let toggles_width = 2.0 * size::HIT_MIN + space::XS;
     let name_rect = Rect::from_min_max(
         Pos2::new(x, rect.top()),
-        Pos2::new(rect.right() - toggles_width - space::XS, rect.bottom()),
+        Pos2::new(kind.left() - space::SM, rect.bottom()),
     );
     let renaming = matches!(&env.ws.panels.renaming, Some((id, _)) if *id == row.id);
     if renaming {
         rename_editor(ui, env, row.id, name_rect);
     } else {
-        ui.painter().with_clip_rect(name_rect).text(
+        let painter = ui.painter().with_clip_rect(name_rect);
+        let text = painter.text(
             Pos2::new(name_rect.left(), rect.center().y),
             Align2::LEFT_CENTER,
             &object.name,
-            egui::TextStyle::Body.resolve(ui.style()),
+            egui::FontId::proportional(tp_ui::tokens::typography::CONTROL),
             text_color,
         );
+        if styled {
+            painter.text(
+                Pos2::new(text.right() + space::XS, rect.center().y),
+                Align2::LEFT_CENTER,
+                icons::LINKED,
+                icons::font(size::ICON - 4.0),
+                text_color,
+            );
+        }
     }
 
     // Visibility and lock toggles.
@@ -237,28 +340,37 @@ fn row_ui(
     let lock_rect = eye_rect.translate(Vec2::new(size::HIT_MIN + space::XS, 0.0));
     let visible = object.visible;
     let unlocked = !object.locked;
-    let mut eye_clicked = false;
-    let mut lock_clicked = false;
-    ui.scope_builder(egui::UiBuilder::new().max_rect(eye_rect), |ui| {
-        eye_clicked = toggle_icon_button(
+    // Child uis: they don't move the list's cursor back up.
+    let eye_clicked = {
+        let ui = &mut ui.new_child(
+            egui::UiBuilder::new()
+                .id_salt(("eye", row.id))
+                .max_rect(eye_rect),
+        );
+        toggle_icon_button(
             ui,
             visible,
             icons::VISIBLE,
             icons::HIDDEN,
             &tr!("layers-hide", name = object.name.as_str()),
             &tr!("layers-show", name = object.name.as_str()),
+        )
+    };
+    let lock_clicked = {
+        let ui = &mut ui.new_child(
+            egui::UiBuilder::new()
+                .id_salt(("lock", row.id))
+                .max_rect(lock_rect),
         );
-    });
-    ui.scope_builder(egui::UiBuilder::new().max_rect(lock_rect), |ui| {
-        lock_clicked = toggle_icon_button(
+        toggle_icon_button(
             ui,
             unlocked,
             icons::UNLOCKED,
             icons::LOCKED,
             &tr!("layers-lock", name = object.name.as_str()),
             &tr!("layers-unlock", name = object.name.as_str()),
-        );
-    });
+        )
+    };
     if eye_clicked {
         env.ws.set_visible(row.id, !visible, env.now);
     }
@@ -384,15 +496,15 @@ fn drag_and_drop(ui: &mut Ui, env: &mut PanelEnv<'_>, rows: &[(Row, Rect)]) {
                 painter.rect_stroke(
                     r.shrink(1.0),
                     CornerRadius::same(2),
-                    Stroke::new(stroke::FOCUS, color::ACCENT),
+                    Stroke::new(stroke::FOCUS, color::INDICATOR),
                     StrokeKind::Inside,
                 );
             }
             Placement::Above(_) => {
-                painter.hline(r.x_range(), r.top(), Stroke::new(2.0, color::ACCENT));
+                painter.hline(r.x_range(), r.top(), Stroke::new(2.0, color::INDICATOR));
             }
             Placement::Below(_) | Placement::Top => {
-                painter.hline(r.x_range(), r.bottom(), Stroke::new(2.0, color::ACCENT));
+                painter.hline(r.x_range(), r.bottom(), Stroke::new(2.0, color::INDICATOR));
             }
         }
     }
@@ -466,6 +578,41 @@ mod tests {
         assert_eq!(drop_placement(&group, 0.9), Placement::Below(ObjectId(10)));
         assert_eq!(drop_placement(&shape, 0.45), Placement::Above(ObjectId(1)));
         assert_eq!(drop_placement(&shape, 0.55), Placement::Below(ObjectId(1)));
+    }
+
+    #[test]
+    fn instances_and_styled_objects_in_the_link_color() {
+        let plain = (*rect(1)).clone();
+        assert_eq!(
+            row_colors(&plain, false, false),
+            (color::TEXT_SECONDARY, color::TEXT_SECONDARY)
+        );
+        assert_eq!(
+            row_colors(&plain, false, true),
+            (color::TEXT_SECONDARY, color::TEXT_PRIMARY),
+            "selected: in ink"
+        );
+        let mut styled = plain.clone();
+        styled.style = Some(tp_core::document::StyleId(1));
+        assert_eq!(
+            row_colors(&styled, false, false),
+            (color::LINK, color::LINK)
+        );
+        let mut instance = plain.clone();
+        instance.kind = ShapeKind::Instance {
+            symbol: tp_core::document::SymbolId(1),
+            placement: Default::default(),
+        };
+        assert_eq!(
+            row_colors(&instance, false, true),
+            (color::LINK, color::LINK)
+        );
+        assert_eq!(kind_icon(instance.kind), icons::SYMBOL, "and its icon");
+        // Hidden or locked rows are dimmed, linked or not.
+        assert_eq!(
+            row_colors(&instance, true, false),
+            (color::TEXT_DISABLED, color::TEXT_DISABLED)
+        );
     }
 
     #[test]

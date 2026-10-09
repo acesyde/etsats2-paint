@@ -14,7 +14,8 @@ use tp_core::kurbo::{Affine, Point, Rect, Vec2};
 
 use crate::workspace::Workspace;
 
-/// Sides and star settings for new polygons (set from the Properties panel).
+/// Sides and star settings for new polygons (set from the Polygon tool's
+/// options bar or the inspector).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PolygonStyle {
     pub sides: u8,

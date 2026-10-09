@@ -142,6 +142,8 @@ pub fn paint_ruler(
     map: &ScreenMap,
     pointer: Option<Pos2>,
 ) {
+    // Labels of graduations just outside the ruler stay out of the corner.
+    let painter = &painter.with_clip_rect(rect.intersect(painter.clip_rect()));
     painter.rect_filled(rect, 0, tokens::RULER_BG);
     let scale = f64::from(map.scale);
     let steps = ruler_steps(scale);
@@ -151,7 +153,7 @@ pub fn paint_ruler(
     };
     let doc = |s: f32| f64::from(s - offset) / scale;
     let screen = |d: f64| d as f32 * map.scale + offset;
-    let font = FontId::proportional(9.0);
+    let font = FontId::monospace(9.0);
     let tick = |painter: &Painter, at: f32, len: f32| match axis {
         Axis::Horizontal => {
             painter.vline(
@@ -193,13 +195,15 @@ pub fn paint_ruler(
                 );
             }
             Axis::Vertical => {
-                // Rotated text is not available: stack short labels.
-                painter.text(
-                    Pos2::new(rect.left() + 2.0, at + 3.0),
-                    Align2::LEFT_TOP,
-                    label,
-                    font.clone(),
-                    tokens::RULER_TEXT,
+                // Read bottom to top, so long labels fit the ruler's width.
+                let galley = painter.layout_no_wrap(label, font.clone(), tokens::RULER_TEXT);
+                painter.add(
+                    egui::epaint::TextShape::new(
+                        Pos2::new(rect.left() + 2.0, at - 3.0),
+                        galley,
+                        tokens::RULER_TEXT,
+                    )
+                    .with_angle(-std::f32::consts::FRAC_PI_2),
                 );
             }
         }

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use egui::accesskit::Role;
 use egui::{Key, Modifiers};
 use egui_kittest::Harness;
-use egui_kittest::kittest::{By, NodeT, Queryable};
+use egui_kittest::kittest::{NodeT, Queryable};
 use tp_app::AppState;
 use tp_app::commands::CommandId;
 use tp_app::file_dialogs::ScriptedDialogs;
@@ -44,9 +44,10 @@ fn open() -> H {
 }
 
 /// Runs a few frames (background renders make `Harness::run` unusable
-/// while the dialog is open).
+/// while the dialog is open), enough for the dialog to settle in place as
+/// egui sizes and centers it.
 fn settle(h: &mut H) {
-    for _ in 0..4 {
+    for _ in 0..8 {
         h.step();
     }
 }
@@ -86,7 +87,7 @@ fn dialog_mut(h: &mut H) -> &mut ModExportDialog {
 }
 
 fn open_dialog(h: &mut H) {
-    h.key_press_modifiers(Modifiers::COMMAND | Modifiers::SHIFT, Key::E);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::E);
     settle(h);
     assert!(dialog(h).is_some(), "Export Mod dialog open");
 }
@@ -101,20 +102,16 @@ fn script(h: &mut H, mod_save: &[PathBuf], mod_images: &[PathBuf]) {
 
 /// Clicks Export… and waits for the export to end.
 fn export(h: &mut H) {
-    h.get_by_label("Export…").click();
+    common::last(h, "Export…").click();
     settle(h);
     wait_until(h, |h| dialog(h).is_none_or(|d| d.job.is_none()));
     settle(h);
 }
 
-/// Whether a text field shows `value` (the sidebar's read-only fields
-/// have no accessible name).
+/// Whether the Project space's Mod information column shows `value` (its
+/// values are read only: labels, not text fields).
 fn shows_field(h: &H, value: &str) -> bool {
-    h.query_all(
-        By::new().predicate(|n| n.role() == Role::TextInput && n.value().as_deref() == Some(value)),
-    )
-    .count()
-        > 0
+    h.query_all_by_label(value).count() > 0
 }
 
 fn field_value(h: &H, name: &str) -> String {
@@ -147,6 +144,18 @@ fn defaults_and_summary() {
         ModSettings::for_project("ACE Logistics")
     );
     assert_eq!(field_value(&h, "Name"), "ACE Logistics");
+    // Titled with the project's name and game.
+    assert!(
+        h.query_by_label("ACE Logistics · Euro Truck Simulator 2")
+            .is_some()
+    );
+    // The internal name is under Advanced, collapsed.
+    assert!(
+        h.query_by_role_and_label(Role::TextInput, "Internal name")
+            .is_none()
+    );
+    h.get_by_label("Advanced").click();
+    settle(&mut h);
     // The sample truck has two main textures: 10 characters at most.
     assert_eq!(field_value(&h, "Internal name"), "ace_logist");
     for line in [
@@ -156,7 +165,7 @@ fn defaults_and_summary() {
     ] {
         assert!(h.query_by_label(line).is_some(), "{line}");
     }
-    assert!(!h.get_by_label("Export…").accesskit_node().is_disabled());
+    assert!(!common::last(&h, "Export…").accesskit_node().is_disabled());
 }
 
 #[test]
@@ -166,7 +175,7 @@ fn an_empty_name_blocks_the_export() {
     dialog_mut(&mut h).settings.name.clear();
     settle(&mut h);
     assert!(h.query_by_label("The mod needs a name.").is_some());
-    assert!(h.get_by_label("Export…").accesskit_node().is_disabled());
+    assert!(common::last(&h, "Export…").accesskit_node().is_disabled());
 }
 
 #[test]
@@ -188,9 +197,12 @@ fn exporting_records_the_settings_as_one_step() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("ace");
     let mut h = open();
+    // Export works from the Project space, which shows the version.
+    common::show_space(&mut h, tp_app::layout::Space::Project);
+    common::settle_renders(&mut h);
     assert!(
         shows_field(&h, "1.0"),
-        "the Project section shows the version"
+        "the Project space shows the version"
     );
     open_dialog(&mut h);
     dialog_mut(&mut h).settings.version = "1.2".into();
@@ -285,4 +297,33 @@ fn an_unreadable_picture_is_reported() {
     let d = dialog(&h).unwrap();
     assert_eq!(d.icon, Picture::Generated);
     assert!(d.picture_error.as_deref().unwrap().contains("bad.png"));
+}
+
+#[test]
+fn advanced_opens_on_an_internal_name_problem() {
+    let mut h = open();
+    // Set while the project held only a trailer (12 characters were
+    // allowed); the truck, with two main textures, allows 10.
+    ws_mut(&mut h).project.mod_settings.internal_name = Some("ace_logistic".into());
+    open_dialog(&mut h);
+    assert!(dialog(&h).unwrap().advanced, "Advanced is open");
+    assert_eq!(field_value(&h, "Internal name"), "ace_logistic");
+    let problem = "The internal name can have at most 10 characters.";
+    let problem_top = h.get_by_label(problem).rect().top();
+    let export = common::last(&h, "Export…");
+    assert!(export.accesskit_node().is_disabled());
+    // Listed just above the buttons.
+    assert!(problem_top < export.rect().top());
+    assert!(problem_top > h.get_by_label("In the mod").rect().top());
+}
+
+#[test]
+fn export_from_the_brand_space() {
+    let mut h = open();
+    common::show_space(&mut h, tp_app::layout::Space::Brand);
+    h.run();
+    h.get_by_role_and_label(Role::Button, "Export…").click();
+    settle(&mut h);
+    assert!(dialog(&h).is_some(), "the Export Mod dialog opens");
+    assert!(!dialog(&h).unwrap().advanced, "Advanced is collapsed");
 }

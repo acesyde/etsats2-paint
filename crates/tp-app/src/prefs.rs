@@ -273,7 +273,7 @@ pub fn recent_exists(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::PanelKind;
+    use crate::layout::{LeftTab, WorkspaceLayout};
 
     #[test]
     fn missing_file_gives_defaults_without_issue() {
@@ -320,8 +320,8 @@ mod tests {
         assert!(loaded.issue.is_none());
         assert!(loaded.backup.is_none());
         assert_eq!(loaded.prefs.ui_scale, 1.25);
-        assert_eq!(loaded.prefs.layout.column_width, 300.0);
-        assert!(!loaded.prefs.layout.vehicles_open);
+        // The panel column and the sidebar of that build are gone too.
+        assert_eq!(loaded.prefs.layout, WorkspaceLayout::default());
     }
 
     #[test]
@@ -356,7 +356,13 @@ mod tests {
             text_scale: 1.1,
             ..Prefs::default()
         };
-        prefs.layout.toggle_open(PanelKind::Assets);
+        prefs.layout = WorkspaceLayout {
+            left_tab: LeftTab::Resources,
+            left_width: 320.0,
+            inspector_width: 360.0,
+            panels_hidden: true,
+            generation: 0,
+        };
         prefs.recent.push(RecentProject {
             name: "ACE".into(),
             path: "/tmp/ace.truckpaint".into(),

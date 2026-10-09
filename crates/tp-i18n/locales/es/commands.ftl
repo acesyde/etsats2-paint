@@ -36,12 +36,19 @@ cmd-zoom-out = Alejar
 cmd-fit-to-screen = Ajustar a la pantalla
 cmd-actual-size-100pct = Tamaño real (100 %)
 cmd-reset-workspace = Restablecer espacio de trabajo
+cmd-space-project = Proyecto
+cmd-space-workshop = Taller
+cmd-space-brand = Marca
+cmd-tab-textures = Texturas
+cmd-tab-layers = Capas
+cmd-tab-resources = Recursos
+cmd-hide-panels = Ocultar paneles
+reason-not-in-workshop = Disponible en el Taller.
 cmd-show-grid = Mostrar cuadrícula
 cmd-show-guides = Mostrar guías
 cmd-clear-guides = Borrar guías
 cmd-snapping = Ajuste
 cmd-design-system-gallery = Galería del sistema de diseño
-cmd-vehicle-information = Información del vehículo
 cmd-export-texture = Exportar textura…
 cmd-export-mod = Exportar mod…
 cmd-keyboard-shortcuts = Atajos de teclado
@@ -160,7 +167,6 @@ reason-choose-vehicle = Elija un vehículo y al menos una textura principal.
 
 ## Textures
 
-cmd-sidebar = Barra lateral
 cmd-next-texture = Textura siguiente
 cmd-previous-texture = Textura anterior
 reason-one-texture = El proyecto tiene una sola textura.

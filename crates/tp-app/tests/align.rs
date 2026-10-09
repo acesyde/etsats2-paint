@@ -1,5 +1,5 @@
 //! Headless tests for align-and-distribute: commands, menu, shortcuts,
-//! Transform panel buttons and the key object.
+//! the inspector's Layout buttons and the key object.
 
 mod common;
 
@@ -65,7 +65,7 @@ fn from_align_menu(h: &mut H, label: &str) {
     // egui labels submenu buttons with an arrow.
     h.get_by_label("Align ⏵").click();
     h.run();
-    h.get_by_label(label).click();
+    common::last(h, label).click();
     h.run();
 }
 
@@ -159,13 +159,9 @@ fn not_enough_objects_and_nothing_selected() {
     assert!(!enabled(&h, CommandId::Align(Edge::Left)));
 }
 
-/// Tall window with the Transform panel open and expanded.
-fn open_with_panels() -> H {
-    let mut prefs = tp_app::prefs::Prefs::default();
-    for slot in &mut prefs.layout.panels {
-        slot.open = slot.kind != tp_app::layout::PanelKind::Assets;
-        slot.collapsed = false;
-    }
+/// Tall window, so the inspector's Layout section shows whole.
+fn open_tall() -> H {
+    let prefs = tp_app::prefs::Prefs::default();
     let mut h = Harness::builder()
         .with_size(egui::Vec2::new(1440.0, 2400.0))
         .build_ui_state(
@@ -178,8 +174,8 @@ fn open_with_panels() -> H {
 }
 
 #[test]
-fn align_from_the_panel() {
-    let mut h = open_with_panels();
+fn align_from_the_inspector() {
+    let mut h = open_tall();
     let a = rect(&mut h, 100.0, 100.0, 100.0, 100.0);
     let b = rect(&mut h, 600.0, 450.0, 100.0, 100.0);
     select(&mut h, &[a, b]);
@@ -194,11 +190,12 @@ fn align_from_the_panel() {
 }
 
 #[test]
-fn align_to_selector_in_the_panel() {
-    let mut h = open_with_panels();
+fn align_to_selector_in_the_inspector() {
+    let mut h = open_tall();
     let a = rect(&mut h, 100.0, 100.0, 100.0, 100.0);
     select(&mut h, &[a]);
-    h.get_by_label("Align to").click();
+    h.get_by_role_and_label(egui::accesskit::Role::ComboBox, "Align to")
+        .click();
     h.run();
     h.get_by_label("Key object").click();
     h.run();

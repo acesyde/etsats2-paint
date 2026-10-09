@@ -112,7 +112,7 @@ impl GradientPreview {
 
 /// Paints a checkerboard (for transparency) inside `rect`.
 pub fn paint_checkerboard(painter: &Painter, rect: Rect, cell: f32) {
-    painter.rect_filled(rect, 0, Color32::from_gray(200));
+    painter.rect_filled(rect, 0, crate::tokens::canvas::CHECKER_LIGHT);
     let cols = (rect.width() / cell).ceil() as i32;
     let rows = (rect.height() / cell).ceil() as i32;
     for y in 0..rows {
@@ -120,13 +120,13 @@ pub fn paint_checkerboard(painter: &Painter, rect: Rect, cell: f32) {
             if (x + y) % 2 == 0 {
                 let min = rect.min + Vec2::new(x as f32 * cell, y as f32 * cell);
                 let r = Rect::from_min_size(min, Vec2::splat(cell)).intersect(rect);
-                painter.rect_filled(r, 0, Color32::from_gray(150));
+                painter.rect_filled(r, 0, crate::tokens::canvas::CHECKER_DARK);
             }
         }
     }
 }
 
-fn paint_swatch(painter: &Painter, rect: Rect, swatch: SwatchColor) {
+pub(super) fn paint_swatch(painter: &Painter, rect: Rect, swatch: SwatchColor) {
     match swatch {
         SwatchColor::Solid(c) => {
             if c.a() < 255 {
@@ -211,7 +211,7 @@ impl<'a> ColorSwatch<'a> {
                     } else {
                         1.0
                     },
-                    color::ACCENT,
+                    color::INDICATOR,
                 ),
                 StrokeKind::Outside,
             );
@@ -265,7 +265,7 @@ impl FillStrokeSwatches {
                 p.rect_stroke(
                     fill_rect.expand(1.5),
                     0,
-                    Stroke::new(2.0, color::ACCENT),
+                    Stroke::new(2.0, color::INDICATOR),
                     StrokeKind::Outside,
                 );
             }
@@ -284,7 +284,7 @@ impl FillStrokeSwatches {
                 p.rect_stroke(
                     stroke_rect.expand(1.5),
                     0,
-                    Stroke::new(2.0, color::ACCENT),
+                    Stroke::new(2.0, color::INDICATOR),
                     StrokeKind::Outside,
                 );
             }

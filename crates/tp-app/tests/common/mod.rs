@@ -4,9 +4,12 @@
 
 use egui::Vec2;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 use tp_app::AppState;
+use tp_app::layout::{LeftTab, Space};
 use tp_app::prefs::Prefs;
 use tp_app::vehicles::VehicleLibrary;
+use tp_app::workspace::ColorTarget;
 use tp_vehicles::Package;
 
 pub const SIZE: Vec2 = Vec2::new(1440.0, 900.0);
@@ -51,8 +54,9 @@ pub fn wgpu_harness_with(prefs: Prefs, size: Vec2) -> Harness<'static, AppState>
 
 /// Opens a project for the sample truck with its default textures, as New
 /// Project would make it: the Standard cab (4096 px), Chassis, Cab
-/// accessories and Side skirts; the Standard cab is active. Its templates
-/// are hidden:
+/// accessories and Side skirts; the Standard cab is active. New Project
+/// shows the Project space; this then shows the Workshop, where most tests
+/// work (`open_project` keeps the Project space). Its templates are hidden:
 /// the sample's SVG templates render in a background thread whose repaints
 /// would make editing tests depend on timing (tests/vehicles.rs covers
 /// templates and the wizard).
@@ -74,7 +78,110 @@ pub fn create_project(harness: &mut Harness<'static, AppState>) {
             t.visible = false;
         }
     }
-    harness.state_mut().open_project(project);
+    open_project(harness, project);
     harness.run();
     assert!(harness.state().has_project(), "project should be open");
+    settle_renders(harness);
+}
+
+/// Runs frames until the background renders of the open project (texture
+/// and template thumbnails, the mod's pictures) are shown, so that their
+/// repaints don't land in the middle of a test's interaction.
+pub fn settle_renders(harness: &mut Harness<'static, AppState>) {
+    for _ in 0..400 {
+        harness.step();
+        let busy = harness
+            .state()
+            .workspace()
+            .is_some_and(|ws| ws.thumbnails.is_rendering() || ws.mod_previews.is_rendering());
+        if !busy {
+            harness.run();
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    panic!("the background renders never finished");
+}
+
+/// Opens `project` and shows the Workshop.
+pub fn open_project(harness: &mut Harness<'static, AppState>, project: tp_core::Project) {
+    harness.state_mut().open_project(project);
+    show_space(harness, Space::Workshop);
+}
+
+/// Shows `space` of the open project.
+pub fn show_space(harness: &mut Harness<'static, AppState>, space: Space) {
+    harness
+        .state_mut()
+        .workspace_mut()
+        .expect("open project")
+        .space = space;
+}
+
+/// `prefs` with the left panel showing `tab`.
+pub fn prefs_with_tab(mut prefs: Prefs, tab: LeftTab) -> Prefs {
+    prefs.layout.left_tab = tab;
+    prefs
+}
+
+/// Shows `tab` in the left panel.
+pub fn show_tab(harness: &mut Harness<'static, AppState>, tab: LeftTab) {
+    harness.state_mut().prefs.layout.left_tab = tab;
+    harness.run();
+}
+
+/// The last node labelled `label`: the one of a menu or dialog drawn over
+/// the workspace when the workspace has one with the same label (the top
+/// bar's Export…, the inspector's align and flip buttons).
+pub fn last<'h>(harness: &'h Harness<'static, AppState>, label: &'h str) -> egui_kittest::Node<'h> {
+    harness
+        .get_all_by_label(label)
+        .last()
+        .unwrap_or_else(|| panic!("no node labelled {label:?}"))
+}
+
+/// Whether the inspector's color popover is open.
+pub fn color_popover_open(harness: &Harness<'static, AppState>) -> bool {
+    tp_ui::widgets::Popover::is_open(
+        &harness.ctx,
+        tp_app::ui::workspace::inspector::color_popover(),
+    )
+}
+
+/// Opens the color popover on the inspector's Fill or Stroke row, as
+/// clicking the row's swatch does (the row becomes the color target).
+pub fn open_color_popover(harness: &mut Harness<'static, AppState>, target: ColorTarget) {
+    let current = harness
+        .state()
+        .workspace()
+        .expect("open project")
+        .panels
+        .color_target;
+    if color_popover_open(harness) && current == target {
+        return;
+    }
+    let row = match target {
+        ColorTarget::Fill => "Fill color",
+        ColorTarget::Stroke => "Stroke color",
+    };
+    harness.get_by_label(row).click();
+    harness.run();
+}
+
+/// Opens the stroke popover from the inspector's Stroke row summary.
+pub fn open_stroke_popover(harness: &mut Harness<'static, AppState>) {
+    let id = tp_app::ui::workspace::inspector::stroke_popover();
+    if !tp_ui::widgets::Popover::is_open(&harness.ctx, id) {
+        harness.get_by_label("Stroke options").click();
+        harness.run();
+    }
+}
+
+/// Opens the line settings popover (dashes, caps and joins of lines).
+pub fn open_line_settings(harness: &mut Harness<'static, AppState>) {
+    let id = tp_app::ui::workspace::inspector::line_popover();
+    if !tp_ui::widgets::Popover::is_open(&harness.ctx, id) {
+        harness.get_by_label("Line settings").click();
+        harness.run();
+    }
 }

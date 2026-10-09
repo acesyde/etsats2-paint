@@ -39,6 +39,7 @@ home-discard = Descartar
 app-tagline = Editor de libreas para Euro Truck Simulator 2 y American Truck Simulator
 home-new-project = Nuevo proyecto
 home-new-project-tip = Crear un nuevo proyecto de librea ({ $shortcut })
+home-open-tip = Abrir un archivo de proyecto ({ $shortcut })
 home-preferences = Preferencias
 home-recent = Proyectos recientes
 home-recent-empty = No hay proyectos recientes
@@ -56,10 +57,8 @@ unsaved-hint = Sus cambios se perderán si no los guarda.
 button-dont-save = No guardar
 button-cancel = Cancelar
 button-ok = Aceptar
-button-create = Crear
 button-done = Listo
 button-close = Cerrar
-new-project-step-name = Nombre
 new-project-name = Nombre del proyecto
 prefs-interface = Interfaz
 prefs-ui-scale = Escala de la interfaz
@@ -130,7 +129,6 @@ custom-title = Vehículo personalizado
 custom-new-version-title = Nueva versión de { $name }
 custom-open = Vehículo personalizado…
 custom-open-library = Vehículo personalizado…
-custom-id = Identificador
 custom-version = Versión
 custom-name = Nombre
 custom-brand = Marca
@@ -204,6 +202,16 @@ vehicles-any-version = cualquier versión
 vehicles-new-version = Nueva versión…
 vehicles-new-version-of = Nueva versión de { $name }
 vehicles-export-version = Exportar { $name } { $version }
+vehicles-tab-installed = Instalados · { $count }
+vehicles-tab-mine = Mis vehículos · { $count }
+vehicles-status-custom = Personalizado
+vehicles-status-update = Actualización
+vehicles-status-current = Al día
+vehicles-mine-empty = Los vehículos personalizados se crean a partir de los archivos de plantilla del juego (DDS, PNG o SVG) y sus datos del juego. Haga clic en Vehículo personalizado… para crear uno.
+vehicles-preview = Plantilla de { $name }
+vehicles-details-of = Detalles de { $name }
+vehicles-installed-versions = Versiones instaladas
+vehicles-export = Exportar…
 vehicles-exported = { $file } exportado
 vehicles-export-failed = No se pudo escribir { $file }: { $reason }
 update-versions = { $name }: versión { $from } → { $to }
@@ -215,13 +223,44 @@ update-removed = { $name }: ya no está en esta versión, diseño conservado
 update-artwork-kept = Su diseño se conserva. Puede deshacer la actualización.
 update-apply = Actualizar
 
-## New Project wizard
+## New Project
 
-new-project-step-vehicle = Vehículo
-new-project-no-vehicles-hint = ¿Aún sin vehículos? Pruebe el camión de ejemplo o instale un paquete.
-new-project-textures = Texturas
-button-next = Siguiente
-button-back = Atrás
+new-project-no-vehicles-hint = Los paquetes de vehículos contienen las plantillas de un camión o remolque. Pruebe los vehículos de ejemplo, instale un paquete o cree un vehículo personalizado.
+new-project-create = Crear proyecto
+new-project-add-later = Puede añadir vehículos al proyecto en cualquier momento.
+new-project-no-game-vehicles = Aún no hay ningún vehículo de { $game } instalado.
+new-project-no-match = Ningún vehículo coincide con la búsqueda.
+new-project-custom-title = Vehículo sin paquete
+new-project-custom-hint = Créelo a partir de sus archivos de plantilla (DDS, PNG o SVG) y sus datos del juego.
+new-project-fleet = Su flota
+new-project-pick-vehicle = Elija un vehículo de la lista.
+new-project-cabins = Cabinas
+new-project-column-vehicle = Vehículo
+new-project-column-type = Tipo
+new-project-column-package = Paquete
+new-project-counts = { $accessories ->
+    [0] { $main } { $main ->
+        [one] principal
+       *[other] principales
+    }
+    [one] { $main } { $main ->
+        [one] principal
+       *[other] principales
+    } + { $accessories } accesorio
+   *[other] { $main } { $main ->
+        [one] principal
+       *[other] principales
+    } + { $accessories } accesorios
+}
+new-project-created = Texturas creadas
+new-project-texture = { $texture } ({ $size })
+new-project-total = { $count ->
+    [one] { $count } textura en total
+   *[other] { $count } texturas en total
+}
+vehicles-kind-all = Todos
+vehicles-kind-trucks = Camiones
+vehicles-kind-trailers = Remolques
 
 ## Fleet
 
@@ -256,6 +295,7 @@ mod-author = Autor
 mod-description = Descripción
 mod-price = Precio
 mod-unlock = Nivel de desbloqueo
+mod-advanced = Avanzado
 mod-internal-name = Nombre interno
 mod-internal-name-help = Nombra la pintura en el juego: a–z, 0–9 y _. Elija uno único.
 mod-icon = Icono de la tienda
@@ -294,7 +334,7 @@ library-graphic-styles = Estilos gráficos
 library-text-styles = Estilos de texto
 library-in-project = En este proyecto
 library-import = Importar
-library-empty = Su biblioteca está vacía. Haga clic derecho en un símbolo, una muestra o un estilo en su panel y elija Añadir a la biblioteca para usarlo en todos sus proyectos.
+library-empty = Su biblioteca está vacía. Haga clic derecho en un símbolo, una muestra o un estilo en el espacio Marca o la pestaña Recursos y elija Añadir a la biblioteca para usarlo en todos sus proyectos.
 library-remove = Quitar de la biblioteca
 library-remove-confirm = ¿Quitar { $name } de la biblioteca? Los proyectos que lo importaron conservan su copia.
 library-remove-button = Quitar

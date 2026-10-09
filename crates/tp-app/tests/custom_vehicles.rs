@@ -199,8 +199,10 @@ fn no_vehicle_installed_offers_custom_vehicle() {
     let mut h = app(dir.path());
     open_wizard(&mut h);
     assert!(
-        h.get_by_label("Next").accesskit_node().is_disabled(),
-        "Next is disabled"
+        h.get_by_label("Create Project")
+            .accesskit_node()
+            .is_disabled(),
+        "Create Project is disabled"
     );
     for label in ["Install…", "Install the sample vehicles", "Custom vehicle…"] {
         assert!(h.query_by_label(label).is_some(), "{label} is offered");
@@ -455,9 +457,7 @@ fn project_from_a_custom_vehicle() {
         h.query_by_label_contains("Installed R 2024 1.0.0")
             .is_some()
     );
-    h.get_by_label("Next").click();
-    settle(&mut h);
-    h.get_by_label("Create").click();
+    h.get_by_label("Create Project").click();
     settle(&mut h);
     let p = &ws(&h).project;
     assert_eq!(p.name, "R 2024");
@@ -559,6 +559,44 @@ fn custom_vehicle_from_an_ats_project_is_ats() {
 }
 
 #[test]
+fn only_the_chosen_games_vehicles_are_listed() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    h.state_mut().vehicles.install_samples().unwrap();
+    install_custom_truck(&mut h, Game::Ats);
+    open_wizard(&mut h);
+    // Vehicles of both games: the game starts on ETS2.
+    let chosen = |h: &H, label: &str| {
+        h.get_by_role_and_label(Role::RadioButton, label)
+            .accesskit_node()
+            .toggled()
+            .is_some_and(|t| t == egui::accesskit::Toggled::True)
+    };
+    assert!(chosen(&h, "Euro Truck Simulator 2"));
+    let listed = |h: &H, name: &str| h.query_by_role_and_label(Role::RadioButton, name).is_some();
+    assert!(listed(&h, "TruckPaint Sample Truck"));
+    assert!(!listed(&h, "R 2024"));
+    h.get_by_role_and_label(Role::RadioButton, "American Truck Simulator")
+        .click();
+    settle(&mut h);
+    assert!(listed(&h, "R 2024"));
+    assert!(!listed(&h, "TruckPaint Sample Truck"));
+    assert!(!listed(&h, "TruckPaint Sample Trailer"));
+}
+
+#[test]
+fn the_game_starts_on_the_installed_vehicles_game() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    install_custom_truck(&mut h, Game::Ats);
+    open_wizard(&mut h);
+    let Some(Modal::NewProject(draft)) = &h.state().modal else {
+        panic!("New Project open");
+    };
+    assert_eq!(draft.game(), Game::Ats);
+}
+
+#[test]
 fn created_vehicle_hidden_by_a_filter() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = app(dir.path());
@@ -570,7 +608,7 @@ fn created_vehicle_hidden_by_a_filter() {
     settle(&mut h);
     h.get_by_label("Custom vehicle…").click();
     settle(&mut h);
-    // The wizard's game is proposed; the player picks ETS2.
+    // The dialog's game is proposed; the player picks ETS2.
     assert_eq!(dialog(&h).form.game, Game::Ats);
     form(&mut h).game = Game::Ets2;
     fill_truck(&mut h);
@@ -579,7 +617,7 @@ fn created_vehicle_hidden_by_a_filter() {
     let Some(Modal::NewProject(draft)) = &h.state().modal else {
         panic!("wizard");
     };
-    assert_eq!(draft.filter.game, None, "the game filter now allows ETS2");
+    assert_eq!(draft.filter.game, Some(Game::Ets2), "the game is now ETS2");
     assert!(
         h.get_by_role_and_label(Role::RadioButton, "R 2024")
             .accesskit_node()
@@ -600,7 +638,11 @@ fn library_custom_vehicle_new_version_and_export() {
     fill_truck(&mut h);
     build(&mut h);
     assert!(matches!(h.state().modal, Some(Modal::VehicleLibrary(_))));
-    assert!(h.query_by_label("R 2024").is_some(), "listed");
+    assert!(
+        h.query_by_role_and_label(Role::RadioButton, "R 2024")
+            .is_some(),
+        "listed"
+    );
     assert!(
         h.query_by_label_contains("Game versions any version")
             .is_some()
@@ -657,6 +699,32 @@ fn library_custom_vehicle_new_version_and_export() {
     h.key_press(Key::Escape);
     settle(&mut h);
     assert!(matches!(h.state().modal, Some(Modal::VehicleLibrary(_))));
+}
+
+#[test]
+fn library_tabs_and_custom_status() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    h.state_mut().vehicles.install_samples().unwrap();
+    h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+    settle(&mut h);
+    // No custom vehicle: My vehicles says how to make one.
+    h.get_by_label("My vehicles · 0").click();
+    settle(&mut h);
+    assert!(
+        h.query_by_label_contains("Custom vehicles are made from the game's template files")
+            .is_some()
+    );
+    install_custom_truck(&mut h, Game::Ets2);
+    settle(&mut h);
+    assert!(h.query_by_label("Installed · 3").is_some());
+    h.get_by_label("My vehicles · 1").click();
+    settle(&mut h);
+    let listed = |h: &H, name: &str| h.query_by_role_and_label(Role::RadioButton, name).is_some();
+    assert!(listed(&h, "R 2024"));
+    assert!(!listed(&h, "TruckPaint Sample Truck"));
+    assert!(h.query_by_label("Custom").is_some(), "its status");
+    assert!(h.query_by_label("New version of R 2024").is_some());
 }
 
 #[test]

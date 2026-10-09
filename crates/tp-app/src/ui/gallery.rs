@@ -10,8 +10,7 @@ use tp_ui::widgets::{
     hue_slider, sv_square, toggle_icon_button,
 };
 use tp_ui::widgets::{
-    EmptyState, IconButton, MenuRow, PanelHeader, SegmentedControl, StepIndicator, ToolButton,
-    primary_button, secondary_button,
+    EmptyState, IconButton, MenuRow, SegmentedControl, ToolButton, primary_button, secondary_button,
 };
 
 fn section(ui: &mut Ui, title: &str) {
@@ -74,18 +73,10 @@ pub fn show(ctx: &egui::Context, open: &mut bool) {
                 ui.add(
                     MenuRow::new("Layers")
                         .checked(Some(true))
-                        .shortcut(Some("F7")),
+                        .shortcut(Some("2")),
                 );
                 ui.add_enabled(false, MenuRow::new("Undo").shortcut(Some("⌘Z")));
             });
-
-            section(ui, "Panel header — expanded / collapsed");
-            ui.set_width(320.0);
-            PanelHeader::new(icons::LAYERS, "Layers", false).show(ui);
-            PanelHeader::new(icons::COLORS, "Colors", true).show(ui);
-
-            section(ui, "Step indicator");
-            StepIndicator::new(1, &["Game", "Vehicle", "Resolution"]).show(ui);
 
             section(ui, "Empty state");
             EmptyState::new(icons::ASSETS, "No assets", "Imported images appear here.").show(ui);

@@ -1,4 +1,6 @@
-//! Modal dialogs: New Project wizard, Preferences, Keyboard Shortcuts, About.
+//! Modal dialogs: Preferences, Keyboard Shortcuts, About, messages, and
+//! the pieces every dialog shares (title, labelled fields, problems,
+//! footer).
 
 use egui::{
     Align, CornerRadius, Frame, Key, Layout, Margin, RichText, Stroke, TextEdit, Ui, WidgetInfo,
@@ -8,21 +10,16 @@ use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::{TEXT_SCALE_RANGE, UI_SCALE_RANGE, label_strong_style, title_style};
 use tp_ui::tokens::{color, radius, space};
-use tp_ui::widgets::{StepIndicator, primary_button, secondary_button};
+use tp_ui::widgets::{primary_button, secondary_button};
 
 use crate::commands::{CommandId, ShortcutFormatter};
-use crate::state::{AppState, Modal, NewProjectDraft};
-use crate::vehicles::{SAMPLE_ID, VehicleLibrary};
-
-/// Titles of the New Project wizard steps. Vehicle steps will be inserted
-/// before "Name & resolution".
-pub const NEW_PROJECT_STEPS: [&str; 2] = ["new-project-step-vehicle", "new-project-step-name"];
+use crate::state::{AppState, Modal};
 
 fn dialog_frame() -> Frame {
     Frame::new()
-        .fill(color::SURFACE_2)
-        .stroke(Stroke::new(1.0, color::BORDER_STRONG))
-        .corner_radius(CornerRadius::same(radius::LG))
+        .fill(color::SURFACE_1)
+        .stroke(Stroke::new(1.0, color::OUTLINE))
+        .corner_radius(CornerRadius::same(radius::DIALOG))
         .inner_margin(Margin::same(space::XL as i8))
         .shadow(egui::Shadow {
             offset: [0, 12],
@@ -36,6 +33,123 @@ pub(crate) fn modal(id: &str) -> egui::Modal {
     egui::Modal::new(egui::Id::new(id))
         .frame(dialog_frame())
         .backdrop_color(color::BACKDROP)
+}
+
+/// A dialog's title, with the line under it (what it applies to), if any.
+pub(crate) fn title(ui: &mut Ui, title: &str, subtitle: Option<&str>) {
+    ui.vertical(|ui| {
+        ui.spacing_mut().item_spacing.y = space::XS;
+        ui.label(
+            RichText::new(title)
+                .text_style(title_style())
+                .color(color::TEXT_PRIMARY),
+        );
+        if let Some(subtitle) = subtitle {
+            ui.label(RichText::new(subtitle).color(color::TEXT_SECONDARY));
+        }
+    });
+}
+
+/// The label above a field.
+pub(crate) fn field_label(ui: &mut Ui, text: &str) {
+    ui.label(RichText::new(text).small().color(color::TEXT_SECONDARY));
+}
+
+/// A field under its label: labels sit above their fields, so a longer
+/// translation never squeezes the field.
+pub(crate) fn labelled<R>(ui: &mut Ui, label: &str, body: impl FnOnce(&mut Ui) -> R) -> R {
+    ui.vertical(|ui| {
+        ui.spacing_mut().item_spacing.y = space::XS;
+        field_label(ui, label);
+        body(ui)
+    })
+    .inner
+}
+
+/// Height of a dialog's single-line fields.
+pub(crate) const FIELD_HEIGHT: f32 = 34.0;
+
+/// A labelled single-line text field filling the width; returns its
+/// response.
+pub(crate) fn text_field(ui: &mut Ui, label: &str, text: &mut String) -> egui::Response {
+    text_field_in(ui, label, text, false)
+}
+
+/// The same field with its value in the monospace face (versions, paths).
+pub(crate) fn mono_text_field(ui: &mut Ui, label: &str, text: &mut String) -> egui::Response {
+    text_field_in(ui, label, text, true)
+}
+
+fn text_field_in(ui: &mut Ui, label: &str, text: &mut String, mono: bool) -> egui::Response {
+    labelled(ui, label, |ui| {
+        let mut edit = TextEdit::singleline(text)
+            .desired_width(f32::INFINITY)
+            .margin(Margin::symmetric(10, 0))
+            .vertical_align(Align::Center)
+            .min_size(egui::vec2(0.0, FIELD_HEIGHT));
+        if mono {
+            edit = edit.font(egui::TextStyle::Monospace);
+        }
+        let response = ui.add(edit);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, label));
+        response
+    })
+}
+
+/// `columns` side by side, each `ratio` of the width (the gaps aside).
+pub(crate) fn columns(ui: &mut Ui, ratios: &[f32], mut body: impl FnMut(&mut Ui, usize)) {
+    let gap = space::MD;
+    let total: f32 = ratios.iter().sum();
+    let width = ui.available_width() - gap * (ratios.len().saturating_sub(1)) as f32;
+    ui.horizontal_top(|ui| {
+        ui.spacing_mut().item_spacing.x = gap;
+        for (i, ratio) in ratios.iter().enumerate() {
+            let w = (width * ratio / total).floor();
+            ui.allocate_ui_with_layout(egui::vec2(w, 0.0), Layout::top_down(Align::Min), |ui| {
+                ui.set_width(w);
+                body(ui, i);
+            });
+        }
+    });
+}
+
+/// A problem that blocks the dialog's action: an icon and its text.
+pub(crate) fn problem(ui: &mut Ui, text: &str) {
+    ui.horizontal_top(|ui| {
+        ui.spacing_mut().item_spacing.x = space::SM;
+        ui.label(icons::rich(icons::WARNING).color(color::ERROR));
+        let label = ui.add(egui::Label::new(RichText::new(text).color(color::ERROR)).wrap());
+        label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
+    });
+}
+
+/// Results of the last action (packages installed, files written): a
+/// success or an error each, with an icon so they don't rely on color.
+pub(crate) fn messages(ui: &mut Ui, messages: &[Result<String, String>]) {
+    for message in messages {
+        let (icon, text, tint) = match message {
+            Ok(text) => (icons::CHECK, text, color::SUCCESS),
+            Err(text) => (icons::WARNING, text, color::ERROR),
+        };
+        ui.horizontal_top(|ui| {
+            ui.spacing_mut().item_spacing.x = space::SM;
+            ui.label(icons::rich(icon).color(tint));
+            let label = ui.add(egui::Label::new(RichText::new(text).color(tint)).wrap());
+            label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
+        });
+    }
+}
+
+/// The dialog's buttons, right-aligned under a hairline, the primary
+/// action last (rightmost): `body` adds them from the right.
+pub(crate) fn footer<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
+    ui.add_space(space::LG);
+    let rect = ui.available_rect_before_wrap();
+    ui.painter()
+        .hline(rect.x_range(), rect.top(), Stroke::new(1.0, color::BORDER));
+    ui.add_space(space::LG);
+    ui.with_layout(Layout::right_to_left(Align::Center), body)
+        .inner
 }
 
 /// Shows the active modal, if any.
@@ -73,6 +187,10 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
     }
     if matches!(state.modal, Some(Modal::CustomVehicle(_))) {
         super::custom_vehicle::show_modal(ctx, state);
+        return;
+    }
+    if matches!(state.modal, Some(Modal::NewProject(_))) {
+        super::new_project::show_modal(ctx, state);
         return;
     }
     if matches!(state.modal, Some(Modal::VehicleLibrary(_))) {
@@ -135,68 +253,12 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         return;
     };
     let close = match modal_kind {
-        Modal::NewProject(draft) => match new_project(ctx, draft, &state.vehicles) {
-            WizardOutcome::Pending => false,
-            WizardOutcome::Cancel => true,
-            WizardOutcome::Install => {
-                let paths = state.dialogs.pick_packages();
-                let results = super::vehicle_dialogs::install(state, &paths);
-                if let Some(Modal::NewProject(draft)) = &mut state.modal {
-                    draft.messages = results;
-                }
-                false
-            }
-            WizardOutcome::CustomVehicle => {
-                if let Some(Modal::NewProject(draft)) = state.modal.take() {
-                    super::custom_vehicle::open(
-                        state,
-                        super::custom_vehicle::Origin::NewProject(draft),
-                    );
-                }
-                false
-            }
-            WizardOutcome::InstallSample => {
-                let results = super::vehicle_dialogs::install_samples(state);
-                let sample = results.first().is_some_and(Result::is_ok);
-                let pick = state
-                    .vehicles
-                    .vehicles()
-                    .iter()
-                    .find(|v| sample && v.newest().manifest.id == SAMPLE_ID)
-                    .map(super::vehicle_dialogs::VehicleChoice::of);
-                if let Some(Modal::NewProject(draft)) = &mut state.modal {
-                    draft.messages = results;
-                    if pick.is_some() {
-                        draft.vehicle = pick;
-                    }
-                }
-                false
-            }
-            WizardOutcome::CreateVehicle { name, choice } => {
-                let loaded = state.vehicles.load(&choice.id, &choice.version);
-                match loaded
-                    .map(|p| crate::vehicle_project::fleet_project(&name, &p, &choice.textures))
-                {
-                    Ok(Ok(project)) => {
-                        state.open_project(project);
-                        true
-                    }
-                    Ok(Err(_)) => true,
-                    Err(err) => {
-                        state.modal = Some(Modal::Message {
-                            title: tr("home-new-project"),
-                            text: crate::vehicles::install_error_message(&err, &name),
-                        });
-                        false
-                    }
-                }
-            }
-        },
         Modal::Preferences => preferences(ctx, &mut state.prefs),
         Modal::KeyboardShortcuts => shortcuts(ctx),
         Modal::About => about(ctx),
         Modal::Message { title, text } => message(ctx, title, text),
-        Modal::Export(_)
+        Modal::NewProject(_)
+        | Modal::Export(_)
         | Modal::ExportMod(_)
         | Modal::VehicleLibrary(_)
         | Modal::ImportFromLibrary(_)
@@ -298,8 +360,7 @@ fn message(ctx: &egui::Context, title: &str, text: &str) -> bool {
         ui.add_space(space::XS);
         let label = ui.label(RichText::new(text).color(color::TEXT_SECONDARY));
         label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
-        ui.add_space(space::LG);
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        footer(ui, |ui| {
             close |= ui.add(primary_button(&tr("button-ok"))).clicked();
         });
     });
@@ -310,319 +371,107 @@ fn message(ctx: &egui::Context, title: &str, text: &str) -> bool {
         })
 }
 
-enum WizardOutcome {
-    Pending,
-    Cancel,
-    /// Create a project from an installed vehicle and checked variants.
-    CreateVehicle {
-        name: String,
-        choice: super::vehicle_dialogs::VehicleChoice,
-    },
-    /// Install packages, then come back to the Vehicle step.
-    Install,
-    /// Install the built-in sample vehicle and select it.
-    InstallSample,
-    /// Open the Custom Vehicle dialog, then come back.
-    CustomVehicle,
-}
-
-/// Vehicle step: the installed vehicles, the chosen one's textures as
-/// checkboxes. Returns whether Install the sample vehicles and Custom
-/// vehicle… (in the empty state) were clicked.
-fn vehicle_step(
+/// A scale in percent: a thin slider by steps of 5 % and its value, which
+/// can be dragged or typed. Returns the slider's response and whether the
+/// value was changed through the value.
+fn scale_slider(
     ui: &mut Ui,
-    draft: &mut NewProjectDraft,
-    library: &VehicleLibrary,
-) -> (bool, bool) {
-    let mut sample = false;
-    let mut custom = false;
-    draft.filter.show(ui, "wizard");
-    ui.add_space(space::SM);
-    for message in &draft.messages {
-        let (text, tint) = match message {
-            Ok(text) => (text, color::SUCCESS),
-            Err(text) => (text, color::ERROR),
-        };
-        ui.label(RichText::new(text).small().color(tint));
-    }
-    if library.vehicles().is_empty() {
-        ui.label(
-            RichText::new(tr("new-project-no-vehicles-hint"))
-                .small()
-                .color(color::TEXT_SECONDARY),
-        );
-        ui.horizontal(|ui| {
-            sample |= ui
-                .add(secondary_button(&tr("vehicles-install-sample")))
-                .clicked();
-            custom |= ui.add(secondary_button(&tr("custom-open"))).clicked();
-        });
-        return (sample, custom);
-    }
-    // A fixed height: the dialog doesn't resize (over several frames) when
-    // a vehicle's texture checkboxes appear.
-    egui::ScrollArea::vertical()
-        .max_height(280.0)
-        .auto_shrink([false, false])
-        .show(ui, |ui| {
-            super::vehicle_dialogs::vehicle_list(
-                ui,
-                library,
-                &draft.filter,
-                &[],
-                &mut draft.vehicle,
-            );
-        });
-    (sample, custom)
-}
-
-/// The vehicle chosen in the draft, if it is installed and ready, with the
-/// textures it will paint in package order.
-fn chosen<'a>(
-    draft: &NewProjectDraft,
-    library: &'a VehicleLibrary,
-) -> Option<(&'a tp_vehicles::Manifest, Vec<&'a tp_vehicles::Part>)> {
-    let choice = draft.vehicle.as_ref()?;
-    let m = choice.manifest(library)?;
-    choice.is_complete(library).then(|| (m, choice.painted(m)))
-}
-
-fn new_project(
-    ctx: &egui::Context,
-    draft: &mut NewProjectDraft,
-    library: &VehicleLibrary,
-) -> WizardOutcome {
-    let mut outcome = WizardOutcome::Pending;
-    let last = draft.step >= NEW_PROJECT_STEPS.len() - 1;
-    let response = modal("new_project_modal").show(ctx, |ui| {
-        ui.set_width(560.0);
-        ui.label(
-            RichText::new(tr("home-new-project"))
-                .text_style(title_style())
-                .color(color::TEXT_PRIMARY),
-        );
-        ui.add_space(space::XS);
-        let steps = NEW_PROJECT_STEPS.map(tr);
-        let steps = steps.each_ref().map(String::as_str);
-        StepIndicator::new(draft.step, &steps).show(ui);
-        ui.add_space(space::LG);
-
-        let (mut sample, mut custom) = (false, false);
-        if draft.step == 0 {
-            (sample, custom) = vehicle_step(ui, draft, library);
-        } else {
-            ui.label(RichText::new(tr("new-project-name")).text_style(label_strong_style()));
-            let hint = chosen(draft, library)
-                .map_or_else(|| tr("object-untitled"), |(m, _)| m.name.clone());
-            let name = ui.add(
-                TextEdit::singleline(&mut draft.name)
-                    .hint_text(hint)
-                    .desired_width(f32::INFINITY)
-                    .margin(Margin::symmetric(8, 6)),
-            );
-            name.widget_info(|| {
-                WidgetInfo::labeled(WidgetType::TextEdit, true, tr("new-project-name"))
-            });
-            if !draft.focus_requested {
-                name.request_focus();
-                draft.focus_requested = true;
-            }
-            ui.add_space(space::LG);
-            if let Some((_, parts)) = chosen(draft, library) {
-                ui.label(
-                    RichText::new(tr("new-project-textures")).text_style(label_strong_style()),
-                );
-                for part in parts {
-                    let size = part.texture.size;
-                    ui.label(
-                        RichText::new(format!("{} · {size} × {size} px", part.name))
-                            .color(color::TEXT_SECONDARY),
-                    );
-                }
-            }
-        }
-        let ready = chosen(draft, library).is_some();
-        ui.add_space(space::XL);
-
-        let (mut cancel, mut next, mut back, mut install) = (false, false, false, false);
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let label = if last {
-                tr("button-create")
-            } else {
-                tr("button-next")
-            };
-            next |= ui
-                .add_enabled(ready, primary_button(&label))
-                .on_disabled_hover_text(tr("reason-choose-vehicle"))
-                .clicked();
-            if draft.step > 0 {
-                back |= ui.add(secondary_button(&tr("button-back"))).clicked();
-            }
-            cancel |= ui.add(secondary_button(&tr("button-cancel"))).clicked();
-            if draft.step == 0 {
-                install |= ui.add(secondary_button(&tr("vehicles-install"))).clicked();
-                if !library.vehicles().is_empty() {
-                    custom |= ui.add(secondary_button(&tr("custom-open"))).clicked();
-                }
-            }
-        });
-        // Enter confirms the current step (a focused button handles Enter as
-        // its own click above).
-        if ready
-            && !cancel
-            && !back
-            && !install
-            && !sample
-            && !custom
-            && ui.input(|i| i.key_pressed(Key::Enter))
-        {
-            next = true;
-        }
-        (cancel, next, back, install, sample, custom)
-    });
-
-    let (cancel, next, back, install, sample, custom) = response.inner;
-    let escape = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::Escape));
-    if cancel || escape {
-        outcome = WizardOutcome::Cancel;
-    } else if install {
-        outcome = WizardOutcome::Install;
-    } else if sample {
-        outcome = WizardOutcome::InstallSample;
-    } else if custom {
-        outcome = WizardOutcome::CustomVehicle;
-    } else if back {
-        draft.step = draft.step.saturating_sub(1);
-    } else if next && !last {
-        draft.step += 1;
-        draft.focus_requested = false;
-    } else if next && let Some((m, _)) = chosen(draft, library) {
-        let typed = draft.name.trim().to_owned();
-        if let Some(choice) = draft.vehicle.clone() {
-            outcome = WizardOutcome::CreateVehicle {
-                name: if typed.is_empty() {
-                    m.name.clone()
-                } else {
-                    typed
-                },
-                choice,
-            };
-        }
-    }
-    outcome
+    pct: &mut f32,
+    range: std::ops::RangeInclusive<f32>,
+    name: &str,
+    width: f32,
+) -> (egui::Response, bool) {
+    let r = ui.add(
+        tp_ui::widgets::ThinSlider::new(pct, range.clone(), name)
+            .width(width)
+            .step(5.0),
+    );
+    let value = ui.add(
+        egui::DragValue::new(pct)
+            .range(range)
+            .speed(1.0)
+            .suffix("%")
+            .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
+    );
+    (r, value.changed())
 }
 
 /// Returns true when the dialog should close.
 fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
     let response = modal("preferences_modal").show(ctx, |ui| {
         ui.set_width(440.0);
-        ui.label(
-            RichText::new(tr("home-preferences"))
-                .text_style(title_style())
-                .color(color::TEXT_PRIMARY),
-        );
+        title(ui, &tr("home-preferences"), None);
         ui.add_space(space::LG);
-        ui.label(RichText::new(tr("prefs-interface")).text_style(label_strong_style()));
-        ui.add_space(space::XS);
-        egui::Grid::new("prefs_grid")
-            .num_columns(2)
-            .spacing([space::LG, space::SM])
-            .show(ui, |ui| {
-                ui.label(tr("prefs-ui-scale"));
-                let mut ui_pct = (prefs.ui_scale * 100.0).round();
-                let r = ui.add(
-                    egui::Slider::new(
-                        &mut ui_pct,
-                        (UI_SCALE_RANGE.start() * 100.0)..=(UI_SCALE_RANGE.end() * 100.0),
-                    )
-                    .step_by(5.0)
-                    .suffix("%")
-                    .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
-                );
-                r.widget_info(|| {
-                    WidgetInfo::labeled(WidgetType::Slider, true, tr("prefs-ui-scale"))
-                });
-                // Apply on release while dragging, so the slider does not move
-                // under the pointer as the interface rescales.
-                if r.changed() && !r.dragged() || r.drag_stopped() {
-                    prefs.ui_scale = ui_pct / 100.0;
-                }
-                ui.end_row();
-
-                ui.label(tr("prefs-text-size"));
-                let mut text_pct = (prefs.text_scale * 100.0).round();
-                let r = ui.add(
-                    egui::Slider::new(
-                        &mut text_pct,
-                        (TEXT_SCALE_RANGE.start() * 100.0)..=(TEXT_SCALE_RANGE.end() * 100.0),
-                    )
-                    .step_by(5.0)
-                    .suffix("%")
-                    .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
-                );
-                r.widget_info(|| {
-                    WidgetInfo::labeled(WidgetType::Slider, true, tr("prefs-text-size"))
-                });
-                if r.changed() {
-                    prefs.text_scale = text_pct / 100.0;
-                }
-                ui.end_row();
-
-                ui.label(tr("prefs-language"));
-                let current = prefs.language();
-                let name = |l: Option<tp_i18n::Language>| {
-                    l.map_or_else(|| tr("language-system"), |l| l.native_name().to_owned())
-                };
-                let mut picked = current;
-                let combo = egui::ComboBox::from_id_salt("prefs_language")
-                    .width(160.0)
-                    .selected_text(name(current))
-                    .show_ui(ui, |ui| {
-                        let choices = std::iter::once(None)
-                            .chain(tp_i18n::Language::ALL.into_iter().map(Some));
-                        for choice in choices {
-                            ui.selectable_value(&mut picked, choice, name(choice));
-                        }
-                    });
-                combo.response.widget_info(|| {
-                    WidgetInfo::labeled(WidgetType::ComboBox, true, tr("prefs-language"))
-                });
-                if picked != current {
-                    prefs.set_language(picked);
-                    ctx.request_repaint();
-                }
-                ui.end_row();
-            });
-        ui.add_space(space::XS);
+        ui.spacing_mut().item_spacing.y = space::MD;
+        section(ui, &tr("prefs-interface"));
+        let slider_width = ui.available_width() - 60.0;
+        labelled(ui, &tr("prefs-ui-scale"), |ui| {
+            let mut ui_pct = (prefs.ui_scale * 100.0).round();
+            let range = (UI_SCALE_RANGE.start() * 100.0)..=(UI_SCALE_RANGE.end() * 100.0);
+            let name = tr("prefs-ui-scale");
+            let (r, typed) = scale_slider(ui, &mut ui_pct, range, &name, slider_width);
+            // Apply on release while dragging, so the slider does not move
+            // under the pointer as the interface rescales.
+            if r.changed() && !r.dragged() || r.drag_stopped() || typed {
+                prefs.ui_scale = ui_pct / 100.0;
+            }
+        });
+        labelled(ui, &tr("prefs-text-size"), |ui| {
+            let mut text_pct = (prefs.text_scale * 100.0).round();
+            let range = (TEXT_SCALE_RANGE.start() * 100.0)..=(TEXT_SCALE_RANGE.end() * 100.0);
+            let name = tr("prefs-text-size");
+            let (r, typed) = scale_slider(ui, &mut text_pct, range, &name, slider_width);
+            if r.changed() || typed {
+                prefs.text_scale = text_pct / 100.0;
+            }
+        });
         ui.label(
             RichText::new(tr("prefs-scale-hint"))
                 .small()
                 .color(color::TEXT_SECONDARY),
         );
-        ui.add_space(space::LG);
-        ui.label(RichText::new(tr("prefs-canvas")).text_style(label_strong_style()));
-        ui.add_space(space::XS);
-        egui::Grid::new("prefs_canvas_grid")
-            .num_columns(2)
-            .spacing([space::LG, space::SM])
-            .show(ui, |ui| {
-                ui.label(tr("prefs-grid-spacing"));
-                let range = crate::prefs::GRID_SPACING_RANGE;
-                let r = ui.add(
-                    egui::DragValue::new(&mut prefs.view_aids.grid_spacing)
-                        .range(range)
-                        .speed(1.0)
-                        .max_decimals(0)
-                        .suffix(" px"),
-                );
-                r.widget_info(|| {
-                    WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-grid-spacing"))
+        labelled(ui, &tr("prefs-language"), |ui| {
+            let current = prefs.language();
+            let name = |l: Option<tp_i18n::Language>| {
+                l.map_or_else(|| tr("language-system"), |l| l.native_name().to_owned())
+            };
+            let mut picked = current;
+            let combo = egui::ComboBox::from_id_salt("prefs_language")
+                .icon(tp_ui::widgets::dropdown_icon)
+                .width(220.0)
+                .selected_text(name(current))
+                .show_ui(ui, |ui| {
+                    let choices =
+                        std::iter::once(None).chain(tp_i18n::Language::ALL.into_iter().map(Some));
+                    for choice in choices {
+                        ui.selectable_value(&mut picked, choice, name(choice));
+                    }
                 });
-                ui.end_row();
+            combo.response.widget_info(|| {
+                WidgetInfo::labeled(WidgetType::ComboBox, true, tr("prefs-language"))
             });
-        ui.add_space(space::XL);
+            if picked != current {
+                prefs.set_language(picked);
+                ctx.request_repaint();
+            }
+        });
+        ui.add_space(space::SM);
+        section(ui, &tr("prefs-canvas"));
+        labelled(ui, &tr("prefs-grid-spacing"), |ui| {
+            let range = crate::prefs::GRID_SPACING_RANGE;
+            let r = ui.add(
+                egui::DragValue::new(&mut prefs.view_aids.grid_spacing)
+                    .range(range)
+                    .speed(1.0)
+                    .max_decimals(0)
+                    .suffix(" px"),
+            );
+            r.widget_info(|| {
+                WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-grid-spacing"))
+            });
+        });
         let mut close = false;
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        footer(ui, |ui| {
             close |= ui.add(primary_button(&tr("button-done"))).clicked();
             if ui.add(secondary_button(&tr("prefs-reset"))).clicked() {
                 prefs.reset_scaling();
@@ -633,15 +482,20 @@ fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
     response.inner || response.should_close()
 }
 
+/// A section's heading in a dialog ("Interface", "Canvas").
+fn section(ui: &mut Ui, text: &str) {
+    ui.label(
+        RichText::new(text)
+            .text_style(label_strong_style())
+            .color(color::TEXT_PRIMARY),
+    );
+}
+
 fn shortcuts(ctx: &egui::Context) -> bool {
     let formatter = ShortcutFormatter::new(ctx);
     let response = modal("shortcuts_modal").show(ctx, |ui| {
-        ui.set_width(460.0);
-        ui.label(
-            RichText::new(tr("cmd-keyboard-shortcuts"))
-                .text_style(title_style())
-                .color(color::TEXT_PRIMARY),
-        );
+        ui.set_width(480.0);
+        title(ui, &tr("cmd-keyboard-shortcuts"), None);
         ui.add_space(space::MD);
         egui::ScrollArea::vertical()
             .max_height(420.0)
@@ -652,9 +506,20 @@ fn shortcuts(ctx: &egui::Context) -> bool {
                     .spacing([space::XL, space::XS + 2.0])
                     .show(ui, |ui| {
                         for id in CommandId::all() {
-                            if let Some(shortcut) = formatter.command(id) {
+                            // Every key of the command, alternates included.
+                            let keys: Vec<String> = id
+                                .meta()
+                                .shortcuts
+                                .iter()
+                                .map(|s| formatter.format(s))
+                                .collect();
+                            if !keys.is_empty() {
                                 ui.label(tr(id.meta().label));
-                                ui.label(RichText::new(shortcut).color(color::TEXT_SECONDARY));
+                                ui.label(
+                                    RichText::new(keys.join(", "))
+                                        .monospace()
+                                        .color(color::TEXT_SECONDARY),
+                                );
                                 ui.end_row();
                             }
                         }
@@ -665,11 +530,9 @@ fn shortcuts(ctx: &egui::Context) -> bool {
                         ui.end_row();
                     });
             });
-        ui.add_space(space::LG);
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        footer(ui, |ui| {
             ui.add(primary_button(&tr("button-close"))).clicked()
         })
-        .inner
     });
     response.inner || response.should_close()
 }
@@ -678,7 +541,11 @@ fn about(ctx: &egui::Context) -> bool {
     let response = modal("about_modal").show(ctx, |ui| {
         ui.set_width(360.0);
         ui.horizontal(|ui| {
-            ui.label(icons::rich(icons::VEHICLE).size(32.0).color(color::ACCENT));
+            ui.label(
+                icons::rich(icons::VEHICLE)
+                    .size(32.0)
+                    .color(color::TEXT_PRIMARY),
+            );
             ui.label(
                 RichText::new(crate::paths::APP_NAME)
                     .text_style(title_style())
@@ -691,11 +558,9 @@ fn about(ctx: &egui::Context) -> bool {
         );
         ui.add_space(space::SM);
         ui.label(tr("about-tagline"));
-        ui.add_space(space::LG);
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        footer(ui, |ui| {
             ui.add(primary_button(&tr("button-close"))).clicked()
         })
-        .inner
     });
     response.inner || response.should_close()
 }

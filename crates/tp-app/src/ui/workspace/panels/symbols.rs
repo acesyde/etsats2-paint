@@ -1,6 +1,7 @@
-//! Symbols panel: the project's symbols with their number of instances,
-//! Place and Edit, and Rename / Duplicate / Delete. Rows can be dragged
-//! onto the canvas.
+//! The symbols list (Resources tab): the project's symbols with their
+//! number of instances, Place and Edit, and Rename / Duplicate / Delete.
+//! Rows can be dragged onto the canvas. The Brand space shows them as
+//! cards with the same menu, rename field and delete confirmation.
 
 use egui::{Align, Key, Layout, RichText, Sense, TextEdit, Ui, Vec2, WidgetInfo, WidgetType};
 use tp_core::document::SymbolId;
@@ -44,7 +45,6 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
                 cmds.push(CommandId::ConvertToSymbol);
             }
         });
-        super::import_from_library_button(ui, cmds);
         return;
     }
     for (id, name) in &symbols {
@@ -72,8 +72,7 @@ fn row(ui: &mut Ui, env: &mut PanelEnv<'_>, id: SymbolId, name: &str) {
     }
     let editing = env.ws.project.editing_symbol == Some(id);
     if editing {
-        ui.painter()
-            .rect_filled(rect, radius::SM, color::ACCENT_SUBTLE);
+        ui.painter().rect_filled(rect, radius::SM, color::SELECTED);
     } else if response.hovered() {
         ui.painter().rect_filled(rect, radius::SM, color::SURFACE_2);
     }
@@ -107,30 +106,34 @@ fn row(ui: &mut Ui, env: &mut PanelEnv<'_>, id: SymbolId, name: &str) {
             env.ws.place_symbol(id, None, env.now);
         }
     });
-    response.context_menu(|ui| {
-        if ui.add(MenuRow::new(&tr("symbols-rename"))).clicked() {
-            env.ws.panels.renaming_symbol = Some((id, name.to_owned()));
-            ui.close();
+    response.context_menu(|ui| menu_items(ui, env, id, name, count));
+}
+
+/// The menu of a symbol: Rename, Duplicate, Add to / Update in Library and
+/// Delete (asking first when it has instances, see [`confirm_delete`]).
+pub fn menu_items(ui: &mut Ui, env: &mut PanelEnv<'_>, id: SymbolId, name: &str, count: usize) {
+    if ui.add(MenuRow::new(&tr("symbols-rename"))).clicked() {
+        env.ws.panels.renaming_symbol = Some((id, name.to_owned()));
+        ui.close();
+    }
+    if ui.add(MenuRow::new(&tr("symbols-duplicate"))).clicked() {
+        env.ws.duplicate_symbol(id, env.now);
+        ui.close();
+    }
+    super::library_item(ui, env, Element::Symbol(id));
+    ui.separator();
+    if ui.add(MenuRow::new(&tr("symbols-delete"))).clicked() {
+        if count == 0 {
+            env.ws.delete_symbol(id, env.now);
+        } else {
+            env.ws.panels.confirm_delete_symbol = Some(id);
         }
-        if ui.add(MenuRow::new(&tr("symbols-duplicate"))).clicked() {
-            env.ws.duplicate_symbol(id, env.now);
-            ui.close();
-        }
-        super::library_item(ui, env, Element::Symbol(id));
-        ui.separator();
-        if ui.add(MenuRow::new(&tr("symbols-delete"))).clicked() {
-            if count == 0 {
-                env.ws.delete_symbol(id, env.now);
-            } else {
-                env.ws.panels.confirm_delete_symbol = Some(id);
-            }
-            ui.close();
-        }
-    });
+        ui.close();
+    }
 }
 
 /// "Delete <name>? Its N instances become groups." with Delete / Cancel.
-fn confirm_delete(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+pub fn confirm_delete(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     let Some(id) = env.ws.panels.confirm_delete_symbol else {
         return;
     };
@@ -158,7 +161,8 @@ fn confirm_delete(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     });
 }
 
-fn rename_field(ui: &mut Ui, env: &mut PanelEnv<'_>, id: SymbolId) {
+/// The inline Rename field of symbol `id`.
+pub fn rename_field(ui: &mut Ui, env: &mut PanelEnv<'_>, id: SymbolId) {
     let Some((_, mut buffer)) = env.ws.panels.renaming_symbol.clone() else {
         return;
     };

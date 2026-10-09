@@ -1,4 +1,4 @@
-//! Align, distribute and flip the selection (Object menu, Transform panel).
+//! Align, distribute and flip the selection (Object menu, inspector › Layout).
 
 use tp_core::document::{
     DistributeAxis, DistributeMode, Edge, FlipAxis, ObjectId, align, distribute, flip,

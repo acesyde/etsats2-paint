@@ -62,11 +62,12 @@ pub fn paint(
     // Artboard.
     let surface = ws.project.surface();
     let artboard = screen_rect(map, surface.bounds());
+    // Lifted off the pasteboard by a soft shadow, with no outline.
     let shadow = Shadow {
-        offset: [0, 6],
-        blur: 24,
+        offset: [0, 20],
+        blur: 60,
         spread: 0,
-        color: color::SHADOW,
+        color: Color32::from_black_alpha(128),
     };
     painter.add(shadow.as_shape(artboard, CornerRadius::ZERO));
     painter.rect_filled(artboard, 0, tokens::ARTBOARD);
@@ -102,21 +103,7 @@ pub fn paint(
     }
 
     draw_template(ui.ctx(), &painter, ws, map);
-    painter.rect_stroke(
-        artboard,
-        0,
-        Stroke::new(1.0, color::BORDER_STRONG),
-        StrokeKind::Outside,
-    );
     draw_grid_and_guides(&painter, ws, map, area);
-    let side = ws.project.surface().size;
-    painter.text(
-        artboard.left_top() - Vec2::new(0.0, space::SM),
-        Align2::LEFT_BOTTOM,
-        format!("{} · {side} × {side} px", ws.project.surface().name),
-        egui::TextStyle::Small.resolve(ui.style()),
-        color::TEXT_SECONDARY,
-    );
 
     // Hover outline (idle, selection tools): what a click would select.
     if matches!(ws.gesture, Gesture::Idle)
@@ -568,7 +555,8 @@ fn draw_selection(painter: &Painter, ws: &mut Workspace, map: &ScreenMap, bucket
 }
 
 fn label_pill(ui: &Ui, painter: &Painter, at: Pos2, text: String) {
-    let font = egui::TextStyle::Small.resolve(ui.style());
+    // Sizes and angles are values: monospace, at caption size.
+    let font = FontId::monospace(egui::TextStyle::Small.resolve(ui.style()).size);
     let galley = painter.layout_no_wrap(text, font, color::TEXT_PRIMARY);
     let rect = Rect::from_min_size(
         at + Vec2::new(14.0, 14.0),
@@ -604,7 +592,7 @@ fn draw_gesture_feedback(
                 "Line",
             );
             draw_preview(painter, ws, &line, map);
-            // Same value the Transform panel will show as the rotation.
+            // Same value the inspector's Layout section will show as the rotation.
             let angle = crate::path_edit::line_angle(a, b);
             label_pill(
                 ui,

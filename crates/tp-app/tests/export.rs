@@ -56,7 +56,7 @@ fn dialog(h: &H) -> Option<&ExportDialog> {
 }
 
 fn open_dialog(h: &mut H) {
-    h.key_press_modifiers(Modifiers::COMMAND, Key::E);
+    h.key_press_modifiers(Modifiers::COMMAND | Modifiers::SHIFT, Key::E);
     settle(h);
     assert!(dialog(h).is_some(), "export dialog open");
 }
@@ -78,7 +78,7 @@ fn export_to(h: &mut H, path: &std::path::Path) {
         export: [path.to_path_buf()].into(),
         ..Default::default()
     });
-    h.get_by_label("Export…").click();
+    common::last(h, "Export…").click();
     // The export repaints as it progresses: step rather than run.
     h.step();
     h.step();

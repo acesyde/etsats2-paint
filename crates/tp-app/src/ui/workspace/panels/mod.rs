@@ -1,25 +1,24 @@
-//! Right-hand stack of collapsible, closable panels.
+//! Panel bodies: the functions drawing each part of the workspace (layers,
+//! colors, stroke, transform, styles, symbols, assets, fleet, properties),
+//! placed in the left panel's tabs, the inspector and the spaces.
 
-mod assets;
+pub mod assets;
 pub mod character;
-mod colors;
-mod layers;
+pub mod colors;
+pub mod layers;
 pub mod line_style;
-mod properties;
-mod stroke;
-mod styles;
-mod symbols;
-mod transform;
+pub mod properties;
+pub mod stroke;
+pub mod styles;
+pub mod symbols;
+pub mod transform;
 pub mod vehicle;
 
-use egui::{Frame, Margin, ScrollArea, Ui};
+use egui::Ui;
 use tp_i18n::tr;
-use tp_ui::icons;
-use tp_ui::tokens::space;
-use tp_ui::widgets::{EmptyState, FieldEvent, PanelHeader};
+use tp_ui::widgets::FieldEvent;
 
 use crate::commands::CommandId;
-use crate::layout::{PanelKind, WorkspaceLayout};
 use crate::ui::CommandUi;
 use crate::workspace::Workspace;
 
@@ -64,116 +63,54 @@ pub fn library_item(ui: &mut Ui, env: &mut PanelEnv<'_>, element: crate::library
     }
 }
 
-/// "Import from Library…", offered by panels while they are empty.
+/// "Import from Library…" (the Resources tab, the Brand space), disabled
+/// with a tooltip saying why while a symbol is edited.
 pub fn import_from_library_button(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
-    ui.vertical_centered(|ui| {
-        let button = ui.add_enabled(
-            cmds.enabled(CommandId::ImportFromLibrary),
-            tp_ui::widgets::secondary_button(&tr("cmd-import-from-library")),
+    let id = CommandId::ImportFromLibrary;
+    let enabled = cmds.enabled(id);
+    let mut button = ui.add_enabled(
+        enabled,
+        tp_ui::widgets::secondary_button(&tr("cmd-import-from-library")),
+    );
+    if !enabled && let Some(reason) = crate::state::disabled_reason_for(id, &cmds.edit) {
+        button = button.on_disabled_hover_text(tr(reason));
+    }
+    if button.clicked() {
+        cmds.push(id);
+    }
+}
+
+/// The heading of a list (the Textures and Layers tabs): a short title in
+/// the muted color, with `actions` at its right end.
+pub fn list_heading(ui: &mut Ui, title: &str, actions: impl FnOnce(&mut Ui)) {
+    ui.horizontal(|ui| {
+        ui.set_min_height(tp_ui::tokens::size::HIT_MIN);
+        ui.add(
+            egui::Label::new(
+                egui::RichText::new(title)
+                    .size(tp_ui::tokens::typography::CONTROL)
+                    .color(tp_ui::tokens::color::TEXT_MUTED),
+            )
+            .truncate(),
         );
-        if button.clicked() {
-            cmds.push(CommandId::ImportFromLibrary);
-        }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.spacing_mut().item_spacing.x = tp_ui::tokens::space::XXS;
+            actions(ui);
+        });
     });
 }
 
-/// Opens and expands a panel (e.g. Colors when a swatch is clicked).
-pub fn reveal(layout: &mut WorkspaceLayout, kind: PanelKind) {
-    let slot = layout.slot_mut(kind);
-    slot.open = true;
-    slot.collapsed = false;
-}
-
-pub fn show(
-    ui: &mut Ui,
-    cmds: &mut CommandUi<'_>,
-    layout: &mut WorkspaceLayout,
-    env: &mut PanelEnv<'_>,
-) {
-    let open: Vec<_> = layout.panels.iter().filter(|s| s.open).copied().collect();
-    if open.is_empty() {
-        EmptyState::new(
-            icons::LAYERS,
-            &tr("panels-all-closed"),
-            &tr("panels-all-closed-hint"),
-        )
-        .show(ui);
-        ui.vertical_centered(|ui| {
-            if ui.button(tr("cmd-reset-workspace")).clicked() {
-                cmds.push(CommandId::ResetWorkspace);
-            }
-        });
-        return;
-    }
-
-    ScrollArea::vertical()
-        .auto_shrink([false, false])
-        .show(ui, |ui| {
-            ui.spacing_mut().item_spacing.y = 0.0;
-            for slot in open {
-                let header =
-                    PanelHeader::new(slot.kind.icon(), &tr(slot.kind.title()), slot.collapsed)
-                        .show(ui);
-                if header.toggle {
-                    layout.toggle_collapsed(slot.kind);
-                }
-                if header.close {
-                    cmds.push(CommandId::TogglePanel(slot.kind));
-                }
-                header.response.context_menu(|ui| {
-                    let collapse_label = tr(if slot.collapsed {
-                        "panel-expand"
-                    } else {
-                        "panel-collapse"
-                    });
-                    if ui
-                        .add(tp_ui::widgets::MenuRow::new(&collapse_label))
-                        .clicked()
-                    {
-                        layout.toggle_collapsed(slot.kind);
-                        ui.close();
-                    }
-                    if ui
-                        .add(tp_ui::widgets::MenuRow::new(&tr("panel-close")))
-                        .clicked()
-                    {
-                        cmds.push(CommandId::TogglePanel(slot.kind));
-                        ui.close();
-                    }
-                    ui.separator();
-                    cmds.menu_item(ui, CommandId::ResetWorkspace);
-                });
-
-                if !slot.collapsed {
-                    Frame::new()
-                        .inner_margin(Margin::symmetric(space::MD as i8, space::SM as i8))
-                        .show(ui, |ui| {
-                            ui.set_width(ui.available_width());
-                            ui.spacing_mut().item_spacing.y = space::XS + 2.0;
-                            body(ui, cmds, layout, env, slot.kind);
-                        });
-                }
-            }
-        });
-}
-
-fn body(
-    ui: &mut Ui,
-    cmds: &mut CommandUi<'_>,
-    layout: &mut WorkspaceLayout,
-    env: &mut PanelEnv<'_>,
-    kind: PanelKind,
-) {
-    match kind {
-        PanelKind::Properties => properties::show(ui, env, layout),
-        PanelKind::Transform => transform::show(ui, cmds, env),
-        PanelKind::Colors => colors::show(ui, cmds, env),
-        PanelKind::Styles => styles::show(ui, cmds, env),
-        PanelKind::Symbols => symbols::show(ui, cmds, env),
-        PanelKind::Stroke => stroke::show(ui, env),
-        PanelKind::Layers => layers::show(ui, cmds, env),
-        PanelKind::Assets => assets::show(ui, cmds, env),
-        // Shown in the Vehicles sidebar, never in the column.
-        PanelKind::Vehicle => {}
-    }
+/// A section heading (the inspector's sections, the Resources tab's, the
+/// Project space's columns): small semibold capitals in the muted color,
+/// read as written by assistive technologies.
+pub fn section_heading(ui: &mut Ui, text: &str) -> egui::Response {
+    let label = ui.label(
+        egui::RichText::new(text.to_uppercase())
+            .size(tp_ui::tokens::typography::CAPTION)
+            .family(tp_ui::fonts::semibold_family())
+            .extra_letter_spacing(0.6)
+            .color(tp_ui::tokens::color::TEXT_MUTED),
+    );
+    label.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Label, true, text));
+    label
 }

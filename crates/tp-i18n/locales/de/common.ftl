@@ -34,5 +34,3 @@ picker-saturation-value = Sättigung und Helligkeit
 picker-opacity = Deckkraft der Farbe
 gradient-bar = Verlaufsleiste
 gradient-stop = Farbregler { $index } bei { $location } %
-panel-close-named = { $title } schließen
-step-of = Schritt { $step } von { $total } – { $title }

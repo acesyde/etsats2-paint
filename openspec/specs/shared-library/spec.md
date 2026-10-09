@@ -24,7 +24,7 @@ The library SHALL be written when it changes, completely before it replaces the 
 - **THEN** a message says the library could not be read and a backup was kept, and the dialog shows an empty library
 
 ### Requirement: Add to Library
-The context menu of a symbol in the Symbols panel, of a swatch in the Colors panel and of a style in the Styles panel SHALL offer **Add to Library**. It SHALL copy the element into the library with everything it uses:
+The context menu of a symbol, of a swatch and of a style SHALL offer **Add to Library** wherever the element is listed: symbols and styles in the Workshop's Resources tab and in the Brand space; swatches in the palette of the color popover, in the Palette section of the Resources tab, and in the Brand space. It SHALL copy the element into the library with everything it uses:
 - a symbol, with the images its objects show, the swatches their fills, strokes and gradient stops link to, and the styles they follow;
 - a style, with the swatches its look links to;
 - a swatch, alone.
@@ -39,8 +39,12 @@ The element and each dependency SHALL be linked to their library entry. When the
 - **WHEN** "Logo Ardent" was added to the library, the user edits it in the project and opens its context menu
 - **THEN** the menu offers Update in Library, and choosing it replaces the library's "Logo Ardent" with the edited one
 
+#### Scenario: Same item in every list
+- **WHEN** the swatch "Vert Ardent" was added to the library and the user opens its context menu in the Brand space, then in the color popover's palette
+- **THEN** both menus offer Update in Library
+
 ### Requirement: Import from Library
-Object › **Import from Library…** SHALL be available when a project is open, except while a symbol is being edited. The Symbols, Colors and Styles panels SHALL offer it when they are empty. It SHALL open a dialog listing the library's symbols, swatches, graphic styles and text styles in four groups, each with its name and a preview (the color for a swatch, the symbol's content for a symbol). Each element has a checkbox:
+**Import from Library…** SHALL be available when a project is open, except while a symbol is being edited, from three places: the Object menu, a button in the header of the Brand space, and a button in the Workshop's Resources tab. Each SHALL be disabled under the same rule, with a tooltip saying why. It SHALL open a dialog listing the library's symbols, swatches, graphic styles and text styles in four groups, each with its name and a preview (the color for a swatch, the symbol's content for a symbol). Each element has a checkbox:
 - an element whose library entry the project already has SHALL be shown as "In this project", and can't be checked;
 - **Import** SHALL import the checked elements following the import rules, as one undo step "Import from Library", and close the dialog. It is disabled while nothing is checked;
 - **Remove from Library**, in an element's context menu, SHALL delete that library entry after confirmation. Projects keep their copies.
@@ -58,6 +62,14 @@ An empty library SHALL show an explanation of Add to Library instead of the grou
 #### Scenario: Removing from the library
 - **WHEN** the user removes "Logo Ardent" from the library and confirms
 - **THEN** the library no longer lists it, and projects that imported it keep their copy
+
+#### Scenario: Import from the Resources tab
+- **WHEN** the project has symbols, swatches and styles, and the user clicks Import from Library… in the Resources tab
+- **THEN** the Import from Library dialog opens
+
+#### Scenario: Disabled while editing a symbol
+- **WHEN** a symbol is being edited
+- **THEN** Import from Library… is disabled in the Object menu, the Brand header and the Resources tab, with a tooltip saying why
 
 ### Requirement: Import rules
 Importing elements into a project, from the library or by pasting from another project, SHALL bring each element with everything it uses (as for Add to Library), under new ids, with every link (images, swatches, styles, symbols) pointing to the project's elements. Each element, dependencies included, SHALL be:

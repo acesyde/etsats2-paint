@@ -73,6 +73,10 @@ impl Workspace {
             }
             self.selection = placed;
             self.record("undo-place", before, now, false);
+            // Imported from the Brand space: shown placed and selected.
+            if self.space == crate::layout::Space::Brand {
+                self.space = crate::layout::Space::Workshop;
+            }
         }
         if let Some(first) = errors.first() {
             let more = errors.len() - 1;

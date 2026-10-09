@@ -173,7 +173,7 @@ impl<'a> GradientBar<'a> {
                 Pos2::new(rect.left(), body_top),
             ];
             let outline = if selected {
-                Stroke::new(2.0, color::ACCENT)
+                Stroke::new(2.0, color::INDICATOR)
             } else {
                 Stroke::new(stroke::HAIRLINE, color::BORDER_STRONG)
             };
@@ -192,7 +192,7 @@ impl<'a> GradientBar<'a> {
                 painter.rect_stroke(
                     rect.expand(2.0),
                     CornerRadius::same(2),
-                    Stroke::new(stroke::FOCUS, color::ACCENT),
+                    Stroke::new(stroke::FOCUS, color::FOCUS),
                     StrokeKind::Outside,
                 );
             }
