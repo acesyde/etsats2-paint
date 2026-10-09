@@ -36,8 +36,8 @@ to share.
 - **The game data is required,** as `tpv` requires it: the game path, the
   cabin internal names when there are several main textures, and the
   accessory ids. A package without them couldn't be exported as a mod.
-  Prefilling them from Paintjob Packer's database would lift the burden
-  later.
+  Prefilling them from Paintjob Packer's database will lift the burden
+  (planned in `paintjob-importer`).
 - **New Version…** makes the next version of a custom vehicle (id
   `custom.<brand>.<name>`) after a game update: replacing a template raises
   its layout version, so Update Template works as for any package.
@@ -235,8 +235,11 @@ None at the moment.
 
 | # | Change | What it does | Why now |
 |---|---|---|---|
-| 1 | `vehicle-marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once the format is stable. |
-| 2 | `distribution` | Release builds and installers. | A player can now go from vehicle to mod. |
+| 1 | `new-design` | Redesigns the interface: theme, colors, typography, icons and panel layout. | The feature set is in place; the look comes before others use the app. |
+| 2 | `polishing` | Fixes, ergonomics, wording and performance across the app, with no new feature. | Smooths what the first players will meet, on the new design. |
+| 3 | `paintjob-importer` | Prefills the game data of a custom vehicle (game path, cabin internal names, accessory ids) from Paintjob Packer's database. | Custom vehicle asks for game data most players don't know. |
+| 4 | `distribution` | Release builds and installers. | A player can go from vehicle to mod without building the app. |
+| 5 | `marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once players have the app and can make packages easily. |
 
 ## Shipped
 
