@@ -1,4 +1,4 @@
-//! Layers panel: the object tree with selection, rename, visibility, lock,
+//! Layers tab: the object tree with selection, rename, visibility, lock,
 //! drag and drop, and grouping commands.
 
 use std::collections::HashSet;
@@ -90,7 +90,22 @@ fn reveal_selection(env: &mut PanelEnv<'_>) {
     }
 }
 
+/// The Layers tab: a heading naming the texture (or the symbol being
+/// edited) and its number of top-level objects, with New Layer (+); then
+/// the tree, and the footer's commands.
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
+    let project = &env.ws.project;
+    let name = project
+        .edited_symbol()
+        .map_or_else(|| project.surface().name.clone(), |s| s.name.clone());
+    let heading = tr!(
+        "layers-heading",
+        texture = name.as_str(),
+        count = project.surface().objects.len()
+    );
+    super::list_heading(ui, &heading, |ui| {
+        cmds.add_button(ui, CommandId::NewLayer);
+    });
     if env.ws.project.surface().objects.is_empty() {
         EmptyState::new(icons::LAYERS, &tr("empty-layers"), &tr("layers-empty-hint")).show(ui);
         footer(ui, cmds);
@@ -116,6 +131,25 @@ fn footer(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
         cmds.icon_button(ui, CommandId::Ungroup, false);
         cmds.icon_button(ui, CommandId::Delete, false);
     });
+}
+
+/// Whether `object` follows a graphic or text style.
+fn follows_style(object: &Object) -> bool {
+    object.style.is_some() || object.text.as_ref().is_some_and(|t| t.style_id.is_some())
+}
+
+/// Colors of a row's kind icon and name. Instances and objects following a
+/// style are linked to the brand: both in the link color, never alone (an
+/// instance shows the symbol icon, a styled object a link icon after its
+/// name). Hidden and locked rows are dimmed.
+pub fn row_colors(object: &Object, dim: bool) -> (egui::Color32, egui::Color32) {
+    if dim {
+        (color::TEXT_DISABLED, color::TEXT_DISABLED)
+    } else if object.is_instance() || follows_style(object) {
+        (color::LINK, color::LINK)
+    } else {
+        (color::TEXT_SECONDARY, color::TEXT_PRIMARY)
+    }
 }
 
 /// Draws one row; returns its rectangle.
@@ -146,11 +180,11 @@ fn row_ui(
     // Background and selection indicator.
     let painter = ui.painter();
     if selected {
-        painter.rect_filled(rect, 0, color::ACCENT_SUBTLE);
+        painter.rect_filled(rect, 0, color::SELECTED);
         painter.rect_filled(
             Rect::from_min_size(rect.min, Vec2::new(stroke::INDICATOR, rect.height())),
             0,
-            color::ACCENT,
+            color::INDICATOR,
         );
     } else if response.hovered() {
         painter.rect_filled(rect, 0, color::SURFACE_3);
@@ -189,21 +223,14 @@ fn row_ui(
     }
     x += 14.0;
     let dim = hidden || locked;
-    let text_color = if dim {
-        color::TEXT_DISABLED
-    } else {
-        color::TEXT_PRIMARY
-    };
+    let styled = follows_style(&object);
+    let (icon_color, text_color) = row_colors(&object, dim);
     ui.painter().text(
         Pos2::new(x + 7.0, rect.center().y),
         Align2::CENTER_CENTER,
         kind_icon(object.kind),
         icons::font(size::ICON - 2.0),
-        if dim {
-            color::TEXT_DISABLED
-        } else {
-            color::TEXT_SECONDARY
-        },
+        icon_color,
     );
     x += 14.0 + space::SM;
 
@@ -217,13 +244,23 @@ fn row_ui(
     if renaming {
         rename_editor(ui, env, row.id, name_rect);
     } else {
-        ui.painter().with_clip_rect(name_rect).text(
+        let painter = ui.painter().with_clip_rect(name_rect);
+        let text = painter.text(
             Pos2::new(name_rect.left(), rect.center().y),
             Align2::LEFT_CENTER,
             &object.name,
             egui::TextStyle::Body.resolve(ui.style()),
             text_color,
         );
+        if styled {
+            painter.text(
+                Pos2::new(text.right() + space::XS, rect.center().y),
+                Align2::LEFT_CENTER,
+                icons::LINKED,
+                icons::font(size::ICON - 4.0),
+                text_color,
+            );
+        }
     }
 
     // Visibility and lock toggles.
@@ -384,15 +421,15 @@ fn drag_and_drop(ui: &mut Ui, env: &mut PanelEnv<'_>, rows: &[(Row, Rect)]) {
                 painter.rect_stroke(
                     r.shrink(1.0),
                     CornerRadius::same(2),
-                    Stroke::new(stroke::FOCUS, color::ACCENT),
+                    Stroke::new(stroke::FOCUS, color::INDICATOR),
                     StrokeKind::Inside,
                 );
             }
             Placement::Above(_) => {
-                painter.hline(r.x_range(), r.top(), Stroke::new(2.0, color::ACCENT));
+                painter.hline(r.x_range(), r.top(), Stroke::new(2.0, color::INDICATOR));
             }
             Placement::Below(_) | Placement::Top => {
-                painter.hline(r.x_range(), r.bottom(), Stroke::new(2.0, color::ACCENT));
+                painter.hline(r.x_range(), r.bottom(), Stroke::new(2.0, color::INDICATOR));
             }
         }
     }
@@ -466,6 +503,30 @@ mod tests {
         assert_eq!(drop_placement(&group, 0.9), Placement::Below(ObjectId(10)));
         assert_eq!(drop_placement(&shape, 0.45), Placement::Above(ObjectId(1)));
         assert_eq!(drop_placement(&shape, 0.55), Placement::Below(ObjectId(1)));
+    }
+
+    #[test]
+    fn instances_and_styled_objects_in_the_link_color() {
+        let plain = (*rect(1)).clone();
+        assert_eq!(
+            row_colors(&plain, false),
+            (color::TEXT_SECONDARY, color::TEXT_PRIMARY)
+        );
+        let mut styled = plain.clone();
+        styled.style = Some(tp_core::document::StyleId(1));
+        assert_eq!(row_colors(&styled, false), (color::LINK, color::LINK));
+        let mut instance = plain.clone();
+        instance.kind = ShapeKind::Instance {
+            symbol: tp_core::document::SymbolId(1),
+            placement: Default::default(),
+        };
+        assert_eq!(row_colors(&instance, false), (color::LINK, color::LINK));
+        assert_eq!(kind_icon(instance.kind), icons::SYMBOL, "and its icon");
+        // Hidden or locked rows are dimmed, linked or not.
+        assert_eq!(
+            row_colors(&instance, true),
+            (color::TEXT_DISABLED, color::TEXT_DISABLED)
+        );
     }
 
     #[test]

@@ -30,6 +30,8 @@ pub struct NumericField<'a> {
     /// Value change per point of horizontal drag.
     speed: f64,
     width: f32,
+    /// Text box as wide as the room left by the label and the suffix.
+    fill: bool,
 }
 
 #[derive(Clone, Default)]
@@ -51,6 +53,7 @@ impl<'a> NumericField<'a> {
             range: f64::MIN..=f64::MAX,
             speed: 1.0,
             width: 64.0,
+            fill: false,
         }
     }
 
@@ -79,6 +82,13 @@ impl<'a> NumericField<'a> {
         self
     }
 
+    /// Makes the text box take the width left in the row by the label and
+    /// the suffix (at least the set width), so a field fills a column.
+    pub fn fill(mut self) -> Self {
+        self.fill = true;
+        self
+    }
+
     fn format(&self, v: f64) -> String {
         tp_i18n::format_number(v, self.decimals)
     }
@@ -92,19 +102,22 @@ impl<'a> NumericField<'a> {
         let mut event = FieldEvent::None;
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = space::XS;
-            // Scrubbable label.
-            let label = ui
-                .add(
-                    egui::Label::new(
-                        RichText::new(self.label)
-                            .small()
-                            .color(color::TEXT_SECONDARY),
+            // Scrubbable label (none when the field is labelled above, so
+            // that it lines up with the fields around it).
+            if !self.label.is_empty() {
+                let label = ui
+                    .add(
+                        egui::Label::new(
+                            RichText::new(self.label)
+                                .small()
+                                .color(color::TEXT_SECONDARY),
+                        )
+                        .sense(Sense::drag()),
                     )
-                    .sense(Sense::drag()),
-                )
-                .on_hover_cursor(CursorIcon::ResizeHorizontal)
-                .on_hover_text(self.name);
-            event = self.scrub(ui, &label, id);
+                    .on_hover_cursor(CursorIcon::ResizeHorizontal)
+                    .on_hover_text(self.name);
+                event = self.scrub(ui, &label, id);
+            }
 
             // Text box.
             let text_id = id.with("text");
@@ -122,15 +135,34 @@ impl<'a> NumericField<'a> {
                 .painter()
                 .layout_no_wrap(
                     hint.clone(),
-                    egui::TextStyle::Body.resolve(ui.style()),
+                    egui::TextStyle::Monospace.resolve(ui.style()),
                     egui::Color32::WHITE,
                 )
                 .size()
                 .x;
+            let margin = Margin::symmetric(6, 3);
+            let mut width = self.width.max(hint_width + 14.0);
+            if self.fill {
+                let suffix = if self.suffix.is_empty() {
+                    0.0
+                } else {
+                    let font = egui::TextStyle::Small.resolve(ui.style());
+                    ui.painter()
+                        .layout_no_wrap(self.suffix.to_owned(), font, egui::Color32::WHITE)
+                        .size()
+                        .x
+                        + ui.spacing().item_spacing.x
+                };
+                // The desired width of a `TextEdit` includes its margin.
+                let room = ui.available_width() - suffix;
+                width = width.max(room.floor());
+            }
+            // Values are set in the monospace face (JetBrains Mono).
             let edit = TextEdit::singleline(&mut buffer)
                 .id(text_id)
-                .desired_width(self.width.max(hint_width + 14.0))
-                .margin(Margin::symmetric(6, 3))
+                .font(egui::TextStyle::Monospace)
+                .desired_width(width)
+                .margin(margin)
                 .hint_text(hint);
             let response = ui.add(edit);
             response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, self.name));

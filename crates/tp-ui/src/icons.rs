@@ -57,8 +57,6 @@ pub const EXPANDED: &str = ph::CARET_DOWN;
 pub const COLLAPSED: &str = ph::CARET_RIGHT;
 /// A newer version is available.
 pub const UPDATE: &str = ph::ARROW_CIRCLE_UP;
-/// Reduces a sidebar to its strip.
-pub const HIDE_SIDEBAR: &str = ph::CARET_DOUBLE_LEFT;
 
 pub const SAVED: &str = ph::CHECK_CIRCLE;
 pub const CHECK: &str = ph::CHECK;
@@ -89,11 +87,8 @@ pub const ITALIC: &str = ph::TEXT_ITALIC;
 pub const SEARCH: &str = ph::MAGNIFYING_GLASS;
 pub const RENAME: &str = ph::PENCIL_SIMPLE;
 
-pub const PROPERTIES: &str = ph::SLIDERS;
 pub const LAYERS: &str = ph::STACK;
-pub const COLORS: &str = ph::PALETTE;
 pub const STYLES: &str = ph::SWATCHES;
-pub const STROKE: &str = ph::CIRCLE_HALF;
 pub const STROKE_CENTER: &str = ph::SQUARE_HALF;
 pub const STROKE_INSIDE: &str = ph::CORNERS_IN;
 pub const STROKE_OUTSIDE: &str = ph::CORNERS_OUT;
@@ -107,7 +102,6 @@ pub const PAINT_SOLID: &str = ph::SQUARE;
 pub const PAINT_LINEAR: &str = ph::GRADIENT;
 pub const PAINT_RADIAL: &str = ph::RADIO_BUTTON;
 pub const REVERSE: &str = ph::ARROWS_LEFT_RIGHT;
-pub const TRANSFORM: &str = ph::BOUNDING_BOX;
 pub const ASSETS: &str = ph::IMAGES;
 pub const VEHICLE: &str = ph::TRUCK;
 pub const GROUP: &str = ph::FOLDER_SIMPLE;
@@ -121,3 +115,6 @@ pub const UNLOCKED: &str = ph::LOCK_SIMPLE_OPEN;
 pub const LINKED: &str = ph::LINK_SIMPLE;
 pub const UNLINKED: &str = ph::LINK_BREAK;
 pub const ADD: &str = ph::PLUS;
+/// A status bar toggle that is on / off (the knob's side tells them apart).
+pub const TOGGLE_ON: &str = ph::TOGGLE_RIGHT;
+pub const TOGGLE_OFF: &str = ph::TOGGLE_LEFT;

@@ -1,0 +1,63 @@
+(
+    version: 1,
+    ui_scale: 1.25,
+    text_scale: 1.0,
+    layout: (
+        panels: [
+            (
+                kind: Properties,
+                open: true,
+                collapsed: false,
+            ),
+            (
+                kind: Layers,
+                open: true,
+                collapsed: false,
+            ),
+            (
+                kind: Colors,
+                open: true,
+                collapsed: true,
+            ),
+            (
+                kind: Styles,
+                open: true,
+                collapsed: true,
+            ),
+            (
+                kind: Symbols,
+                open: true,
+                collapsed: true,
+            ),
+            (
+                kind: Stroke,
+                open: true,
+                collapsed: true,
+            ),
+            (
+                kind: Transform,
+                open: true,
+                collapsed: true,
+            ),
+            (
+                kind: Assets,
+                open: false,
+                collapsed: true,
+            ),
+        ],
+        column_width: 340.0,
+        vehicles_open: false,
+        vehicles_width: 300.0,
+    ),
+    recent: [],
+    recent_colors: [
+        (200, 30, 40, 255),
+    ],
+    view_aids: (
+        grid: true,
+        guides: true,
+        snapping: false,
+        grid_spacing: 128.0,
+    ),
+    language: Some("fr"),
+)

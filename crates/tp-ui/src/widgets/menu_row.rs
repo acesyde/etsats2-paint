@@ -76,12 +76,12 @@ impl Widget for MenuRow<'_> {
             let painter = ui.painter();
             let highlighted = enabled && (response.hovered() || response.has_focus());
             if highlighted {
-                painter.rect_filled(rect, radius::SM, color::ACCENT_FILL);
+                painter.rect_filled(rect, radius::SM, color::SURFACE_3);
             }
             let (fg, fg_weak) = if !enabled {
                 (color::TEXT_DISABLED, color::TEXT_DISABLED)
             } else if highlighted {
-                (color::TEXT_ON_ACCENT, color::TEXT_ON_ACCENT)
+                (color::TEXT_PRIMARY, color::TEXT_PRIMARY)
             } else {
                 (color::TEXT_PRIMARY, color::TEXT_SECONDARY)
             };

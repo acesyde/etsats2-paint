@@ -1,4 +1,4 @@
-//! Headless tests for symbols: Convert to Symbol, the Symbols panel, editing
+//! Headless tests for symbols: Convert to Symbol, the Symbols section, editing
 //! a symbol in its own view, Detach Instance, and instances in the editor.
 
 mod common;
@@ -9,7 +9,6 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use tp_app::AppState;
 use tp_app::commands::CommandId;
-use tp_app::layout::PanelKind;
 use tp_app::prefs::Prefs;
 use tp_app::workspace::{ColorTarget, Workspace};
 use tp_core::document::{Frame, Object, ObjectId, Paint, Rgba, ShapeKind, SymbolId};
@@ -17,14 +16,11 @@ use tp_core::kurbo::{Point, Size};
 
 type H = Harness<'static, AppState>;
 
-/// Tall window with every panel open and expanded but Assets and
-/// Transform; the sample truck project (Standard cab, Chassis, …).
+/// Tall window with the Resources tab shown; the sample truck project
+/// (Standard cab, Chassis, …).
 fn open() -> H {
     let mut prefs = Prefs::default();
-    for slot in &mut prefs.layout.panels {
-        slot.open = !matches!(slot.kind, PanelKind::Assets | PanelKind::Transform);
-        slot.collapsed = false;
-    }
+    prefs.layout.left_tab = tp_app::layout::LeftTab::Resources;
     prefs.view_aids.snapping = false;
     let mut h = Harness::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
@@ -328,4 +324,26 @@ fn resize_an_instance() {
         "the circle keeps its proportions"
     );
     assert_eq!(child.fill, before.children[0].fill, "and its look");
+}
+
+#[test]
+fn an_instance_in_the_layers_tab() {
+    let mut h = open();
+    let (_, instance) = convert_a_logo(&mut h);
+    let object = get(&h, 0, instance);
+    common::show_tab(&mut h, tp_app::layout::LeftTab::Textures);
+    let elsewhere = h.query_all_by_label(&object.name).count();
+    common::show_tab(&mut h, tp_app::layout::LeftTab::Layers);
+    // One row named after the instance, with no expander, drawn with the
+    // symbol icon in the link color.
+    assert_eq!(h.query_all_by_label(&object.name).count(), elsewhere + 1);
+    assert!(
+        h.query_by_label(&format!("Expand {}", object.name))
+            .is_none()
+    );
+    let (icon, name) = tp_app::ui::workspace::panels::layers::row_colors(&object, false);
+    assert_eq!(
+        (icon, name),
+        (tp_ui::tokens::color::LINK, tp_ui::tokens::color::LINK)
+    );
 }

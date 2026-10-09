@@ -67,7 +67,7 @@ impl Widget for IconButton<'_> {
             } else if enabled && response.hovered() {
                 painter.rect_filled(rect, corner, color::SURFACE_3);
             } else if self.selected {
-                painter.rect_filled(rect, corner, color::ACCENT_SUBTLE);
+                painter.rect_filled(rect, corner, color::SELECTED);
             }
             painter.text(
                 rect.center(),
@@ -102,10 +102,10 @@ pub fn toggle_icon_button(
     ui.add(IconButton::new(icon, name).selected(!on)).clicked()
 }
 
-/// Call-to-action button with the accent fill.
+/// Call-to-action button: the primary accent (white) with dark text.
 pub fn primary_button(text: &str) -> Button<'static> {
-    Button::new(RichText::new(text.to_owned()).color(color::TEXT_ON_ACCENT))
-        .fill(color::ACCENT_FILL)
+    Button::new(RichText::new(text.to_owned()).color(color::TEXT_ON_PRIMARY))
+        .fill(color::ACCENT_PRIMARY)
         .stroke(Stroke::NONE)
         .corner_radius(CornerRadius::same(radius::MD))
         .min_size(Vec2::new(88.0, 30.0))

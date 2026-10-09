@@ -6,9 +6,9 @@ mod empty_state;
 mod gradient_bar;
 mod menu_row;
 mod numeric_field;
-mod panel_header;
+mod paint_row;
+mod popover;
 mod segmented;
-mod step_indicator;
 mod tool_button;
 
 pub use buttons::{IconButton, primary_button, secondary_button, toggle_icon_button};
@@ -20,9 +20,9 @@ pub use empty_state::EmptyState;
 pub use gradient_bar::{GradientBar, GradientBarEvent, keyboard_claimed};
 pub use menu_row::MenuRow;
 pub use numeric_field::{FieldEvent, NumericField, parse_number, remember_escape, take_escape};
-pub use panel_header::{PanelHeader, PanelHeaderResponse};
+pub use paint_row::{PAINT_ROW_HEIGHT, PaintRow, PaintRowResponse};
+pub use popover::Popover;
 pub use segmented::{Segment, SegmentedControl};
-pub use step_indicator::StepIndicator;
 pub use tool_button::ToolButton;
 
 use egui::{CornerRadius, Rect, Response, Stroke, StrokeKind, Ui};
@@ -35,7 +35,7 @@ pub fn paint_focus_ring(ui: &Ui, rect: Rect, response: &Response, corner: u8) {
         ui.painter().rect_stroke(
             rect.expand(1.0),
             CornerRadius::same(corner.saturating_add(1)),
-            Stroke::new(stroke::FOCUS, color::ACCENT),
+            Stroke::new(stroke::FOCUS, color::FOCUS),
             StrokeKind::Outside,
         );
     }

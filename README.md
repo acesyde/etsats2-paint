@@ -106,5 +106,7 @@ mise run sample-vehicles               # rebuild the sample packages
 
 ## Licenses
 
-Code: MIT. Bundled fonts: [Inter](https://rsms.me/inter/) (SIL Open Font License,
-see `assets/fonts/Inter-LICENSE.txt`) and [Phosphor Icons](https://phosphoricons.com/) (MIT).
+Code: MIT. Bundled fonts: [Geist](https://github.com/vercel/geist-font),
+[JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) and the document fonts such as
+[Inter](https://rsms.me/inter/) (SIL Open Font License, see `assets/fonts/*-LICENSE.txt`),
+and [Phosphor Icons](https://phosphoricons.com/) (MIT).

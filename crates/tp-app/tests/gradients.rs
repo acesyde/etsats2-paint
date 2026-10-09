@@ -1,5 +1,5 @@
 //! Headless tests for gradients: the paint kind control, the gradient bar
-//! and fields of the Colors panel, and the Gradient tool.
+//! and fields of the color popover, and the Gradient tool.
 
 mod common;
 
@@ -8,7 +8,6 @@ use egui::{Event, Key, Modifiers, PointerButton, Pos2, Vec2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use tp_app::AppState;
-use tp_app::layout::PanelKind;
 use tp_app::prefs::Prefs;
 use tp_app::workspace::{ColorTarget, Workspace};
 use tp_core::document::{
@@ -21,13 +20,9 @@ type H = Harness<'static, AppState>;
 const RED: Rgba = Rgba::rgb(255, 0, 0);
 const BLUE: Rgba = Rgba::rgb(0, 0, 255);
 
-/// Tall window with the editing panels open and expanded.
+/// Tall window, so the inspector and its popovers show whole.
 fn open() -> H {
-    let mut prefs = Prefs::default();
-    for slot in &mut prefs.layout.panels {
-        slot.open = !matches!(slot.kind, PanelKind::Assets);
-        slot.collapsed = false;
-    }
+    let prefs = Prefs::default();
     let mut h = Harness::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
         .with_step_dt(1.0 / 4.0)
@@ -95,17 +90,25 @@ fn type_into(h: &mut H, name: &str, text: &str) {
     h.run();
 }
 
+/// A click at `at`. One frame (a quarter second) between press and
+/// release: `run` may take four frames when background renders repaint, a
+/// second, which egui takes for a long press, then a drag, not a click.
 fn click_at(h: &mut H, at: Pos2) {
     h.event(Event::PointerMoved(at));
-    for pressed in [true, false] {
-        h.event(Event::PointerButton {
-            pos: at,
-            button: PointerButton::Primary,
-            pressed,
-            modifiers: Modifiers::NONE,
-        });
-        h.run();
-    }
+    h.event(Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed: true,
+        modifiers: Modifiers::NONE,
+    });
+    h.step();
+    h.event(Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed: false,
+        modifiers: Modifiers::NONE,
+    });
+    h.run();
 }
 
 fn undo(h: &mut H) {
@@ -117,6 +120,7 @@ fn undo(h: &mut H) {
 fn make_a_fill_linear_and_undo() {
     let mut h = open();
     let id = add_rect(&mut h, (500.0, 500.0), RED.into());
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     assert!(selected(&h, "Solid paint"));
     h.get_by_label("Linear gradient").click();
     h.run();
@@ -134,6 +138,7 @@ fn make_a_fill_linear_and_undo() {
 fn add_a_middle_stop() {
     let mut h = open();
     let id = add_rect(&mut h, (500.0, 500.0), Paint::Gradient(red_blue()));
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     let bar = h.get_by_label("Gradient bar").rect();
     // The markers' centers span the bar, inset by half a marker (6 px).
     click_at(&mut h, Pos2::new(bar.center().x, bar.top() + 5.0));
@@ -157,6 +162,7 @@ fn add_a_middle_stop() {
 fn recolor_a_stop_with_the_hex_field() {
     let mut h = open();
     let id = add_rect(&mut h, (500.0, 500.0), Paint::Gradient(red_blue()));
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     h.get_by_label("Stop 2 at 100%").click();
     h.run();
     type_into(&mut h, "Hex color", "#00ff00");
@@ -169,6 +175,7 @@ fn recolor_a_stop_with_the_hex_field() {
 fn recent_color_on_a_stop() {
     let mut h = open();
     let id = add_rect(&mut h, (500.0, 500.0), Paint::Gradient(red_blue()));
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     // Applying a color to the first stop makes it recent.
     type_into(&mut h, "Hex color", "#123456");
     h.get_by_label("Stop 2 at 100%").click();
@@ -184,6 +191,7 @@ fn recent_color_on_a_stop() {
 fn two_stops_minimum() {
     let mut h = open();
     let id = add_rect(&mut h, (500.0, 500.0), Paint::Gradient(red_blue()));
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     h.get_by_label("Stop 1 at 0%").click();
     h.run();
     h.key_press(Key::Delete);
@@ -202,6 +210,7 @@ fn delete_and_move_stops_with_the_keyboard() {
         ColorStop::new(1.0, BLUE),
     ]);
     let id = add_rect(&mut h, (500.0, 500.0), Paint::Gradient(g));
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     h.get_by_label("Stop 2 at 50%").click();
     h.run();
     h.key_press(Key::ArrowRight);
@@ -220,6 +229,7 @@ fn delete_and_move_stops_with_the_keyboard() {
 fn location_angle_aspect_and_reverse() {
     let mut h = open();
     let id = add_rect(&mut h, (500.0, 500.0), Paint::Gradient(red_blue()));
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     h.get_by_label("Stop 2 at 100%").click();
     h.run();
     type_into(&mut h, "Stop location", "30");
@@ -244,6 +254,7 @@ fn new_shapes_use_the_current_gradient() {
     let mut h = open();
     ws_mut(&mut h).selection.clear();
     h.run();
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     h.get_by_label("Radial gradient").click();
     h.run();
     let frame = Frame::new(Point::new(800.0, 800.0), Size::new(300.0, 200.0), 0.0);
@@ -262,6 +273,7 @@ fn mixed_kinds_and_editing_applies_the_first_gradient() {
     let b = add_rect(&mut h, (500.0, 900.0), RED.into());
     ws_mut(&mut h).selection = vec![a, b];
     h.run();
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     for name in ["Solid paint", "Linear gradient", "Radial gradient"] {
         assert!(!selected(&h, name), "{name}: Mixed");
     }
@@ -272,7 +284,7 @@ fn mixed_kinds_and_editing_applies_the_first_gradient() {
 }
 
 #[test]
-fn stroke_gradient_from_the_panel() {
+fn stroke_gradient_from_the_popover() {
     let mut h = open();
     let id = add_rect(&mut h, (500.0, 500.0), RED.into());
     ws_mut(&mut h).map_selected_shapes("undo-add-stroke", |o| {
@@ -284,6 +296,7 @@ fn stroke_gradient_from_the_panel() {
     ws_mut(&mut h).commit_pending(0.5);
     ws_mut(&mut h).panels.color_target = ColorTarget::Stroke;
     h.run();
+    common::open_color_popover(&mut h, ColorTarget::Stroke);
     h.get_by_label("Linear gradient").click();
     h.run();
     let o = obj(&h, id);
@@ -331,12 +344,18 @@ fn close(a: Point, b: Point, tol: f64) -> bool {
 }
 
 #[test]
-fn g_activates_the_gradient_tool_after_the_eyedropper() {
+fn shift_g_activates_the_gradient_tool_after_the_eyedropper() {
     let mut h = open();
-    h.key_press(Key::G);
+    h.key_press_modifiers(Modifiers::SHIFT, Key::G);
     h.run();
     assert_eq!(ws(&h).tool, tp_app::tool::Tool::Gradient);
-    let y = |name: &str| h.get_by_label(name).rect().center().y;
+    // The tool rail's buttons (the tool options bar also names the tool).
+    let y = |name: &str| {
+        h.get_by_role_and_label(Role::Button, name)
+            .rect()
+            .center()
+            .y
+    };
     assert!(y("Eyedropper") < y("Gradient") && y("Gradient") < y("Zoom"));
 }
 

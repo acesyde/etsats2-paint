@@ -7,7 +7,6 @@ use egui::Vec2;
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use tp_app::AppState;
-use tp_app::layout::PanelKind;
 use tp_app::prefs::Prefs;
 use tp_app::workspace::Workspace;
 use tp_core::Project;
@@ -20,14 +19,11 @@ type H = Harness<'static, AppState>;
 
 const VERT: Rgba = Rgba::rgb(0x1E, 0x8C, 0x3A);
 
-/// Tall window with every panel open and expanded but Assets and
-/// Transform; a project for the sample truck.
+/// Tall window with the Resources tab shown; a project for the sample
+/// truck.
 fn open() -> H {
     let mut prefs = Prefs::default();
-    for slot in &mut prefs.layout.panels {
-        slot.open = !matches!(slot.kind, PanelKind::Assets | PanelKind::Transform);
-        slot.collapsed = false;
-    }
+    prefs.layout.left_tab = tp_app::layout::LeftTab::Resources;
     let mut h = Harness::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
         .build_ui_state(
@@ -94,8 +90,10 @@ fn ardent(h: &mut H) -> Ardent {
     Ardent { logo, vert }
 }
 
+/// Opens the context menu of `row` (the first one listed: a swatch is in
+/// the Resources tab and the inspector) and clicks `item`.
 fn context_menu(h: &mut H, row: &str, item: &str) {
-    h.get_by_label(row).click_secondary();
+    h.get_all_by_label(row).next().expect(row).click_secondary();
     h.run();
     h.get_by_label(item).click();
     h.run();
@@ -167,7 +165,10 @@ fn undo_keeps_the_library_links() {
     );
     assert_eq!(ws(&h).project.swatch(ids.vert).unwrap().origin, key);
     // The swatch's menu still offers to update it.
-    h.get_by_label("Vert Ardent").click_secondary();
+    h.get_all_by_label("Vert Ardent")
+        .next()
+        .unwrap()
+        .click_secondary();
     h.run();
     assert!(h.query_by_label("Update in Library").is_some());
 }
@@ -292,7 +293,7 @@ fn an_empty_library_explains_add_to_library() {
     let mut h = open();
     import_dialog(&mut h);
     assert!(h.query_by_label(
-        "Your library is empty. Right-click a symbol, a swatch or a style in its panel and choose Add to Library to use it in every project."
+        "Your library is empty. Right-click a symbol, a swatch or a style in the Brand space or the Resources tab and choose Add to Library to use it in every project."
     )
     .is_some());
     assert!(h.query_by_label("Swatches").is_none());
@@ -339,18 +340,37 @@ fn the_library_survives_a_restart() {
 }
 
 #[test]
-fn empty_panels_offer_import_from_library() {
+fn the_resources_tab_offers_import_from_library() {
     let mut h = open();
-    let buttons = h
-        .query_all_by_role_and_label(egui::accesskit::Role::Button, "Import from Library…")
-        .count();
-    assert_eq!(buttons, 3, "Symbols, Colors and Styles");
-    h.get_all_by_role_and_label(egui::accesskit::Role::Button, "Import from Library…")
-        .next()
-        .unwrap()
+    let import = || "Import from Library…";
+    assert_eq!(
+        h.query_all_by_role_and_label(egui::accesskit::Role::Button, import())
+            .count(),
+        1,
+        "one button, in the Resources tab"
+    );
+    h.get_by_role_and_label(egui::accesskit::Role::Button, import())
         .click();
     h.run();
     assert!(dialog_open(&h));
+}
+
+#[test]
+fn import_from_library_is_disabled_while_editing_a_symbol() {
+    let mut h = open();
+    ardent(&mut h);
+    let logo = ws(&h).project.symbols[0].id;
+    ws_mut(&mut h).edit_symbol(logo, 0.0);
+    h.run();
+    let button = h.get_by_role_and_label(egui::accesskit::Role::Button, "Import from Library…");
+    assert!(button.accesskit_node().is_disabled());
+    button.hover();
+    h.run();
+    assert!(
+        h.query_by_label_contains(&tp_i18n::tr("reason-editing-symbol"))
+            .is_some(),
+        "the tooltip says why"
+    );
 }
 
 // ── Paste into another project ──────────────────────────────────────────

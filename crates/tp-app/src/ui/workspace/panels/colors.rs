@@ -1,5 +1,7 @@
-//! Colors panel: fill/stroke target, paint kind and gradient stops, picker,
-//! color models, hex, None, recent colors and project palette.
+//! The color popover of the inspector's Fill and Stroke rows: paint kind
+//! and gradient stops, picker, color models, hex, None, brand palette and
+//! recent colors; and the palette lists shared with the Resources tab and
+//! the Brand space.
 
 use egui::{
     Color32, Grid, Margin, RichText, Stroke, StrokeKind, TextEdit, Ui, WidgetInfo, WidgetType,
@@ -11,12 +13,12 @@ use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, space};
 use tp_ui::widgets::{
-    ColorSwatch, FieldEvent, FillOrStroke, FillStrokeSwatches, GradientBar, GradientBarEvent, Hsv,
-    IconButton, NumericField, SegmentedControl, SwatchColor, alpha_slider, hue_slider, sv_square,
+    ColorSwatch, FieldEvent, GradientBar, GradientBarEvent, Hsv, IconButton, NumericField,
+    SegmentedControl, SwatchColor, alpha_slider, hue_slider, sv_square,
 };
 
 use super::PanelEnv;
-use super::properties::{common, gradient_preview, selection_swatches};
+use super::properties::{common, gradient_preview};
 use crate::workspace::{ColorModel, ColorTarget, Workspace, paint_of};
 
 /// The color being edited: the selected stop of the gradient being edited,
@@ -80,38 +82,31 @@ fn apply_now(env: &mut PanelEnv<'_>, color: Rgba) {
     env.ws.commit_pending(env.now);
 }
 
-pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv<'_>) {
-    if instances_only(env) {
-        instance_message(ui);
-        return;
-    }
+/// The color popover's content for the current target: the paint kind
+/// and the gradient editor, the picker, the color models and the hex code,
+/// the brand palette, then the recent colors; "No stroke" for the stroke.
+pub fn popover(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     let target = env.ws.panels.color_target;
-
-    // Target swatches (+ None for strokes).
-    let (fill, stroke) = selection_swatches(env.ws);
     ui.horizontal(|ui| {
-        let pair = FillStrokeSwatches {
-            fill,
-            stroke,
-            active: match target {
-                ColorTarget::Fill => FillOrStroke::Fill,
-                ColorTarget::Stroke => FillOrStroke::Stroke,
-            },
-        };
-        if let Some(which) = pair.show(ui) {
-            env.ws.panels.color_target = match which {
-                FillOrStroke::Fill => ColorTarget::Fill,
-                FillOrStroke::Stroke => ColorTarget::Stroke,
-            };
-        }
+        ui.set_min_height(tp_ui::tokens::size::HIT_MIN);
+        let title = tr(match target {
+            ColorTarget::Fill => "props-fill",
+            ColorTarget::Stroke => "panel-stroke",
+        });
+        ui.label(
+            RichText::new(&title)
+                .text_style(tp_ui::theme::label_strong_style())
+                .color(color::TEXT_PRIMARY),
+        );
         if target == ColorTarget::Stroke {
-            ui.add_space(space::SM);
-            if ColorSwatch::new(SwatchColor::None, &tr("colors-no-stroke"))
-                .show(ui)
-                .clicked()
-            {
-                remove_stroke(env);
-            }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ColorSwatch::new(SwatchColor::None, &tr("colors-no-stroke"))
+                    .show(ui)
+                    .clicked()
+                {
+                    remove_stroke(env);
+                }
+            });
         }
     });
 
@@ -128,7 +123,7 @@ pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv
         _ => to_widget_hsv(base),
     };
     let responses = [
-        sv_square(ui, &mut hsv, 120.0),
+        sv_square(ui, &mut hsv, 128.0),
         hue_slider(ui, &mut hsv),
         alpha_slider(ui, &mut hsv),
     ];
@@ -147,17 +142,17 @@ pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv
     // Color model.
     let model = env.ws.panels.color_model;
     if let Some(picked) = SegmentedControl::new()
-        .segment(ColorModel::Rgb, icons::COLORS, "RGB", None)
-        .segment(ColorModel::Hsv, icons::COLORS, "HSV", None)
-        .segment(ColorModel::Hsl, icons::COLORS, "HSL", None)
+        .segment(ColorModel::Rgb, "", "RGB", None)
+        .segment(ColorModel::Hsv, "", "HSV", None)
+        .segment(ColorModel::Hsl, "", "HSL", None)
         .show(ui, model)
     {
         env.ws.panels.color_model = picked;
     }
     channel_fields(ui, env, current, base);
     hex_field(ui, env, current);
+    palette(ui, env, current);
     recent_colors(ui, env);
-    palette(ui, cmds, env, current);
 }
 
 /// Solid / Linear / Radial control for the current target.
@@ -533,6 +528,7 @@ fn hex_field(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
         let response = ui.add(
             TextEdit::singleline(&mut buffer)
                 .id(id.with("edit"))
+                .font(egui::TextStyle::Monospace)
                 .desired_width(96.0)
                 .margin(Margin::symmetric(6, 3))
                 .hint_text(if current.is_none() {
@@ -606,50 +602,86 @@ fn recent_colors(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     });
 }
 
-fn palette(
-    ui: &mut Ui,
-    cmds: &mut crate::ui::CommandUi<'_>,
-    env: &mut PanelEnv<'_>,
-    current: Option<Rgba>,
-) {
-    let target = env.ws.panels.color_target;
+/// The brand palette with its heading and Add to Palette button.
+fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
     ui.horizontal(|ui| {
         ui.label(
-            RichText::new(tr("colors-palette"))
+            RichText::new(tr("colors-brand-palette"))
                 .small()
                 .color(color::TEXT_SECONDARY),
         );
-        let add = ui.add_enabled(
-            current.is_some(),
-            IconButton::new(icons::ADD, &tr("colors-add-to-palette"))
-                .disabled_reason(&tr("colors-differ")),
-        );
-        if add.clicked()
-            && let Some(c) = current
-        {
-            env.ws.panels.picker = None;
-            env.ws.add_to_palette(target, c, env.now);
-        }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            add_to_palette_button_for(ui, env, current);
+        });
     });
-    let palette = env.ws.project.palette.clone();
-    if palette.is_empty() {
-        ui.label(
-            RichText::new(tr("colors-palette-empty"))
-                .small()
-                .color(color::TEXT_DISABLED),
-        );
-        super::import_from_library_button(ui, cmds);
+    if env.ws.project.palette.is_empty() {
+        palette_empty_hint(ui);
         return;
     }
-    // The swatch the target is linked to: a ring, and its name below.
+    palette_swatches(ui, env, 18.0);
+    linked_swatch_label(ui, env);
+}
+
+/// "Add to Palette" (+): saves the current target's color, or the selected
+/// stop's, as a new swatch and links the target to it. Disabled while the
+/// selection's colors differ.
+pub fn add_to_palette_button(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+    let current = current_color(env.ws, env.ws.panels.color_target);
+    add_to_palette_button_for(ui, env, current);
+}
+
+fn add_to_palette_button_for(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
+    let add = ui.add_enabled(
+        current.is_some(),
+        IconButton::new(icons::ADD, &tr("colors-add-to-palette"))
+            .disabled_reason(&tr("colors-differ")),
+    );
+    if add.clicked()
+        && let Some(c) = current
+    {
+        add_color(env, c);
+    }
+}
+
+/// The color Add to Palette saves: the current target's, or the selected
+/// stop's; `None` while the selection's colors differ.
+pub fn color_to_add(env: &PanelEnv<'_>) -> Option<Rgba> {
+    current_color(env.ws, env.ws.panels.color_target)
+}
+
+/// Saves `c` as a new swatch and links the current target to it.
+pub fn add_color(env: &mut PanelEnv<'_>, c: Rgba) {
+    env.ws.panels.picker = None;
+    env.ws
+        .add_to_palette(env.ws.panels.color_target, c, env.now);
+}
+
+/// What an empty palette says.
+pub fn palette_empty_hint(ui: &mut Ui) {
+    ui.label(
+        RichText::new(tr("colors-palette-empty"))
+            .small()
+            .color(color::TEXT_DISABLED),
+    );
+}
+
+/// The project palette's swatches, `size` points wide, wrapped. Clicking a
+/// swatch applies its color to the current target, or to the selected stop
+/// when the target is a gradient, and links it to the swatch (one undo
+/// step); the swatch the target is linked to has a ring. Each swatch's
+/// context menu offers Edit Swatch…, Add to / Update in Library and Delete
+/// Swatch. Shared by every place that lists the palette.
+pub fn palette_swatches(ui: &mut Ui, env: &mut PanelEnv<'_>, size: f32) {
+    let target = env.ws.panels.color_target;
+    let palette = env.ws.project.palette.clone();
     let linked = env.ws.linked_swatch(target);
     ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing.x = space::XXS;
+        ui.spacing_mut().item_spacing = egui::vec2(space::XS, space::XS);
         for s in &palette {
             let c = s.color;
             let swatch = SwatchColor::Solid(Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a));
             let response = ColorSwatch::new(swatch, &s.name)
-                .size(18.0)
+                .size(size)
                 .selected(linked == Some(s.id))
                 .show(ui);
             if response.clicked() {
@@ -657,40 +689,51 @@ fn palette(
                 env.ws.apply_swatch(target, s.id);
                 env.ws.commit_pending(env.now);
             }
-            response.context_menu(|ui| {
-                if ui
-                    .add(tp_ui::widgets::MenuRow::new(&tr("colors-edit-swatch")))
-                    .clicked()
-                {
-                    env.ws.start_swatch_edit(s.id);
-                    ui.close();
-                }
-                super::library_item(ui, env, crate::library::Element::Swatch(s.id));
-                if ui
-                    .add(tp_ui::widgets::MenuRow::new(&tr("colors-delete-swatch")))
-                    .clicked()
-                {
-                    env.ws.delete_swatch(s.id, env.now);
-                    ui.close();
-                }
-            });
+            response.context_menu(|ui| swatch_menu(ui, env, s.id));
         }
     });
-    if let Some(s) = linked.and_then(|id| palette.iter().find(|s| s.id == id)) {
-        let text = tr!("colors-linked-to", name = s.name.as_str());
-        ui.label(
-            RichText::new(format!("{} {text}", icons::LINKED))
-                .small()
-                .color(color::TEXT_SECONDARY),
-        )
-        .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+}
+
+/// The menu of a palette swatch: Edit Swatch…, Add to / Update in Library
+/// and Delete Swatch.
+pub fn swatch_menu(ui: &mut Ui, env: &mut PanelEnv<'_>, id: tp_core::document::SwatchId) {
+    if ui
+        .add(tp_ui::widgets::MenuRow::new(&tr("colors-edit-swatch")))
+        .clicked()
+    {
+        env.ws.start_swatch_edit(id);
+        ui.close();
     }
-    edit_swatch_popup(ui.ctx(), env);
+    super::library_item(ui, env, crate::library::Element::Swatch(id));
+    if ui
+        .add(tp_ui::widgets::MenuRow::new(&tr("colors-delete-swatch")))
+        .clicked()
+    {
+        env.ws.delete_swatch(id, env.now);
+        ui.close();
+    }
+}
+
+/// "Linked to <swatch>" with a link icon, when the current target (or the
+/// selected stop) is linked to a swatch.
+pub fn linked_swatch_label(ui: &mut Ui, env: &PanelEnv<'_>) {
+    let linked = env.ws.linked_swatch(env.ws.panels.color_target);
+    let Some(s) = linked.and_then(|id| env.ws.project.swatch(id)) else {
+        return;
+    };
+    let text = tr!("colors-linked-to", name = s.name.as_str());
+    ui.label(
+        RichText::new(format!("{} {text}", icons::LINKED))
+            .small()
+            .color(color::TEXT_SECONDARY),
+    )
+    .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
 }
 
 /// The Edit Swatch popup: name, picker and hex. Changes show live on every
-/// linked color; OK records one step, Cancel or Escape restores.
-fn edit_swatch_popup(ctx: &egui::Context, env: &mut PanelEnv<'_>) {
+/// linked color; OK records one step, Cancel or Escape restores. Shown once
+/// per frame by the workspace, whichever list opened it.
+pub fn edit_swatch_popup(ctx: &egui::Context, env: &mut PanelEnv<'_>) {
     let Some(mut edit) = env.ws.panels.editing_swatch.clone() else {
         return;
     };
@@ -698,17 +741,22 @@ fn edit_swatch_popup(ctx: &egui::Context, env: &mut PanelEnv<'_>) {
     let mut new_color = None;
     crate::ui::dialogs::modal("edit_swatch_modal").show(ctx, |ui| {
         ui.set_width(300.0);
-        ui.label(
-            RichText::new(tr("colors-edit-swatch").trim_end_matches('…'))
-                .text_style(tp_ui::theme::title_style())
-                .color(color::TEXT_PRIMARY),
-        );
-        ui.add_space(space::SM);
+        crate::ui::dialogs::title(ui, tr("colors-edit-swatch").trim_end_matches('…'), None);
+        ui.add_space(space::MD);
+        ui.spacing_mut().item_spacing.y = space::SM;
         let label = tr("colors-swatch-name");
-        ui.label(RichText::new(&label).color(color::TEXT_SECONDARY));
-        let name = ui.add(TextEdit::singleline(&mut edit.name).desired_width(f32::INFINITY));
-        name.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
-        ui.add_space(space::SM);
+        crate::ui::dialogs::labelled(ui, &label, |ui| {
+            let name = ui.add(
+                TextEdit::singleline(&mut edit.name)
+                    .desired_width(f32::INFINITY)
+                    .margin(egui::Margin::symmetric(8, 5)),
+            );
+            name.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
+        });
+        let empty = edit.name.trim().is_empty();
+        if empty {
+            crate::ui::dialogs::problem(ui, &tr("colors-swatch-name-empty"));
+        }
         let responses = [
             sv_square(ui, &mut edit.hsv, 140.0),
             hue_slider(ui, &mut edit.hsv),
@@ -719,10 +767,14 @@ fn edit_swatch_popup(ctx: &egui::Context, env: &mut PanelEnv<'_>) {
             edit.hex = c.to_hex();
             new_color = Some(c);
         }
-        ui.horizontal(|ui| {
+        crate::ui::dialogs::labelled(ui, &tr("colors-hex"), |ui| {
             let label = tr("colors-swatch-hex");
-            ui.label(RichText::new(tr("colors-hex")).color(color::TEXT_SECONDARY));
-            let hex = ui.add(TextEdit::singleline(&mut edit.hex).desired_width(100.0));
+            let hex = ui.add(
+                TextEdit::singleline(&mut edit.hex)
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(120.0)
+                    .margin(egui::Margin::symmetric(8, 5)),
+            );
             hex.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
             if hex.changed()
                 && let Some(c) = Rgba::from_hex(&edit.hex)
@@ -731,16 +783,7 @@ fn edit_swatch_popup(ctx: &egui::Context, env: &mut PanelEnv<'_>) {
                 new_color = Some(c);
             }
         });
-        let empty = edit.name.trim().is_empty();
-        if empty {
-            ui.label(
-                RichText::new(tr("colors-swatch-name-empty"))
-                    .small()
-                    .color(color::ERROR),
-            );
-        }
-        ui.add_space(space::LG);
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        crate::ui::dialogs::footer(ui, |ui| {
             ok |= ui
                 .add_enabled(!empty, tp_ui::widgets::primary_button(&tr("button-ok")))
                 .clicked();
@@ -759,17 +802,4 @@ fn edit_swatch_popup(ctx: &egui::Context, env: &mut PanelEnv<'_>) {
     } else if ok {
         env.ws.finish_swatch_edit(env.now);
     }
-}
-
-/// Whether only instances are selected: their look is their symbol's.
-pub fn instances_only(env: &PanelEnv<'_>) -> bool {
-    let objects = env.ws.selected_objects();
-    !objects.is_empty() && objects.iter().all(|o| o.is_instance())
-}
-
-/// "The look of an instance is edited in its symbol."
-pub fn instance_message(ui: &mut Ui) {
-    let text = tr("instance-look-in-symbol");
-    ui.label(RichText::new(&text).small().color(color::TEXT_SECONDARY))
-        .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
 }

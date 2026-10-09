@@ -318,3 +318,366 @@ mod editing_widgets {
         );
     }
 }
+
+/// Every shape painted in the last frame, nested shapes flattened.
+fn painted_shapes<S>(h: &Harness<'static, S>) -> Vec<egui::Shape> {
+    fn flatten(shape: &egui::Shape, out: &mut Vec<egui::Shape>) {
+        match shape {
+            egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| flatten(s, out)),
+            other => out.push(other.clone()),
+        }
+    }
+    let mut out = Vec::new();
+    for clipped in &h.output().shapes {
+        flatten(&clipped.shape, &mut out);
+    }
+    out
+}
+
+/// Text shapes painted in the last frame: (text, color, font family).
+fn painted_texts<S>(h: &Harness<'static, S>) -> Vec<(String, egui::Color32, egui::FontFamily)> {
+    painted_shapes(h)
+        .into_iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Text(text) => {
+                let section = text.galley.job.sections.first()?;
+                Some((
+                    text.galley.text().to_owned(),
+                    section.format.color,
+                    section.format.font_id.family.clone(),
+                ))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+mod segmented_controls {
+    use egui::Color32;
+    use egui::accesskit::Toggled;
+    use egui_kittest::kittest::{NodeT, Queryable};
+    use tp_ui::tokens::color;
+    use tp_ui::widgets::SegmentedControl;
+
+    use super::{painted_shapes, painted_texts, themed};
+
+    fn harness() -> egui_kittest::Harness<'static, u8> {
+        themed(
+            |ui, current: &mut u8| {
+                if let Some(v) = SegmentedControl::new()
+                    .segment(0u8, "", "Solid", None)
+                    .segment(1, "", "Linear", None)
+                    .segment(2, "", "Radial", None)
+                    .show(ui, *current)
+                {
+                    *current = v;
+                }
+            },
+            0,
+        )
+    }
+
+    /// Rectangles filled with `fill` in the last frame.
+    fn rects_filled(h: &egui_kittest::Harness<'static, u8>, fill: Color32) -> Vec<egui::Rect> {
+        painted_shapes(h)
+            .into_iter()
+            .filter_map(|shape| match shape {
+                egui::Shape::Rect(r) if r.fill == fill => Some(r.rect),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn luma(c: Color32) -> f32 {
+        0.2126 * f32::from(c.r()) + 0.7152 * f32::from(c.g()) + 0.0722 * f32::from(c.b())
+    }
+
+    #[test]
+    fn choosing_an_option_moves_the_white_pill() {
+        let mut h = harness();
+        h.run();
+        h.get_by_label("Linear").click();
+        h.run();
+        assert_eq!(*h.state(), 1);
+        assert_eq!(
+            h.get_by_label("Linear").accesskit_node().toggled(),
+            Some(Toggled::True)
+        );
+        assert_eq!(
+            h.get_by_label("Solid").accesskit_node().toggled(),
+            Some(Toggled::False)
+        );
+
+        // One white pill, under Linear.
+        let pills = rects_filled(&h, color::ACCENT_PRIMARY);
+        assert_eq!(pills.len(), 1, "{pills:?}");
+        assert!(pills[0].contains(h.get_by_label("Linear").rect().center()));
+        // Linear in dark text on the pill, Solid as plain text on the track.
+        let texts = painted_texts(&h);
+        let color_of = |label: &str| {
+            texts
+                .iter()
+                .find(|(text, ..)| text == label)
+                .map(|(_, c, _)| *c)
+                .unwrap_or_else(|| panic!("{label} not painted"))
+        };
+        assert_eq!(color_of("Linear"), color::TEXT_ON_PRIMARY);
+        assert_eq!(color_of("Solid"), color::TEXT_SECONDARY);
+        // The options sit in one raised track.
+        let track = rects_filled(&h, color::RAISED);
+        assert!(
+            track.iter().any(|t| t.contains_rect(pills[0])
+                && t.contains(h.get_by_label("Solid").rect().center())),
+            "{track:?}"
+        );
+    }
+
+    /// The active option is a fill change: in grayscale the pill stands out
+    /// from the track, and its text from the pill.
+    #[test]
+    fn active_option_in_grayscale() {
+        let mut h = harness();
+        h.run();
+        assert_eq!(rects_filled(&h, color::ACCENT_PRIMARY).len(), 1);
+        assert!(luma(color::ACCENT_PRIMARY) - luma(color::RAISED) > 150.0);
+        assert!(luma(color::ACCENT_PRIMARY) - luma(color::TEXT_ON_PRIMARY) > 150.0);
+    }
+
+    #[test]
+    fn options_meet_the_minimum_hit_area() {
+        let mut h = harness();
+        h.run();
+        for label in ["Solid", "Linear", "Radial"] {
+            let rect = h.get_by_label(label).rect();
+            assert!(rect.height() >= tp_ui::tokens::size::HIT_MIN, "{label}");
+        }
+    }
+}
+
+mod interface_fonts {
+    use egui::FontFamily;
+    use tp_ui::widgets::NumericField;
+
+    use super::{painted_texts, themed};
+
+    #[test]
+    fn labels_in_geist_and_values_in_jetbrains_mono() {
+        let mut h = themed(
+            |ui, _: &mut ()| {
+                ui.label("Opacity");
+                NumericField::new("X", "Position X", Some(512.0)).show(ui);
+            },
+            (),
+        );
+        h.run();
+        let texts = painted_texts(&h);
+        let family_of = |label: &str| {
+            texts
+                .iter()
+                .find(|(text, ..)| text == label)
+                .map(|(.., f)| f.clone())
+                .unwrap_or_else(|| panic!("{label} not painted: {texts:?}"))
+        };
+        assert_eq!(family_of("Opacity"), FontFamily::Proportional);
+        assert_eq!(family_of("512"), FontFamily::Monospace);
+
+        // The families resolve first to the embedded Geist and JetBrains Mono.
+        let first_font = |family: FontFamily| {
+            h.ctx.fonts(|fonts| {
+                let defs = fonts.definitions();
+                let name = defs.families[&family][0].clone();
+                defs.font_data[&name].font.to_vec()
+            })
+        };
+        let geist: &[u8] = include_bytes!("../../../assets/fonts/Geist-Regular.ttf");
+        let mono: &[u8] = include_bytes!("../../../assets/fonts/JetBrainsMono-Regular.ttf");
+        assert!(first_font(FontFamily::Proportional) == geist);
+        assert!(first_font(FontFamily::Monospace) == mono);
+    }
+}
+
+mod popovers {
+    use egui::{Key, Modifiers, PointerButton, Pos2};
+    use egui_kittest::kittest::Queryable;
+    use tp_ui::widgets::{MenuRow, Popover};
+
+    use super::themed;
+
+    #[derive(Default)]
+    struct State {
+        /// Draw the rows (and their popovers).
+        hide_rows: bool,
+        text: String,
+        menu_item: bool,
+        inside_clicks: u32,
+    }
+
+    /// Two rows, "Fill" and "Stroke", each opening its popover; the Fill
+    /// popover holds a button, a text field and a context menu.
+    fn harness() -> egui_kittest::Harness<'static, State> {
+        themed(
+            |ui, state: &mut State| {
+                ui.add_space(40.0);
+                if state.hide_rows {
+                    return;
+                }
+                for name in ["Fill", "Stroke"] {
+                    let row = ui.button(name);
+                    let id = Popover::id(name);
+                    if row.clicked() {
+                        Popover::toggle(ui.ctx(), id);
+                    }
+                    Popover::new(id, row.rect).show(ui, |ui| {
+                        ui.label(format!("{name} settings"));
+                        if name == "Fill" {
+                            if ui.button("Inside").clicked() {
+                                state.inside_clicks += 1;
+                            }
+                            ui.text_edit_singleline(&mut state.text);
+                            ui.button("More").context_menu(|ui| {
+                                if ui.add(MenuRow::new("Menu item")).clicked() {
+                                    state.menu_item = true;
+                                    ui.close();
+                                }
+                            });
+                        }
+                    });
+                }
+            },
+            State::default(),
+        )
+    }
+
+    fn open(h: &egui_kittest::Harness<'static, State>, name: &str) -> bool {
+        h.query_by_label(&format!("{name} settings")).is_some()
+    }
+
+    fn press_escape(h: &mut egui_kittest::Harness<'static, State>) {
+        h.key_press(Key::Escape);
+        h.run();
+    }
+
+    #[test]
+    fn opens_under_its_row_and_stays_open_for_its_own_widgets() {
+        let mut h = harness();
+        h.run();
+        assert!(!open(&h, "Fill"));
+        h.get_by_label("Fill").click();
+        h.run();
+        assert!(open(&h, "Fill"));
+        let row = h.get_by_label("Fill").rect();
+        let label = h.get_by_label("Fill settings").rect();
+        assert!(label.top() >= row.bottom(), "{row:?} {label:?}");
+
+        // Its own widgets work without closing it.
+        h.get_by_label("Inside").click();
+        h.run();
+        assert_eq!(h.state().inside_clicks, 1);
+        assert!(open(&h, "Fill"));
+
+        // Clicking its row again closes it.
+        h.get_by_label("Fill").click();
+        h.run();
+        assert!(!open(&h, "Fill"));
+    }
+
+    #[test]
+    fn escape_closes_it_after_a_field_lets_go() {
+        let mut h = harness();
+        h.run();
+        h.get_by_label("Fill").click();
+        h.run();
+        press_escape(&mut h);
+        assert!(!open(&h, "Fill"));
+
+        h.get_by_label("Fill").click();
+        h.run();
+        h.get_by_role(egui::accesskit::Role::TextInput).click();
+        h.run();
+        assert!(h.ctx.text_edit_focused());
+        // The first Escape leaves the field, the second closes the popover.
+        press_escape(&mut h);
+        assert!(open(&h, "Fill"));
+        press_escape(&mut h);
+        assert!(!open(&h, "Fill"));
+    }
+
+    #[test]
+    fn a_press_outside_closes_it() {
+        let mut h = harness();
+        h.run();
+        h.get_by_label("Fill").click();
+        h.run();
+        let far = Pos2::new(5.0, 5.0);
+        h.hover_at(far);
+        h.event(egui::Event::PointerButton {
+            pos: far,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        });
+        h.event(egui::Event::PointerButton {
+            pos: far,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        });
+        h.run();
+        assert!(!open(&h, "Fill"));
+    }
+
+    #[test]
+    fn one_at_a_time() {
+        let mut h = harness();
+        h.run();
+        h.get_by_label("Fill").click();
+        h.run();
+        // Escape-free switch: opening the other closes the first. The Fill
+        // popover covers the Stroke row, so open it as the row would.
+        Popover::open(&h.ctx, Popover::id("Stroke"));
+        h.run();
+        assert!(open(&h, "Stroke"));
+        assert!(!open(&h, "Fill"));
+        assert_eq!(Popover::open_id(&h.ctx), Some(Popover::id("Stroke")));
+    }
+
+    #[test]
+    fn a_menu_opened_inside_does_not_close_it() {
+        let mut h = harness();
+        h.run();
+        h.get_by_label("Fill").click();
+        h.run();
+        h.get_by_label("More").click_secondary();
+        h.run();
+        h.get_by_label("Menu item").click();
+        h.run();
+        assert!(h.state().menu_item);
+        assert!(open(&h, "Fill"));
+    }
+
+    #[test]
+    fn it_closes_when_its_row_goes_away() {
+        let mut h = harness();
+        h.run();
+        h.get_by_label("Fill").click();
+        h.run();
+        h.state_mut().hide_rows = true;
+        h.run();
+        h.state_mut().hide_rows = false;
+        h.run();
+        assert!(!open(&h, "Fill"));
+        assert_eq!(Popover::open_id(&h.ctx), None);
+    }
+
+    #[test]
+    fn close_on_escape_takes_the_key() {
+        let mut h = harness();
+        h.run();
+        assert!(!Popover::close_on_escape(&h.ctx));
+        h.get_by_label("Fill").click();
+        h.run();
+        assert!(Popover::is_open(&h.ctx, Popover::id("Fill")));
+        Popover::close(&h.ctx);
+        assert_eq!(Popover::open_id(&h.ctx), None);
+    }
+}

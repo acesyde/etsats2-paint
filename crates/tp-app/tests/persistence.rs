@@ -11,6 +11,7 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use tp_app::AppState;
 use tp_app::file_dialogs::ScriptedDialogs;
+use tp_app::layout::Space;
 use tp_app::state::{Modal, Screen};
 use tp_app::workspace::{SaveState, Workspace};
 use tp_core::document::{
@@ -327,6 +328,7 @@ fn open_from_the_menu() {
     let path = dir.path().join("ace.truckpaint");
     rich_file(&path);
     let mut h = open();
+    assert_eq!(ws(&h).space, Space::Workshop);
     // Replacing an unsaved project asks first.
     dialogs(&mut h, &[], std::slice::from_ref(&path));
     h.get_by_label("File").click();
@@ -339,6 +341,9 @@ fn open_from_the_menu() {
     assert_eq!(ws(&h).project.name, "ACE Logistics");
     assert_eq!(h.state().title(), "ACE Logistics — TruckPaint");
     assert!(h.query_by_label("Saved").is_some());
+    // An opened file is shown in the Project space, whatever space the
+    // previous project was in (workspace-spaces, Opening a file).
+    assert_eq!(ws(&h).space, Space::Project);
 }
 
 #[test]
@@ -565,6 +570,9 @@ fn restore_unsaved_work() {
     assert_eq!(ws(&h).project.surface().objects.len(), 1);
     assert_eq!(status(&h), SaveState::Unsaved);
     assert!(h.state().recovered.is_empty());
+    // Shown in the Project space, the status bar saying it is unsaved.
+    assert_eq!(ws(&h).space, Space::Project);
+    assert!(h.query_by_label("Unsaved changes").is_some());
     // The copy now belongs to this session: closing removes it.
     h.key_press_modifiers(Modifiers::COMMAND, Key::W);
     settle(&mut h);
@@ -632,4 +640,65 @@ fn vector_project_survives_a_crash_and_exports() {
         [255, 255, 255, 255],
         "the swoosh is drawn around the hole"
     );
+}
+
+// --- Preferences ---------------------------------------------------------------
+
+/// A preferences file of the build before the spaces: a panel stack with
+/// the Assets panel closed, a column width and a hidden Vehicles sidebar.
+const PREFS_BEFORE_SPACES: &str = include_str!("fixtures/prefs-before-spaces.ron");
+
+#[test]
+fn preferences_from_a_build_before_the_spaces() {
+    use tp_app::layout::WorkspaceLayout;
+    use tp_app::prefs::PrefsStore;
+    let dir = tempfile::tempdir().unwrap();
+    let store = PrefsStore::new(dir.path());
+    std::fs::write(store.path(), PREFS_BEFORE_SPACES).unwrap();
+    let loaded = store.load();
+    assert!(loaded.issue.is_none(), "{:?}", loaded.issue);
+    assert!(loaded.backup.is_none());
+    let prefs = loaded.prefs;
+    assert_eq!(prefs.ui_scale, 1.25);
+    assert_eq!(prefs.layout, WorkspaceLayout::default());
+    // Every other preference is kept.
+    assert!(prefs.view_aids.grid && !prefs.view_aids.snapping);
+    assert_eq!(prefs.view_aids.grid_spacing, 128.0);
+    assert_eq!(prefs.language(), Some(tp_i18n::Language::French));
+    assert_eq!(prefs.recent_colors, vec![[200, 30, 40, 255]]);
+    // Nothing else was written next to the file, and no message appears.
+    let files: Vec<_> = std::fs::read_dir(dir.path()).unwrap().collect();
+    assert_eq!(files.len(), 1);
+    let mut h = Harness::builder().with_size(common::SIZE).build_ui_state(
+        |ui, state: &mut AppState| state.show(ui),
+        AppState::with_prefs(prefs, None),
+    );
+    h.run();
+    assert!(h.state().modal.is_none());
+}
+
+#[test]
+fn workspace_layout_survives_restart() {
+    use tp_app::layout::LeftTab;
+    use tp_app::prefs::PrefsStore;
+    let dir = tempfile::tempdir().unwrap();
+    let store = || Some(PrefsStore::new(dir.path()));
+    let mut state = AppState::new(store());
+    state.system_fonts = false;
+    let mut h = Harness::builder()
+        .with_size(common::SIZE)
+        .build_ui_state(|ui, state: &mut AppState| state.show(ui), state);
+    common::create_project(&mut h);
+    h.key_press(Key::Num2);
+    h.run();
+    h.key_press(Key::Tab);
+    h.run();
+    // The inspector's width as left by dragging its edge.
+    h.state_mut().prefs.layout.inspector_width = 360.0;
+    h.run();
+    h.state_mut().persist_prefs(f64::MAX, true);
+    let layout = AppState::new(store()).prefs.layout;
+    assert_eq!(layout.left_tab, LeftTab::Layers);
+    assert!(layout.panels_hidden);
+    assert_eq!(layout.inspector_width, 360.0);
 }

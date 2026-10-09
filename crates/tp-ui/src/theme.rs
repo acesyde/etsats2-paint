@@ -161,6 +161,7 @@ pub fn visuals() -> Visuals {
     v.override_text_color = None;
     v.weak_text_color = Some(color::TEXT_SECONDARY);
 
+    // Labels and frames that don't react.
     v.widgets.noninteractive = widget(
         color::SURFACE_1,
         color::BORDER,
@@ -168,6 +169,7 @@ pub fn visuals() -> Visuals {
         radius::MD,
         0.0,
     );
+    // Idle controls sit on the raised surface.
     v.widgets.inactive = widget(
         color::SURFACE_2,
         color::BORDER_STRONG,
@@ -182,9 +184,10 @@ pub fn visuals() -> Visuals {
         radius::MD,
         0.0,
     );
+    // Pressed: a darker fill change and a light outline, readable in grayscale.
     v.widgets.active = widget(
         color::SURFACE_4,
-        color::ACCENT,
+        color::TEXT_SECONDARY,
         color::TEXT_PRIMARY,
         radius::MD,
         0.0,
@@ -197,19 +200,24 @@ pub fn visuals() -> Visuals {
         0.0,
     );
 
-    v.selection.bg_fill = color::ACCENT_SUBTLE;
-    v.selection.stroke = Stroke::new(stroke::FOCUS, color::ACCENT);
+    // Selected items and text selections: a neutral fill (no accent) with ink
+    // text; the focus ring and the outlines of focused fields are ink too.
+    v.selection.bg_fill = color::SELECTED;
+    v.selection.stroke = Stroke::new(stroke::FOCUS, color::FOCUS);
 
-    v.hyperlink_color = color::ACCENT;
+    v.hyperlink_color = color::TEXT_PRIMARY;
     v.faint_bg_color = color::SURFACE_2;
     v.extreme_bg_color = color::SURFACE_0;
-    v.text_edit_bg_color = Some(color::SURFACE_0);
+    // Fields are raised.
+    v.text_edit_bg_color = Some(color::SURFACE_2);
     v.code_bg_color = color::SURFACE_0;
     v.warn_fg_color = color::WARNING;
     v.error_fg_color = color::ERROR;
 
     v.window_corner_radius = CornerRadius::same(radius::LG);
     v.menu_corner_radius = CornerRadius::same(radius::MD);
+    // egui draws popups, menus and tooltips with the window fill: raised.
+    // Modal dialogs use their own frame on the panel surface.
     v.window_fill = color::SURFACE_2;
     v.window_stroke = Stroke::new(stroke::HAIRLINE, color::BORDER_STRONG);
     v.window_shadow = Shadow {
@@ -262,6 +270,44 @@ mod tests {
         let v = visuals();
         assert_eq!(v.panel_fill, color::SURFACE_1);
         assert_eq!(v.window_fill, color::SURFACE_2);
+        assert_eq!(v.text_edit_bg_color, Some(color::SURFACE_2));
         assert_eq!(v.widgets.hovered.bg_fill, color::SURFACE_3);
+        assert_eq!(v.selection.bg_fill, color::SELECTED);
+    }
+
+    #[test]
+    fn widget_states_are_distinct() {
+        let w = visuals().widgets;
+        let fills = [
+            w.inactive.bg_fill,
+            w.hovered.bg_fill,
+            w.active.bg_fill,
+            visuals().selection.bg_fill,
+        ];
+        for (i, a) in fills.iter().enumerate() {
+            for b in &fills[i + 1..] {
+                assert_ne!(a, b, "two widget states share a fill");
+            }
+        }
+    }
+
+    #[test]
+    fn type_scale() {
+        let mut style = Style::default();
+        configure_style(&mut style, 1.0);
+        let size = |s: TextStyle| style.text_styles[&s].size;
+        assert_eq!(size(title_style()), 22.0);
+        assert_eq!(size(TextStyle::Heading), 15.0);
+        assert_eq!(size(TextStyle::Body), 13.0);
+        assert_eq!(size(TextStyle::Monospace), 12.0);
+        assert_eq!(size(TextStyle::Small), 11.0);
+        assert_eq!(
+            style.text_styles[&TextStyle::Monospace].family,
+            FontFamily::Monospace
+        );
+        assert_eq!(
+            style.text_styles[&title_style()].family,
+            fonts::semibold_family()
+        );
     }
 }

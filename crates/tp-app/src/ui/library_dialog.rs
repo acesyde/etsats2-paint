@@ -11,7 +11,6 @@ use tp_core::import::Picks;
 use tp_core::{LibraryKey, Look, Project};
 use tp_i18n::tr;
 use tp_text::FontLibrary;
-use tp_ui::theme::title_style;
 use tp_ui::tokens::{color, radius, space};
 use tp_ui::widgets::{MenuRow, primary_button, secondary_button};
 
@@ -384,16 +383,19 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDialo
     update_thumbnails(ctx, dialog, lib, &ws.text.fonts);
     let mut actions = Actions::default();
     crate::ui::dialogs::modal("import_from_library_modal").show(ctx, |ui| {
-        ui.set_width(460.0);
-        ui.label(
-            RichText::new(tr("cmd-import-from-library").trim_end_matches('…'))
-                .text_style(title_style())
-                .color(color::TEXT_PRIMARY),
+        ui.set_width(480.0);
+        crate::ui::dialogs::title(
+            ui,
+            tr("cmd-import-from-library").trim_end_matches('…'),
+            None,
         );
-        ui.add_space(space::XS);
+        ui.add_space(space::SM);
         if let Some(issue) = &dialog.issue {
-            ui.label(RichText::new(issue).small().color(color::WARNING))
-                .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, issue));
+            ui.horizontal_top(|ui| {
+                ui.label(tp_ui::icons::rich(tp_ui::icons::WARNING).color(color::WARNING));
+                ui.add(egui::Label::new(RichText::new(issue).color(color::WARNING)).wrap())
+                    .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, issue));
+            });
             ui.add_space(space::XS);
         }
         let groups = groups(lib);
@@ -403,7 +405,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDialo
         } else {
             "library-hint"
         });
-        ui.label(RichText::new(&hint).small().color(color::TEXT_SECONDARY))
+        ui.add(egui::Label::new(RichText::new(&hint).color(color::TEXT_SECONDARY)).wrap())
             .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &hint));
         if !empty {
             ui.add_space(space::SM);
@@ -427,8 +429,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDialo
                     }
                 });
         }
-        ui.add_space(space::LG);
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        crate::ui::dialogs::footer(ui, |ui| {
             let any = !dialog.checked.is_empty();
             actions.import |= ui
                 .add_enabled(any, primary_button(&tr("library-import")))

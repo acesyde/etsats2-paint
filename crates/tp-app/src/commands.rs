@@ -1,4 +1,4 @@
-//! Command registry: every user action (menu, tool bar, context menu,
+//! Command registry: every user action (menu, tool rail, context menu,
 //! shortcut) is a [`CommandId`] with metadata and a single dispatch path.
 
 use egui::{Key, KeyboardShortcut, Modifiers};
@@ -7,7 +7,7 @@ use tp_ui::icons;
 
 use tp_core::document::{BooleanOp, DistributeAxis, DistributeMode, Edge, FlipAxis};
 
-use crate::layout::PanelKind;
+use crate::layout::{LeftTab, Space};
 use crate::tool::Tool;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -56,8 +56,9 @@ pub enum CommandId {
     ZoomOut,
     FitToScreen,
     ActualSize,
-    ToggleVehicles,
-    TogglePanel(PanelKind),
+    ShowSpace(Space),
+    ShowLeftTab(LeftTab),
+    TogglePanels,
     ResetWorkspace,
     ShowGrid,
     ShowGuides,
@@ -70,7 +71,6 @@ pub enum CommandId {
     NextTexture,
     PreviousTexture,
     CopyFromCabin,
-    VehicleInfo,
     UpdateTemplate,
     ShowTemplate,
     // Export
@@ -161,6 +161,8 @@ pub struct EditContext {
     pub only_instances: bool,
     /// Exactly one instance is selected.
     pub single_instance: bool,
+    /// The space shown (`None` without a project).
+    pub space: Option<Space>,
 }
 
 impl CommandId {
@@ -182,6 +184,11 @@ impl CommandId {
                 | Self::EditSymbol
                 | Self::DetachInstance
         )
+    }
+
+    /// Commands whose key acts only in the Workshop (`Tab`, `G`).
+    pub fn key_needs_workshop(self) -> bool {
+        matches!(self, Self::TogglePanels | Self::ShowTemplate)
     }
 
     /// Commands that change shapes, which an instance's are not: they are
@@ -246,6 +253,7 @@ const fn sc(modifiers: Modifiers, key: Key) -> KeyboardShortcut {
 
 const CMD: Modifiers = Modifiers::COMMAND;
 const CMD_SHIFT: Modifiers = Modifiers::COMMAND.plus(Modifiers::SHIFT);
+const CMD_ALT: Modifiers = Modifiers::COMMAND.plus(Modifiers::ALT);
 const ALT: Modifiers = Modifiers::ALT;
 const ALT_SHIFT: Modifiers = Modifiers::ALT.plus(Modifiers::SHIFT);
 const NONE: Modifiers = Modifiers::NONE;
@@ -304,7 +312,6 @@ impl CommandId {
             NextTexture,
             PreviousTexture,
             CopyFromCabin,
-            VehicleInfo,
             UpdateTemplate,
             ShowTemplate,
             ExportTexture,
@@ -312,8 +319,9 @@ impl CommandId {
             KeyboardShortcuts,
             About,
         ];
-        all.push(ToggleVehicles);
-        all.extend(PanelKind::ALL.map(TogglePanel));
+        all.extend(Space::ALL.map(ShowSpace));
+        all.extend(LeftTab::ALL.map(ShowLeftTab));
+        all.push(TogglePanels);
         all.extend([SwapColorTarget, SwapFillStroke, DefaultColors, Deselect]);
         for direction in Direction::ALL {
             all.push(Nudge(direction, false));
@@ -629,14 +637,14 @@ impl CommandId {
             BringForward => m(
                 "cmd-bring-forward",
                 None,
-                const { &[sc(CMD, Key::CloseBracket)] },
+                const { &[sc(CMD_ALT, Key::CloseBracket)] },
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
             ),
             SendBackward => m(
                 "cmd-send-backward",
                 None,
-                const { &[sc(CMD, Key::OpenBracket)] },
+                const { &[sc(CMD_ALT, Key::OpenBracket)] },
                 Workspace,
                 When(editable_selection, NEEDS_SELECTION),
             ),
@@ -696,35 +704,48 @@ impl CommandId {
             FitToScreen => m(
                 "cmd-fit-to-screen",
                 None,
-                const { &[sc(CMD, Key::Num0)] },
+                const { &[sc(CMD_SHIFT, Key::Num0)] },
                 Workspace,
                 NeedsProject,
             ),
             ActualSize => m(
                 "cmd-actual-size-100pct",
                 None,
-                const { &[sc(CMD, Key::Num1)] },
+                const { &[sc(CMD, Key::Num0)] },
                 Workspace,
                 NeedsProject,
             ),
-            ToggleVehicles => m(
-                "cmd-sidebar",
-                Some(icons::VEHICLE),
-                const { &[sc(NONE, Key::F5)] },
-                Workspace,
-                NeedsProject,
-            ),
-            TogglePanel(kind) => m(
-                kind.title(),
-                Some(kind.icon()),
-                match kind {
-                    PanelKind::Colors => const { &[sc(NONE, Key::F6)] },
-                    PanelKind::Layers => const { &[sc(NONE, Key::F7)] },
-                    PanelKind::Properties => const { &[sc(NONE, Key::F8)] },
-                    _ => &[],
+            ShowSpace(space) => m(
+                space.label(),
+                None,
+                match space {
+                    Space::Project => const { &[sc(CMD, Key::Num1)] },
+                    Space::Workshop => const { &[sc(CMD, Key::Num2)] },
+                    Space::Brand => const { &[sc(CMD, Key::Num3)] },
                 },
                 Workspace,
                 NeedsProject,
+            ),
+            ShowLeftTab(tab) => m(
+                tab.label(),
+                None,
+                match tab {
+                    LeftTab::Textures => const { &[sc(NONE, Key::Num1)] },
+                    LeftTab::Layers => const { &[sc(NONE, Key::Num2)] },
+                    LeftTab::Resources => const { &[sc(NONE, Key::Num3)] },
+                },
+                Workspace,
+                NeedsProject,
+            ),
+            TogglePanels => m(
+                "cmd-hide-panels",
+                None,
+                const { &[sc(NONE, Key::Tab)] },
+                Workspace,
+                When(
+                    |c| c.space == Some(Space::Workshop),
+                    "reason-not-in-workshop",
+                ),
             ),
             ResetWorkspace => m(
                 "cmd-reset-workspace",
@@ -783,14 +804,14 @@ impl CommandId {
             NextTexture => m(
                 "cmd-next-texture",
                 None,
-                const { &[sc(CMD, Key::PageDown)] },
+                const { &[sc(CMD, Key::CloseBracket), sc(CMD, Key::PageDown)] },
                 Workspace,
                 When(|c| c.texture_count > 1, "reason-one-texture"),
             ),
             PreviousTexture => m(
                 "cmd-previous-texture",
                 None,
-                const { &[sc(CMD, Key::PageUp)] },
+                const { &[sc(CMD, Key::OpenBracket), sc(CMD, Key::PageUp)] },
                 Workspace,
                 When(|c| c.texture_count > 1, "reason-one-texture"),
             ),
@@ -803,13 +824,6 @@ impl CommandId {
                     |c| c.cabin_sources > 0 && !c.gesture_active,
                     "reason-no-other-cabin",
                 ),
-            ),
-            VehicleInfo => m(
-                "cmd-vehicle-information",
-                None,
-                &[],
-                Workspace,
-                NeedsProject,
             ),
             UpdateTemplate => m(
                 "cmd-update-template",
@@ -824,7 +838,7 @@ impl CommandId {
             ShowTemplate => m(
                 "cmd-show-template",
                 None,
-                const { &[sc(SHIFT, Key::T)] },
+                const { &[sc(NONE, Key::G)] },
                 Workspace,
                 When(|c| c.has_template, "reason-no-template"),
             ),
@@ -832,14 +846,14 @@ impl CommandId {
             ExportTexture => m(
                 "cmd-export-texture",
                 Some(icons::EXPORT),
-                const { &[sc(CMD, Key::E)] },
+                const { &[sc(CMD_SHIFT, Key::E)] },
                 Workspace,
                 When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
             ),
             ExportMod => m(
                 "cmd-export-mod",
                 None,
-                const { &[sc(CMD_SHIFT, Key::E)] },
+                const { &[sc(CMD, Key::E)] },
                 Workspace,
                 When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
             ),
@@ -944,7 +958,7 @@ fn tool_shortcut(tool: Tool) -> &'static [KeyboardShortcut] {
         Tool::Text => const { &[sc(NONE, Key::T)] },
         Tool::Image => const { &[sc(SHIFT, Key::I)] },
         Tool::Eyedropper => const { &[sc(NONE, Key::I)] },
-        Tool::Gradient => const { &[sc(NONE, Key::G)] },
+        Tool::Gradient => const { &[sc(SHIFT, Key::G)] },
         Tool::Zoom => const { &[sc(NONE, Key::Z)] },
         Tool::Hand => const { &[sc(NONE, Key::H)] },
     }
@@ -1145,6 +1159,75 @@ mod tests {
                     panic!("{id:?} and {other:?} share shortcut {s:?}");
                 }
             }
+        }
+    }
+
+    /// The shortcut table of the workspace (command-system, Default
+    /// workspace shortcuts), each key against its command.
+    #[test]
+    fn default_workspace_shortcuts() {
+        use CommandId::*;
+        let table: [(CommandId, &[KeyboardShortcut]); 19] = [
+            (ShowSpace(Space::Project), &[sc(CMD, Key::Num1)]),
+            (ShowSpace(Space::Workshop), &[sc(CMD, Key::Num2)]),
+            (ShowSpace(Space::Brand), &[sc(CMD, Key::Num3)]),
+            (ShowLeftTab(LeftTab::Textures), &[sc(NONE, Key::Num1)]),
+            (ShowLeftTab(LeftTab::Layers), &[sc(NONE, Key::Num2)]),
+            (ShowLeftTab(LeftTab::Resources), &[sc(NONE, Key::Num3)]),
+            (TogglePanels, &[sc(NONE, Key::Tab)]),
+            (ActualSize, &[sc(CMD, Key::Num0)]),
+            (FitToScreen, &[sc(CMD_SHIFT, Key::Num0)]),
+            (BringForward, &[sc(CMD_ALT, Key::CloseBracket)]),
+            (SendBackward, &[sc(CMD_ALT, Key::OpenBracket)]),
+            (
+                NextTexture,
+                &[sc(CMD, Key::CloseBracket), sc(CMD, Key::PageDown)],
+            ),
+            (
+                PreviousTexture,
+                &[sc(CMD, Key::OpenBracket), sc(CMD, Key::PageUp)],
+            ),
+            (ShowTemplate, &[sc(NONE, Key::G)]),
+            (SelectTool(Tool::Gradient), &[sc(SHIFT, Key::G)]),
+            (ExportMod, &[sc(CMD, Key::E)]),
+            (ExportTexture, &[sc(CMD_SHIFT, Key::E)]),
+            (KeyboardShortcuts, &[sc(CMD, Key::Slash)]),
+            (DefaultColors, &[sc(NONE, Key::D)]),
+        ];
+        for (id, shortcuts) in table {
+            assert_eq!(id.meta().shortcuts, shortcuts, "{id:?}");
+        }
+    }
+
+    #[test]
+    fn former_panel_keys_are_unbound() {
+        for id in CommandId::all() {
+            for s in id.meta().shortcuts {
+                assert!(
+                    !matches!(s.logical_key, Key::F5 | Key::F6 | Key::F7 | Key::F8),
+                    "{id:?} uses {s:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn hide_panels_only_in_the_workshop() {
+        use crate::state::is_enabled;
+        let workshop = EditContext {
+            has_project: true,
+            space: Some(Space::Workshop),
+            ..EditContext::default()
+        };
+        assert!(is_enabled(CommandId::TogglePanels, &workshop));
+        for space in [Space::Project, Space::Brand] {
+            let other = EditContext {
+                space: Some(space),
+                ..workshop
+            };
+            assert!(!is_enabled(CommandId::TogglePanels, &other), "{space:?}");
+            assert!(is_enabled(CommandId::ShowLeftTab(LeftTab::Layers), &other));
+            assert!(is_enabled(CommandId::ShowSpace(Space::Workshop), &other));
         }
     }
 

@@ -1,5 +1,5 @@
 //! Headless tests for text-and-images: the Text tool and on-canvas editing,
-//! character settings, image import, the Assets panel and the Eyedropper on
+//! character settings, image import, the Images section and the Eyedropper on
 //! images.
 
 mod common;
@@ -30,13 +30,10 @@ fn settle(h: &mut H) {
     }
 }
 
-/// Tall window with every panel open and expanded.
+/// Tall window with the Resources tab shown.
 fn open() -> H {
     let mut prefs = Prefs::default();
-    for slot in &mut prefs.layout.panels {
-        slot.open = true;
-        slot.collapsed = false;
-    }
+    prefs.layout.left_tab = tp_app::layout::LeftTab::Resources;
     let mut h = Harness::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
         .build_ui_state(
@@ -249,6 +246,26 @@ fn typing_a_tool_letter_while_editing() {
 }
 
 #[test]
+fn workspace_keys_type_while_editing_text() {
+    let mut h = open();
+    set_tool(&mut h, Tool::Text);
+    let p = screen(&h, 800.0, 900.0);
+    click_at(&mut h, p, Modifiers::NONE);
+    let id = ws(&h).editing_text().unwrap();
+    let template = |h: &H| ws(h).project.surface().template.as_ref().map(|t| t.visible);
+    let shown = template(&h);
+    // G shows the template and 2 the Layers tab, but not while typing.
+    type_text(&mut h, "G2");
+    assert_eq!(content(&h, id), "G2");
+    assert_eq!(template(&h), shown);
+    assert_eq!(
+        h.state().prefs.layout.left_tab,
+        tp_app::layout::LeftTab::Resources,
+        "the tab shown when the test opened"
+    );
+}
+
+#[test]
 fn select_all_and_replace() {
     let mut h = open();
     let id = create_text(&mut h, 800.0, 900.0, "Old name");
@@ -431,6 +448,28 @@ fn search_a_font() {
     assert!(ws(&h).panels.font_picker.is_none());
 }
 
+/// Geist and JetBrains Mono are interface fonts only: the fonts offered to
+/// texts are unchanged and still include Inter.
+#[test]
+fn document_fonts_unchanged_by_interface_fonts() {
+    assert_eq!(
+        tp_text::BUNDLED_FAMILIES,
+        [
+            "Inter",
+            "Barlow Condensed",
+            "Oswald",
+            "Bebas Neue",
+            "Montserrat"
+        ]
+    );
+    assert_eq!(tp_text::FALLBACK_FAMILY, "Inter");
+    let mut h = open();
+    create_text(&mut h, 800.0, 900.0, "ACE");
+    h.get_by_label_contains("Font family").click();
+    settle(&mut h);
+    assert!(h.query_by_label("Inter").is_some());
+}
+
 #[test]
 fn font_not_installed() {
     let mut h = open();
@@ -515,7 +554,7 @@ fn undo_an_import() {
     settle(&mut h);
     assert!(ws(&h).project.surface().objects.is_empty());
     assert!(imported(&h).is_empty());
-    assert!(h.query_by_label("No assets").is_some());
+    assert!(h.query_by_label("Drop a logo here or").is_some());
 }
 
 /// A file dropped from the operating system.
@@ -570,6 +609,32 @@ fn drop_two_files() {
     assert_eq!(names, ["logo", "badge"]);
     let drop = ws(&h).screen_map(1.0).unwrap().to_doc(at);
     assert!((selected[0].frame.center - drop).hypot() < 1e-6);
+}
+
+#[test]
+fn drop_a_file_on_the_images_drop_zone() {
+    let mut h = open();
+    let zone = h.get_by_label("Drop a logo here or").rect().center();
+    h.event(Event::PointerMoved(zone));
+    h.step();
+    h.input_mut().dropped_files = vec![Arc::new(TestFile {
+        path: "/tmp/logo.png".into(),
+        bytes: solid_png(80, 40, BLUE),
+    })];
+    h.step();
+    h.input_mut().dropped_files.clear();
+    settle(&mut h);
+    let selected = ws(&h).selected_objects();
+    assert_eq!(selected.len(), 1);
+    assert_eq!(
+        selected[0].name, "logo",
+        "placed on the texture and selected"
+    );
+    assert!(
+        h.query_by_label("Asset logo").is_some(),
+        "listed under Images"
+    );
+    assert!(h.query_by_label("Drop a logo here or").is_none());
 }
 
 #[test]
@@ -631,7 +696,7 @@ fn proportional_resize_with_shift() {
     assert!((size.width / size.height - 2.0).abs() < 1e-6, "{size:?}");
 }
 
-// ------------------------------------------------------------ assets panel
+// ---------------------------------------------------------- images section
 
 #[test]
 fn asset_listed_after_import() {
@@ -640,6 +705,26 @@ fn asset_listed_after_import() {
     place_bytes(&mut h, vec![("logo.svg", svg.to_vec())], None);
     assert!(h.query_by_label("Asset logo").is_some());
     assert!(h.query_by_label("Vector · 1 use").is_some());
+}
+
+#[test]
+fn drag_an_image_from_the_resources_tab() {
+    let mut h = open();
+    place_bytes(&mut h, vec![("logo.png", solid_png(80, 40, BLUE))], None);
+    let row = h.get_by_label("Asset logo").rect().center();
+    let at = screen(&h, 1500.0, 1200.0);
+    drag(&mut h, row, at, Modifiers::NONE);
+    let images: Vec<_> = ws(&h)
+        .project
+        .surface()
+        .objects
+        .iter()
+        .filter(|o| o.name == "logo")
+        .cloned()
+        .collect();
+    assert_eq!(images.len(), 2, "a second image of the logo");
+    let drop = ws(&h).screen_map(1.0).unwrap().to_doc(at);
+    assert!((images[1].frame.center - drop).hypot() < 1.0);
 }
 
 #[test]
@@ -671,7 +756,7 @@ fn remove_is_disabled_while_used() {
 }
 
 #[test]
-fn place_and_rename_from_the_assets_panel() {
+fn place_and_rename_from_the_images_section() {
     let mut h = open();
     place_bytes(&mut h, vec![("badge.png", solid_png(80, 40, BLUE))], None);
     h.get_by_label("Place Asset").click();
@@ -699,9 +784,9 @@ fn place_and_rename_from_the_assets_panel() {
 }
 
 #[test]
-fn empty_assets_panel_offers_place() {
+fn empty_images_section_offers_import() {
     let mut h = open();
-    assert!(h.query_by_label("No assets").is_some());
+    assert!(h.query_by_label("Drop a logo here or").is_some());
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("logo.png");
     std::fs::write(&path, solid_png(80, 40, BLUE)).unwrap();
@@ -709,7 +794,7 @@ fn empty_assets_panel_offers_place() {
         images: [vec![path]].into(),
         ..Default::default()
     });
-    h.get_by_label("Place…").click();
+    h.get_by_label("Import…").click();
     settle(&mut h);
     assert_eq!(imported(&h).len(), 1);
 }

@@ -1,5 +1,5 @@
 //! Dash, cap and join controls, shared by the Stroke panel (outlines of
-//! shapes and texts) and the Properties panel (lines).
+//! shapes and texts) and the inspector's Appearance section (lines).
 
 use egui::{Checkbox, Ui, WidgetInfo, WidgetType};
 use tp_core::document::{Cap, Dash, Join, LineStyle};

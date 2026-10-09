@@ -568,7 +568,8 @@ fn draw_selection(painter: &Painter, ws: &mut Workspace, map: &ScreenMap, bucket
 }
 
 fn label_pill(ui: &Ui, painter: &Painter, at: Pos2, text: String) {
-    let font = egui::TextStyle::Small.resolve(ui.style());
+    // Sizes and angles are values: monospace, at caption size.
+    let font = FontId::monospace(egui::TextStyle::Small.resolve(ui.style()).size);
     let galley = painter.layout_no_wrap(text, font, color::TEXT_PRIMARY);
     let rect = Rect::from_min_size(
         at + Vec2::new(14.0, 14.0),
@@ -604,7 +605,7 @@ fn draw_gesture_feedback(
                 "Line",
             );
             draw_preview(painter, ws, &line, map);
-            // Same value the Transform panel will show as the rotation.
+            // Same value the inspector's Layout section will show as the rotation.
             let angle = crate::path_edit::line_angle(a, b);
             label_pill(
                 ui,

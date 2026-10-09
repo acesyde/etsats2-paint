@@ -13,12 +13,14 @@ use egui::{
 use tp_i18n::tr;
 use tp_pack::custom::{CustomVehicle, Problem, TemplateFile, probe};
 use tp_ui::icons;
-use tp_ui::theme::{label_strong_style, title_style};
+use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, radius, space};
 use tp_ui::widgets::{IconButton, primary_button, secondary_button};
 use tp_vehicles::{Game, Kind, Manifest, Package, Role, SIZES};
 
-use super::vehicle_dialogs::{AddVehicleDialog, LibraryDialog, VehicleChoice, VehicleFilter};
+use super::vehicle_dialogs::{
+    AddVehicleDialog, LibraryDialog, VehicleChoice, VehicleFilter, game_name,
+};
 use crate::custom_vehicles::{PackJob, PackOutcome};
 use crate::state::{AppState, Modal, NewProjectDraft};
 use crate::vehicles::{VehicleLibrary, pack_error_message, template_error_message};
@@ -63,6 +65,8 @@ impl Origin {
         let choice = library.get(&m.id).map(VehicleChoice::of);
         match self {
             Origin::NewProject(draft) => {
+                // The dialog lists one game: the vehicle's.
+                draft.filter.game = Some(m.game.id);
                 reveal(&mut draft.filter);
                 draft.messages = vec![Ok(message)];
                 draft.vehicle = choice;
@@ -241,23 +245,23 @@ pub fn problem_message(problem: &Problem) -> String {
 }
 
 fn problem_label(ui: &mut Ui, problem: &Problem) {
-    let text = problem_message(problem);
-    let label = ui.label(RichText::new(&text).small().color(color::ERROR));
-    label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+    super::dialogs::problem(ui, &problem_message(problem));
 }
 
-/// A labelled single-line text field; returns whether it lost focus.
+/// A single-line text field under its label; returns whether it lost
+/// focus.
 fn text_field(ui: &mut Ui, label: &str, text: &mut String, hint: &str, enabled: bool) -> bool {
-    ui.label(RichText::new(label).color(color::TEXT_SECONDARY));
-    let response = ui.add_enabled(
-        enabled,
-        TextEdit::singleline(text)
-            .hint_text(hint)
-            .desired_width(f32::INFINITY),
-    );
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, enabled, label));
-    ui.end_row();
-    response.lost_focus()
+    super::dialogs::labelled(ui, label, |ui| {
+        let response = ui.add_enabled(
+            enabled,
+            TextEdit::singleline(text)
+                .hint_text(hint)
+                .desired_width(f32::INFINITY)
+                .margin(egui::Margin::symmetric(8, 5)),
+        );
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, enabled, label));
+        response.lost_focus()
+    })
 }
 
 /// A labelled combo box over `choices`.
@@ -274,9 +278,15 @@ fn combo<T: Copy + PartialEq>(
         .find(|(c, _)| c == value)
         .map(|(_, t)| t.clone())
         .unwrap_or_default();
+    super::dialogs::field_label(ui, label);
     let response = ui
         .add_enabled_ui(enabled, |ui| {
             egui::ComboBox::from_id_salt(id)
+                .width(
+                    ui.available_width()
+                        - ui.spacing().icon_width
+                        - 2.0 * ui.spacing().button_padding.x,
+                )
                 .selected_text(selected)
                 .show_ui(ui, |ui| {
                     for (choice, text) in choices {
@@ -287,13 +297,6 @@ fn combo<T: Copy + PartialEq>(
         })
         .inner;
     response.widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, enabled, label));
-}
-
-fn game_name(game: Game) -> String {
-    match game {
-        Game::Ets2 => "Euro Truck Simulator 2".into(),
-        Game::Ats => "American Truck Simulator".into(),
-    }
 }
 
 /// Shows the dialog; returns false once it is closed (the origin is then
@@ -330,13 +333,11 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
             .into_iter()
             .map(|f| (f, field_problems(f)))
             .collect();
-    // Problem rows under a field of the grid.
+    // The problems of a field, under it.
     let under = |ui: &mut Ui, field: &str| {
         for (_, list) in fields.iter().filter(|(f, _)| *f == field) {
             for problem in list {
-                ui.label("");
                 problem_label(ui, problem);
-                ui.end_row();
             }
         }
     };
@@ -348,74 +349,65 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
         } else {
             tr("custom-title")
         };
-        ui.label(
-            RichText::new(title)
-                .text_style(title_style())
-                .color(color::TEXT_PRIMARY),
-        );
+        let id = dialog.form.id();
+        super::dialogs::title(ui, &title, Some(&id));
         ui.add_space(space::SM);
-        for message in &dialog.messages {
-            let (text, tint) = match message {
-                Ok(text) => (text, color::SUCCESS),
-                Err(text) => (text, color::ERROR),
-            };
-            ui.label(RichText::new(text).small().color(tint));
-        }
+        super::dialogs::messages(ui, &dialog.messages);
+        ui.add_space(space::SM);
 
         ui.add_enabled_ui(!building, |ui| {
-            egui::Grid::new("custom_vehicle_fields")
-                .num_columns(2)
-                .spacing([space::MD, space::XS])
-                .min_col_width(120.0)
-                .show(ui, |ui| {
-                    let form = &mut dialog.form;
-                    ui.label(RichText::new(tr("custom-id")).color(color::TEXT_SECONDARY));
-                    let id = form.id();
-                    ui.label(RichText::new(&id).monospace())
-                        .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &id));
-                    ui.end_row();
-                    if new_version
-                        && text_field(ui, &tr("custom-version"), &mut form.version, "", true)
-                    {
-                        lost_focus.push("version");
-                    }
-                    if new_version {
+            ui.spacing_mut().item_spacing.y = space::SM;
+            let form = &mut dialog.form;
+            if new_version {
+                super::dialogs::columns(ui, &[1.0, 1.0], |ui, column| {
+                    if column == 0 {
+                        if text_field(ui, &tr("custom-version"), &mut form.version, "", true) {
+                            lost_focus.push("version");
+                        }
                         under(ui, "version");
                     }
+                });
+            }
+            super::dialogs::columns(ui, &[1.0, 1.0], |ui, column| match column {
+                0 => {
                     if text_field(ui, &tr("custom-name"), &mut form.name, "", true) {
                         lost_focus.push("name");
                     }
                     under(ui, "name");
+                }
+                _ => {
                     if text_field(ui, &tr("custom-brand"), &mut form.brand, "", true) {
                         lost_focus.push("brand");
                     }
                     under(ui, "brand");
-                    ui.label(RichText::new(tr("custom-kind")).color(color::TEXT_SECONDARY));
-                    combo(
-                        ui,
-                        "custom_kind",
-                        &tr("custom-kind"),
-                        &mut form.kind,
-                        &[
-                            (Kind::Truck, tr("vehicles-truck")),
-                            (Kind::Trailer, tr("vehicles-trailer")),
-                        ],
-                        !new_version,
-                    );
-                    ui.end_row();
-                    ui.label(RichText::new(tr("custom-game")).color(color::TEXT_SECONDARY));
-                    combo(
-                        ui,
-                        "custom_game",
-                        &tr("custom-game"),
-                        &mut form.game,
-                        &[
-                            (Game::Ets2, game_name(Game::Ets2)),
-                            (Game::Ats, game_name(Game::Ats)),
-                        ],
-                        !dialog.game_locked,
-                    );
-                    ui.end_row();
+                }
+            });
+            super::dialogs::columns(ui, &[1.0, 1.0], |ui, column| match column {
+                0 => combo(
+                    ui,
+                    "custom_kind",
+                    &tr("custom-kind"),
+                    &mut form.kind,
+                    &[
+                        (Kind::Truck, tr("vehicles-truck")),
+                        (Kind::Trailer, tr("vehicles-trailer")),
+                    ],
+                    !new_version,
+                ),
+                _ => combo(
+                    ui,
+                    "custom_game",
+                    &tr("custom-game"),
+                    &mut form.game,
+                    &[
+                        (Game::Ets2, game_name(Game::Ets2)),
+                        (Game::Ats, game_name(Game::Ats)),
+                    ],
+                    !dialog.game_locked,
+                ),
+            });
+            super::dialogs::columns(ui, &[1.0, 1.0], |ui, column| match column {
+                0 => {
                     if text_field(
                         ui,
                         &tr("custom-game-path"),
@@ -426,6 +418,8 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
                         lost_focus.push("path");
                     }
                     under(ui, "path");
+                }
+                _ => {
                     if text_field(
                         ui,
                         &tr("custom-game-versions"),
@@ -436,21 +430,20 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
                         lost_focus.push("versions");
                     }
                     under(ui, "versions");
-                    ui.label("");
-                    ui.horizontal(|ui| {
-                        for (value, key) in [
-                            (&mut form.alt_uv, "custom-alt-uv"),
-                            (&mut form.colour_picker, "custom-colour-picker"),
-                        ] {
-                            let text = tr(key);
-                            let on = *value;
-                            ui.add(Checkbox::new(value, &text)).widget_info(|| {
-                                WidgetInfo::selected(WidgetType::Checkbox, true, on, &text)
-                            });
-                        }
+                }
+            });
+            ui.horizontal(|ui| {
+                for (value, key) in [
+                    (&mut form.alt_uv, "custom-alt-uv"),
+                    (&mut form.colour_picker, "custom-colour-picker"),
+                ] {
+                    let text = tr(key);
+                    let on = *value;
+                    ui.add(Checkbox::new(value, &text)).widget_info(|| {
+                        WidgetInfo::selected(WidgetType::Checkbox, true, on, &text)
                     });
-                    ui.end_row();
-                });
+                }
+            });
 
             ui.add_space(space::MD);
             ui.horizontal(|ui| {
@@ -467,8 +460,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
                     .color(color::TEXT_SECONDARY),
             );
             for error in &dialog.file_errors {
-                let label = ui.label(RichText::new(error).small().color(color::ERROR));
-                label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, error));
+                super::dialogs::problem(ui, error);
             }
             dialog.row_rects.clear();
             let trailer = dialog.form.kind == Kind::Trailer;
@@ -608,8 +600,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
                 .color(color::TEXT_SECONDARY),
         );
         if let Some(error) = &dialog.error {
-            let label = ui.label(RichText::new(error).color(color::ERROR));
-            label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, error));
+            super::dialogs::problem(ui, error);
         }
         if let Some(job) = &dialog.job {
             let (done, total) = job.progress();
@@ -628,8 +619,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
                     .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
             });
         }
-        ui.add_space(space::LG);
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        super::dialogs::footer(ui, |ui| {
             let ready = problems.is_empty() && !building;
             let button = ui
                 .add_enabled(ready, primary_button(&tr("custom-create")))

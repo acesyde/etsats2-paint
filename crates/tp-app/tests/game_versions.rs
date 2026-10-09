@@ -1,5 +1,5 @@
-//! Headless tests for the project's game versions: the sidebar field, the
-//! versions the fleet supports, and their checks in Export Mod.
+//! Headless tests for the project's game versions: the field of the Project
+//! space, the versions the fleet supports, and their checks in Export Mod.
 
 mod common;
 
@@ -15,9 +15,12 @@ type H = Harness<'static, AppState>;
 
 const FIELD: &str = "Game versions";
 
+/// The sample truck project, in the Project space.
 fn open() -> H {
     let mut h = common::harness();
     common::create_project(&mut h);
+    common::show_space(&mut h, tp_app::layout::Space::Project);
+    common::settle_renders(&mut h);
     let snapshot = ws(&h).snapshot();
     ws_mut(&mut h).saved = Some(snapshot);
     h.run();
@@ -88,19 +91,20 @@ fn the_fleet_supported_versions_are_shown_under_the_field() {
         h.query_by_label("No game version is supported by every vehicle")
             .is_some()
     );
-    // Name and Version stay read only.
-    let disabled = h
-        .query_all(
-            egui_kittest::kittest::By::new()
-                .predicate(|n| n.role() == Role::TextInput && n.is_disabled()),
-        )
-        .count();
-    assert_eq!(disabled, 2);
+    // The mod's Name and Version are read only: shown, but the Game
+    // versions field is the only text field.
+    let version = ws(&h).project.mod_settings.version.clone();
+    assert!(h.query_by_label(&version).is_some());
+    let fields: Vec<String> = h
+        .query_all(egui_kittest::kittest::By::new().predicate(|n| n.role() == Role::TextInput))
+        .map(|n| n.accesskit_node().label().unwrap_or_default())
+        .collect();
+    assert_eq!(fields, [FIELD]);
 }
 
 /// Opens Export Mod and returns the problems it lists.
 fn export_problems(h: &mut H) -> Vec<String> {
-    h.key_press_modifiers(Modifiers::COMMAND | Modifiers::SHIFT, Key::E);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::E);
     for _ in 0..4 {
         h.step();
     }
@@ -123,7 +127,7 @@ fn export_mod_checks_the_game_versions() {
         ["TruckPaint Sample Truck (>=1.56) doesn't support game version 1.55.*."]
     );
     assert!(h.query_by_label(&problems[0]).is_some());
-    assert!(h.get_by_label("Export…").accesskit_node().is_disabled());
+    assert!(common::last(&h, "Export…").accesskit_node().is_disabled());
 }
 
 #[test]

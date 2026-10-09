@@ -1,14 +1,13 @@
-use egui::{
-    Align2, CornerRadius, Pos2, Rect, Response, Sense, Ui, Vec2, Widget, WidgetInfo, WidgetType,
-};
+use egui::{Align2, CornerRadius, Response, Sense, Ui, Vec2, Widget, WidgetInfo, WidgetType};
 
 use super::{name_and_shortcut_tooltip, paint_focus_ring};
-use crate::tokens::{color, radius, size, stroke};
+use crate::tokens::{color, radius, size};
 
-/// Square icon button for the tool bar.
+/// Square icon button for the tool rail.
 ///
-/// The active state is shown by a filled background *and* an indicator bar
-/// on the leading edge, so it remains visible without color perception.
+/// The active tool is a white tile (primary accent) with a dark icon: a
+/// change of fill and of lightness, so it remains visible without color
+/// perception and in grayscale.
 pub struct ToolButton<'a> {
     icon: &'a str,
     name: &'a str,
@@ -49,14 +48,14 @@ impl Widget for ToolButton<'_> {
 
         if ui.is_rect_visible(rect) {
             let painter = ui.painter();
-            let corner = CornerRadius::same(radius::MD);
+            let corner = CornerRadius::same(radius::LG);
             let pressed = response.is_pointer_button_down_on();
             let hovered = response.hovered() && enabled;
 
             let (bg, fg) = if !enabled {
                 (None, color::TEXT_DISABLED)
             } else if self.active {
-                (Some(color::ACCENT_SUBTLE), color::TEXT_PRIMARY)
+                (Some(color::ACCENT_PRIMARY), color::TEXT_ON_PRIMARY)
             } else if pressed {
                 (Some(color::SURFACE_4), color::TEXT_PRIMARY)
             } else if hovered {
@@ -67,13 +66,6 @@ impl Widget for ToolButton<'_> {
             if let Some(bg) = bg {
                 painter.rect_filled(rect, corner, bg);
             }
-            if self.active {
-                let bar = Rect::from_min_max(
-                    Pos2::new(rect.left(), rect.top() + 6.0),
-                    Pos2::new(rect.left() + stroke::INDICATOR, rect.bottom() - 6.0),
-                );
-                painter.rect_filled(bar, CornerRadius::same(2), color::ACCENT);
-            }
             painter.text(
                 rect.center(),
                 Align2::CENTER_CENTER,
@@ -81,7 +73,7 @@ impl Widget for ToolButton<'_> {
                 crate::icons::font(size::ICON_LG),
                 fg,
             );
-            paint_focus_ring(ui, rect, &response, radius::MD);
+            paint_focus_ring(ui, rect, &response, radius::LG);
         }
 
         name_and_shortcut_tooltip(response, self.name, self.shortcut, None)

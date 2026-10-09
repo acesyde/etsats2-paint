@@ -1,14 +1,14 @@
-//! Headless tests for editing-panels: Transform, Properties, Colors, Stroke,
-//! Layers, groups on the canvas and the Eyedropper.
+//! Headless tests for editing-panels: the inspector (Layout, Appearance and
+//! its color popover), the Layers tab, groups on the canvas and the
+//! Eyedropper.
 
 mod common;
 
 use egui::accesskit::Role;
 use egui::{Event, Key, Modifiers, PointerButton, Pos2, Vec2};
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::{NodeT, Queryable};
 use tp_app::AppState;
-use tp_app::layout::PanelKind;
 use tp_app::prefs::{Prefs, PrefsStore};
 use tp_app::tool::Tool;
 use tp_app::workspace::{ColorTarget, Workspace};
@@ -18,17 +18,14 @@ use tp_core::kurbo::{Point, Size};
 
 type H = Harness<'static, AppState>;
 
-/// Tall window with every panel open and expanded, so nothing scrolls.
+/// Tall window, so nothing scrolls.
 fn open() -> H {
     open_with_step(1.0 / 4.0)
 }
 
 fn open_with_step(step_dt: f32) -> H {
     let mut prefs = Prefs::default();
-    for slot in &mut prefs.layout.panels {
-        slot.open = !matches!(slot.kind, PanelKind::Assets);
-        slot.collapsed = false;
-    }
+    prefs.layout.left_tab = tp_app::layout::LeftTab::Layers;
     let mut h = Harness::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
         .with_step_dt(step_dt)
@@ -181,9 +178,14 @@ fn transform_shows_single_object_values() {
 }
 
 #[test]
-fn transform_empty_state() {
+fn no_layout_section_nor_empty_state_with_nothing_selected() {
     let h = open();
-    h.get_by_label("Nothing to transform");
+    assert!(h.query_by_label("Nothing to transform").is_none());
+    assert!(h.query_by_label("Layout").is_none());
+    assert!(h.query_by_label("X position").is_none());
+    // The texture's properties instead.
+    h.get_by_label("Standard cab");
+    h.get_by_label("Select an object to set its layout, fill and stroke.");
 }
 
 #[test]
@@ -489,20 +491,17 @@ fn line_width_hidden_for_closed_shapes() {
 }
 
 #[test]
-fn stroke_swatch_reveals_colors_panel() {
+fn stroke_swatch_targets_the_stroke() {
     let mut h = open();
     let a = rect(&mut h, "A", (300.0, 200.0), (400.0, 200.0));
     select(&mut h, &[a]);
-    h.state_mut()
-        .prefs
-        .layout
-        .slot_mut(PanelKind::Colors)
-        .collapsed = true;
-    h.run();
     h.get_by_label("Stroke color").click();
     h.run();
-    assert!(!h.state().prefs.layout.slot(PanelKind::Colors).collapsed);
     assert_eq!(ws(&h).panels.color_target, ColorTarget::Stroke);
+    // The color popover opens under the Stroke row.
+    let row = h.get_by_label("Stroke color").rect();
+    let hex = h.get_by_role_and_label(Role::TextInput, "Hex color").rect();
+    assert!(hex.top() > row.bottom(), "{row:?} {hex:?}");
 }
 
 // --- Colors --------------------------------------------------------------------
@@ -513,11 +512,17 @@ fn x_switches_target() {
     h.key_press(Key::X);
     h.run();
     assert_eq!(ws(&h).panels.color_target, ColorTarget::Stroke);
+    // The Stroke row is marked as the target, not by color alone.
+    let marked = |label: &str| {
+        h.get_by_label(label).accesskit_node().toggled() == Some(egui::accesskit::Toggled::True)
+    };
+    assert!(marked("Stroke color") && !marked("Fill color"));
 }
 
 #[test]
 fn color_with_nothing_selected_applies_to_new_shapes() {
     let mut h = open();
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     type_into(&mut h, "Hex color", "#FF0000");
     ws_mut(&mut h).tool = Tool::Rectangle;
     h.run();
@@ -535,6 +540,7 @@ fn rgb_fields_update_color() {
     let mut h = open();
     let a = rect(&mut h, "A", (300.0, 200.0), (400.0, 200.0));
     select(&mut h, &[a]);
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     type_into(&mut h, "Red", "255");
     type_into(&mut h, "Green", "0");
     type_into(&mut h, "Blue", "0");
@@ -550,6 +556,7 @@ fn short_and_invalid_hex() {
     let mut h = open();
     let a = rect(&mut h, "A", (300.0, 200.0), (400.0, 200.0));
     select(&mut h, &[a]);
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     type_into(&mut h, "Hex color", "#f80");
     assert_eq!(
         obj(&h, a).fill,
@@ -574,8 +581,7 @@ fn none_removes_stroke() {
     });
     ws_mut(&mut h).project.surface_mut().replace(&[o]);
     select(&mut h, &[a]);
-    ws_mut(&mut h).panels.color_target = ColorTarget::Stroke;
-    h.run();
+    common::open_color_popover(&mut h, ColorTarget::Stroke);
     h.get_by_label("No stroke").click();
     h.run();
     assert_eq!(obj(&h, a).stroke, None);
@@ -587,6 +593,7 @@ fn palette_add_and_apply() {
     let a = rect(&mut h, "A", (300.0, 200.0), (400.0, 200.0));
     let b = rect(&mut h, "B", (900.0, 200.0), (400.0, 200.0));
     select(&mut h, &[a]);
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     type_into(&mut h, "Hex color", "#123456");
     h.get_by_label("Add to Palette").click();
     h.run();
@@ -613,6 +620,7 @@ fn picker_drag_is_one_named_undo_step() {
     let mut h = open();
     let a = rect(&mut h, "A", (300.0, 200.0), (400.0, 200.0));
     select(&mut h, &[a]);
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     let before = obj(&h, a).fill;
     let square = h.get_by_label("Saturation and value").rect();
     drag(
@@ -640,6 +648,7 @@ fn recent_colors_persist_across_sessions() {
             AppState::new(store()),
         );
     common::create_project(&mut h);
+    common::open_color_popover(&mut h, ColorTarget::Fill);
     for hex in ["#111111", "#222222", "#333333"] {
         type_into(&mut h, "Hex color", hex);
     }
@@ -662,6 +671,7 @@ fn enable_stroke_and_set_width() {
     let mut h = open();
     let a = rect(&mut h, "A", (300.0, 200.0), (400.0, 200.0));
     select(&mut h, &[a]);
+    common::open_stroke_popover(&mut h);
     h.get_by_label("Stroke enabled").click();
     h.run();
     let stroke = obj(&h, a).stroke.expect("stroke added");
@@ -914,4 +924,33 @@ fn eyedropper_picks_fill_into_selection() {
         tp_core::document::Paint::from(Rgba::rgb(220, 20, 20))
     );
     assert_eq!(ws(&h).selection, vec![a]);
+}
+
+#[test]
+fn layers_tab_header_counts_the_layers_and_adds_one() {
+    let mut h = open();
+    let side_skirts = ws(&h)
+        .project
+        .surfaces
+        .iter()
+        .position(|s| s.name == "Side skirts")
+        .expect("Side skirts");
+    ws_mut(&mut h).set_active_surface(side_skirts);
+    h.run();
+    for i in 0..5 {
+        rect(
+            &mut h,
+            &format!("R{i}"),
+            (100.0 + 60.0 * f64::from(i), 100.0),
+            (40.0, 40.0),
+        );
+    }
+    assert!(h.query_by_label("Side skirts · 5 layers").is_some());
+    // The header's add button (before the footer's) runs New Layer.
+    h.get_all_by_label("New Layer").next().unwrap().click();
+    h.run();
+    let top = ws(&h).project.surface().objects.last().cloned().unwrap();
+    assert!(top.is_group() && top.children.is_empty());
+    assert_eq!(top.name, "Layer 1");
+    assert!(h.query_by_label("Side skirts · 6 layers").is_some());
 }

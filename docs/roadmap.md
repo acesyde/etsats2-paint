@@ -139,13 +139,13 @@ it, and it would need packages to record where each side lies on the
 texture.
 
 ### Game versions (shipped in `game-versions`)
-The project's **Game versions** (sidebar, Project section) are the list the
+The project's **Game versions** (Project space, Mod information) are the list the
 mod's manifest gets as `compatible_versions[]`, typed as the game writes them
 (`1.56.*, 1.57.*`). Export Mod copies them as they are: after a game update,
 the author adds the new version and exports a new version of the mod. The
 list starts empty (no `compatible_versions`).
 
-Under the field, the sidebar shows the versions every vehicle supports,
+Under the field, the Project space shows the versions every vehicle supports,
 computed from the packages' ranges. Export Mod blocks a badly written
 version, a version a vehicle's package doesn't support, and a fleet whose
 vehicles have no version in common.
@@ -171,8 +171,8 @@ graphic styles and text styles, with the images its symbols use.
   swatches it links to and the styles it follows. When the element came
   from the library, the item reads **Update in Library** and replaces the
   library's copy.
-- **Import from Library…** (Object menu, and the empty Symbols, Colors and
-  Styles panels) imports checked elements with what they use, as one undo
+- **Import from Library…** (Object menu, the Brand space header and the
+  Resources tab) imports checked elements with what they use, as one undo
   step. **Remove from Library** deletes an entry; projects keep their copy.
 - **Copies with an origin, not links:** each element remembers the library
   entry it came from (saved in the project, not part of the undo history).
@@ -200,7 +200,8 @@ job, in one mod, in the format Paintjob Packer (MIT) has shipped for years.
   Author, Description, Price, Unlock level and an internal name derived from
   the Name (at most 12 characters, or 10 when a truck has several main
   textures, whose paint jobs are `<name>_a`, `<name>_b`…). Editing them and
-  exporting is one undo step. The sidebar's Version is the mod version.
+  exporting is one undo step. The Version shown in the Project space is the
+  mod version.
 - **Pictures are generated, and can be replaced:** the shop icon (256×64)
   and the Mod Manager image (276×162) are rendered from the first main
   texture, or made from a PNG or JPEG the player chooses, stored in the
@@ -220,12 +221,32 @@ job, in one mod, in the format Paintjob Packer (MIT) has shipped for years.
 - **Scale:** a fleet can reach 30 to 40 textures, mostly 4096². The canvas is
   vector-based and only draws the active texture, and its caches drop what is
   not shown, so no on-demand loading is needed.
-- **Navigation:** the sidebar on the left shows the project and a tree
-  (vehicle → Main textures and Accessories → texture), the only place to
-  switch textures, with Next/Previous Texture on the keyboard; the template
-  settings are in the Properties panel.
+- **Navigation:** textures are switched from the Workshop's Textures tab
+  (vehicle → Main textures and Accessories → texture), from the Project
+  space, or with Next/Previous Texture on the keyboard; the template is shown
+  and dimmed from the status bar.
 - **Update Template:** works per vehicle, since each vehicle in a project has
   its own package version.
+
+### The redesign (shipped in `new-design`)
+The new interface follows the design spec "TruckPaint 5" (claude.ai design
+project *TruckPaint éditeur de livrées*): three spaces, **Project**,
+**Workshop** and **Brand**, an Export… button always visible, a thin chrome
+around the canvas, and one accent color per meaning (white for the main
+action, red for signals and selection, blue for what is linked to the
+brand).
+- **Constant functionality:** `new-design` moves every existing function to
+  its new place and adds none. The mockup's new features are small separate
+  changes, done one at a time after it (see "Next changes").
+- **Brand space and the personal library:** the Brand space shows the
+  project's elements; the personal library is reached through Import from
+  Library… and Add to / Update in Library, with no library browser (a
+  library view can be its own change later).
+- **Where the mockup is not followed:** the main texture "one per cabin / one
+  for all" comes from the package and is shown read only; Export Mod always
+  writes the whole fleet, with no "current texture / current vehicle" choice
+  and no "enable in the mod manager" option; Custom vehicle keeps DDS, PNG
+  and SVG templates and typed game data.
 
 ## Open questions
 
@@ -235,16 +256,31 @@ None at the moment.
 
 | # | Change | What it does | Why now |
 |---|---|---|---|
-| 1 | `new-design` | Redesigns the interface: theme, colors, typography, icons and panel layout. | The feature set is in place; the look comes before others use the app. |
 | 2 | `polishing` | Fixes, ergonomics, wording and performance across the app, with no new feature. | Smooths what the first players will meet, on the new design. |
+| 2a | `texture-status` | Each texture shows its state (empty, modified, to check); an "on this texture" summary with off-palette colors; a "before exporting" list. | Shown in the mockup; makes a fleet of 30 textures readable. |
+| 2b | `mod-settings-in-project` | The mod information is edited on the Project screen; the Export dialog keeps the destination and the checks. | Export becomes one dialog, one check, one button. |
+| 2c | `command-palette` | Ctrl/Cmd+K searches every command and every texture of the project. | Fast navigation in a large fleet. |
+| 2d | `brand-edit-preview` | The Brand space shows where each element is used; editing a swatch previews its impact before "Apply to fleet". | A brand edit touches the whole fleet: say so before applying. |
+| 2e | `title-bar-menus` | Menus in the title bar on Windows and Linux, the system menu bar on macOS. Starts with a spike. | Gives the canvas the menu bar's row back. |
+| 2f | `drop-shadow` | Drop shadow as an appearance property. A new feature, optional and low priority. | Common on livery lettering. |
 | 3 | `paintjob-importer` | Prefills the game data of a custom vehicle (game path, cabin internal names, accessory ids) from Paintjob Packer's database. | Custom vehicle asks for game data most players don't know. |
 | 4 | `distribution` | Release builds and installers. | A player can go from vehicle to mod without building the app. |
 | 5 | `marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once players have the app and can make packages easily. |
+| 5a | `template-update-impact` | A template update says what it changes and which projects it touches; affected textures become "to check" and affected objects are flagged. Nothing moves automatically. Works with local packages too (needs `texture-status`). | Updates become frequent once packages come from the marketplace. |
+| 5b | `first-run` | A three-step first launch: language and game, vehicles to install from the catalog, first project. | Needs the marketplace catalog. |
 
 ## Shipped
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `new-design`: the interface redone after the "TruckPaint 5" design spec,
+  with constant functionality: Geist and JetBrains Mono, one accent per
+  meaning; the Project, Workshop and Brand spaces (Cmd/Ctrl+1/2/3) with an
+  always-visible Export…; the tool rail, tool options bar and status bar
+  (template, snapping, grid, guides); the Textures, Layers and Resources tabs;
+  an inspector following the selection, with color and stroke popovers; a
+  one-page New Project, a home screen with project thumbnails, and redone
+  Export Mod and Vehicle Library dialogs; several shortcuts moved;
 - `shared-library`: the personal library shared by every project of both
   games (Add to Library / Update in Library, Import from Library…, Remove
   from Library), elements imported with what they use and without

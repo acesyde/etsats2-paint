@@ -1,40 +1,14 @@
 ## Bedienfeldtitel und leere Zustände
 
-panel-properties = Eigenschaften
-panel-layers = Ebenen
-panel-colors = Farben
 panel-styles = Stile
 panel-symbols = Symbole
 panel-stroke = Kontur
-panel-transform = Transformieren
-panel-assets = Assets
 panel-vehicle = Fahrzeuge
-empty-properties = Nichts ausgewählt
-empty-properties-hint = Wählen Sie ein Objekt auf der Arbeitsfläche aus, um seine Eigenschaften zu bearbeiten.
 empty-layers = Noch keine Ebenen
-empty-layers-hint = Hinzugefügte Formen, Texte und Bilder werden hier angezeigt.
-empty-colors = Keine Farbe ausgewählt
-empty-colors-hint = Wählen Sie eine Fläche oder Kontur, um ihre Farbe zu bearbeiten.
-empty-styles = Noch kein Stil
-empty-styles-hint = Speichern Sie Darstellungen, um sie auf jeder Textur wiederzuverwenden.
-empty-symbols = Noch kein Symbol
-empty-symbols-hint = Wandeln Sie ein Logo oder einen Schriftzug in ein Symbol um, um es auf jeder Textur zu platzieren.
-empty-stroke = Keine Kontur
-empty-stroke-hint = Wählen Sie ein Objekt aus, um seine Kontur zu bearbeiten.
-empty-transform = Nichts zu transformieren
-empty-transform-hint = Wählen Sie ein Objekt aus, um Position, Größe und Drehung zu bearbeiten.
-empty-assets = Keine Assets
 empty-assets-hint = Importierte Logos und Bilder werden hier aufgelistet.
-empty-vehicle = Kein Fahrzeug
-empty-vehicle-hint = Fahrzeugvorlagen werden in einem künftigen Update verfügbar sein.
 
-## Bedienfelder und Ebenen
+## Ebenen
 
-panels-all-closed = Alle Bedienfelder sind geschlossen
-panels-all-closed-hint = Öffnen Sie Bedienfelder über das Menü „Ansicht“ erneut oder setzen Sie den Arbeitsbereich zurück.
-panel-expand = Erweitern
-panel-collapse = Reduzieren
-panel-close = Bedienfeld schließen
 layers-empty-hint = Gezeichnete Formen und hinzugefügte Ebenen werden hier angezeigt.
 layers-collapse = { $name } reduzieren
 layers-expand = { $name } erweitern
@@ -43,6 +17,10 @@ layers-show = { $name } einblenden
 layers-lock = { $name } sperren
 layers-unlock = { $name } entsperren
 layers-name = Ebenenname
+layers-heading = { $texture } · { $count ->
+    [one] { $count } Ebene
+   *[other] { $count } Ebenen
+ }
 
 ## Assets
 
@@ -57,6 +35,9 @@ assets-used-by = { $count ->
 assets-vector = Vektor
 assets-item = Asset { $name }
 assets-place = Asset platzieren
+assets-drop-zone = Logo hier ablegen oder
+assets-import = Importieren…
+resources-images = Bilder
 assets-name = Asset-Name
 
 ## Bedienfeld Kontur
@@ -102,15 +83,12 @@ props-sides = Seiten
 props-star = Stern
 props-inner = Innen
 props-inner-radius = Innenradius
-props-surface-summary = { $size } × { $size } px · Wählen Sie ein Objekt aus, um es zu bearbeiten
 props-objects = { $count ->
     [one] { $count } Objekt
    *[other] { $count } Objekte
  }
-props-multiple = Mehrfachauswahl
 props-source-svg = SVG · Vektor
 props-source-image = Bild · { $width } × { $height } px
-props-source = Quelle: { $name } · { $source }
 props-opacity = Deckkraft
 props-opacity-slider = Deckkraft-Regler
 props-radius = Radius
@@ -206,7 +184,6 @@ weight-semi-bold = Semi Bold
 weight-bold = Bold
 weight-extra-bold = Extra Bold
 weight-black = Black
-char-title = Zeichen
 char-font-weight = Schriftstärke
 char-italic = Kursiv
 char-size = Größe
@@ -242,7 +219,6 @@ vehicle-panel-layout-changed = Layout geändert
 vehicle-panel-dismiss = Verwerfen
 vehicle-panel-dismiss-named = Layoutänderung von { $name } verwerfen
 vehicle-panel-removed = Nicht in dieser Version
-vehicle-panel-opacity = Vorlage
 vehicle-panel-opacity-name = Deckkraft der Vorlage
 
 ## Fleet
@@ -253,22 +229,13 @@ vehicles-main-textures = Haupttexturen
 vehicles-accessories = Zubehör
 vehicles-remove-from-project = Aus dem Projekt entfernen
 
-## Vehicles sidebar
+## Project
 
-
-## Sidebar
-
-sidebar-project = Projekt
-sidebar-show = Seitenleiste anzeigen
-sidebar-hide = Seitenleiste ausblenden
-sidebar-vehicles-game = Fahrzeuge · { $game }
-project-name = Name
-project-version = Version
+vehicle-panel-game = Fahrzeuge · { $game }
 project-game-versions = Spielversionen
 project-game-versions-supported = Von allen Fahrzeugen unterstützt: { $versions }
 project-no-common-version = Keine Spielversion wird von allen Fahrzeugen unterstützt
 vehicle-actions-named = Aktionen für { $name }
-vehicle-panel-needs-check = Eine Textur muss nach einem Update geprüft werden
 texture-layout-changed = Das Layout dieser Textur hat sich in Version { $version } geändert: Prüfen Sie Ihre Gestaltung.
 texture-not-in-version = Diese Textur gibt es in Version { $version } des Fahrzeugs nicht: Sie hat keine Vorlage.
 
@@ -326,3 +293,53 @@ library-update = In Bibliothek aktualisieren
 library-added = Zur Bibliothek hinzugefügt
 library-updated = Bibliothek aktualisiert
 undo-import-from-library = Aus Bibliothek importieren
+
+## Inspector
+
+inspector-layout = Anordnung
+inspector-text = Text
+inspector-appearance = Aussehen
+inspector-polygon = Polygon
+inspector-image = Bild
+inspector-new-objects = Neue Objekte
+inspector-hint = Wählen Sie ein Objekt aus, um Anordnung, Fläche und Kontur einzustellen.
+inspector-main-texture = Haupttextur
+inspector-accessory-texture = Zubehörtextur
+inspector-texture-kind = { $kind } · { $size } × { $size } px
+inspector-style = Stil
+inspector-style-none = Keiner
+stroke-none = Keine
+stroke-width-px = { $width } px
+stroke-options = Konturoptionen
+line-settings = Linieneinstellungen
+colors-brand-palette = Markenpalette
+
+## Project space
+
+project-vehicles-count = { $vehicles ->
+    [one] { $vehicles } Fahrzeug
+   *[other] { $vehicles } Fahrzeuge
+} · { $textures ->
+    [one] { $textures } Textur
+   *[other] { $textures } Texturen
+}
+project-kind-package = { $kind } · Paket { $version }
+project-cabins = Kabinen
+project-main-texture = Haupttextur
+project-mode-per-layout = Eine pro Kabinenlayout
+project-mode-every-cabin = Eine für alle Kabinen
+project-mode-single = Eine einzige Haupttextur
+project-update-available = Update { $version } verfügbar
+vehicle-textures-named = Texturen von { $name }
+project-texture-main = Haupt
+project-texture-accessory = Zubehör
+project-mod-information = Mod-Informationen
+project-not-set = Nicht festgelegt
+project-edit-in-export = In „Mod exportieren“ bearbeiten…
+
+## Brand space
+
+brand-new-color = Neue Farbe
+brand-new-style = Neuer Stil aus Auswahl
+brand-create-from-selection = Aus Auswahl erstellen
+brand-actions-named = Aktionen für { $name }

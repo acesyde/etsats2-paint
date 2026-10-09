@@ -9,6 +9,7 @@ pub mod home;
 pub mod library_dialog;
 pub mod menu_bar;
 pub mod mod_export_dialog;
+pub mod new_project;
 pub mod vehicle_dialogs;
 pub mod workspace;
 

@@ -16,10 +16,12 @@ pub struct Segment<'a, T> {
     pub shortcut: Option<String>,
 }
 
-/// Row of mutually exclusive choices (e.g. PNG / DDS).
+/// Row of mutually exclusive choices (e.g. Solid / Linear / Radial).
 ///
-/// The selected segment uses a raised fill, semibold text and an accent
-/// underline, so selection does not depend on color alone.
+/// The options sit side by side in one raised track; the active one is a
+/// white pill (primary accent) with dark semibold text, the others plain
+/// text on the track. The pill is a fill change, so the active option stays
+/// visible in grayscale.
 pub struct SegmentedControl<'a, T> {
     segments: Vec<Segment<'a, T>>,
 }
@@ -64,11 +66,24 @@ impl<'a, T: Copy + PartialEq> SegmentedControl<'a, T> {
     /// Draws the control; returns the newly picked value, if any.
     pub fn show(self, ui: &mut Ui, current: T) -> Option<T> {
         let mut picked = None;
-        let height = size::HIT_MIN + 2.0;
+        // Inner padding of the track, gap between options, horizontal
+        // padding of an option.
+        const INSET: f32 = 2.0;
+        const GAP: f32 = 1.0;
+        const PAD_X: f32 = space::SM;
         let body = egui::TextStyle::Button.resolve(ui.style());
         let strong = label_strong_style().resolve(ui.style());
         let icon_font = crate::icons::font(size::ICON - 2.0);
+        let icon_width = |icon: &str| {
+            if icon.is_empty() {
+                0.0
+            } else {
+                size::ICON + space::XS
+            }
+        };
 
+        // Widths follow the (wider) semibold text so options don't move when
+        // the active one changes.
         let widths: Vec<f32> = self
             .segments
             .iter()
@@ -78,69 +93,83 @@ impl<'a, T: Copy + PartialEq> SegmentedControl<'a, T> {
                     .layout_no_wrap(s.label.to_owned(), strong.clone(), color::TEXT_PRIMARY)
                     .size()
                     .x;
-                text + size::ICON + space::SM * 2.0 + space::XS
+                text + icon_width(s.icon) + PAD_X * 2.0
             })
             .collect();
-        let total = Vec2::new(widths.iter().sum::<f32>() + 4.0, height);
+        let gaps = GAP * self.segments.len().saturating_sub(1) as f32;
+        let total = Vec2::new(
+            widths.iter().sum::<f32>() + gaps + INSET * 2.0,
+            size::HIT_MIN + INSET * 2.0,
+        );
         let (outer, _) = ui.allocate_exact_size(total, Sense::hover());
         ui.painter().rect(
             outer,
-            CornerRadius::same(radius::MD),
-            color::SURFACE_0,
-            Stroke::new(1.0, color::BORDER),
+            CornerRadius::same(radius::LG),
+            color::RAISED,
+            Stroke::new(stroke::HAIRLINE, color::BORDER),
             StrokeKind::Inside,
         );
 
-        let mut x = outer.left() + 2.0;
+        let enabled = ui.is_enabled();
+        let mut x = outer.left() + INSET;
         for (segment, width) in self.segments.into_iter().zip(widths) {
             let rect = Rect::from_min_size(
-                egui::pos2(x, outer.top() + 2.0),
-                Vec2::new(width, height - 4.0),
+                egui::pos2(x, outer.top() + INSET),
+                Vec2::new(width, size::HIT_MIN),
             );
-            x += width;
+            x += width + GAP;
             let id = ui.id().with(("segment", segment.name));
             let response = ui.interact(rect, id, Sense::click());
             let selected = segment.value == current;
-            let enabled = ui.is_enabled();
             response.widget_info(|| {
                 WidgetInfo::selected(WidgetType::RadioButton, enabled, selected, segment.name)
             });
             let painter = ui.painter();
+            let hovered = enabled && response.hovered();
             if selected {
-                painter.rect_filled(rect, CornerRadius::same(radius::SM), color::SURFACE_4);
-                painter.hline(
-                    rect.x_range().shrink(space::SM),
-                    rect.bottom() - 1.5,
-                    Stroke::new(stroke::FOCUS + 0.5, color::ACCENT),
-                );
-            } else if response.hovered() {
-                painter.rect_filled(rect, CornerRadius::same(radius::SM), color::SURFACE_3);
+                painter.rect_filled(rect, CornerRadius::same(radius::MD), color::ACCENT_PRIMARY);
+            } else if hovered {
+                painter.rect_filled(rect, CornerRadius::same(radius::MD), color::SURFACE_3);
             }
-            let fg = if selected || response.hovered() {
+            let fg = if !enabled {
+                color::TEXT_DISABLED
+            } else if selected {
+                color::TEXT_ON_PRIMARY
+            } else if hovered {
                 color::TEXT_PRIMARY
             } else {
                 color::TEXT_SECONDARY
             };
-            let icon_x = rect.left() + space::SM + size::ICON / 2.0 - 2.0;
+            let font = if selected {
+                strong.clone()
+            } else {
+                body.clone()
+            };
+            // Icon and label, centered together in the option.
+            let label_width = painter
+                .layout_no_wrap(segment.label.to_owned(), font.clone(), fg)
+                .size()
+                .x;
+            let content = icon_width(segment.icon) + label_width;
+            let mut cx = rect.center().x - content / 2.0;
+            if !segment.icon.is_empty() {
+                painter.text(
+                    egui::pos2(cx + size::ICON / 2.0, rect.center().y),
+                    Align2::CENTER_CENTER,
+                    segment.icon,
+                    icon_font.clone(),
+                    fg,
+                );
+                cx += icon_width(segment.icon);
+            }
             painter.text(
-                egui::pos2(icon_x, rect.center().y),
-                Align2::CENTER_CENTER,
-                segment.icon,
-                icon_font.clone(),
-                fg,
-            );
-            painter.text(
-                egui::pos2(icon_x + size::ICON / 2.0 + space::XS, rect.center().y),
+                egui::pos2(cx, rect.center().y),
                 Align2::LEFT_CENTER,
                 segment.label,
-                if selected {
-                    strong.clone()
-                } else {
-                    body.clone()
-                },
+                font,
                 fg,
             );
-            paint_focus_ring(ui, rect, &response, radius::SM);
+            paint_focus_ring(ui, rect, &response, radius::MD);
             let response = name_and_shortcut_tooltip(
                 response,
                 segment.name,

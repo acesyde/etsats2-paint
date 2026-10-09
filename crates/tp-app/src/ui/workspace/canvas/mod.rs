@@ -97,7 +97,7 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     ws.images.prune();
     ws.gradients.prune();
 
-    // An asset dragged from the Assets panel and dropped here.
+    // An asset dragged from the Images section and dropped here.
     if let Some(asset) = response.dnd_release_payload::<tp_core::document::AssetId>() {
         let at = ctx.pointer_interact_pos().map(|p| map.to_doc(p));
         ws.place_asset(*asset, at, now);
@@ -110,15 +110,18 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     symbol_bar(ui, cmds, ws, area);
 }
 
+/// Height of the bar shown over the canvas while a symbol is edited.
+pub const SYMBOL_BAR_HEIGHT: f32 = 36.0;
+
 /// While a symbol is edited: "Editing symbol <name>" and Done, over the
 /// top of the canvas.
 fn symbol_bar(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &Workspace, area: Rect) {
     let Some(symbol) = ws.project.edited_symbol() else {
         return;
     };
-    let bar = Rect::from_min_size(area.min, egui::vec2(area.width(), 36.0));
+    let bar = Rect::from_min_size(area.min, egui::vec2(area.width(), SYMBOL_BAR_HEIGHT));
     ui.painter()
-        .rect_filled(bar, 0, tp_ui::tokens::color::ACCENT_SUBTLE);
+        .rect_filled(bar, 0, tp_ui::tokens::color::SURFACE_2);
     let mut child = ui.new_child(
         egui::UiBuilder::new()
             .max_rect(bar.shrink2(egui::vec2(12.0, 4.0)))

@@ -76,12 +76,28 @@ impl<'q> CommandUi<'q> {
 
     /// Icon-only button for `id`.
     pub fn icon_button(&mut self, ui: &mut Ui, id: CommandId, selected: bool) -> Response {
+        let icon = id.meta().icon.unwrap_or("?");
+        self.icon_button_with(ui, id, icon, selected)
+    }
+
+    /// An add (+) button for `id`, in a list's heading.
+    pub fn add_button(&mut self, ui: &mut Ui, id: CommandId) -> Response {
+        self.icon_button_with(ui, id, tp_ui::icons::ADD, false)
+    }
+
+    fn icon_button_with(
+        &mut self,
+        ui: &mut Ui,
+        id: CommandId,
+        icon: &str,
+        selected: bool,
+    ) -> Response {
         let meta = id.meta();
         let shortcut = self.shortcuts.command(id);
         let enabled = self.enabled(id);
         let label = tr(meta.label);
         let reason = disabled_reason_for(id, &self.edit).map(tr);
-        let mut button = IconButton::new(meta.icon.unwrap_or("?"), &label)
+        let mut button = IconButton::new(icon, &label)
             .shortcut(shortcut.as_deref())
             .selected(selected);
         if let Some(reason) = &reason {
@@ -94,7 +110,33 @@ impl<'q> CommandUi<'q> {
         response
     }
 
-    /// Tool bar button for a tool command.
+    /// A primary (white) text button for `id`, enabled as the command is;
+    /// when disabled, its tooltip says why.
+    pub fn primary_button(&mut self, ui: &mut Ui, id: CommandId, label: &str) -> Response {
+        self.text_button(ui, id, tp_ui::widgets::primary_button(label))
+    }
+
+    /// A neutral text button for `id`, as [`Self::primary_button`].
+    pub fn secondary_button(&mut self, ui: &mut Ui, id: CommandId, label: &str) -> Response {
+        self.text_button(ui, id, tp_ui::widgets::secondary_button(label))
+    }
+
+    fn text_button(&mut self, ui: &mut Ui, id: CommandId, button: egui::Button<'_>) -> Response {
+        let enabled = self.enabled(id);
+        let mut response = ui.add_enabled(enabled, button);
+        if let Some(shortcut) = self.shortcuts.command(id) {
+            response = response.on_hover_text(shortcut);
+        }
+        if !enabled && let Some(reason) = disabled_reason_for(id, &self.edit) {
+            response = response.on_disabled_hover_text(tr(reason));
+        }
+        if response.clicked() {
+            self.push(id);
+        }
+        response
+    }
+
+    /// Tool rail button for a tool command.
     pub fn tool_button(&mut self, ui: &mut Ui, id: CommandId, active: bool) -> Response {
         let meta = id.meta();
         let shortcut = self.shortcuts.command(id);

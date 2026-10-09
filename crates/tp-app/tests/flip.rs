@@ -10,7 +10,6 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use tp_app::AppState;
 use tp_app::commands::CommandId;
 use tp_app::import::read_bytes;
-use tp_app::layout::PanelKind;
 use tp_app::prefs::Prefs;
 use tp_app::tool::Tool;
 use tp_app::workspace::Workspace;
@@ -26,19 +25,10 @@ fn settle(h: &mut H) {
     }
 }
 
-/// Tall window with every panel open and expanded; snapping off.
+/// The sample truck project in a tall window, so the whole inspector
+/// shows; snapping off.
 fn open() -> H {
-    open_with(true)
-}
-
-/// Same, with the Transform panel open or closed (its Flip buttons share
-/// their labels with the Object menu items).
-fn open_with(transform: bool) -> H {
     let mut prefs = Prefs::default();
-    for slot in &mut prefs.layout.panels {
-        slot.open = transform || slot.kind != PanelKind::Transform;
-        slot.collapsed = false;
-    }
     prefs.view_aids.snapping = false;
     let mut h = Harness::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
@@ -276,13 +266,14 @@ fn shift_h_flips_a_logo_and_undo_restores_it() {
 
 #[test]
 fn flip_vertical_from_the_object_menu() {
-    let mut h = open_with(false);
+    let mut h = open();
     let id = create_text(&mut h, 800.0, 900.0, "TRANS");
     ws_mut(&mut h).selection = vec![id];
     settle(&mut h);
     h.get_by_label("Object").click();
     settle(&mut h);
-    h.get_by_label("Flip Vertical").click();
+    // The menu's item; the inspector's Layout section has the same button.
+    h.get_all_by_label("Flip Vertical").last().unwrap().click();
     settle(&mut h);
     let text = obj(&h, id);
     assert!(text.mirrored);
@@ -291,7 +282,7 @@ fn flip_vertical_from_the_object_menu() {
 }
 
 #[test]
-fn flip_from_the_transform_panel() {
+fn flip_from_the_inspector() {
     let mut h = open();
     let image = place_halves(&mut h, 1500.0, 1200.0);
     h.get_by_role_and_label(Role::Button, "Flip Horizontal")
@@ -299,15 +290,15 @@ fn flip_from_the_transform_panel() {
     settle(&mut h);
     assert!(obj(&h, image).mirrored);
     assert_eq!(
-        h.state().prefs.layout.column_width,
-        tp_ui::tokens::size::PANEL_COLUMN_DEFAULT,
+        h.state().prefs.layout.inspector_width,
+        tp_ui::tokens::size::INSPECTOR_DEFAULT,
         "the buttons fit in the column's default width"
     );
 }
 
 #[test]
 fn flipping_needs_a_selection() {
-    let mut h = open_with(false);
+    let mut h = open();
     assert!(ws(&h).selection.is_empty());
     let context = h.state().edit_context();
     for axis in FlipAxis::ALL {

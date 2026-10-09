@@ -424,7 +424,7 @@ fn delete_with_backspace_and_reorder() {
     let a = add_rect(&mut h, 100.0, 100.0, 50.0, 50.0);
     let b = add_rect(&mut h, 100.0, 100.0, 50.0, 50.0);
     ws_mut(&mut h).selection = vec![a];
-    h.key_press_modifiers(Modifiers::COMMAND, Key::CloseBracket);
+    h.key_press_modifiers(Modifiers::COMMAND | Modifiers::ALT, Key::CloseBracket);
     h.run();
     assert_eq!(ws(&h).project.surface().index_of(a), Some(1));
     h.key_press(Key::Backspace);
@@ -438,7 +438,7 @@ fn context_menu_on_object() {
     let mut h = open();
     let a = add_rect(&mut h, 1000.0, 1000.0, 400.0, 400.0);
     let p = screen(&h, 1000.0, 1000.0);
-    let deletes_before = h.get_all_by_label("Delete").count();
+    let deletes_before = h.query_all_by_label("Delete").count();
     h.event(Event::PointerMoved(p));
     for pressed in [true, false] {
         h.event(Event::PointerButton {
@@ -453,8 +453,9 @@ fn context_menu_on_object() {
     for label in ["Cut", "Copy", "Duplicate", "Bring Forward", "Send Backward"] {
         h.get_by_label(label);
     }
-    // The Layers footer also has a Delete button: the menu adds one more.
-    assert_eq!(h.get_all_by_label("Delete").count(), deletes_before + 1);
+    // The Layers tab's footer may also have a Delete button: the menu adds
+    // one more.
+    assert_eq!(h.query_all_by_label("Delete").count(), deletes_before + 1);
 }
 
 // --- navigation -------------------------------------------------------------------
@@ -502,12 +503,16 @@ fn cmd_plus_zooms_canvas_not_interface() {
     h.run();
     assert!(ws(&h).viewport.unwrap().zoom > zoom);
     assert!((h.ctx.zoom_factor() - 1.0).abs() < 1e-6);
-    h.get_by_label_contains("Zoom 25%");
+    let percent = (ws(&h).viewport.unwrap().zoom * 100.0) as f32;
+    h.get_by_label_contains(&format!(
+        "Zoom {}",
+        tp_app::ui::workspace::status_bar::format_zoom(percent)
+    ));
 
-    h.key_press_modifiers(Modifiers::COMMAND, Key::Num1);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Num0);
     h.run();
     assert_eq!(ws(&h).viewport.unwrap().zoom, 1.0);
-    h.key_press_modifiers(Modifiers::COMMAND, Key::Num0);
+    h.key_press_modifiers(Modifiers::COMMAND | Modifiers::SHIFT, Key::Num0);
     h.run();
     assert!(ws(&h).viewport.unwrap().fitted);
 }
@@ -567,7 +572,7 @@ fn canvas_has_accessible_label() {
 #[test]
 fn status_bar_coordinates_follow_navigation() {
     let mut h = open();
-    h.key_press_modifiers(Modifiers::COMMAND, Key::Num1);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Num0);
     h.run();
     h.event(Event::MouseWheel {
         unit: MouseWheelUnit::Point,

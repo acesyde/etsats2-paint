@@ -1,4 +1,5 @@
-//! Character section of the Properties panel and the font family picker.
+//! The inspector's Text section (character settings) and the font family
+//! picker.
 
 use egui::{
     Align2, Area, Frame, Id, Key, Order, Pos2, RichText, ScrollArea, Sense, Stroke, StrokeKind,
@@ -7,7 +8,7 @@ use egui::{
 use tp_core::document::{CharStyle, TextAlign};
 use tp_i18n::tr;
 use tp_ui::icons;
-use tp_ui::tokens::{color, radius, space};
+use tp_ui::tokens::{color, radius, size, space};
 use tp_ui::widgets::{IconButton, NumericField};
 
 use super::{PanelEnv, apply_field};
@@ -60,12 +61,6 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     if styles.is_empty() {
         return;
     }
-    ui.label(
-        RichText::new(tr("char-title"))
-            .small()
-            .color(color::TEXT_SECONDARY),
-    );
-
     // Family.
     let family = common(styles.iter().map(|s| s.family.clone()));
     let missing = family
@@ -94,8 +89,10 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
             .fonts
             .weights(family.as_deref().unwrap_or(tp_text::FALLBACK_FAMILY));
         let text = weight.map_or(tr("mixed"), |w| format!("{} {w}", weight_name(w)));
+        // Room for the italic toggle at the end of the row.
+        let width = (ui.available_width() - size::HIT_MIN - 2.0 * space::SM).max(80.0);
         let combo = egui::ComboBox::from_id_salt("font_weight")
-            .width(150.0)
+            .width(width)
             .selected_text(text)
             .show_ui(ui, |ui| {
                 for w in available {
@@ -118,53 +115,60 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         }
     });
 
-    // Size and alignment.
+    // Size, and the alignment at the end of the row.
     ui.horizontal(|ui| {
-        let size = common(styles.iter().map(|s| s.size));
-        let e = NumericField::new(&tr("char-size"), &tr("char-font-size"), size)
-            .suffix("px")
-            .range(1.0..=10_000.0)
-            .decimals(1)
-            .width(56.0)
-            .show(ui);
-        apply_field(env, e, |ws, v| {
-            ws.set_char_style("undo-change-text-size", |s| s.size = v);
-        });
-        let align = common(styles.iter().map(|s| s.align));
-        for (value, icon, name) in [
-            (TextAlign::Left, icons::ALIGN_LEFT, "char-align-left"),
-            (TextAlign::Center, icons::ALIGN_CENTER, "char-align-center"),
-            (TextAlign::Right, icons::ALIGN_RIGHT, "char-align-right"),
-        ] {
-            if ui
-                .add(IconButton::new(icon, &tr(name)).selected(align == Some(value)))
-                .clicked()
-            {
-                set(env, "undo-change-alignment", |s| s.align = value);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.spacing_mut().item_spacing.x = space::XXS;
+            let align = common(styles.iter().map(|s| s.align));
+            for (value, icon, name) in [
+                (TextAlign::Right, icons::ALIGN_RIGHT, "char-align-right"),
+                (TextAlign::Center, icons::ALIGN_CENTER, "char-align-center"),
+                (TextAlign::Left, icons::ALIGN_LEFT, "char-align-left"),
+            ] {
+                if ui
+                    .add(IconButton::new(icon, &tr(name)).selected(align == Some(value)))
+                    .clicked()
+                {
+                    set(env, "undo-change-alignment", |s| s.align = value);
+                }
             }
-        }
+            ui.add_space(space::SM);
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                let size = common(styles.iter().map(|s| s.size));
+                let e = NumericField::new(&tr("char-size"), &tr("char-font-size"), size)
+                    .suffix("px")
+                    .range(1.0..=10_000.0)
+                    .decimals(1)
+                    .width(36.0)
+                    .fill()
+                    .show(ui);
+                apply_field(env, e, |ws, v| {
+                    ws.set_char_style("undo-change-text-size", |s| s.size = v);
+                });
+            });
+        });
     });
 
-    // Letter spacing and line height.
-    ui.horizontal(|ui| {
-        let tracking = common(styles.iter().map(|s| s.letter_spacing));
-        let e = NumericField::new(&tr("char-tracking"), &tr("char-letter-spacing"), tracking)
-            .suffix("‰")
-            .range(-200.0..=1000.0)
-            .width(44.0)
-            .show(ui);
-        apply_field(env, e, |ws, v| {
-            ws.set_char_style("undo-change-letter-spacing", |s| s.letter_spacing = v);
-        });
-        let leading = common(styles.iter().map(|s| s.line_height));
-        let e = NumericField::new(&tr("char-line"), &tr("char-line-height"), leading)
-            .suffix("%")
-            .range(50.0..=300.0)
-            .width(44.0)
-            .show(ui);
-        apply_field(env, e, |ws, v| {
-            ws.set_char_style("undo-change-line-height", |s| s.line_height = v);
-        });
+    // Letter spacing and line height, one per row so long labels fit.
+    let tracking = common(styles.iter().map(|s| s.letter_spacing));
+    let e = NumericField::new(&tr("char-tracking"), &tr("char-letter-spacing"), tracking)
+        .suffix("‰")
+        .range(-200.0..=1000.0)
+        .width(36.0)
+        .fill()
+        .show(ui);
+    apply_field(env, e, |ws, v| {
+        ws.set_char_style("undo-change-letter-spacing", |s| s.letter_spacing = v);
+    });
+    let leading = common(styles.iter().map(|s| s.line_height));
+    let e = NumericField::new(&tr("char-line"), &tr("char-line-height"), leading)
+        .suffix("%")
+        .range(50.0..=300.0)
+        .width(36.0)
+        .fill()
+        .show(ui);
+    apply_field(env, e, |ws, v| {
+        ws.set_char_style("undo-change-line-height", |s| s.line_height = v);
     });
 }
 
@@ -313,11 +317,7 @@ fn font_picker(ui: &Ui, env: &mut PanelEnv<'_>, button: &egui::Response) {
                                     if down || up {
                                         response.scroll_to_me(None);
                                     }
-                                    ui.painter().rect_filled(
-                                        rect,
-                                        radius::SM,
-                                        color::ACCENT_SUBTLE,
-                                    );
+                                    ui.painter().rect_filled(rect, radius::SM, color::SELECTED);
                                 } else if response.hovered() {
                                     ui.painter().rect_filled(rect, radius::SM, color::SURFACE_3);
                                 }

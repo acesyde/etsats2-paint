@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Shows the object tree of the active surface and lets users organize it like in Photoshop or Illustrator: select, rename, hide, lock, reorder, group and ungroup.
+Shows the object tree of the active surface in the Workshop's Layers tab and lets users organize it like in Photoshop or Illustrator: select, rename, hide, lock, reorder, group and ungroup.
 
 ## Requirements
 

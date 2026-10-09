@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Lets fills and strokes be painted with linear and radial color gradients, edited in the Colors panel and directly on the canvas, so liveries can use fades, metallic bands and glows without stacking shapes.
+Lets fills and strokes be painted with linear and radial color gradients, edited in the color popover of the inspector and directly on the canvas, so liveries can use fades, metallic bands and glows without stacking shapes.
 
 ## Requirements
 

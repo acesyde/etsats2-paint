@@ -1,4 +1,4 @@
-//! Editing tools of the left tool bar.
+//! Editing tools of the Workshop's tool rail.
 
 use tp_ui::icons;
 
@@ -22,7 +22,7 @@ pub enum Tool {
 }
 
 impl Tool {
-    /// Tool bar order.
+    /// Tool rail order.
     pub const ALL: [Self; 14] = [
         Self::Select,
         Self::DirectSelect,

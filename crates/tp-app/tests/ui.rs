@@ -4,12 +4,12 @@ mod common;
 
 use std::path::PathBuf;
 
-use egui::accesskit::Role;
+use egui::accesskit::{Role, Toggled};
 use egui::{Key, Modifiers, Vec2};
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::{NodeT, Queryable};
 use tp_app::AppState;
-use tp_app::layout::PanelKind;
+use tp_app::layout::{LeftTab, Space};
 use tp_app::prefs::{Prefs, RecentProject};
 use tp_app::state::{Modal, Screen};
 use tp_app::tool::Tool;
@@ -68,6 +68,71 @@ fn missing_recent_file_can_be_removed() {
     h.get_by_label("No recent projects");
 }
 
+/// Runs frames until the recent projects' thumbnails are read.
+fn read_thumbnails(h: &mut Harness<'static, AppState>) {
+    for _ in 0..2000 {
+        h.step();
+        if !h.state().recent_thumbnails.is_reading() {
+            h.run();
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    panic!("the thumbnails were never read");
+}
+
+#[test]
+fn recent_cards_show_the_first_main_texture() {
+    use tp_core::document::{Frame, Object, ObjectId, Rgba, ShapeKind};
+    use tp_core::kurbo::{Point, Size};
+
+    let dir = tempfile::tempdir().unwrap();
+    let package = tp_vehicles::Package::read(tp_app::vehicles::SAMPLES[0].bytes).unwrap();
+    let textures = tp_app::vehicle_project::default_textures(&package.manifest);
+    let mut project =
+        tp_app::vehicle_project::fleet_project("Red fleet", &package, &textures).unwrap();
+    // The Standard cab, first main texture, covered by a red rectangle.
+    let side = project.surface().size;
+    let mut o = Object::new(
+        ObjectId(0),
+        ShapeKind::rectangle(),
+        Frame::new(
+            Point::new(side / 2.0, side / 2.0),
+            Size::new(side, side),
+            0.0,
+        ),
+    );
+    o.fill = Rgba::rgb(220, 20, 20).into();
+    project.add(o);
+    let red = dir.path().join("red.truckpaint");
+    tp_file::write(&project, &red).unwrap();
+    let broken = dir.path().join("broken.truckpaint");
+    std::fs::write(&broken, b"not a project").unwrap();
+    let entry = |name: &str, path: &std::path::Path| RecentProject {
+        name: name.into(),
+        path: path.to_path_buf(),
+        last_opened: 0,
+    };
+    let prefs = Prefs {
+        recent: vec![entry("Red fleet", &red), entry("Broken", &broken)],
+        ..Prefs::default()
+    };
+    let mut h = harness_with(prefs);
+    h.run();
+    h.get_by_label("Red fleet");
+    read_thumbnails(&mut h);
+    let thumbnails = &h.state().recent_thumbnails;
+    assert_eq!(
+        thumbnails.color_at(&red, [0.5, 0.5]),
+        Some(Rgba::rgb(220, 20, 20)),
+        "the card's thumbnail is red"
+    );
+    assert!(thumbnails.texture(&red).is_some());
+    // An unreadable file keeps the placeholder, and still opens on click.
+    assert!(thumbnails.texture(&broken).is_none());
+    h.get_by_label("Broken");
+}
+
 #[test]
 fn cancelled_open_dialog_does_nothing() {
     let mut h = harness();
@@ -83,9 +148,7 @@ fn new_project_defaults_to_the_vehicle_name() {
     h.get_by_label("New Project").click();
     h.run();
     pick_sample(&mut h);
-    h.get_by_label("Next").click();
-    h.run();
-    h.get_by_label("Create").click();
+    h.get_by_label("Create Project").click();
     h.run();
     let ws = h.state().workspace().unwrap();
     assert_eq!(ws.project.name, "TruckPaint Sample Truck");
@@ -94,7 +157,7 @@ fn new_project_defaults_to_the_vehicle_name() {
     assert_eq!(h.state().title(), "TruckPaint Sample Truck — TruckPaint");
 }
 
-/// Picks the sample vehicle on the New Project Vehicle step.
+/// Picks the sample vehicle in the New Project vehicle list.
 fn pick_sample(h: &mut Harness<'static, AppState>) {
     h.get_by_role_and_label(Role::RadioButton, common::SAMPLE)
         .click();
@@ -107,8 +170,8 @@ fn new_project_with_name_via_keyboard() {
     h.get_by_label("New Project").click();
     h.run();
     pick_sample(&mut h);
-    // Enter on the Vehicle step goes to the next step.
-    h.key_press(Key::Enter);
+    h.get_by_role_and_label(Role::TextInput, "Project name")
+        .click();
     h.run();
     h.get_by_role_and_label(Role::TextInput, "Project name")
         .type_text("ACE Logistics");
@@ -118,6 +181,7 @@ fn new_project_with_name_via_keyboard() {
     let ws = h.state().workspace().expect("created with Enter");
     assert_eq!(ws.project.name, "ACE Logistics");
     assert_eq!(ws.project.surfaces.len(), 4, "the Standard cab's textures");
+    assert_eq!(ws.space, Space::Project, "opens in the Project space");
 }
 
 #[test]
@@ -125,7 +189,7 @@ fn escape_cancels_new_project() {
     let mut h = harness();
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_label("Step 1 of 2 — Vehicle");
+    h.get_by_label("Your fleet");
     h.key_press(Key::Escape);
     h.run();
     assert!(h.state().modal.is_none());
@@ -136,9 +200,6 @@ fn escape_cancels_new_project() {
 fn new_project_dialog_tab_moves_focus() {
     let mut h = harness();
     h.get_by_label("New Project").click();
-    h.run();
-    pick_sample(&mut h);
-    h.get_by_label("Next").click();
     h.run();
     assert!(
         h.get_by_role_and_label(Role::TextInput, "Project name")
@@ -162,7 +223,7 @@ fn menus_are_in_order() {
     let menus: Vec<f32> = tp_app::ui::menu_bar::MENUS
         .iter()
         .map(|title| {
-            // Menu titles sit in the top bar (a panel may share the label).
+            // Menu titles sit in the menu bar (a tab may share the label).
             h.get_all_by_label(&tp_i18n::tr(title))
                 .map(|n| n.rect())
                 .min_by(|a, b| a.top().total_cmp(&b.top()))
@@ -200,8 +261,8 @@ fn tool_buttons_have_minimum_hit_area() {
     create_project(&mut h);
     let rect = h.get_by_label("Ellipse").rect();
     assert!(rect.width() >= size::HIT_MIN && rect.height() >= size::HIT_MIN);
-    let close = h.get_by_label("Close Layers").rect();
-    assert!(close.width() >= size::HIT_MIN && close.height() >= size::HIT_MIN);
+    let tab = h.get_by_role_and_label(Role::RadioButton, "Layers").rect();
+    assert!(tab.width() >= size::HIT_MIN && tab.height() >= size::HIT_MIN);
 }
 
 #[test]
@@ -223,61 +284,13 @@ fn artboard_stays_visible_when_resizing() {
 }
 
 #[test]
-fn collapsing_a_panel() {
-    let mut h = harness();
-    create_project(&mut h);
-    h.get_by_label("No layers yet");
-    h.get_by_label("Layers").click();
-    h.run();
-    assert!(h.state().prefs.layout.slot(PanelKind::Layers).collapsed);
-    assert!(h.query_by_label("No layers yet").is_none());
-}
-
-#[test]
-fn closing_and_reopening_panel_keeps_position() {
-    let mut h = harness();
-    create_project(&mut h);
-    let index = |h: &Harness<'static, AppState>| {
-        h.state()
-            .prefs
-            .layout
-            .panels
-            .iter()
-            .position(|s| s.kind == PanelKind::Colors)
-    };
-    let before = index(&h);
-    h.get_by_label("Close Colors").click();
-    h.run();
-    assert!(!h.state().prefs.layout.is_open(PanelKind::Colors));
-    assert!(h.query_by_label("Close Colors").is_none());
-
-    open_menu(&mut h, "View");
-    h.get_by_label("Colors").click();
-    h.run();
-    assert!(h.state().prefs.layout.is_open(PanelKind::Colors));
-    assert_eq!(index(&h), before);
-}
-
-#[test]
-fn panel_column_width_is_clamped() {
+fn inspector_width_is_clamped() {
     let mut prefs = Prefs::default();
-    prefs.layout.column_width = 5_000.0;
+    prefs.layout.inspector_width = 5_000.0;
     let mut h = harness_with(prefs);
     create_project(&mut h);
-    let width = h.state().prefs.layout.column_width;
-    assert!(width <= size::PANEL_COLUMN_MAX, "{width}");
-}
-
-#[test]
-fn panel_header_context_menu() {
-    let mut h = harness();
-    create_project(&mut h);
-    h.get_by_label("Layers").click_secondary();
-    h.run();
-    h.get_by_label("Collapse");
-    h.get_by_label("Close Panel").click();
-    h.run();
-    assert!(!h.state().prefs.layout.is_open(PanelKind::Layers));
+    let width = h.state().prefs.layout.inspector_width;
+    assert!(width <= size::INSPECTOR_MAX, "{width}");
 }
 
 #[test]
@@ -307,18 +320,26 @@ fn status_bar_shows_unsaved_for_new_project() {
 }
 
 #[test]
-fn reset_workspace_restores_panels() {
+fn reset_workspace_restores_the_layout() {
     let mut h = harness();
     create_project(&mut h);
-    h.get_by_label("Close Assets").click();
+    h.key_press(Key::Num3);
     h.run();
-    h.get_by_label("Layers").click();
+    h.key_press(Key::Tab);
     h.run();
+    h.state_mut().prefs.layout.inspector_width = 400.0;
+    let layout = h.state().prefs.layout.clone();
+    assert!(layout.panels_hidden);
+    assert_eq!(layout.left_tab, LeftTab::Resources);
     open_menu(&mut h, "View");
     h.get_by_label("Reset Workspace").click();
     h.run();
     let layout = &h.state().prefs.layout;
-    assert!(layout.panels.iter().all(|s| s.open && !s.collapsed));
+    assert!(!layout.panels_hidden);
+    assert_eq!(layout.left_tab, LeftTab::Textures);
+    assert_eq!(layout.left_width, size::LEFT_PANEL_DEFAULT);
+    assert_eq!(layout.inspector_width, size::INSPECTOR_DEFAULT);
+    assert_eq!(space(&h), Space::Workshop, "the space is kept");
 }
 
 // --- command-system -------------------------------------------------------
@@ -330,10 +351,271 @@ fn menu_and_shortcut_trigger_same_command() {
     open_menu(&mut h, "View");
     h.get_by_role_and_label(Role::CheckBox, "Layers").click();
     h.run();
-    assert!(!h.state().prefs.layout.is_open(PanelKind::Layers));
-    h.key_press(Key::F7);
+    assert_eq!(h.state().prefs.layout.left_tab, LeftTab::Layers);
+    h.state_mut().prefs.layout.left_tab = LeftTab::Textures;
+    h.key_press(Key::Num2);
     h.run();
-    assert!(h.state().prefs.layout.is_open(PanelKind::Layers));
+    assert_eq!(h.state().prefs.layout.left_tab, LeftTab::Layers);
+}
+
+fn space(h: &Harness<'static, AppState>) -> Space {
+    h.state().workspace().expect("workspace").space
+}
+
+fn toggled(h: &Harness<'static, AppState>, label: &str) -> bool {
+    h.get_by_role_and_label(Role::CheckBox, label)
+        .accesskit_node()
+        .toggled()
+        .is_some_and(|t| t == Toggled::True)
+}
+
+#[test]
+fn view_menu_lists_spaces_tabs_and_view_settings_in_order() {
+    let mut h = harness();
+    create_project(&mut h);
+    h.key_press(Key::Num2);
+    h.run();
+    open_menu(&mut h, "View");
+    let toggles = [
+        "Project",
+        "Workshop",
+        "Brand",
+        "Textures",
+        "Layers",
+        "Resources",
+        "Hide Panels",
+        "Show Template",
+        "Show Grid",
+        "Show Guides",
+    ];
+    // The rows of the menu, not other controls of the same name.
+    let left = h
+        .get_by_role_and_label(Role::CheckBox, "Hide Panels")
+        .rect()
+        .left();
+    let mut ys: Vec<f32> = toggles
+        .iter()
+        .map(|label| {
+            h.query_all_by_role_and_label(Role::CheckBox, label)
+                .map(|n| n.rect())
+                .find(|r| (r.left() - left).abs() < 1.0)
+                .expect(label)
+                .center()
+                .y
+        })
+        .collect();
+    ys.push(h.get_by_label("Clear Guides").rect().center().y);
+    ys.push(
+        h.query_all_by_role_and_label(Role::CheckBox, "Snapping")
+            .map(|n| n.rect())
+            .find(|r| (r.left() - left).abs() < 1.0)
+            .expect("Snapping")
+            .center()
+            .y,
+    );
+    for label in [
+        "Zoom In",
+        "Zoom Out",
+        "Fit to Screen",
+        "Actual Size (100%)",
+        "Reset Workspace",
+    ] {
+        ys.push(h.get_by_label(label).rect().center().y);
+    }
+    assert!(ys.windows(2).all(|w| w[0] < w[1]), "{ys:?}");
+    assert!(toggled(&h, "Workshop") && toggled(&h, "Layers"));
+    for label in ["Project", "Brand", "Textures", "Resources", "Hide Panels"] {
+        assert!(!toggled(&h, label), "{label}");
+    }
+    for gone in ["Sidebar", "Colors", "Properties", "Assets"] {
+        assert!(
+            h.query_by_role_and_label(Role::CheckBox, gone).is_none(),
+            "{gone}"
+        );
+    }
+}
+
+#[test]
+fn no_sidebar_nor_vehicle_information() {
+    let mut h = harness();
+    create_project(&mut h);
+    open_menu(&mut h, "Vehicle");
+    assert!(h.query_by_label("Vehicle Information").is_none());
+    h.key_press(Key::Escape);
+    h.run();
+    let before = h.state().prefs.layout.clone();
+    for key in [Key::F5, Key::F6, Key::F7, Key::F8] {
+        h.key_press(key);
+        h.run();
+        assert_eq!(h.state().prefs.layout, before, "{key:?}");
+        assert!(h.state().queue.is_empty());
+        assert!(h.state().modal.is_none());
+    }
+}
+
+#[test]
+fn spaces_by_key_keep_the_work() {
+    let mut h = harness();
+    create_project(&mut h);
+    let id = h.state_mut().workspace_mut().unwrap().create_shape(
+        tp_core::document::ShapeKind::rectangle(),
+        tp_core::document::Frame::new(
+            tp_core::kurbo::Point::new(500.0, 500.0),
+            tp_core::kurbo::Size::new(100.0, 100.0),
+            0.0,
+        ),
+        1.0,
+    );
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Equals);
+    h.run();
+    let ws = |h: &Harness<'static, AppState>| {
+        let ws = h.state().workspace().unwrap();
+        (
+            ws.selection.clone(),
+            ws.viewport.unwrap().zoom,
+            ws.project.active_surface,
+        )
+    };
+    let before = ws(&h);
+    assert_eq!(before.0, vec![id]);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Num3);
+    h.run();
+    assert_eq!(space(&h), Space::Brand);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Num1);
+    h.run();
+    assert_eq!(space(&h), Space::Project);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Num2);
+    h.run();
+    assert_eq!(space(&h), Space::Workshop);
+    assert_eq!(ws(&h), before);
+}
+
+#[test]
+fn tab_keys_from_another_space_show_the_workshop() {
+    let mut h = harness();
+    create_project(&mut h);
+    h.key_press(Key::Tab);
+    h.run();
+    assert!(h.state().prefs.layout.panels_hidden);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Num1);
+    h.run();
+    h.key_press(Key::Num3);
+    h.run();
+    assert_eq!(space(&h), Space::Workshop);
+    let layout = &h.state().prefs.layout;
+    assert_eq!(layout.left_tab, LeftTab::Resources);
+    assert!(!layout.panels_hidden, "the panels are shown again");
+}
+
+#[test]
+fn tab_and_g_act_in_the_workshop_only() {
+    let mut h = harness();
+    create_project(&mut h);
+    let template = |h: &Harness<'static, AppState>| {
+        let ws = h.state().workspace().unwrap();
+        ws.project.surface().template.as_ref().unwrap().visible
+    };
+    let shown = template(&h);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Num1);
+    h.run();
+    h.key_press(Key::Tab);
+    h.run();
+    h.key_press(Key::G);
+    h.run();
+    assert!(!h.state().prefs.layout.panels_hidden);
+    assert_eq!(template(&h), shown);
+    // Hide Panels is enabled only in the Workshop.
+    open_menu(&mut h, "View");
+    assert!(
+        h.get_by_role_and_label(Role::CheckBox, "Hide Panels")
+            .accesskit_node()
+            .is_disabled()
+    );
+}
+
+#[test]
+fn hide_panels_with_tab() {
+    let mut h = harness();
+    create_project(&mut h);
+    // The left panel's tabs and the inspector's Fill row.
+    let panels = |h: &Harness<'static, AppState>| {
+        let left = h.query_by_role_and_label(Role::RadioButton, "Layers");
+        let inspector = h.query_by_label("Fill color");
+        assert_eq!(left.is_some(), inspector.is_some());
+        left.is_some()
+    };
+    assert!(panels(&h));
+    h.key_press(Key::Tab);
+    h.run();
+    assert!(h.state().prefs.layout.panels_hidden);
+    assert!(!panels(&h));
+    // The tool rail and the bars stay, and no control took the keyboard
+    // focus.
+    h.get_by_label("Ellipse");
+    h.get_by_label("Unsaved changes");
+    assert!(h.ctx.memory(|m| m.focused()).is_none());
+    h.key_press(Key::Tab);
+    h.run();
+    assert!(!h.state().prefs.layout.panels_hidden);
+    assert!(panels(&h));
+}
+
+#[test]
+fn single_keys_type_in_a_focused_field() {
+    let mut h = harness();
+    create_project(&mut h);
+    // The hex field of the color popover.
+    common::open_color_popover(&mut h, tp_app::workspace::ColorTarget::Fill);
+    let field = "Hex color";
+    h.get_by_role_and_label(Role::TextInput, field).focus();
+    h.run();
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.run();
+    for (key, text) in [
+        (Key::Num1, "1"),
+        (Key::Num2, "2"),
+        (Key::G, "g"),
+        (Key::Num3, "3"),
+    ] {
+        h.event(egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: Modifiers::NONE,
+        });
+        h.event(egui::Event::Text(text.into()));
+        h.run();
+    }
+    let value = h
+        .get_by_role_and_label(Role::TextInput, field)
+        .value()
+        .unwrap_or_default();
+    assert!(value.contains("12g3"), "{value:?}");
+    assert_eq!(h.state().prefs.layout.left_tab, LeftTab::Textures);
+    let ws = h.state().workspace().unwrap();
+    assert!(!ws.project.surface().template.as_ref().unwrap().visible);
+    // Tab leaves the field without hiding the panels.
+    h.key_press(Key::Tab);
+    h.run();
+    assert!(!h.state().prefs.layout.panels_hidden);
+}
+
+#[test]
+fn tab_in_a_dialog_moves_the_focus() {
+    let mut h = harness();
+    create_project(&mut h);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::E);
+    h.run_steps(4);
+    assert!(matches!(h.state().modal, Some(Modal::ExportMod(_))));
+    let focused = |h: &Harness<'static, AppState>| h.ctx.memory(|m| m.focused());
+    h.key_press(Key::Tab);
+    h.run_steps(4);
+    let first = focused(&h).expect("a control of the dialog has the focus");
+    h.key_press(Key::Tab);
+    h.run_steps(4);
+    assert_ne!(focused(&h), Some(first), "the focus moved on");
+    assert!(!h.state().prefs.layout.panels_hidden);
 }
 
 #[test]
@@ -469,4 +751,103 @@ fn macos_menus_show_symbol_shortcuts() {
     let redo = tp_app::commands::CommandId::Redo;
     assert_eq!(formatter.command(undo).as_deref(), Some("⌘Z"));
     assert_eq!(formatter.command(redo).as_deref(), Some("⇧⌘Z"));
+}
+
+#[test]
+fn every_command_has_a_menu_entry() {
+    use egui_kittest::kittest::By;
+    use std::collections::HashSet;
+    use tp_app::commands::CommandId;
+    let mut h = harness();
+    create_project(&mut h);
+    let labels = |h: &Harness<'static, AppState>| -> HashSet<String> {
+        h.query_all(
+            By::new()
+                .predicate(|n| matches!(n.role(), Role::Button | Role::CheckBox | Role::MenuItem)),
+        )
+        .filter_map(|n| n.accesskit_node().label())
+        .collect()
+    };
+    // The rows each menu adds to the window (the same label may also be a
+    // button elsewhere, e.g. a tab).
+    let outside = labels(&h);
+    let count =
+        |h: &Harness<'static, AppState>, label: &str| h.query_all(By::new().label(label)).count();
+    let mut menus = HashSet::new();
+    let mut add = |h: &Harness<'static, AppState>| {
+        for label in labels(h) {
+            if !outside.contains(&label) || count(h, &label) > 1 {
+                menus.insert(label);
+            }
+        }
+    };
+    for title in tp_app::ui::menu_bar::MENUS {
+        open_menu(&mut h, &tp_i18n::tr(title));
+        add(&h);
+        for sub in ["menu-combine", "menu-align"] {
+            let label = format!("{} ⏵", tp_i18n::tr(sub));
+            if let Some(node) = h.query_by_label(&label) {
+                node.click();
+                h.run();
+                add(&h);
+            }
+        }
+        h.key_press(Key::Escape);
+        h.run();
+    }
+    let missing: Vec<CommandId> = CommandId::all()
+        .into_iter()
+        .filter(|id| {
+            // Tools are in the tool bar; nudging, the color keys and Done
+            // Editing Symbol have no menu, as before.
+            !matches!(
+                id,
+                CommandId::SelectTool(_)
+                    | CommandId::Nudge(..)
+                    | CommandId::SwapColorTarget
+                    | CommandId::SwapFillStroke
+                    | CommandId::DefaultColors
+                    | CommandId::FinishSymbol
+            )
+        })
+        .filter(|id| !menus.contains(&tp_i18n::tr(id.meta().label)))
+        .collect();
+    assert!(missing.is_empty(), "{missing:?}");
+}
+
+#[test]
+fn keyboard_shortcuts_window_lists_the_workspace_keys() {
+    use tp_app::commands::{CommandId, ShortcutFormatter};
+    let mut h = harness();
+    create_project(&mut h);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Slash);
+    h.run();
+    assert!(matches!(h.state().modal, Some(Modal::KeyboardShortcuts)));
+    let formatter = ShortcutFormatter::new(&h.ctx);
+    for id in [
+        CommandId::ShowSpace(Space::Project),
+        CommandId::ShowSpace(Space::Brand),
+        CommandId::ShowLeftTab(LeftTab::Resources),
+        CommandId::TogglePanels,
+        CommandId::ActualSize,
+        CommandId::FitToScreen,
+        CommandId::BringForward,
+        CommandId::NextTexture,
+        CommandId::PreviousTexture,
+        CommandId::ShowTemplate,
+        CommandId::SelectTool(Tool::Gradient),
+        CommandId::ExportMod,
+        CommandId::ExportTexture,
+    ] {
+        let keys: Vec<String> = id
+            .meta()
+            .shortcuts
+            .iter()
+            .map(|s| formatter.format(s))
+            .collect();
+        let keys = keys.join(", ");
+        assert!(h.query_all_by_label(&keys).count() >= 1, "{id:?}: {keys}");
+        let label = tp_i18n::tr(id.meta().label);
+        assert!(h.query_all_by_label(&label).count() >= 1, "{label}");
+    }
 }

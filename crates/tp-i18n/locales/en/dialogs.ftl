@@ -40,6 +40,7 @@ home-discard = Discard
 app-tagline = Livery editor for Euro Truck Simulator 2 and American Truck Simulator
 home-new-project = New Project
 home-new-project-tip = Create a new livery project ({ $shortcut })
+home-open-tip = Open a project file ({ $shortcut })
 home-preferences = Preferences
 home-recent = Recent projects
 home-recent-empty = No recent projects
@@ -57,10 +58,8 @@ unsaved-hint = Your changes will be lost if you don't save them.
 button-dont-save = Don't Save
 button-cancel = Cancel
 button-ok = OK
-button-create = Create
 button-done = Done
 button-close = Close
-new-project-step-name = Name
 new-project-name = Project name
 prefs-interface = Interface
 prefs-ui-scale = UI scale
@@ -131,7 +130,6 @@ custom-title = Custom Vehicle
 custom-new-version-title = New Version of { $name }
 custom-open = Custom vehicle…
 custom-open-library = Custom Vehicle…
-custom-id = Id
 custom-version = Version
 custom-name = Name
 custom-brand = Brand
@@ -205,6 +203,16 @@ vehicles-any-version = any version
 vehicles-new-version = New Version…
 vehicles-new-version-of = New version of { $name }
 vehicles-export-version = Export { $name } { $version }
+vehicles-tab-installed = Installed · { $count }
+vehicles-tab-mine = My vehicles · { $count }
+vehicles-status-custom = Custom
+vehicles-status-update = Update
+vehicles-status-current = Up to date
+vehicles-mine-empty = Custom vehicles are made from the game's template files (DDS, PNG or SVG) and their game data. Click Custom Vehicle… to make one.
+vehicles-preview = Template of { $name }
+vehicles-details-of = Details of { $name }
+vehicles-installed-versions = Installed versions
+vehicles-export = Export…
 vehicles-exported = Exported { $file }
 vehicles-export-failed = { $file } could not be written: { $reason }
 update-versions = { $name }: version { $from } → { $to }
@@ -216,13 +224,32 @@ update-removed = { $name }: no longer in this version, artwork kept
 update-artwork-kept = Your artwork is kept. You can undo the update.
 update-apply = Update
 
-## New Project wizard
+## New Project
 
-new-project-step-vehicle = Vehicle
-new-project-no-vehicles-hint = No vehicle yet? Try the sample truck, or install a package.
-new-project-textures = Textures
-button-next = Next
-button-back = Back
+new-project-no-vehicles-hint = Vehicle packages hold the templates of a truck or trailer. Try the sample vehicles, install a package, or make a custom vehicle.
+new-project-create = Create Project
+new-project-add-later = You can add vehicles to the project at any time.
+new-project-no-game-vehicles = No { $game } vehicle is installed yet.
+new-project-no-match = No vehicle matches the search.
+new-project-custom-title = Vehicle without a package
+new-project-custom-hint = Make it from its template files (DDS, PNG or SVG) and its game data.
+new-project-fleet = Your fleet
+new-project-pick-vehicle = Pick a vehicle in the list.
+new-project-cabins = Cabins
+new-project-counts = { $accessories ->
+    [0] { $main } main
+    [one] { $main } main + { $accessories } accessory
+   *[other] { $main } main + { $accessories } accessories
+}
+new-project-created = Textures created
+new-project-texture = { $texture } ({ $size })
+new-project-total = { $count ->
+    [one] { $count } texture in total
+   *[other] { $count } textures in total
+}
+vehicles-kind-all = All
+vehicles-kind-trucks = Trucks
+vehicles-kind-trailers = Trailers
 
 ## Fleet
 
@@ -257,6 +284,7 @@ mod-author = Author
 mod-description = Description
 mod-price = Price
 mod-unlock = Unlock level
+mod-advanced = Advanced
 mod-internal-name = Internal name
 mod-internal-name-help = Names the paint job in the game: a–z, 0–9 and _. Keep it unique to you.
 mod-icon = Shop icon
@@ -295,7 +323,7 @@ library-graphic-styles = Graphic styles
 library-text-styles = Text styles
 library-in-project = In this project
 library-import = Import
-library-empty = Your library is empty. Right-click a symbol, a swatch or a style in its panel and choose Add to Library to use it in every project.
+library-empty = Your library is empty. Right-click a symbol, a swatch or a style in the Brand space or the Resources tab and choose Add to Library to use it in every project.
 library-remove = Remove from Library
 library-remove-confirm = Remove { $name } from the library? Projects that imported it keep their copy.
 library-remove-button = Remove

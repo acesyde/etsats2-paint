@@ -1,6 +1,7 @@
-//! Styles panel: the project's graphic styles (fill, stroke, opacity) and
+//! Styles lists: the project's graphic styles (fill, stroke, opacity) and
 //! text styles (character settings). Clicking a style applies it to the
-//! selection; the styles the selection follows are marked.
+//! selection; the styles the selection follows are marked. And the
+//! inspector's Style row.
 
 use egui::{Align, Key, Layout, Rect, RichText, Sense, TextEdit, Ui, Vec2, WidgetInfo, WidgetType};
 use tp_core::Look;
@@ -15,7 +16,8 @@ use super::properties::gradient_preview;
 
 const ROW_HEIGHT: f32 = 24.0;
 
-fn swatch_of(paint: &Paint) -> SwatchColor {
+/// How a swatch widget shows `paint`.
+pub fn swatch_of(paint: &Paint) -> SwatchColor {
     match paint {
         Paint::Solid(c) => {
             SwatchColor::Solid(egui::Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a))
@@ -25,7 +27,7 @@ fn swatch_of(paint: &Paint) -> SwatchColor {
 }
 
 /// Why New Style from Selection is disabled, if it is.
-fn new_style_blocked(env: &PanelEnv<'_>, text: bool) -> Option<String> {
+pub fn new_style_blocked(env: &PanelEnv<'_>, text: bool) -> Option<String> {
     let ok = match env.ws.selection.as_slice() {
         [id] => env.ws.project.surface().get(*id).is_some_and(|o| {
             if text {
@@ -48,6 +50,15 @@ fn new_style_blocked(env: &PanelEnv<'_>, text: bool) -> Option<String> {
     })
 }
 
+/// New Style from Selection: a graphic style, or a text style when `text`.
+pub fn new_style(env: &mut PanelEnv<'_>, text: bool) {
+    if text {
+        env.ws.new_text_style(env.now);
+    } else {
+        env.ws.new_graphic_style(env.now);
+    }
+}
+
 fn section_header(ui: &mut Ui, env: &mut PanelEnv<'_>, title: &str, text: bool) {
     ui.horizontal(|ui| {
         ui.label(RichText::new(title).small().color(color::TEXT_SECONDARY));
@@ -61,19 +72,14 @@ fn section_header(ui: &mut Ui, env: &mut PanelEnv<'_>, title: &str, text: bool) 
             let button = IconButton::new(icons::ADD, &name)
                 .disabled_reason(blocked.as_deref().unwrap_or_default());
             if ui.add_enabled(blocked.is_none(), button).clicked() {
-                if text {
-                    env.ws.new_text_style(env.now);
-                } else {
-                    env.ws.new_graphic_style(env.now);
-                }
+                new_style(env, text);
             }
         });
     });
 }
 
-pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv<'_>) {
+pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     let followed = env.ws.project.styles_of(&env.ws.selection);
-    let empty = env.ws.project.graphic_styles.is_empty() && env.ws.project.text_styles.is_empty();
 
     section_header(ui, env, &tr("styles-graphic"), false);
     let graphic = env.ws.project.graphic_styles.clone();
@@ -146,10 +152,6 @@ pub fn show(ui: &mut Ui, cmds: &mut crate::ui::CommandUi<'_>, env: &mut PanelEnv
             env.ws.apply_style(style.id, env.now);
         }
     }
-    if empty {
-        ui.add_space(space::SM);
-        super::import_from_library_button(ui, cmds);
-    }
 }
 
 /// A style's fill, ringed by its stroke when it has one, at the left of a
@@ -193,13 +195,7 @@ fn style_row(
     followed: bool,
     draw: impl FnOnce(&mut Ui, Rect),
 ) -> bool {
-    if env
-        .ws
-        .panels
-        .renaming_style
-        .as_ref()
-        .is_some_and(|(r, _)| *r == id)
-    {
+    if is_renaming(env, id) {
         rename_field(ui, env, id);
         return false;
     }
@@ -207,8 +203,7 @@ fn style_row(
         ui.allocate_exact_size(Vec2::new(ui.available_width(), ROW_HEIGHT), Sense::click());
     response.widget_info(|| WidgetInfo::selected(WidgetType::Button, true, followed, label));
     if followed {
-        ui.painter()
-            .rect_filled(rect, radius::SM, color::ACCENT_SUBTLE);
+        ui.painter().rect_filled(rect, radius::SM, color::SELECTED);
     } else if response.hovered() {
         ui.painter().rect_filled(rect, radius::SM, color::SURFACE_2);
     }
@@ -220,37 +215,57 @@ fn style_row(
             egui::Align2::RIGHT_TOP,
             icons::LINKED,
             tp_ui::icons::font(11.0),
-            color::ACCENT,
+            color::LINK,
         );
     }
-    let has_one = env.ws.selection.len() == 1;
     response.context_menu(|ui| {
-        if ui.add(MenuRow::new(&tr("styles-rename"))).clicked() {
-            env.ws.panels.renaming_style = Some((id, name.to_owned()));
-            ui.close();
-        }
-        if ui
-            .add_enabled(has_one, MenuRow::new(&tr("styles-redefine")))
-            .clicked()
-        {
-            env.ws.redefine_style(id, env.now);
-            ui.close();
-        }
-        if ui.add(MenuRow::new(&tr("styles-select-users"))).clicked() {
-            env.ws.select_style_users(id);
-            ui.close();
-        }
-        super::library_item(ui, env, crate::library::Element::Style(id));
-        ui.separator();
-        if ui.add(MenuRow::new(&tr("styles-delete"))).clicked() {
-            env.ws.delete_style(id, env.now);
-            ui.close();
-        }
+        menu_items(ui, env, id, name);
     });
     response.clicked()
 }
 
-fn rename_field(ui: &mut Ui, env: &mut PanelEnv<'_>, id: StyleId) {
+/// The menu of a style: Rename, Redefine from Selection, Select Users on
+/// This Texture, Add to / Update in Library and Delete. Returns whether the
+/// style's users were selected.
+pub fn menu_items(ui: &mut Ui, env: &mut PanelEnv<'_>, id: StyleId, name: &str) -> bool {
+    let mut selected = false;
+    let has_one = env.ws.selection.len() == 1;
+    if ui.add(MenuRow::new(&tr("styles-rename"))).clicked() {
+        env.ws.panels.renaming_style = Some((id, name.to_owned()));
+        ui.close();
+    }
+    if ui
+        .add_enabled(has_one, MenuRow::new(&tr("styles-redefine")))
+        .clicked()
+    {
+        env.ws.redefine_style(id, env.now);
+        ui.close();
+    }
+    if ui.add(MenuRow::new(&tr("styles-select-users"))).clicked() {
+        env.ws.select_style_users(id);
+        selected = true;
+        ui.close();
+    }
+    super::library_item(ui, env, crate::library::Element::Style(id));
+    ui.separator();
+    if ui.add(MenuRow::new(&tr("styles-delete"))).clicked() {
+        env.ws.delete_style(id, env.now);
+        ui.close();
+    }
+    selected
+}
+
+/// Whether style `id` is being renamed.
+pub fn is_renaming(env: &PanelEnv<'_>, id: StyleId) -> bool {
+    env.ws
+        .panels
+        .renaming_style
+        .as_ref()
+        .is_some_and(|(r, _)| *r == id)
+}
+
+/// The inline Rename field of style `id`.
+pub fn rename_field(ui: &mut Ui, env: &mut PanelEnv<'_>, id: StyleId) {
     let Some((_, mut buffer)) = env.ws.panels.renaming_style.clone() else {
         return;
     };
@@ -270,5 +285,150 @@ fn rename_field(ui: &mut Ui, env: &mut PanelEnv<'_>, id: StyleId) {
         env.ws.rename_style(id, &buffer, env.now);
     } else {
         env.ws.panels.renaming_style = Some((id, buffer));
+    }
+}
+
+/// The style followed by an object or a selection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Followed {
+    None,
+    Style(StyleId),
+    /// Several styles.
+    Mixed,
+}
+
+/// The style an object follows: its text style for a text that has one,
+/// else its graphic style; for a group, the one style its content follows.
+fn followed_by(project: &tp_core::Project, o: &tp_core::document::Object) -> Followed {
+    if let Some(id) = o.text.as_ref().and_then(|t| t.style_id) {
+        return Followed::Style(id);
+    }
+    if o.kind != ShapeKind::Group {
+        return o.style.map_or(Followed::None, Followed::Style);
+    }
+    match project.styles_of(&[o.id]).as_slice() {
+        [] => Followed::None,
+        [one] => Followed::Style(*one),
+        _ => Followed::Mixed,
+    }
+}
+
+/// What the Style row reads: the style shared by the selection's shapes
+/// and texts. `None` when the selection holds no shape or text (images and
+/// instances take no style).
+pub fn selection_style(env: &PanelEnv<'_>) -> Option<Followed> {
+    let objects: Vec<_> = env
+        .ws
+        .selected_objects()
+        .into_iter()
+        .filter(|o| !matches!(o.kind, ShapeKind::Image { .. } | ShapeKind::Instance { .. }))
+        .collect();
+    let mut followed = objects.iter().map(|o| followed_by(&env.ws.project, o));
+    let first = followed.next()?;
+    Some(if followed.all(|f| f == first) {
+        first
+    } else {
+        Followed::Mixed
+    })
+}
+
+/// The inspector's Style row: the style the selection follows, in the link
+/// color with a style icon, "None" or "Mixed"; its menu lists the styles
+/// that apply to the selection and New Style from Selection.
+pub fn inspector_row(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+    let Some(followed) = selection_style(env) else {
+        return;
+    };
+    let name = match followed {
+        Followed::Style(id) => env
+            .ws
+            .project
+            .graphic_style(id)
+            .map(|s| s.name.clone())
+            .or_else(|| env.ws.project.text_style(id).map(|s| s.name.clone())),
+        _ => None,
+    };
+    let (value, text) = match (&followed, &name) {
+        (Followed::Style(_), Some(name)) => (
+            name.clone(),
+            RichText::new(format!("{} {name}  {}", icons::STYLES, icons::EXPANDED))
+                .color(color::LINK),
+        ),
+        (Followed::Mixed, _) => (
+            tr("mixed"),
+            RichText::new(format!("{}  {}", tr("mixed"), icons::EXPANDED))
+                .color(color::TEXT_SECONDARY),
+        ),
+        _ => (
+            tr("inspector-style-none"),
+            RichText::new(format!(
+                "{}  {}",
+                tr("inspector-style-none"),
+                icons::EXPANDED
+            ))
+            .color(color::TEXT_SECONDARY),
+        ),
+    };
+    let holds_text = !env.ws.selected_texts().is_empty();
+    let label = tr("inspector-style");
+    ui.horizontal(|ui| {
+        ui.set_min_height(tp_ui::tokens::size::HIT_MIN);
+        ui.label(RichText::new(&label).color(color::TEXT_SECONDARY));
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let button = egui::Button::new(text).truncate();
+            let (response, _) = egui::containers::menu::MenuButton::from_button(button)
+                .ui(ui, |ui| style_menu(ui, env, holds_text));
+            response.widget_info(|| {
+                let mut info = WidgetInfo::labeled(WidgetType::Button, true, &label);
+                info.current_text_value = Some(value.clone());
+                info
+            });
+        });
+    });
+}
+
+fn style_menu(ui: &mut Ui, env: &mut PanelEnv<'_>, holds_text: bool) {
+    let mut chosen = None;
+    let graphic = env.ws.project.graphic_styles.clone();
+    let text = if holds_text {
+        env.ws.project.text_styles.clone()
+    } else {
+        Vec::new()
+    };
+    for (id, name) in graphic
+        .iter()
+        .map(|s| (s.id, &s.name))
+        .chain(text.iter().map(|s| (s.id, &s.name)))
+    {
+        if ui.add(MenuRow::new(name)).clicked() {
+            chosen = Some(id);
+            ui.close();
+        }
+    }
+    if !graphic.is_empty() || !text.is_empty() {
+        ui.separator();
+    }
+    let blocked = new_style_blocked(env, false);
+    let response = ui.add_enabled(blocked.is_none(), MenuRow::new(&tr("styles-new-graphic")));
+    if let Some(reason) = &blocked {
+        response.clone().on_disabled_hover_text(reason);
+    }
+    if response.clicked() {
+        env.ws.new_graphic_style(env.now);
+        ui.close();
+    }
+    if holds_text {
+        let blocked = new_style_blocked(env, true);
+        let response = ui.add_enabled(blocked.is_none(), MenuRow::new(&tr("styles-new-text")));
+        if let Some(reason) = &blocked {
+            response.clone().on_disabled_hover_text(reason);
+        }
+        if response.clicked() {
+            env.ws.new_text_style(env.now);
+            ui.close();
+        }
+    }
+    if let Some(id) = chosen {
+        env.ws.apply_style(id, env.now);
     }
 }

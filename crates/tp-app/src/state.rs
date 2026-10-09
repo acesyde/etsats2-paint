@@ -10,6 +10,7 @@ use tp_ui::ThemeSettings;
 
 use crate::commands::{self, Availability, CommandId, EditContext};
 use crate::file_dialogs::{FileDialogs, NativeDialogs};
+use crate::layout::Space;
 use crate::paths::APP_NAME;
 use crate::prefs::{Prefs, PrefsStore, recent_exists};
 pub use crate::project_io::PendingAction;
@@ -30,17 +31,42 @@ pub enum Screen {
     Workspace(Box<Workspace>),
 }
 
-/// Draft of the New Project wizard.
+/// State of the New Project dialog.
 #[derive(Clone, Debug, Default)]
 pub struct NewProjectDraft {
-    pub step: usize,
     pub name: String,
     pub focus_requested: bool,
     /// The chosen vehicle and its checked textures.
     pub vehicle: Option<crate::ui::vehicle_dialogs::VehicleChoice>,
+    /// Search, kind and game of the vehicle list; the game is the
+    /// project's (ETS2 when unset).
     pub filter: crate::ui::vehicle_dialogs::VehicleFilter,
-    /// Results of installing packages from the wizard.
+    /// Results of installing packages from the dialog.
     pub messages: Vec<Result<String, String>>,
+}
+
+impl NewProjectDraft {
+    /// The dialog as it opens: the game of the installed vehicles, or ETS2
+    /// when vehicles of both games or none are installed.
+    pub fn new(library: &crate::vehicles::VehicleLibrary) -> Self {
+        let mut games = library
+            .vehicles()
+            .iter()
+            .map(|v| v.newest().manifest.game.id);
+        let first = games.next();
+        let game = match first {
+            Some(g) if games.all(|other| other == g) => g,
+            _ => tp_vehicles::Game::Ets2,
+        };
+        let mut draft = Self::default();
+        draft.filter.game = Some(game);
+        draft
+    }
+
+    /// The project's game.
+    pub fn game(&self) -> tp_vehicles::Game {
+        self.filter.game.unwrap_or(tp_vehicles::Game::Ets2)
+    }
 }
 
 pub enum Modal {
@@ -116,6 +142,8 @@ pub struct AppState {
     pub queue: Vec<CommandId>,
     /// Whether each recent project's file exists (aligned with `prefs.recent`).
     pub recent_available: Vec<bool>,
+    /// Thumbnails of the recent projects, read in the background.
+    pub recent_thumbnails: crate::recent_thumbnails::RecentThumbnails,
     /// Objects copied or cut, shared by every project in this session.
     pub clipboard: Clipboard,
     /// Session id of the next workspace opened.
@@ -134,6 +162,9 @@ pub struct AppState {
     pub system_fonts: bool,
     /// Installed vehicle packages.
     pub vehicles: crate::vehicles::VehicleLibrary,
+    /// Previews of installed packages (Vehicle Library), read in the
+    /// background.
+    pub package_previews: crate::package_previews::PackagePreviews,
     /// Language of the operating system (English unless detected).
     pub system_language: tp_i18n::Language,
     /// Open / Save / Place dialogs (scripted in tests).
@@ -190,6 +221,7 @@ impl AppState {
             show_gallery: false,
             queue: Vec::new(),
             recent_available: Vec::new(),
+            recent_thumbnails: Default::default(),
             clipboard: Clipboard::default(),
             next_session: 1,
             paste_count: 0,
@@ -199,6 +231,7 @@ impl AppState {
             system_fonts: false,
             system_language: tp_i18n::Language::English,
             vehicles: crate::vehicles::VehicleLibrary::default(),
+            package_previews: Default::default(),
             // Tests never open real dialogs; `new` installs the native ones.
             dialogs: Box::new(crate::file_dialogs::ScriptedDialogs::default()),
             saver: None,
@@ -245,9 +278,11 @@ impl AppState {
             .iter()
             .map(|r| recent_exists(&r.path))
             .collect();
+        self.recent_thumbnails.invalidate();
     }
 
-    /// Opens the editor on a new project.
+    /// Opens the editor on a project (new, read from a file or recovered),
+    /// in the Project space.
     pub fn open_project(&mut self, project: Project) {
         tracing::info!(name = %project.name, side = project.resolution.side(), "project created");
         let fonts = self
@@ -256,6 +291,7 @@ impl AppState {
             .unwrap_or_else(tp_text::FontLibrary::bundled);
         let mut ws = Workspace::with_text_engine(project, TextEngine::new(fonts));
         ws.session = self.next_session;
+        ws.space = Space::Project;
         self.next_session += 1;
         self.screen = Screen::Workspace(Box::new(ws));
     }
@@ -488,6 +524,7 @@ impl AppState {
                 only_instances: !ws.selection.is_empty()
                     && ws.selected_objects().iter().all(|o| o.is_instance()),
                 single_instance: ws.selected_instance_symbol().is_some(),
+                space: Some(ws.space),
             },
             None => EditContext::default(),
         }
@@ -524,11 +561,26 @@ impl AppState {
             crate::path_edit::handle_pen_keys(ctx, ws, now);
         }
         let typing = field_focused || editing_text;
+        // Escape closes an open popover (color, stroke) and does nothing
+        // else, such as deselecting.
+        if !typing {
+            tp_ui::widgets::Popover::close_on_escape(ctx);
+        }
         let has_project = self.has_project();
         let edit = self.edit_context();
+        // `Tab` and `G` act in the Workshop only; elsewhere Tab moves the
+        // keyboard focus.
+        let in_workshop = edit.space == Some(Space::Workshop);
         let triggered = ctx.input_mut(|i| {
-            commands::take_triggered(i, typing, has_project, |id| is_enabled(id, &edit))
+            commands::take_triggered(i, typing, has_project, |id| {
+                is_enabled(id, &edit) && (in_workshop || !id.key_needs_workshop())
+            })
         });
+        if triggered.contains(&CommandId::TogglePanels) {
+            // egui read Tab at the start of the frame: keep it from also
+            // moving the keyboard focus.
+            ctx.memory_mut(|m| m.move_focus(egui::FocusDirection::None));
+        }
         self.queue.extend(triggered);
 
         // Holding Space temporarily activates the Hand tool.
@@ -623,7 +675,14 @@ impl AppState {
             CommandId::CloseProject => self.guard(ctx, PendingAction::CloseProject),
             CommandId::Preferences => self.modal = Some(Modal::Preferences),
             CommandId::Quit => self.guard(ctx, PendingAction::Quit),
-            CommandId::TogglePanel(kind) => self.prefs.layout.toggle_open(kind),
+            CommandId::ShowSpace(space) => self.with_workspace(|ws| ws.space = space),
+            CommandId::ShowLeftTab(tab) => {
+                self.prefs.layout.show_tab(tab);
+                self.with_workspace(|ws| ws.space = Space::Workshop);
+            }
+            CommandId::TogglePanels => {
+                self.prefs.layout.panels_hidden = !self.prefs.layout.panels_hidden;
+            }
             CommandId::ResetWorkspace => self.prefs.layout.reset(),
             CommandId::DesignGallery => self.show_gallery = !self.show_gallery,
             CommandId::KeyboardShortcuts => self.modal = Some(Modal::KeyboardShortcuts),
@@ -671,7 +730,6 @@ impl AppState {
                     ws.settings_changed = true;
                 }
             }),
-            CommandId::VehicleInfo => self.prefs.layout.vehicles_open = true,
             CommandId::NextTexture | CommandId::PreviousTexture => {
                 let next = id == CommandId::NextTexture;
                 self.with_workspace(|ws| {
@@ -679,9 +737,6 @@ impl AppState {
                     let i = ws.project.active_surface;
                     ws.set_active_surface(if next { (i + 1) % n } else { (i + n - 1) % n });
                 });
-            }
-            CommandId::ToggleVehicles => {
-                self.prefs.layout.vehicles_open = !self.prefs.layout.vehicles_open;
             }
             CommandId::VehicleLibrary => {
                 self.modal = Some(Modal::VehicleLibrary(Default::default()));
@@ -1000,8 +1055,8 @@ fn keeps_text_session(id: CommandId) -> bool {
             | CommandId::ZoomOut
             | CommandId::FitToScreen
             | CommandId::ActualSize
-            | CommandId::TogglePanel(_)
-            | CommandId::ToggleVehicles
+            | CommandId::ShowLeftTab(_)
+            | CommandId::TogglePanels
             | CommandId::ResetWorkspace
             | CommandId::DesignGallery
             | CommandId::KeyboardShortcuts

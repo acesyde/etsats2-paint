@@ -41,7 +41,8 @@ fn screen(h: &H, x: f64, y: f64) -> Pos2 {
 fn view_checked(h: &mut H, label: &str) -> bool {
     h.get_by_label("View").click();
     h.run();
-    let checked = h.get_by_label(label).accesskit_node().toggled() == Some(Toggled::True);
+    // The menu's item (the status bar has a Snapping toggle too).
+    let checked = common::last(h, label).accesskit_node().toggled() == Some(Toggled::True);
     h.key_press(Key::Escape);
     h.run();
     checked

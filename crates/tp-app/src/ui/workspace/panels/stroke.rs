@@ -1,5 +1,6 @@
-//! Stroke panel: enable/disable the stroke, its width and alignment, and
-//! the dashes, caps and joins of outlines.
+//! The stroke popover of the inspector's Stroke row: enable/disable the
+//! stroke, its width and alignment, and the dashes, caps and joins of
+//! outlines; and the row's summary ("6 px · Outside").
 
 use egui::{Checkbox, Ui, WidgetInfo, WidgetType};
 use tp_core::document::{LineStyle, Object, StrokeAlign, StrokeStyle};
@@ -37,11 +38,42 @@ fn outlines_a_shape(o: &Object) -> bool {
         .is_none_or(|p| p.subpaths.iter().any(|s| s.closed))
 }
 
-pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
-    if super::colors::instances_only(env) {
-        super::colors::instance_message(ui);
-        return;
+/// The Stroke row's summary: width and alignment of the selection's
+/// strokes (or of the current style), "None" without a stroke, "Mixed" when
+/// they differ.
+pub fn summary(ws: &Workspace) -> String {
+    let strokes: Vec<Option<StrokeStyle>> = if ws.selection.is_empty() {
+        vec![ws.style.stroke()]
+    } else {
+        ws.selected_shapes().iter().map(|o| o.stroke).collect()
+    };
+    match common(strokes.iter().map(Option::is_some)) {
+        Some(true) => {}
+        Some(false) => return tr("stroke-none"),
+        None => return tr("mixed"),
     }
+    let strokes: Vec<StrokeStyle> = strokes.into_iter().flatten().collect();
+    let width = common(strokes.iter().map(|s| s.width));
+    let align = common(strokes.iter().map(|s| s.align));
+    let width = width.map_or_else(
+        || tr("mixed"),
+        |w| tr!("stroke-width-px", width = tp_i18n::format_number(w, 1)),
+    );
+    let align = align.map_or_else(
+        || tr("mixed"),
+        |a| {
+            tr(match a {
+                StrokeAlign::Center => "stroke-center",
+                StrokeAlign::Inside => "stroke-inside",
+                StrokeAlign::Outside => "stroke-outside",
+            })
+        },
+    );
+    format!("{width} · {align}")
+}
+
+/// The stroke popover's content.
+pub fn popover(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     let shapes = env.ws.selected_shapes();
     let empty = env.ws.selection.is_empty();
     // Enabled state: all / none / mixed.
@@ -130,7 +162,7 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         env.ws.commit_pending(env.now);
     }
 
-    // Lines use their own dashes, caps and joins (Properties panel).
+    // Lines use their own dashes, caps and joins (inspector › Appearance).
     let outlines: Vec<LineStyle> = strokes
         .iter()
         .filter(|(_, outline)| *outline)

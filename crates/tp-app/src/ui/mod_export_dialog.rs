@@ -1,17 +1,20 @@
-//! Export Mod dialog: the mod settings, its pictures, a summary of what
-//! the mod holds, the problems that block it, and the export's progress.
+//! Export Mod dialog: the mod settings labelled above their fields, the
+//! internal name under Advanced, the mod's pictures, a summary of what the
+//! mod holds, the problems that block it just above the buttons, and the
+//! export's progress.
 
 use std::sync::mpsc::{self, Receiver};
 
 use egui::{
-    Align, Color32, CornerRadius, Key, Layout, Rect, RichText, Sense, Stroke, TextEdit, Ui, Vec2,
-    WidgetInfo, WidgetType,
+    Color32, CornerRadius, Key, Rect, RichText, Sense, Stroke, TextEdit, Ui, Vec2, WidgetInfo,
+    WidgetType,
 };
 use tp_core::{ModSettings, Project};
 use tp_i18n::tr;
 use tp_text::FontLibrary;
-use tp_ui::theme::{label_strong_style, title_style};
-use tp_ui::tokens::{color, space};
+use tp_ui::icons;
+use tp_ui::theme::label_strong_style;
+use tp_ui::tokens::{color, radius, space};
 use tp_ui::widgets::{FieldEvent, NumericField, primary_button, secondary_button};
 
 use crate::export::ExportOutcome;
@@ -43,6 +46,9 @@ pub struct ModExportDialog {
     pub preview_revision: Option<u64>,
     preview_job: Option<PreviewJob>,
     pub job: Option<ModJob>,
+    /// The Advanced section (the internal name) is open. It opens by
+    /// itself while a problem concerns the internal name.
+    pub advanced: bool,
 }
 
 impl ModExportDialog {
@@ -60,6 +66,7 @@ impl ModExportDialog {
             preview_revision: None,
             preview_job: None,
             job: None,
+            advanced: false,
         }
     }
 
@@ -97,17 +104,7 @@ fn start_previews(
     let spawned = std::thread::Builder::new()
         .name("mod-preview".into())
         .spawn(move || {
-            let mut render = |picture: &Picture, size: (u32, u32)| {
-                let pixmap =
-                    crate::mod_export::picture(&project, picture.bytes(&project), size, &mut fonts)
-                        .unwrap_or_else(|_| tp_render::Pixmap::new(size.0, size.1).expect("size"));
-                let rgba = tp_render::to_rgba(&pixmap);
-                egui::ColorImage::from_rgba_unmultiplied(
-                    [size.0 as usize, size.1 as usize],
-                    rgba.as_raw(),
-                )
-            };
-            let images = [render(&icon, ICON_SIZE), render(&image, IMAGE_SIZE)];
+            let images = crate::mod_previews::render(&project, &icon, &image, &mut fonts);
             let _ = tx.send(images);
             ctx.request_repaint();
         });
@@ -169,67 +166,99 @@ fn file_name(path: &std::path::Path) -> String {
         .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
 }
 
-/// A field's label in the grid's first column.
-fn field_label(ui: &mut Ui, label: &str) {
-    ui.label(RichText::new(label).color(color::TEXT_SECONDARY));
-}
-
-/// A labelled single-line text field.
-fn text_field(ui: &mut Ui, label: &str, text: &mut String) -> bool {
-    field_label(ui, label);
-    let response = ui.add(TextEdit::singleline(text).desired_width(f32::INFINITY));
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, label));
-    ui.end_row();
-    response.changed()
-}
-
-/// A labelled whole-number field.
+/// A labelled whole-number field filling its column.
 fn number_field(ui: &mut Ui, label: &str, value: &mut u32, max: u32) {
-    field_label(ui, label);
-    let event = NumericField::new("", label, Some(f64::from(*value)))
-        .range(0.0..=f64::from(max))
-        .width(120.0)
-        .show(ui);
-    if let FieldEvent::Live(v) | FieldEvent::Commit(v) = event {
-        *value = v.round() as u32;
-    }
-    ui.end_row();
+    super::dialogs::labelled(ui, label, |ui| {
+        let event = NumericField::new("", label, Some(f64::from(*value)))
+            .range(0.0..=f64::from(max))
+            .fill()
+            .show(ui);
+        if let FieldEvent::Live(v) | FieldEvent::Commit(v) = event {
+            *value = v.round() as u32;
+        }
+    });
 }
 
-/// The settings fields.
-fn settings_ui(ui: &mut Ui, settings: &mut ModSettings, limit: usize) {
-    egui::Grid::new("mod_settings_fields")
-        .num_columns(2)
-        .spacing([space::MD, space::XS])
-        .min_col_width(120.0)
-        .show(ui, |ui| {
+/// Whether `problem` concerns the internal name (the Advanced section).
+fn is_internal_name_problem(problem: &Problem) -> bool {
+    matches!(
+        problem,
+        Problem::InternalNameEmpty
+            | Problem::InternalNameInvalid
+            | Problem::InternalNameTooLong { .. }
+    )
+}
+
+/// The settings fields, each labelled above: Name and Version, Author,
+/// Description, Price and Unlock level.
+fn settings_ui(ui: &mut Ui, settings: &mut ModSettings) {
+    use super::dialogs::{columns, labelled, text_field};
+    columns(ui, &[2.0, 1.0], |ui, column| match column {
+        0 => {
             text_field(ui, &tr("mod-name"), &mut settings.name);
+        }
+        _ => {
             text_field(ui, &tr("mod-version"), &mut settings.version);
-            text_field(ui, &tr("mod-author"), &mut settings.author);
-            let label = tr("mod-description");
-            field_label(ui, &label);
-            let response = ui.add(
-                TextEdit::multiline(&mut settings.description)
-                    .desired_rows(3)
-                    .desired_width(f32::INFINITY),
-            );
-            response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
-            ui.end_row();
-            number_field(ui, &tr("mod-price"), &mut settings.price, 100_000_000);
-            number_field(ui, &tr("mod-unlock"), &mut settings.unlock_level, 1000);
+        }
+    });
+    text_field(ui, &tr("mod-author"), &mut settings.author);
+    let label = tr("mod-description");
+    labelled(ui, &label, |ui| {
+        let response = ui.add(
+            TextEdit::multiline(&mut settings.description)
+                .desired_rows(3)
+                .desired_width(f32::INFINITY),
+        );
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
+    });
+    columns(ui, &[1.0, 1.0], |ui, column| match column {
+        0 => number_field(ui, &tr("mod-price"), &mut settings.price, 100_000_000),
+        _ => number_field(ui, &tr("mod-unlock"), &mut settings.unlock_level, 1000),
+    });
+}
+
+/// The Advanced section: a header that opens and closes it, then the
+/// internal name and its help when open.
+fn advanced_ui(ui: &mut Ui, settings: &mut ModSettings, limit: usize, open: &mut bool) {
+    let title = tr("mod-advanced");
+    let caret = if *open {
+        icons::EXPANDED
+    } else {
+        icons::COLLAPSED
+    };
+    let response = ui.add(
+        egui::Button::new((
+            icons::rich(caret).color(color::TEXT_SECONDARY),
+            RichText::new(&title).color(color::TEXT_SECONDARY),
+        ))
+        .frame(false)
+        .min_size(Vec2::new(0.0, tp_ui::tokens::size::HIT_MIN)),
+    );
+    response.widget_info(|| {
+        let mut info = WidgetInfo::labeled(WidgetType::CollapsingHeader, true, &title);
+        info.selected = Some(*open);
+        info
+    });
+    if response.clicked() {
+        *open = !*open;
+    }
+    if *open {
+        ui.indent("mod_export_advanced", |ui| {
             // The internal name follows the Name until the player types one.
             let mut internal = settings.internal_name(limit);
-            if text_field(ui, &tr("mod-internal-name"), &mut internal) {
+            if super::dialogs::text_field(ui, &tr("mod-internal-name"), &mut internal).changed() {
                 settings.internal_name = Some(internal);
             }
-            ui.label("");
-            ui.label(
-                RichText::new(tr("mod-internal-name-help"))
-                    .small()
-                    .color(color::TEXT_SECONDARY),
+            ui.add(
+                egui::Label::new(
+                    RichText::new(tr("mod-internal-name-help"))
+                        .small()
+                        .color(color::TEXT_SECONDARY),
+                )
+                .wrap(),
             );
-            ui.end_row();
         });
+    }
 }
 
 /// One picture: its preview and its buttons. Returns the button clicked:
@@ -245,7 +274,8 @@ fn picture_ui(
 ) -> Option<bool> {
     let mut clicked = None;
     ui.vertical(|ui| {
-        ui.label(RichText::new(title).text_style(label_strong_style()));
+        ui.spacing_mut().item_spacing.y = space::XS;
+        super::dialogs::field_label(ui, title);
         let (rect, response) =
             ui.allocate_exact_size(Vec2::new(size.0 as f32, size.1 as f32), Sense::hover());
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Image, true, title));
@@ -282,35 +312,52 @@ fn picture_ui(
     clicked
 }
 
-/// The summary of what the mod holds.
+/// The summary of what the mod holds, in a raised box.
 fn summary_ui(ui: &mut Ui, summary: &[VehicleSummary]) {
-    ui.label(RichText::new(tr("mod-summary")).text_style(label_strong_style()));
-    for vehicle in summary {
-        ui.label(RichText::new(&vehicle.name).color(color::TEXT_PRIMARY));
-        for main in &vehicle.mains {
-            let text = if !main.painted {
-                tr!("mod-summary-not-painted", texture = main.name.as_str())
-            } else if main.cabins.is_empty() {
-                tr!("mod-summary-every-cabin", texture = main.name.as_str())
-            } else {
-                tr!(
-                    "mod-summary-cabins",
-                    texture = main.name.as_str(),
-                    cabins = main.cabins.join(", ")
-                )
-            };
-            let label = ui.label(RichText::new(&text).small().color(color::TEXT_SECONDARY));
-            label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
-        }
-        if !vehicle.accessories.is_empty() {
-            let text = tr!(
-                "mod-summary-accessories",
-                accessories = vehicle.accessories.join(", ")
-            );
-            let label = ui.label(RichText::new(&text).small().color(color::TEXT_SECONDARY));
-            label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
-        }
-    }
+    egui::Frame::new()
+        .fill(color::SURFACE_2)
+        .stroke(Stroke::new(1.0, color::BORDER))
+        .corner_radius(radius::LG)
+        .inner_margin(egui::Margin::same(space::MD as i8 + 2))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.spacing_mut().item_spacing.y = space::XS;
+            ui.label(RichText::new(tr("mod-summary")).text_style(label_strong_style()));
+            for vehicle in summary {
+                ui.label(RichText::new(&vehicle.name).color(color::TEXT_PRIMARY));
+                let line = |ui: &mut Ui, text: &str| {
+                    let label = ui.add(
+                        egui::Label::new(RichText::new(text).color(color::TEXT_SECONDARY)).wrap(),
+                    );
+                    label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
+                };
+                ui.indent(("mod_summary", &vehicle.name), |ui| {
+                    for main in &vehicle.mains {
+                        let text = if !main.painted {
+                            tr!("mod-summary-not-painted", texture = main.name.as_str())
+                        } else if main.cabins.is_empty() {
+                            tr!("mod-summary-every-cabin", texture = main.name.as_str())
+                        } else {
+                            tr!(
+                                "mod-summary-cabins",
+                                texture = main.name.as_str(),
+                                cabins = main.cabins.join(", ")
+                            )
+                        };
+                        line(ui, &text);
+                    }
+                    if !vehicle.accessories.is_empty() {
+                        line(
+                            ui,
+                            &tr!(
+                                "mod-summary-accessories",
+                                accessories = vehicle.accessories.join(", ")
+                            ),
+                        );
+                    }
+                });
+            }
+        });
 }
 
 /// Shows the dialog; returns false when it should close.
@@ -376,72 +423,84 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ModExportDia
     let mut start_export = false;
     let mut pick: Option<Which> = None;
     let mut generated: Option<Which> = None;
+    if problems.iter().any(is_internal_name_problem) {
+        dialog.advanced = true;
+    }
+    let game = match ws.project.game() {
+        Some("ats") => tp_vehicles::Game::Ats,
+        _ => tp_vehicles::Game::Ets2,
+    };
+    let subtitle = format!(
+        "{} · {}",
+        ws.project.name,
+        super::vehicle_dialogs::game_name(game)
+    );
+    // Room under the scrolled fields for the problems and the buttons.
+    let body_height =
+        (ctx.content_rect().height() - 230.0 - 24.0 * problems.len() as f32).max(240.0);
     super::dialogs::modal("mod_export_modal").show(ctx, |ui| {
-        ui.set_width(760.0);
-        ui.label(
-            RichText::new(tr("dialog-export-mod"))
-                .text_style(title_style())
-                .color(color::TEXT_PRIMARY),
-        );
+        ui.set_width(640.0);
+        super::dialogs::title(ui, &tr("dialog-export-mod"), Some(&subtitle));
         ui.add_space(space::LG);
         ui.add_enabled_ui(exporting.is_none(), |ui| {
-            ui.horizontal_top(|ui| {
-                ui.vertical(|ui| {
-                    ui.set_width(420.0);
-                    settings_ui(ui, &mut dialog.settings, limit);
-                });
-                ui.add_space(space::XL);
-                ui.vertical(|ui| summary_ui(ui, &dialog.summary));
-            });
-            ui.add_space(space::LG);
-            let previews = dialog.previews.as_ref().filter(|_| dialog.preview_ready());
-            ui.horizontal_top(|ui| {
-                let icon = picture_ui(
-                    ui,
-                    &tr("mod-icon"),
-                    previews.map(|p| &p[0]),
-                    ICON_SIZE,
-                    dialog.icon != Picture::Generated,
-                    &tr("mod-choose-icon"),
-                    &tr("mod-generated-icon"),
-                );
-                ui.add_space(space::XL);
-                let image = picture_ui(
-                    ui,
-                    &tr("mod-image"),
-                    previews.map(|p| &p[1]),
-                    IMAGE_SIZE,
-                    dialog.image != Picture::Generated,
-                    &tr("mod-choose-image"),
-                    &tr("mod-generated-image"),
-                );
-                for (which, clicked) in [(Which::Icon, icon), (Which::Image, image)] {
-                    match clicked {
-                        Some(true) => pick = Some(which),
-                        Some(false) => generated = Some(which),
-                        None => {}
+            egui::ScrollArea::vertical()
+                .id_salt("mod_export_fields")
+                .max_height(body_height)
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.spacing_mut().item_spacing.y = space::MD;
+                    settings_ui(ui, &mut dialog.settings);
+                    advanced_ui(ui, &mut dialog.settings, limit, &mut dialog.advanced);
+                    let previews = dialog.previews.as_ref().filter(|_| dialog.preview_ready());
+                    ui.horizontal_top(|ui| {
+                        ui.spacing_mut().item_spacing.x = space::XL;
+                        let icon = picture_ui(
+                            ui,
+                            &tr("mod-icon"),
+                            previews.map(|p| &p[0]),
+                            ICON_SIZE,
+                            dialog.icon != Picture::Generated,
+                            &tr("mod-choose-icon"),
+                            &tr("mod-generated-icon"),
+                        );
+                        let image = picture_ui(
+                            ui,
+                            &tr("mod-image"),
+                            previews.map(|p| &p[1]),
+                            IMAGE_SIZE,
+                            dialog.image != Picture::Generated,
+                            &tr("mod-choose-image"),
+                            &tr("mod-generated-image"),
+                        );
+                        for (which, clicked) in [(Which::Icon, icon), (Which::Image, image)] {
+                            match clicked {
+                                Some(true) => pick = Some(which),
+                                Some(false) => generated = Some(which),
+                                None => {}
+                            }
+                        }
+                    });
+                    if let Some(error) = &dialog.picture_error {
+                        super::dialogs::problem(ui, error);
                     }
-                }
-            });
-            if let Some(error) = &dialog.picture_error {
-                ui.label(RichText::new(error).small().color(color::ERROR));
-            }
+                    summary_ui(ui, &dialog.summary);
+                });
         });
-        ui.add_space(space::LG);
-        for problem in &problems {
-            let text = problem_message(problem);
-            let label = ui.label(RichText::new(&text).small().color(color::ERROR));
-            label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+        // The problems that block the export, just above the buttons.
+        if !problems.is_empty() {
+            ui.add_space(space::MD);
+            for problem in &problems {
+                super::dialogs::problem(ui, &problem_message(problem));
+            }
         }
-        ui.add_space(space::MD);
         match &exporting {
             Some((progress, path)) => {
+                ui.add_space(space::LG);
                 ui.add(
                     egui::ProgressBar::new(*progress)
                         .text(tr!("export-progress", file = file_name(path))),
                 );
-                ui.add_space(space::SM);
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                super::dialogs::footer(ui, |ui| {
                     if ui.add(secondary_button(&tr("button-cancel"))).clicked()
                         && let Some(job) = &dialog.job
                     {
@@ -450,7 +509,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ModExportDia
                 });
             }
             None => {
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                super::dialogs::footer(ui, |ui| {
                     start_export |= ui
                         .add_enabled(problems.is_empty(), primary_button(&tr("export-start")))
                         .clicked();
