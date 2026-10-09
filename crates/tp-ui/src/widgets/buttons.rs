@@ -117,13 +117,18 @@ pub fn toggle_icon_button(
     ui.add(IconButton::new(icon, name).selected(!on)).clicked()
 }
 
-/// Call-to-action button: the primary accent (white) with dark text.
+/// Call-to-action button: the primary accent (white) with dark semibold
+/// text.
 pub fn primary_button(text: &str) -> Button<'static> {
-    Button::new(RichText::new(text.to_owned()).color(color::TEXT_ON_PRIMARY))
-        .fill(color::ACCENT_PRIMARY)
-        .stroke(Stroke::NONE)
-        .corner_radius(CornerRadius::same(radius::MD))
-        .min_size(Vec2::new(88.0, 30.0))
+    Button::new(
+        RichText::new(text.to_owned())
+            .color(color::TEXT_ON_PRIMARY)
+            .family(crate::fonts::semibold_family()),
+    )
+    .fill(color::ACCENT_PRIMARY)
+    .stroke(Stroke::NONE)
+    .corner_radius(CornerRadius::same(radius::MD))
+    .min_size(Vec2::new(88.0, 30.0))
 }
 
 /// Neutral button.
