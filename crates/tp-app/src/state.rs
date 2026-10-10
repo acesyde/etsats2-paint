@@ -11,6 +11,7 @@ use tp_ui::ThemeSettings;
 use crate::commands::{self, Availability, CommandId, EditContext};
 use crate::file_dialogs::{FileDialogs, NativeDialogs};
 use crate::layout::Space;
+use crate::mod_export::ModPicture;
 use crate::paths::APP_NAME;
 use crate::prefs::{Prefs, PrefsStore, recent_exists};
 pub use crate::project_io::PendingAction;
@@ -183,6 +184,9 @@ pub struct AppState {
     pub export_settings: crate::export::ExportSettings,
     /// Folder of the last mod export of the session.
     pub last_mod_folder: Option<std::path::PathBuf>,
+    /// The user's folders where a mod is proposed to be exported (a test
+    /// sets its own).
+    pub mod_folders: crate::mod_export::Folders,
     /// The personal library of symbols, swatches and styles.
     pub library: crate::library::LibraryStore,
 }
@@ -241,6 +245,7 @@ impl AppState {
             allow_close: false,
             export_settings: crate::export::ExportSettings::default(),
             last_mod_folder: None,
+            mod_folders: crate::mod_export::Folders::of_user(),
             // In memory; `TruckPaintApp::new` gives it its file.
             library: crate::library::LibraryStore::default(),
         };
@@ -606,6 +611,11 @@ impl AppState {
         if !is_enabled(id, &self.edit_context()) {
             return;
         }
+        // Export Mod's key works while a mod setting is typed in (the
+        // dialog proposes the typed Name), not over another dialog.
+        if id == CommandId::ExportMod && self.modal.is_some() {
+            return;
+        }
         tracing::debug!(?id, "command");
         let now = ctx.input(|i| i.time);
         let ppp = ctx.pixels_per_point();
@@ -657,13 +667,24 @@ impl AppState {
                 )));
             }
             CommandId::ExportMod => {
+                if let Some(ws) = self.workspace_mut() {
+                    ws.commit_mod_draft(now);
+                }
+                if let Some(id) = ctx.memory(|m| m.focused()) {
+                    ctx.memory_mut(|m| m.surrender_focus(id));
+                }
                 if let Some(ws) = self.workspace() {
                     let library = &self.vehicles;
                     let summary = crate::mod_export::summary(&ws.project, &|v| {
                         library.recorded(v).map(|i| i.manifest.clone())
                     });
+                    let destination = crate::mod_export::destination(
+                        &ws.project,
+                        self.last_mod_folder.as_deref(),
+                        &self.mod_folders,
+                    );
                     let dialog =
-                        crate::ui::mod_export_dialog::ModExportDialog::new(&ws.project, summary);
+                        crate::ui::mod_export_dialog::ModExportDialog::new(summary, destination);
                     self.modal = Some(Modal::ExportMod(Box::new(dialog)));
                 }
             }
@@ -974,6 +995,32 @@ impl AppState {
         }
         if ws.text.poll_fonts() {
             ws.relayout_all_texts();
+        }
+        if let Some(which) = ws.picture_request.take()
+            && let Some(path) = self.dialogs.pick_mod_image()
+        {
+            let name = path.file_name().map_or_else(
+                || path.display().to_string(),
+                |n| n.to_string_lossy().into_owned(),
+            );
+            let bytes = std::fs::read(&path).map_err(|e| e.to_string());
+            ws.use_picture_file(which, &name, bytes, now);
+        }
+        // A file dropped on a mod picture's preview becomes that picture.
+        if let Some(i) = hover.and_then(|p| {
+            ws.picture_drop_zones
+                .iter()
+                .position(|z| z.is_some_and(|z| z.contains(p)))
+        }) && let Some(file) = dropped.first()
+        {
+            let which = [ModPicture::Icon, ModPicture::Image][i];
+            let path = file.path();
+            let name = path.file_name().map_or_else(
+                || path.display().to_string(),
+                |n| n.to_string_lossy().into_owned(),
+            );
+            ws.use_picture_file(which, &name, file.bytes(), now);
+            dropped.clear();
         }
         if let Some(at) = ws.place_request.take() {
             let paths = self.dialogs.pick_images();

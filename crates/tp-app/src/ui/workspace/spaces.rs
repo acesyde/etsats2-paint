@@ -1,6 +1,6 @@
 //! The Project and Brand spaces, using the full width between the top bar
-//! and the status bar, and the pieces they share: titles, labelled
-//! read-only values and the "+" buttons of section headers.
+//! and the status bar, and the pieces they share: titles, labels and the
+//! "+" buttons of section headers.
 //!
 //! Project ([`project`]): the fleet's vehicle cards with their textures
 //! (clicking one shows it in the Workshop) and the Mod information column.
@@ -10,7 +10,6 @@ pub mod brand;
 pub mod project;
 
 use egui::{Response, RichText, Ui, WidgetInfo, WidgetType};
-use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::title_style;
 use tp_ui::tokens::{color, radius, space};
@@ -45,31 +44,6 @@ fn caps_heading(ui: &mut Ui, text: &str) {
 /// The label above a value.
 fn field_label(ui: &mut Ui, text: &str) {
     ui.label(RichText::new(text).small().color(color::TEXT_SECONDARY));
-}
-
-/// A value shown read only under its `label`, as plain text (it doesn't
-/// look like a field: it can't be focused nor typed in). An empty value
-/// reads "Not set" in the secondary text color.
-fn value(ui: &mut Ui, label: &str, value: &str, mono: bool, multiline: bool) {
-    ui.vertical(|ui| {
-        ui.spacing_mut().item_spacing.y = space::XXS;
-        field_label(ui, label);
-        let empty = value.trim().is_empty();
-        let mut text = if empty {
-            RichText::new(tr("project-not-set")).color(color::TEXT_SECONDARY)
-        } else {
-            RichText::new(value).color(color::TEXT_PRIMARY)
-        };
-        if mono && !empty {
-            text = text.monospace();
-        }
-        let label = egui::Label::new(text).selectable(false);
-        ui.add(if multiline {
-            label.wrap()
-        } else {
-            label.truncate()
-        });
-    });
 }
 
 /// A "+ <label>" button of a section header, named `name` for assistive

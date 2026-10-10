@@ -850,11 +850,12 @@ impl CommandId {
                 Workspace,
                 When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
             ),
+            // Global: it also commits a mod setting being typed in.
             ExportMod => m(
                 "cmd-export-mod",
                 None,
                 const { &[sc(CMD, Key::E)] },
-                Workspace,
+                Global,
                 When(|c| c.has_project && !c.gesture_active, "reason-no-project"),
             ),
 

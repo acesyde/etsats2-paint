@@ -525,7 +525,8 @@ fn custom_trailer_added_to_a_fleet() {
     drop_files(&mut h, vec![("base.png", png(64))]);
     build(&mut h);
     assert!(matches!(h.state().modal, Some(Modal::AddVehicle(_))));
-    h.get_by_label("Add").click();
+    // The Add Vehicle dialog's, over the Game versions' + Add.
+    common::last(&h, "Add").click();
     settle(&mut h);
     let p = &ws(&h).project;
     assert_eq!(p.vehicles.len(), 2);

@@ -328,6 +328,11 @@ mod-warning-not-in-version = { $texture } : absente de cette version, exclue du 
 mod-warning-empty-one = { $texture } est vide, exportée avec la teinte du jeu
 mod-warning-empty-many = { $count } textures vides, exportées avec la teinte du jeu
 mod-export-done = Mod exporté dans { $file }
+mod-export-start = Exporter
+mod-destination = Destination
+mod-change-destination = Modifier…
+mod-export-replace-question = { $file } existe déjà. Le remplacer ?
+mod-export-replace = Remplacer
 
 ## Import from Library
 

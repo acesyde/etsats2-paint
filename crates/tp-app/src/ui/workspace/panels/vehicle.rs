@@ -7,8 +7,8 @@
 
 use egui::collapsing_header::CollapsingState;
 use egui::{
-    Align, Align2, Layout, Rect, RichText, Sense, Stroke, StrokeKind, TextEdit, Ui, Vec2,
-    WidgetInfo, WidgetType,
+    Align, Align2, Layout, Rect, RichText, Sense, Stroke, StrokeKind, Ui, Vec2, WidgetInfo,
+    WidgetType,
 };
 use tp_core::{CheckReason, Project, ProjectVehicle, TexturePart, TextureState};
 use tp_i18n::tr;
@@ -27,38 +27,127 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     vehicles_section(ui, cmds, env);
 }
 
-/// The game versions the mod is made for, committed on Enter or when the
-/// field is left (Escape restores them), with the versions every vehicle
-/// supports under it (the Project space's Mod information column).
-pub fn game_versions_field(ui: &mut Ui, env: &mut PanelEnv<'_>) {
-    use crate::game_versions::{FleetVersions, fleet, parse_list};
+/// The id of the Game versions field's text field (+ Add once clicked).
+pub fn game_versions_add_id() -> egui::Id {
+    egui::Id::new("project_game_versions_add")
+}
+
+/// The game versions the mod is made for, one chip per version with its
+/// remove button, then + Add, which turns into a short text field: Enter
+/// or leaving it adds what was typed, Escape closes it (the Project space's
+/// Mod information column). A badly written version's chip is marked. The
+/// versions every vehicle supports are shown under the chips. `focus_add`
+/// opens + Add's field with the keyboard focus (Show on a problem).
+pub fn game_versions_field(ui: &mut Ui, env: &mut PanelEnv<'_>, focus_add: bool) -> egui::Response {
+    use crate::game_versions::{FleetVersions, fleet};
+    use crate::mod_export::ModField;
     let label = tr("project-game-versions");
-    ui.label(RichText::new(&label).small().color(color::TEXT_SECONDARY));
-    let id = ui.id().with("game_versions_field");
-    let edit_id = id.with("edit");
-    let mut buffer = ui
-        .data(|d| d.get_temp::<String>(id))
-        .unwrap_or_else(|| env.ws.project.game_versions.join(", "));
-    tp_ui::widgets::remember_escape(ui, edit_id);
-    let response = ui.add(
-        TextEdit::singleline(&mut buffer)
-            .id(edit_id)
-            .hint_text("1.56.*, 1.57.*")
-            .desired_width(f32::INFINITY)
-            // As tall as the dialogs' fields.
-            .margin(egui::Margin::symmetric(10, 0))
-            .vertical_align(Align::Center)
-            .min_size(egui::vec2(0.0, crate::ui::dialogs::FIELD_HEIGHT)),
-    );
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
-    if response.has_focus() {
-        ui.data_mut(|d| d.insert_temp(id, buffer.clone()));
+    let add_id = game_versions_add_id();
+    let adding_id = add_id.with("open");
+    // The field takes the focus once shown (so that the focused widget is
+    // always in the accessibility tree).
+    let pending_id = add_id.with("focus");
+    if focus_add {
+        ui.data_mut(|d| {
+            d.insert_temp(adding_id, true);
+            d.insert_temp(pending_id, true);
+        });
     }
-    if response.lost_focus() {
-        ui.data_mut(|d| d.remove::<String>(id));
-        if !tp_ui::widgets::take_escape(ui, edit_id) {
-            env.ws.set_game_versions(parse_list(&buffer), env.now);
-        }
+    let mut adding = ui.data(|d| d.get_temp::<bool>(adding_id)).unwrap_or(false);
+    let focus_pending = ui
+        .data_mut(|d| d.remove_temp::<bool>(pending_id))
+        .unwrap_or(false);
+    let mut remove = None;
+    let mut add = None;
+    let mut open_add = false;
+    let mut close_add = false;
+    let versions = env.ws.project.game_versions.clone();
+    let field = ui
+        .vertical(|ui| {
+            ui.spacing_mut().item_spacing.y = space::XS;
+            crate::ui::dialogs::field_label(ui, &label);
+            egui::Frame::new()
+                .fill(color::FIELD)
+                .stroke(Stroke::new(1.0, color::BORDER))
+                .corner_radius(radius::MD)
+                .inner_margin(egui::Margin::same(5))
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.horizontal_wrapped(|ui| {
+                        ui.spacing_mut().item_spacing = Vec2::splat(6.0);
+                        for (i, version) in versions.iter().enumerate() {
+                            if version_chip(ui, version) {
+                                remove = Some(i);
+                            }
+                        }
+                        if adding {
+                            let had_focus = ui.memory(|m| m.has_focus(add_id));
+                            let field = crate::ui::dialogs::committed_text(
+                                ui,
+                                add_id,
+                                &label,
+                                "",
+                                crate::ui::dialogs::TextKind::Mono,
+                                "1.56.*",
+                                Some(96.0),
+                            );
+                            if let Some(text) = field.typing {
+                                env.ws.mod_draft = Some((ModField::GameVersions, text));
+                            }
+                            if field.left {
+                                close_add = true;
+                                if env
+                                    .ws
+                                    .mod_draft
+                                    .as_ref()
+                                    .is_some_and(|(f, _)| *f == ModField::GameVersions)
+                                {
+                                    env.ws.mod_draft = None;
+                                }
+                            }
+                            add = field.committed;
+                            if focus_pending {
+                                field.response.request_focus();
+                            } else if !had_focus && !field.left && !field.response.has_focus() {
+                                // Opened, but the focus went elsewhere first.
+                                close_add = true;
+                            }
+                        } else {
+                            let text = tr("project-game-versions-add");
+                            let button = ui.add(
+                                egui::Button::new((
+                                    icons::rich(icons::ADD).color(color::TEXT_SECONDARY),
+                                    RichText::new(&text).color(color::TEXT_SECONDARY),
+                                ))
+                                .frame(false)
+                                .min_size(Vec2::new(0.0, tp_ui::tokens::size::HIT_MIN)),
+                            );
+                            button.widget_info(|| {
+                                WidgetInfo::labeled(WidgetType::Button, true, &text)
+                            });
+                            if button.clicked() {
+                                open_add = true;
+                            }
+                        }
+                    });
+                });
+        })
+        .response;
+    if open_add {
+        adding = true;
+        ui.data_mut(|d| d.insert_temp(pending_id, true));
+        ui.ctx().request_repaint();
+    }
+    if close_add && !focus_add {
+        adding = false;
+    }
+    ui.data_mut(|d| d.insert_temp(adding_id, adding));
+    if let Some(text) = add {
+        env.ws
+            .commit_mod_field(ModField::GameVersions, text, env.now);
+    }
+    if let Some(i) = remove {
+        env.ws.remove_game_version(i, env.now);
     }
     let guide = match fleet(&env.ws.project) {
         FleetVersions::NoData => None,
@@ -69,9 +158,89 @@ pub fn game_versions_field(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         FleetVersions::Conflict { .. } => Some(tr("project-no-common-version")),
     };
     if let Some(text) = guide {
-        let label = ui.label(RichText::new(&text).small().color(color::TEXT_SECONDARY));
+        let label = ui.add(
+            egui::Label::new(RichText::new(&text).small().color(color::TEXT_SECONDARY))
+                .selectable(false),
+        );
         label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
     }
+    field
+}
+
+/// A game version's chip: the version in the monospace face and its
+/// remove button, named "Remove <version>"; a badly written version is
+/// outlined in the error color with a warning icon, and says why on hover.
+/// Whether its remove button was clicked.
+fn version_chip(ui: &mut Ui, version: &str) -> bool {
+    let bad = crate::game_versions::of_listed(version).is_none();
+    let ink = if bad {
+        color::ERROR
+    } else {
+        color::TEXT_PRIMARY
+    };
+    let font = egui::FontId::monospace(tp_ui::tokens::typography::MONO);
+    let text = ui.painter().layout_no_wrap(version.to_owned(), font, ink);
+    let warning = bad.then(|| {
+        ui.painter()
+            .layout_no_wrap(icons::WARNING.to_owned(), icons::font(12.0), color::ERROR)
+    });
+    let hit = tp_ui::tokens::size::HIT_MIN;
+    let pad = space::SM;
+    let lead = warning.as_ref().map_or(0.0, |w| w.size().x + space::XS);
+    let size = Vec2::new(pad + lead + text.size().x + hit - space::XS, hit);
+    let (rect, response) = ui.allocate_exact_size(size, Sense::hover());
+    let close = Rect::from_min_size(egui::pos2(rect.right() - hit, rect.top()), Vec2::splat(hit));
+    let painter = ui.painter();
+    let pill = rect.height() / 2.0;
+    painter.rect_filled(rect, pill, color::CHIP);
+    if bad {
+        painter.rect_stroke(
+            rect,
+            pill,
+            Stroke::new(1.0, color::ERROR),
+            StrokeKind::Inside,
+        );
+    }
+    let mut x = rect.left() + pad;
+    if let Some(w) = warning {
+        let y = rect.center().y - w.size().y / 2.0;
+        let width = w.size().x;
+        painter.galley(egui::pos2(x, y), w, color::ERROR);
+        x += width + space::XS;
+    }
+    let y = rect.center().y - text.size().y / 2.0;
+    painter.galley(egui::pos2(x, y), text, ink);
+    let chip = ui.interact(
+        Rect::from_min_max(rect.min, egui::pos2(close.left(), rect.bottom())),
+        response.id.with("chip"),
+        Sense::hover(),
+    );
+    chip.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, version));
+    if bad {
+        chip.on_hover_text(
+            crate::mod_export::Problem::BadGameVersion {
+                version: version.to_owned(),
+            }
+            .message(),
+        );
+    }
+    let remove = ui.interact(close, response.id.with("remove"), Sense::click());
+    let name = tr!("project-game-version-remove", version = version);
+    remove.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, &name));
+    let icon_ink = if remove.hovered() {
+        color::TEXT_PRIMARY
+    } else {
+        color::TEXT_SECONDARY
+    };
+    ui.painter().text(
+        close.center() - Vec2::new(space::XXS, 0.0),
+        Align2::CENTER_CENTER,
+        icons::CLOSE,
+        icons::font(11.0),
+        icon_ink,
+    );
+    tp_ui::widgets::paint_focus_ring(ui, close.shrink(3.0), &remove, radius::SM);
+    remove.clicked()
 }
 
 /// The fleet: a heading with Add Vehicle (+), then each vehicle with its

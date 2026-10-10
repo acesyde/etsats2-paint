@@ -118,7 +118,7 @@ fn render_screens() {
             save(&mut h, &name("brand"));
 
             h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::E);
-            wait_mod_preview(&mut h);
+            settle_dialog(&mut h);
             save(&mut h, &name("export_mod"));
             h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
             save(&mut h, &name("vehicle_library"));
@@ -193,18 +193,12 @@ fn resize_mid_drag(
     }
 }
 
-/// Steps until the open Export Mod dialog has rendered its preview.
-fn wait_mod_preview(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
-    use tp_app::state::Modal;
-    for _ in 0..400 {
+/// Steps until the open Export Mod dialog has settled in place (egui sizes
+/// and centers it over a few frames).
+fn settle_dialog(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
+    for _ in 0..8 {
         h.step();
-        let ready = matches!(&h.state().modal, Some(Modal::ExportMod(d)) if d.preview_ready());
-        if ready {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    h.step();
 }
 
 #[test]
@@ -922,28 +916,104 @@ fn render_export() {
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_mod_export() {
-    use tp_app::state::Modal;
-    for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
-        let prefs = Prefs {
-            ui_scale: scale,
-            ..Prefs::default()
-        };
-        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
-        let mut h = common::wgpu_harness_with(prefs, size);
-        common::create_project(&mut h);
-        lettering_scene(&mut h);
-        wait_for_images(&mut h);
-        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::E);
-        wait_mod_preview(&mut h);
-        save(&mut h, &format!("mod_export_{suffix}"));
-        // With problems listed, Advanced open on the internal name's.
-        if let Some(Modal::ExportMod(d)) = &mut h.state_mut().modal {
-            d.settings.name.clear();
-            d.settings.price = 0;
-            d.settings.internal_name = Some("ace_logistic".into());
+    use egui::accesskit::Role;
+    use tp_app::layout::Space;
+    use tp_i18n::Language;
+    for language in [Language::English, Language::German] {
+        for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+            let code = language.code();
+            let name = |screen: &str| format!("mod_export_{code}_{screen}_{suffix}");
+            let mut prefs = Prefs {
+                ui_scale: scale,
+                ..Prefs::default()
+            };
+            prefs.set_language(Some(language));
+            let dir = tempfile::tempdir().unwrap();
+            let documents = dir.path().join("Documents");
+            std::fs::create_dir_all(&documents).unwrap();
+            let folders = tp_app::mod_export::Folders {
+                documents: Some(documents.clone()),
+                data: Some(dir.path().join("data")),
+                home: Some(dir.path().to_path_buf()),
+            };
+
+            // The Export Mod dialog: summary, destination, buttons.
+            let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+            let mut h = common::wgpu_harness_with(prefs.clone(), size);
+            h.state_mut().mod_folders = folders.clone();
+            common::create_project(&mut h);
+            lettering_scene(&mut h);
+            wait_for_images(&mut h);
+            h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::E);
+            settle_dialog(&mut h);
+            save(&mut h, &name("dialog"));
+            // An existing file: the replace question.
+            let file = documents.join(tp_app::mod_export::suggested_name(
+                &h.state().workspace().unwrap().project.mod_settings.name,
+            ));
+            std::fs::write(&file, b"earlier export").unwrap();
+            common::last(&h, &tp_i18n::tr("mod-export-start")).click();
+            settle_dialog(&mut h);
+            save(&mut h, &name("replace"));
+            h.state_mut().modal = None;
+            // With problems listed, each with Show.
+            {
+                let ws = h.state_mut().workspace_mut().unwrap();
+                ws.project.mod_settings.name.clear();
+                ws.project.mod_settings.price = 0;
+                ws.project.mod_settings.internal_name = Some("ace_logistic".into());
+                ws.project.game_versions = vec!["1.56.x".into(), "1.57.*".into()];
+            }
+            h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::E);
+            settle_dialog(&mut h);
+            save(&mut h, &name("problems"));
+            h.state_mut().modal = None;
+
+            // The Project space's editable column, tall enough to show it
+            // whole: chips with a badly written version, problems under
+            // their fields and in Before exporting, Advanced opened by the
+            // internal name's.
+            let tall = Vec2::new(1440.0, 1760.0) * scale.max(1.0);
+            let mut h = common::wgpu_harness_with(prefs, tall);
+            h.state_mut().mod_folders = folders;
+            common::create_project(&mut h);
+            {
+                let ws = h.state_mut().workspace_mut().unwrap();
+                let s = &mut ws.project.mod_settings;
+                s.author = "Jane Doe".into();
+                s.description = "Fleet colors\nTruck and trailer".into();
+                s.price = 0;
+                s.internal_name = Some("ace_logistic".into());
+                ws.project.game_versions = vec!["1.56.*".into(), "1.56.x".into()];
+            }
+            common::show_space(&mut h, Space::Project);
+            common::settle_renders(&mut h);
+            save(&mut h, &format!("project_mod_{code}_column_{suffix}"));
+            // + Add opened.
+            h.get_by_role_and_label(Role::Button, &tp_i18n::tr("project-game-versions-add"))
+                .click();
+            h.run();
+            save(&mut h, &format!("project_mod_{code}_add_{suffix}"));
+            // Files dragged over the window, the pointer on the shop icon.
+            h.key_press(egui::Key::Escape);
+            h.run();
+            let icon = h
+                .get_by_role_and_label(Role::Image, &tp_i18n::tr("mod-icon"))
+                .rect()
+                .center();
+            h.event(egui::Event::PointerMoved(icon));
+            h.input_mut().hovered_files = vec![egui::HoveredFile {
+                path: Some("/tmp/logo.png".into()),
+                mime: String::new(),
+            }];
+            h.step();
+            h.step();
+            let image = h.render().expect("render");
+            image
+                .save(out_dir().join(format!("project_mod_{code}_drop_{suffix}.png")))
+                .unwrap();
+            h.input_mut().hovered_files.clear();
         }
-        wait_mod_preview(&mut h);
-        save(&mut h, &format!("mod_export_problems_{suffix}"));
     }
 }
 
@@ -2352,7 +2422,7 @@ fn render_texture_status() {
             save(&mut h, &format!("status_{code}_to_check_{suffix}"));
             // The Export Mod dialog's warnings.
             h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::E);
-            wait_mod_preview(&mut h);
+            settle_dialog(&mut h);
             assert!(matches!(h.state().modal, Some(Modal::ExportMod(_))));
             save(&mut h, &format!("status_{code}_export_mod_{suffix}"));
         }

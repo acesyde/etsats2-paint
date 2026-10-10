@@ -1,5 +1,6 @@
-//! Headless tests for the Export Mod dialog and the Project section's
-//! version.
+//! Headless tests for the Export Mod dialog: its summary, destination,
+//! problems (each leading to where it is fixed) and warnings, and an export
+//! that never changes the project.
 
 mod common;
 
@@ -9,10 +10,12 @@ use egui::accesskit::Role;
 use egui::{Key, Modifiers};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
+use tempfile::TempDir;
 use tp_app::AppState;
 use tp_app::commands::CommandId;
 use tp_app::file_dialogs::ScriptedDialogs;
-use tp_app::mod_export::Picture;
+use tp_app::layout::Space;
+use tp_app::mod_export::Folders;
 use tp_app::state::{Modal, is_enabled};
 use tp_app::ui::mod_export_dialog::ModExportDialog;
 use tp_app::workspace::{SaveState, Workspace};
@@ -23,10 +26,13 @@ use tp_core::kurbo::{Point, Size};
 type H = Harness<'static, AppState>;
 
 /// The sample truck project (Standard cab, Chassis, Cab accessories, Side
-/// skirts) named "ACE Logistics", with an ellipse on the Standard cab.
-fn open() -> H {
+/// skirts) named "ACE Logistics", with an ellipse on the Standard cab,
+/// shown in the Workshop. The user's folders are in `dir` (Documents,
+/// data, home), with no game mod folder.
+fn open(dir: &TempDir) -> H {
     let mut h = common::harness();
     common::create_project(&mut h);
+    h.state_mut().mod_folders = folders(dir);
     {
         let ws = ws_mut(&mut h);
         ws.project.name = "ACE Logistics".into();
@@ -41,6 +47,21 @@ fn open() -> H {
     }
     h.run();
     h
+}
+
+fn folders(dir: &TempDir) -> Folders {
+    let documents = dir.path().join("Documents");
+    std::fs::create_dir_all(&documents).unwrap();
+    Folders {
+        documents: Some(documents),
+        data: Some(dir.path().join("data")),
+        home: Some(dir.path().to_path_buf()),
+    }
+}
+
+/// Where the mods are written when the game has no mod folder.
+fn documents(dir: &TempDir) -> PathBuf {
+    dir.path().join("Documents")
 }
 
 /// Runs a few frames (background renders make `Harness::run` unusable
@@ -79,50 +100,50 @@ fn dialog(h: &H) -> Option<&ModExportDialog> {
     }
 }
 
-fn dialog_mut(h: &mut H) -> &mut ModExportDialog {
-    match &mut h.state_mut().modal {
-        Some(Modal::ExportMod(d)) => d,
-        _ => panic!("Export Mod dialog open"),
-    }
-}
-
 fn open_dialog(h: &mut H) {
     h.key_press_modifiers(Modifiers::COMMAND, Key::E);
     settle(h);
     assert!(dialog(h).is_some(), "Export Mod dialog open");
 }
 
-fn script(h: &mut H, mod_save: &[PathBuf], mod_images: &[PathBuf]) {
+fn script_save(h: &mut H, mod_save: &[PathBuf]) {
     h.state_mut().dialogs = Box::new(ScriptedDialogs {
         mod_save: mod_save.iter().cloned().collect(),
-        mod_images: mod_images.iter().cloned().collect(),
         ..Default::default()
     });
 }
 
-/// Clicks Export… and waits for the export to end.
+/// The dialog's Export button.
+fn export_button(h: &H) -> egui_kittest::Node<'_> {
+    common::last(h, "Export")
+}
+
+/// Clicks Export and waits for the export to end.
 fn export(h: &mut H) {
-    common::last(h, "Export…").click();
+    export_button(h).click();
     settle(h);
     wait_until(h, |h| dialog(h).is_none_or(|d| d.job.is_none()));
     settle(h);
 }
 
-/// Whether the Project space's Mod information column shows `value` (its
-/// values are read only: labels, not text fields).
-fn shows_field(h: &H, value: &str) -> bool {
-    h.query_all_by_label(value).count() > 0
+/// The text of the mod's manifest at `path`.
+fn manifest(path: &Path) -> String {
+    let mut zip = zip::ZipArchive::new(std::fs::File::open(path).unwrap()).unwrap();
+    let mut out = String::new();
+    std::io::Read::read_to_string(&mut zip.by_name("manifest.sii").unwrap(), &mut out).unwrap();
+    out
 }
 
-fn field_value(h: &H, name: &str) -> String {
-    h.get_by_role_and_label(Role::TextInput, name)
-        .value()
-        .unwrap_or_default()
+/// Marks the project saved.
+fn mark_saved(h: &mut H) {
+    let snapshot = ws(h).snapshot();
+    ws_mut(h).saved = Some(snapshot);
 }
 
 #[test]
 fn the_command_needs_a_texture() {
-    let mut h = open();
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
     let enabled = |h: &H| is_enabled(CommandId::ExportMod, &h.state().edit_context());
     assert!(enabled(&h));
     let now = h.ctx.input(|i| i.time);
@@ -136,28 +157,15 @@ fn the_command_needs_a_texture() {
 }
 
 #[test]
-fn defaults_and_summary() {
-    let mut h = open();
+fn opening_the_dialog() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
     open_dialog(&mut h);
-    assert_eq!(
-        dialog(&h).unwrap().settings,
-        ModSettings::for_project("ACE Logistics")
-    );
-    assert_eq!(field_value(&h, "Name"), "ACE Logistics");
     // Titled with the project's name and game.
     assert!(
         h.query_by_label("ACE Logistics · Euro Truck Simulator 2")
             .is_some()
     );
-    // The internal name is under Advanced, collapsed.
-    assert!(
-        h.query_by_role_and_label(Role::TextInput, "Internal name")
-            .is_none()
-    );
-    h.get_by_label("Advanced").click();
-    settle(&mut h);
-    // The sample truck has two main textures: 10 characters at most.
-    assert_eq!(field_value(&h, "Internal name"), "ace_logist");
     for line in [
         "Standard cab: cabins standard",
         "High roof: not painted",
@@ -165,167 +173,123 @@ fn defaults_and_summary() {
     ] {
         assert!(h.query_by_label(line).is_some(), "{line}");
     }
-    assert!(!common::last(&h, "Export…").accesskit_node().is_disabled());
-}
-
-#[test]
-fn an_empty_name_blocks_the_export() {
-    let mut h = open();
-    open_dialog(&mut h);
-    dialog_mut(&mut h).settings.name.clear();
-    settle(&mut h);
-    assert!(h.query_by_label("The mod needs a name.").is_some());
-    assert!(common::last(&h, "Export…").accesskit_node().is_disabled());
-}
-
-#[test]
-fn escape_keeps_the_project_settings() {
-    let mut h = open();
-    let undo_steps = ws(&h).history.len();
-    open_dialog(&mut h);
-    dialog_mut(&mut h).settings.price = 9000;
-    settle(&mut h);
-    h.key_press(Key::Escape);
-    settle(&mut h);
-    assert!(dialog(&h).is_none());
-    assert_eq!(ws(&h).project.mod_settings.price, 5000);
-    assert_eq!(ws(&h).history.len(), undo_steps);
-}
-
-#[test]
-fn exporting_records_the_settings_as_one_step() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("ace");
-    let mut h = open();
-    // Export works from the Project space, which shows the version.
-    common::show_space(&mut h, tp_app::layout::Space::Project);
-    common::settle_renders(&mut h);
+    let destination = documents(&dir).join("ACE Logistics.scs");
+    assert_eq!(dialog(&h).unwrap().destination, destination);
     assert!(
-        shows_field(&h, "1.0"),
-        "the Project space shows the version"
+        h.query_by_label(&destination.display().to_string())
+            .is_some()
     );
-    open_dialog(&mut h);
-    dialog_mut(&mut h).settings.version = "1.2".into();
-    settle(&mut h);
-    script(&mut h, std::slice::from_ref(&path), &[]);
-    export(&mut h);
-    assert!(dialog(&h).is_none(), "closed once written");
-    // The extension is added when the user leaves it out.
-    let written = dir.path().join("ace.scs");
-    assert!(written.is_file());
-    assert_eq!(h.state().dialogs.suggested(), ["ACE Logistics.scs"]);
-    let names: Vec<String> = zip::ZipArchive::new(std::fs::File::open(&written).unwrap())
-        .unwrap()
-        .file_names()
-        .map(str::to_owned)
-        .collect();
-    assert!(names.iter().any(|n| n == "manifest.sii"), "{names:?}");
-    assert_eq!(ws(&h).project.mod_settings.version, "1.2");
-    assert_eq!(ws(&h).history.undo_label(), Some("undo-edit-mod-settings"));
-    h.run();
-    assert!(shows_field(&h, "1.2"));
-    ws_mut(&mut h).undo();
-    h.run();
-    assert_eq!(ws(&h).project.mod_settings.version, "1.0");
-    assert!(shows_field(&h, "1.0"));
+    assert!(h.query_by_label("Destination").is_some());
+    assert!(h.query_by_label("Change…").is_some());
+    assert!(!export_button(&h).accesskit_node().is_disabled());
 }
 
 #[test]
-fn exporting_unchanged_settings_keeps_the_project_saved() {
+fn nothing_to_edit_in_the_dialog() {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("ACE Logistics.scs");
-    let mut h = open();
-    let snapshot = ws(&h).snapshot();
-    ws_mut(&mut h).saved = Some(snapshot);
-    let undo_steps = ws(&h).history.len();
+    let mut h = open(&dir);
+    // From the Workshop: no Mod information column behind the dialog.
     open_dialog(&mut h);
-    script(&mut h, std::slice::from_ref(&path), &[]);
-    export(&mut h);
-    assert!(path.is_file());
-    assert_eq!(ws(&h).save_state(), SaveState::Saved);
-    assert_eq!(ws(&h).history.len(), undo_steps);
-}
-
-/// Writes a red PNG of `w` × `h` pixels to `path`.
-fn red_png(path: &Path, w: u32, h: u32) {
-    image::RgbaImage::from_pixel(w, h, image::Rgba([255, 0, 0, 255]))
-        .save(path)
-        .unwrap();
-}
-
-#[test]
-fn choosing_an_image_updates_its_preview() {
-    let dir = tempfile::tempdir().unwrap();
-    let picture = dir.path().join("picture.png");
-    red_png(&picture, 1280, 720);
-    let mut h = open();
-    open_dialog(&mut h);
-    wait_until(&mut h, |h| dialog(h).unwrap().preview_ready());
-    script(&mut h, &[], std::slice::from_ref(&picture));
-    h.get_by_label("Choose Image…").click();
-    settle(&mut h);
-    assert!(matches!(dialog(&h).unwrap().image, Picture::File(_)));
-    assert_eq!(dialog(&h).unwrap().icon, Picture::Generated);
-    wait_until(&mut h, |h| dialog(h).unwrap().preview_ready());
-    assert!(dialog(&h).unwrap().preview_ready());
-    assert!(h.query_by_label("Use Generated Image").is_some());
-    assert!(h.query_by_label("Use Generated Icon").is_none());
-
-    // Exported, the picture becomes the project's.
-    let out = dir.path().join("ACE.scs");
-    script(&mut h, std::slice::from_ref(&out), &[]);
-    export(&mut h);
-    let project = &ws(&h).project;
-    let asset = project.mod_settings.image.expect("chosen image");
+    let fields = h
+        .query_all(egui_kittest::kittest::By::new().predicate(|n| n.role() == Role::TextInput))
+        .count();
+    assert_eq!(fields, 0, "no field");
     assert_eq!(
-        &*project.assets[&asset].bytes,
-        std::fs::read(&picture).unwrap()
+        h.query_all(egui_kittest::kittest::By::new().predicate(|n| n.role() == Role::Image))
+            .count(),
+        0,
+        "no picture"
     );
-    assert_eq!(project.mod_settings.icon, None);
-}
-
-#[test]
-fn an_unreadable_picture_is_reported() {
-    let dir = tempfile::tempdir().unwrap();
-    let bad = dir.path().join("bad.png");
-    std::fs::write(&bad, b"not an image").unwrap();
-    let mut h = open();
-    open_dialog(&mut h);
-    script(&mut h, &[], std::slice::from_ref(&bad));
-    h.get_by_label("Choose Icon…").click();
-    settle(&mut h);
-    let d = dialog(&h).unwrap();
-    assert_eq!(d.icon, Picture::Generated);
-    assert!(d.picture_error.as_deref().unwrap().contains("bad.png"));
-}
-
-#[test]
-fn advanced_opens_on_an_internal_name_problem() {
-    let mut h = open();
-    // Set while the project held only a trailer (12 characters were
-    // allowed); the truck, with two main textures, allows 10.
-    ws_mut(&mut h).project.mod_settings.internal_name = Some("ace_logistic".into());
-    open_dialog(&mut h);
-    assert!(dialog(&h).unwrap().advanced, "Advanced is open");
-    assert_eq!(field_value(&h, "Internal name"), "ace_logistic");
-    let problem = "The internal name can have at most 10 characters.";
-    let problem_top = h.get_by_label(problem).rect().top();
-    let export = common::last(&h, "Export…");
-    assert!(export.accesskit_node().is_disabled());
-    // Listed just above the buttons.
-    assert!(problem_top < export.rect().top());
-    assert!(problem_top > h.get_by_label("In the mod").rect().top());
+    // No Advanced section either.
+    assert!(h.query_by_label("Advanced").is_none());
 }
 
 #[test]
 fn export_from_the_brand_space() {
-    let mut h = open();
-    common::show_space(&mut h, tp_app::layout::Space::Brand);
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    common::show_space(&mut h, Space::Brand);
     h.run();
     h.get_by_role_and_label(Role::Button, "Export…").click();
     settle(&mut h);
     assert!(dialog(&h).is_some(), "the Export Mod dialog opens");
-    assert!(!dialog(&h).unwrap().advanced, "Advanced is collapsed");
+}
+
+#[test]
+fn from_the_project_space() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    common::show_space(&mut h, Space::Project);
+    common::settle_renders(&mut h);
+    assert!(h.query_by_label("Edit in Export Mod…").is_none());
+    h.get_by_role_and_label(Role::Button, "Export…").click();
+    settle(&mut h);
+    assert!(dialog(&h).is_some(), "the Export Mod dialog opens");
+}
+
+#[test]
+fn an_empty_name_blocks_the_export() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    ws_mut(&mut h).project.mod_settings.name.clear();
+    open_dialog(&mut h);
+    assert!(h.query_by_label("The mod needs a name.").is_some());
+    assert!(export_button(&h).accesskit_node().is_disabled());
+}
+
+#[test]
+fn a_problem_leads_to_its_field() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    ws_mut(&mut h).project.mod_settings.price = 0;
+    open_dialog(&mut h);
+    assert!(export_button(&h).accesskit_node().is_disabled());
+    h.get_by_label("Show Price").click();
+    h.run();
+    assert!(dialog(&h).is_none(), "closed");
+    assert_eq!(ws(&h).space, Space::Project);
+    assert!(
+        h.get_by_role_and_label(Role::TextInput, "Price")
+            .is_focused()
+    );
+}
+
+#[test]
+fn advanced_opens_on_an_internal_name_problem() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    // Set while the project held only a trailer (12 characters were
+    // allowed); the truck, with two main textures, allows 10.
+    ws_mut(&mut h).project.mod_settings.internal_name = Some("ace_logistic".into());
+    open_dialog(&mut h);
+    let problem = "The internal name can have at most 10 characters.";
+    let problem_top = h.get_by_label(problem).rect().top();
+    let export = export_button(&h);
+    assert!(export.accesskit_node().is_disabled());
+    // Listed just above the buttons.
+    assert!(problem_top < export.rect().top());
+    assert!(problem_top > h.get_by_label("In the mod").rect().top());
+    h.get_by_label("Show Internal name").click();
+    h.run();
+    assert!(dialog(&h).is_none(), "closed");
+    assert_eq!(ws(&h).space, Space::Project);
+    let field = h.get_by_role_and_label(Role::TextInput, "Internal name");
+    assert!(field.is_focused());
+    assert_eq!(field.value().as_deref(), Some("ace_logistic"));
+}
+
+#[test]
+fn cancel_keeps_the_settings() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    mark_saved(&mut h);
+    let undo_steps = ws(&h).history.len();
+    open_dialog(&mut h);
+    h.key_press(Key::Escape);
+    settle(&mut h);
+    assert!(dialog(&h).is_none());
+    assert_eq!(ws(&h).save_state(), SaveState::Saved);
+    assert_eq!(ws(&h).history.len(), undo_steps);
 }
 
 /// Puts a rectangle on texture `name` (it becomes Modified).
@@ -361,7 +325,8 @@ fn flag_layout_changed(h: &mut H, name: &str) {
 
 #[test]
 fn warnings_dont_block() {
-    let mut h = open();
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
     flag_layout_changed(&mut h, "Chassis");
     open_dialog(&mut h);
     // Texture to check warned, then the empty ones.
@@ -370,20 +335,227 @@ fn warnings_dont_block() {
         .get_by_label("2 textures empty, exported with the game's color")
         .rect();
     assert!(check.top() < empty.top());
-    assert!(!common::last(&h, "Export…").accesskit_node().is_disabled());
-    // A problem is listed before them, and alone disables Export….
-    dialog_mut(&mut h).settings.name.clear();
+    assert!(!export_button(&h).accesskit_node().is_disabled());
+    // A problem is listed before them, and alone disables Export.
+    ws_mut(&mut h).project.mod_settings.name.clear();
     settle(&mut h);
     let problem = h.get_by_label("The mod needs a name.").rect();
     assert!(problem.top() < h.get_by_label("Chassis: layout changed").rect().top());
-    assert!(common::last(&h, "Export…").accesskit_node().is_disabled());
+    assert!(export_button(&h).accesskit_node().is_disabled());
+}
+
+#[test]
+fn exporting_into_the_game() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    let folders = h.state().mod_folders.clone();
+    let game = tp_app::mod_export::mod_folder_in(
+        "ets2",
+        folders.documents.as_deref(),
+        folders.data.as_deref(),
+    )
+    .unwrap();
+    std::fs::create_dir_all(&game).unwrap();
+    open_dialog(&mut h);
+    let path = game.join("ACE Logistics.scs");
+    assert_eq!(dialog(&h).unwrap().destination, path);
+    export(&mut h);
+    assert!(dialog(&h).is_none(), "closed once written");
+    assert!(manifest(&path).contains("display_name: \"ACE Logistics\""));
+    assert_eq!(h.state().last_mod_folder.as_deref(), Some(game.as_path()));
+}
+
+#[test]
+fn no_game_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    // An ATS project, while only the ETS2 folder exists.
+    let folders = h.state().mod_folders.clone();
+    let ets2 = tp_app::mod_export::mod_folder_in(
+        "ets2",
+        folders.documents.as_deref(),
+        folders.data.as_deref(),
+    )
+    .unwrap();
+    std::fs::create_dir_all(&ets2).unwrap();
+    {
+        let ws = ws_mut(&mut h);
+        ws.project.vehicles[0].game = "ats".into();
+        ws.project.mod_settings.name = "Blue Line".into();
+    }
+    open_dialog(&mut h);
+    assert_eq!(
+        dialog(&h).unwrap().destination,
+        documents(&dir).join("Blue Line.scs")
+    );
+}
+
+#[test]
+fn changing_the_destination() {
+    let dir = tempfile::tempdir().unwrap();
+    let other = dir.path().join("other");
+    std::fs::create_dir_all(&other).unwrap();
+    let mut h = open(&dir);
+    open_dialog(&mut h);
+    script_save(&mut h, &[other.join("ace")]);
+    h.get_by_label("Change…").click();
+    settle(&mut h);
+    // Opened in the destination's folder, proposing its file name.
+    assert_eq!(h.state().dialogs.suggested(), ["ACE Logistics.scs"]);
+    let path = other.join("ace.scs");
+    assert_eq!(dialog(&h).unwrap().destination, path);
+    assert!(h.query_by_label(&path.display().to_string()).is_some());
+    export(&mut h);
+    assert!(path.is_file());
+    assert!(!documents(&dir).join("ACE Logistics.scs").exists());
+}
+
+#[test]
+fn cancelling_change() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    open_dialog(&mut h);
+    let before = dialog(&h).unwrap().destination.clone();
+    script_save(&mut h, &[]);
+    h.get_by_label("Change…").click();
+    settle(&mut h);
+    assert_eq!(dialog(&h).unwrap().destination, before);
+    assert!(!before.exists(), "nothing written");
+    assert_eq!(std::fs::read_dir(documents(&dir)).unwrap().count(), 0);
+}
+
+#[test]
+fn replacing_an_existing_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    let path = documents(&dir).join("ACE Logistics.scs");
+    std::fs::write(&path, b"earlier export").unwrap();
+    open_dialog(&mut h);
+    export_button(&h).click();
+    settle(&mut h);
+    let question = "ACE Logistics.scs already exists. Replace it?";
+    assert!(h.query_by_label(question).is_some());
+    // Cancel writes nothing and keeps the dialog.
+    common::last(&h, "Cancel").click();
+    settle(&mut h);
+    assert!(dialog(&h).is_some());
+    assert!(h.query_by_label(question).is_none());
+    assert_eq!(std::fs::read(&path).unwrap(), b"earlier export");
+    // Replace starts the export.
+    export_button(&h).click();
+    settle(&mut h);
+    h.get_by_label("Replace").click();
+    settle(&mut h);
+    wait_until(&mut h, |h| dialog(h).is_none_or(|d| d.job.is_none()));
+    settle(&mut h);
+    assert!(dialog(&h).is_none(), "closed once written");
+    assert!(manifest(&path).contains("ACE Logistics"));
+}
+
+#[test]
+fn replacing_an_earlier_export() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    let path = documents(&dir).join("ACE Logistics.scs");
+    open_dialog(&mut h);
+    export(&mut h);
+    assert!(manifest(&path).contains("package_version: \"1.0\""));
+    ws_mut(&mut h).project.mod_settings.version = "1.1".into();
+    open_dialog(&mut h);
+    export_button(&h).click();
+    settle(&mut h);
+    h.get_by_label("Replace").click();
+    settle(&mut h);
+    wait_until(&mut h, |h| dialog(h).is_none_or(|d| d.job.is_none()));
+    settle(&mut h);
+    assert!(manifest(&path).contains("package_version: \"1.1\""));
+    // Written whole: no temporary file left beside it.
+    assert_eq!(std::fs::read_dir(documents(&dir)).unwrap().count(), 1);
+}
+
+#[test]
+fn a_file_confirmed_by_the_save_dialog_isnt_asked_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    let path = dir.path().join("ace.scs");
+    std::fs::write(&path, b"earlier export").unwrap();
+    open_dialog(&mut h);
+    script_save(&mut h, std::slice::from_ref(&path));
+    h.get_by_label("Change…").click();
+    settle(&mut h);
+    export(&mut h);
+    assert!(dialog(&h).is_none(), "written without asking");
+    assert!(manifest(&path).contains("ACE Logistics"));
+}
+
+#[test]
+fn export_of_a_saved_project_with_unchanged_settings() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    mark_saved(&mut h);
+    let undo_steps = ws(&h).history.len();
+    open_dialog(&mut h);
+    export(&mut h);
+    assert!(documents(&dir).join("ACE Logistics.scs").is_file());
+    assert_eq!(ws(&h).save_state(), SaveState::Saved);
+    assert_eq!(ws(&h).history.len(), undo_steps);
+}
+
+/// Commits `version` in the Project space's Version field.
+fn commit_version(h: &mut H, version: &str) {
+    common::show_space(h, Space::Project);
+    common::settle_renders(h);
+    h.get_by_role_and_label(Role::TextInput, "Version").focus();
+    h.run();
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.get_by_role_and_label(Role::TextInput, "Version")
+        .type_text(version);
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+}
+
+#[test]
+fn exporting_records_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    commit_version(&mut h, "1.1");
+    let steps = ws(&h).history.len();
+    open_dialog(&mut h);
+    export(&mut h);
+    assert_eq!(ws(&h).history.len(), steps);
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-edit-mod-settings"));
+    ws_mut(&mut h).undo();
+    h.run();
+    assert_eq!(ws(&h).project.mod_settings.version, "1.0");
+}
+
+#[test]
+fn undo_the_settings() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    commit_version(&mut h, "1.1");
+    open_dialog(&mut h);
+    export(&mut h);
+    let path = documents(&dir).join("ACE Logistics.scs");
+    let written = std::fs::read(&path).unwrap();
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run();
+    assert_eq!(ws(&h).project.mod_settings.version, "1.0");
+    assert_eq!(
+        h.get_by_role_and_label(Role::TextInput, "Version")
+            .value()
+            .as_deref(),
+        Some("1.0")
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), written, "file unchanged");
+    assert!(manifest(&path).contains("package_version: \"1.1\""));
 }
 
 #[test]
 fn empty_textures_warned_and_exported_transparent() {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("ace.scs");
-    let mut h = open();
+    let mut h = open(&dir);
     draw(&mut h, "Chassis");
     draw(&mut h, "Cab accessories");
     h.run();
@@ -392,9 +564,9 @@ fn empty_textures_warned_and_exported_transparent() {
         h.query_by_label("Side skirts is empty, exported with the game's color")
             .is_some()
     );
-    script(&mut h, std::slice::from_ref(&path), &[]);
     export(&mut h);
     assert!(dialog(&h).is_none(), "exported");
+    let path = documents(&dir).join("ACE Logistics.scs");
     let mut archive = zip::ZipArchive::new(std::fs::File::open(&path).unwrap()).unwrap();
     let name = archive
         .file_names()
