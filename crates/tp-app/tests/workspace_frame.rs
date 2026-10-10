@@ -1,11 +1,11 @@
 //! Headless tests for the frame of an open project: the spaces, the top bar
-//! with its breadcrumb and Export…, the tool rail, the tool options bar, the
+//! with Export…, the breadcrumb, the tool rail, the tool options bar, the
 //! left panel and the inspector, focus mode and the status bar.
 
 mod common;
 
 use egui::accesskit::{Role, Toggled};
-use egui::{Event, Key, Modifiers, PointerButton, Pos2, Vec2};
+use egui::{Event, Key, Modifiers, PointerButton, Pos2, Vec2, ViewportCommand};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use tp_app::AppState;
@@ -70,9 +70,10 @@ fn toggled(h: &H, role: Role, label: &str) -> bool {
         == Some(Toggled::True)
 }
 
-/// Whether the breadcrumb (top bar and canvas) reads `text`.
+/// Whether the breadcrumb reads `text`: it is in the canvas only, not in
+/// the top bar.
 fn breadcrumb(h: &H, text: &str) -> bool {
-    h.query_all_by_label(text).count() == 2
+    h.query_all_by_label(text).count() == 1
 }
 
 /// Presses at `from`, drags to `to` over a few frames and releases.
@@ -213,25 +214,45 @@ fn the_switcher_shows_a_space() {
 
 // --- Top bar, Export…, breadcrumb ---------------------------------------------
 
+/// workspace-spaces: Name and game (on macOS, where the top bar is the
+/// window's title strip).
 #[test]
 fn top_bar_names_the_project_and_its_game() {
     let mut h = open();
+    h.state_mut().macos = true;
     ws_mut(&mut h).project.name = "ACE Logistics".into();
+    let mut titles = Vec::new();
+    for _ in 0..4 {
+        h.step();
+        titles.extend(
+            common::viewport_commands(&h)
+                .into_iter()
+                .filter_map(|c| match c {
+                    ViewportCommand::Title(t) => Some(t),
+                    _ => None,
+                }),
+        );
+    }
     h.run();
+    assert_eq!(titles, ["ACE Logistics — TruckPaint"]);
     let name = h.get_by_label("ACE Logistics").rect();
     let badge = h.get_by_label("ETS2").rect();
     assert!(name.right() <= badge.left());
-    assert!(name.bottom() <= size::MENU_BAR_HEIGHT + size::TOP_BAR_HEIGHT + 1.0);
+    // In the title strip, after the traffic lights.
+    assert!(name.bottom() <= size::TOP_BAR_HEIGHT, "{name:?}");
+    assert!(
+        name.left() >= tp_app::title_bar::TRAFFIC_LIGHTS_WIDTH,
+        "{name:?}"
+    );
 }
 
 #[test]
 fn a_long_name_is_shortened_and_the_controls_stay_whole() {
+    let mut state = AppState::with_prefs(tp_app::prefs::Prefs::default(), None);
+    state.macos = true;
     let mut h = common::builder()
         .with_size(Vec2::new(900.0, 700.0))
-        .build_ui_state(
-            |ui, state: &mut AppState| state.show(ui),
-            AppState::with_prefs(tp_app::prefs::Prefs::default(), None),
-        );
+        .build_ui_state(|ui, state: &mut AppState| state.show(ui), state);
     common::create_project(&mut h);
     let long = "ACE Logistics International Heavy Haulage and Refrigerated Transport";
     ws_mut(&mut h).project.name = long.into();

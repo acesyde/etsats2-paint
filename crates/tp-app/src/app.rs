@@ -1,21 +1,22 @@
 //! eframe integration.
 
-use crate::prefs::PrefsStore;
 use crate::state::AppState;
 
 pub struct TruckPaintApp {
     pub state: AppState,
+    /// The menus in the macOS menu bar.
+    #[cfg(target_os = "macos")]
+    native_menu: crate::native_menu::NativeMenu,
 }
 
 impl TruckPaintApp {
     pub fn new(
         cc: &eframe::CreationContext<'_>,
-        store: Option<PrefsStore>,
+        mut state: AppState,
         recovery_dir: Option<std::path::PathBuf>,
         vehicles_dir: Option<std::path::PathBuf>,
         library_path: Option<std::path::PathBuf>,
     ) -> Self {
-        let mut state = AppState::new(store);
         state.library = crate::library::LibraryStore::new(library_path);
         if let Some(dir) = vehicles_dir {
             state.vehicles = crate::vehicles::VehicleLibrary::open(&dir);
@@ -28,13 +29,34 @@ impl TruckPaintApp {
             state.enable_recovery(&dir);
         }
         state.install_theme(&cc.egui_ctx);
-        Self { state }
+        #[cfg(target_os = "macos")]
+        let native_menu = {
+            // Built in the interface language, before the first frame sets it.
+            tp_i18n::set_language(state.language());
+            let menu = crate::native_menu::NativeMenu::install(&cc.egui_ctx, state.language());
+            state.native_menu_installed = true;
+            menu
+        };
+        Self {
+            state,
+            #[cfg(target_os = "macos")]
+            native_menu,
+        }
     }
 }
 
 impl eframe::App for TruckPaintApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.state.show(ui);
+        #[cfg(target_os = "macos")]
+        self.native_menu.sync(ui.ctx(), &self.state);
+    }
+
+    /// The macOS menu bar's clicks and keys join the frame's input.
+    #[cfg(target_os = "macos")]
+    fn raw_input_hook(&mut self, _ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        self.native_menu
+            .take_input(raw_input, &mut self.state.queue);
     }
 
     fn on_exit(&mut self) {

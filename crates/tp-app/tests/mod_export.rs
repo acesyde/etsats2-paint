@@ -580,3 +580,15 @@ fn empty_textures_warned_and_exported_transparent() {
     texpresso::Format::Bc3.decompress(&bytes[128..144], 4, 4, &mut pixels);
     assert!(pixels.chunks(4).all(|p| p[3] == 0), "{pixels:?}");
 }
+
+/// mod-export: File › Export Mod… opens the dialog.
+#[test]
+fn opened_from_the_file_menu() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    h.get_by_label("File").click();
+    h.run();
+    h.get_by_label("Export Mod…").click();
+    settle(&mut h);
+    assert!(dialog(&h).is_some(), "Export Mod dialog open");
+}

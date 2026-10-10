@@ -18,6 +18,7 @@ pub use crate::project_io::PendingAction;
 use crate::recovery::{Recovered, RecoveryStore};
 use crate::saver::Saver;
 use crate::text_engine::TextEngine;
+use crate::title_bar::{TitleBarMode, title_bar_mode};
 use crate::tool::Tool;
 use crate::ui;
 use crate::viewport::Viewport;
@@ -207,6 +208,19 @@ pub struct AppState {
     pub mod_folders: crate::mod_export::Folders,
     /// The personal library of symbols, swatches and styles.
     pub library: crate::library::LibraryStore,
+    /// The platform is macOS (`new` reads it; tests set it to draw either
+    /// title bar on any system).
+    pub macos: bool,
+    /// `TRUCKPAINT_SYSTEM_TITLE_BAR=1` was set at startup.
+    pub force_system_title_bar: bool,
+    /// The menus are in the macOS menu bar, so the window draws no menu
+    /// row.
+    pub native_menu_installed: bool,
+    /// What a double-click on the title bar does (the system's setting).
+    pub double_click: crate::title_bar::DoubleClickAction,
+    /// The title bar mode of the last frame, to switch the window's frame
+    /// when it changes.
+    shown_title_bar_mode: Option<TitleBarMode>,
 }
 
 impl AppState {
@@ -225,6 +239,9 @@ impl AppState {
         let mut state = Self::with_prefs(prefs, store);
         state.system_fonts = true;
         state.dialogs = Box::new(NativeDialogs);
+        state.macos = cfg!(target_os = "macos");
+        state.force_system_title_bar = crate::title_bar::forced_by_environment();
+        state.double_click = crate::title_bar::DoubleClickAction::of_system();
         state
     }
 
@@ -268,6 +285,11 @@ impl AppState {
             mod_folders: crate::mod_export::Folders::of_user(),
             // In memory; `TruckPaintApp::new` gives it its file.
             library: crate::library::LibraryStore::default(),
+            macos: false,
+            force_system_title_bar: false,
+            native_menu_installed: false,
+            double_click: Default::default(),
+            shown_title_bar_mode: None,
         };
         state.refresh_recent_availability();
         state
@@ -435,6 +457,44 @@ impl AppState {
         }
     }
 
+    /// How the top of the window is drawn: the platform's, the
+    /// preference's or the environment's choice.
+    pub fn title_bar_mode(&self) -> TitleBarMode {
+        title_bar_mode(
+            self.macos,
+            self.prefs.system_title_bar,
+            self.force_system_title_bar,
+        )
+    }
+
+    /// Whether the window draws the menus as a row: with the system title
+    /// bar, and on macOS until the menus are in the menu bar (the drawn
+    /// title bar holds them).
+    pub fn draws_menu_row(&self) -> bool {
+        match self.title_bar_mode() {
+            TitleBarMode::MacNative => !self.native_menu_installed,
+            TitleBarMode::Drawn => false,
+            TitleBarMode::System => true,
+        }
+    }
+
+    /// Gives the window its system frame or takes it away when the mode
+    /// changes between the drawn and the system title bar (the preference
+    /// was toggled); the window opened with the right one.
+    fn sync_decorations(&mut self, ctx: &egui::Context) {
+        let mode = self.title_bar_mode();
+        let shown = self.shown_title_bar_mode.replace(mode);
+        if let Some(shown) = shown
+            && shown != mode
+            && shown != TitleBarMode::MacNative
+            && mode != TitleBarMode::MacNative
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Decorations(
+                mode == TitleBarMode::System,
+            ));
+        }
+    }
+
     /// The interface language: the user's choice, else the system's.
     pub fn language(&self) -> tp_i18n::Language {
         self.prefs.language().unwrap_or(self.system_language)
@@ -481,6 +541,9 @@ impl AppState {
         if self.show_gallery {
             ui::gallery::show(&ctx, &mut self.show_gallery);
         }
+        if self.title_bar_mode() == TitleBarMode::Drawn {
+            ui::title_bar::resize_grips(&ctx);
+        }
 
         for id in std::mem::take(&mut self.queue) {
             self.dispatch(&ctx, id);
@@ -489,6 +552,7 @@ impl AppState {
         self.flush_recent_color(&ctx);
         self.text_focus_last_frame = ctx.text_edit_focused();
         self.sync_title(&ctx);
+        self.sync_decorations(&ctx);
         let now = ctx.input(|i| i.time);
         self.persist_prefs(now, false);
         if self.prefs_changed_at.is_some() {

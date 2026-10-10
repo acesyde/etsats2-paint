@@ -270,10 +270,9 @@ None at the moment.
 | # | Change | What it does | Why now |
 |---|---|---|---|
 | 2 | `polishing` | Fixes, ergonomics, wording and performance across the app, with no new feature. | Smooths what the first players will meet, on the new design. |
-| 2e | `title-bar-menus` | Menus in the title bar on Windows and Linux, the system menu bar on macOS. Starts with a spike. | Gives the canvas the menu bar's row back. |
 | 2f | `drop-shadow` | Drop shadow as an appearance property. A new feature, optional and low priority. | Common on livery lettering. |
 | 3 | `paintjob-importer` | Prefills the game data of a custom vehicle (game path, cabin internal names, accessory ids) from Paintjob Packer's database. | Custom vehicle asks for game data most players don't know. |
-| 4 | `distribution` | Release builds and installers. | A player can go from vehicle to mod without building the app. |
+| 4 | `distribution` | Release builds and installers. Includes a macOS `.app` bundle (so the app menu's bold name reads "TruckPaint", not the binary's name), and the manual checks of the drawn title bar on Windows, Linux X11 and Wayland (moving, double-click, resize grips, window controls, menus, the system title bar option and `TRUCKPAINT_SYSTEM_TITLE_BAR=1`). | A player can go from vehicle to mod without building the app. |
 | 5 | `marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once players have the app and can make packages easily. |
 | 5a | `template-update-impact` | A template update says what it changes and which projects it touches; affected textures become "to check" and affected objects are flagged. Nothing moves automatically. Works with local packages too; builds on the To check state of `texture-status` (shipped). | Updates become frequent once packages come from the marketplace. |
 | 5b | `first-run` | A three-step first launch: language and game, vehicles to install from the catalog, first project. | Needs the marketplace catalog. |
@@ -282,6 +281,18 @@ None at the moment.
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `title-bar-menus` (under `polishing`): one 40 px bar at the top of the
+  window. On macOS the menus are in the system menu bar (with the app menu:
+  About, Settings…, Hide, Quit) and the top bar sits in the window's
+  title strip after the traffic lights; the app menu's bold name reads
+  "TruckPaint" only from a `.app` bundle, which `distribution` will make.
+  On Windows and Linux the app draws the title bar: the TruckPaint mark,
+  the menus, the space switcher (centered when it fits), Export… and the
+  window controls, with moving, double-click and resize grips; Preferences
+  has a Use the system title bar option (applied live), and
+  `TRUCKPAINT_SYSTEM_TITLE_BAR=1` forces it as a rescue. The Export items
+  are under File, and the breadcrumb is only in the canvas. Windows' Snap
+  Layouts flyout and vertically centered traffic lights are left out;
 - `brand-edit-preview` (under `polishing`): the Brand space's cards say
   where each element is used (textures and objects for swatches and styles,
   instances and textures for symbols, Unused otherwise); Edit Swatch… and

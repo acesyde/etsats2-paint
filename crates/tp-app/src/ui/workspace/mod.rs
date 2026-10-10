@@ -1,4 +1,5 @@
-//! Editor workspace: the menu bar, the top bar and the status bar shared by
+//! Editor workspace: the title bar or the menu row and the top bar, and the
+//! status bar, shared by
 //! the three spaces, and each space's content. The Workshop is the tool
 //! options bar, the tool rail, the left panel, the canvas area and the
 //! inspector.
@@ -19,13 +20,32 @@ use egui::{CentralPanel, Frame, Margin, Panel, Ui};
 use tp_ui::tokens::{color, size, space};
 
 use super::home::bar_frame;
-use super::{CommandUi, menu_bar};
+use super::{CommandUi, menu_bar, title_bar};
 use crate::layout::Space;
 use crate::state::{AppState, Screen};
+use crate::title_bar::{TRAFFIC_LIGHTS_WIDTH, TitleBarMode};
+
+/// Margins of the top bar: on macOS its left keeps the traffic lights free.
+pub fn top_bar_margin(ctx: &egui::Context, mode: TitleBarMode) -> Margin {
+    let mut margin = Margin::symmetric(space::MD as i8, 0);
+    if mode == TitleBarMode::MacNative {
+        margin.left = traffic_lights_inset(ctx) as i8;
+    }
+    margin
+}
+
+/// Width of the traffic lights in points (they keep their native size
+/// whatever the UI scale).
+pub fn traffic_lights_inset(ctx: &egui::Context) -> f32 {
+    (TRAFFIC_LIGHTS_WIDTH / ctx.zoom_factor()).round()
+}
 
 pub fn show(ui: &mut Ui, state: &mut AppState) {
     let ctx = ui.ctx().clone();
     let edit = state.edit_context();
+    let mode = state.title_bar_mode();
+    let menu_row = state.draws_menu_row();
+    let double_click = state.double_click;
     let AppState {
         prefs,
         queue,
@@ -56,14 +76,36 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         ws.commit_mod_draft(now);
     }
 
-    Panel::top("menu_bar")
-        .frame(bar_frame())
-        .show(ui, |ui| menu_bar::show(ui, &mut cmds, Some(layout), aids));
-
-    Panel::top("top_bar")
-        .exact_size(size::TOP_BAR_HEIGHT)
-        .frame(bar_frame().inner_margin(Margin::symmetric(space::MD as i8, 0)))
-        .show(ui, |ui| top_bar::show(ui, &mut cmds, ws));
+    // On macOS the top bar is the window's title strip, then the menu row
+    // until the menus are in the menu bar; with the drawn title bar it holds
+    // the menus, the switcher and Export…; with the system title bar the
+    // menu row comes first.
+    let mac = mode == TitleBarMode::MacNative;
+    if mode == TitleBarMode::Drawn {
+        Panel::top("title_bar")
+            .exact_size(size::TOP_BAR_HEIGHT)
+            .frame(bar_frame().inner_margin(Margin::ZERO))
+            .show(ui, |ui| {
+                title_bar::show(ui, &mut cmds, Some(space), Some(layout), aids)
+            });
+    } else {
+        if menu_row && !mac {
+            Panel::top("menu_bar")
+                .frame(bar_frame())
+                .show(ui, |ui| menu_bar::show(ui, &mut cmds, Some(layout), aids));
+        }
+        Panel::top("top_bar")
+            .exact_size(size::TOP_BAR_HEIGHT)
+            .frame(bar_frame().inner_margin(top_bar_margin(&ctx, mode)))
+            .show(ui, |ui| {
+                top_bar::show(ui, &mut cmds, ws, mode, double_click)
+            });
+        if menu_row && mac {
+            Panel::top("menu_bar")
+                .frame(bar_frame())
+                .show(ui, |ui| menu_bar::show(ui, &mut cmds, Some(layout), aids));
+        }
+    }
 
     Panel::bottom("status_bar")
         .exact_size(size::STATUS_BAR_HEIGHT)

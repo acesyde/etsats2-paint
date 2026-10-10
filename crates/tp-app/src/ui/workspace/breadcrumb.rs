@@ -1,6 +1,7 @@
 //! The breadcrumb of the Workshop: `<vehicle> › Main textures|Accessories ›
 //! <texture>` with the texture's size, or `Symbol › <name>` while a symbol
-//! is edited. Shown in the top bar and inlaid on the canvas.
+//! is edited. Inlaid on the canvas; the command palette names textures
+//! with it.
 
 use egui::text::{LayoutJob, TextFormat};
 use egui::{Color32, CornerRadius, FontId, Label, Rect, Sense, Stroke, StrokeKind, Ui};
@@ -110,12 +111,6 @@ impl Crumbs {
         job.wrap.break_anywhere = true;
         job
     }
-}
-
-/// The breadcrumb as a label, shortened with an ellipsis when it does not
-/// fit and shown in full on hover.
-pub fn label(ui: &mut Ui, crumbs: &Crumbs) -> egui::Response {
-    label_job(ui, crumbs, false)
 }
 
 fn label_job(ui: &mut Ui, crumbs: &Crumbs, compact: bool) -> egui::Response {

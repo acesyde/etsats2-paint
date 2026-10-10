@@ -199,3 +199,13 @@ pub fn open_line_settings(harness: &mut Harness<'static, AppState>) {
         harness.run();
     }
 }
+
+/// The window commands (`ViewportCommand`) the last frame sent.
+pub fn viewport_commands(harness: &Harness<'static, AppState>) -> Vec<egui::ViewportCommand> {
+    harness
+        .output()
+        .viewport_output
+        .get(&egui::ViewportId::ROOT)
+        .map(|o| o.commands.clone())
+        .unwrap_or_default()
+}

@@ -133,8 +133,9 @@ pub mod size {
     /// Width of the Workshop's tool rail.
     pub const TOOL_RAIL_WIDTH: f32 = 48.0;
     pub const MENU_BAR_HEIGHT: f32 = 30.0;
-    /// Height of the top bar of an open project (name, spaces, Export…).
-    pub const TOP_BAR_HEIGHT: f32 = 44.0;
+    /// Height of the top bar of an open project (name, spaces, Export…),
+    /// merged with the window's title bar.
+    pub const TOP_BAR_HEIGHT: f32 = 40.0;
     /// Height of the Workshop's tool options bar.
     pub const TOOL_OPTIONS_HEIGHT: f32 = 36.0;
     pub const STATUS_BAR_HEIGHT: f32 = 28.0;

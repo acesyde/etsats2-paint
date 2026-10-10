@@ -1,4 +1,4 @@
-//! Application menu bar (File, Edit, Object, Layer, View, Vehicle, Export, Help).
+//! Application menu bar (File, Edit, Object, Layer, View, Vehicle, Help).
 
 use egui::Ui;
 use tp_i18n::tr;
@@ -10,14 +10,13 @@ use crate::layout::WorkspaceLayout;
 use crate::menus::{self, Entry};
 
 /// Menu titles, in order (the titles of [`menus::menus`]).
-pub const MENUS: [&str; 8] = [
+pub const MENUS: [&str; 7] = [
     "menu-file",
     "menu-edit",
     "menu-object",
     "menu-layer",
     "menu-view",
     "menu-vehicle",
-    "menu-export",
     "menu-help",
 ];
 
@@ -37,14 +36,24 @@ pub fn show(
         )
         .on_hover_text(crate::paths::APP_NAME);
         ui.add_space(space::XS);
-
-        for menu in menus::menus() {
-            ui.menu_button(tr(menu.title), |ui| {
-                ui.set_min_width(menus::MENU_MIN_WIDTH);
-                menu_contents(ui, cmds, &menu.entries, layout, aids);
-            });
-        }
+        menu_buttons(ui, cmds, layout, aids);
     });
+}
+
+/// The menus' buttons, each opening its menu, inside an
+/// [`egui::MenuBar`] (the menu row, or the drawn title bar).
+pub fn menu_buttons(
+    ui: &mut Ui,
+    cmds: &mut CommandUi<'_>,
+    layout: Option<&WorkspaceLayout>,
+    aids: crate::prefs::ViewAids,
+) {
+    for menu in menus::menus() {
+        ui.menu_button(tr(menu.title), |ui| {
+            ui.set_min_width(menus::MENU_MIN_WIDTH);
+            menu_contents(ui, cmds, &menu.entries, layout, aids);
+        });
+    }
 }
 
 /// Draws `entries` of a menu: items, toggles with their check mark,

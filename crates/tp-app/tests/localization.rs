@@ -224,11 +224,12 @@ fn german_menu_bar() {
         "Ebene",
         "Ansicht",
         "Fahrzeug",
-        "Exportieren",
         "Hilfe",
     ] {
         assert!(h.query_by_label(title).is_some(), "{title}");
     }
+    // No Export menu.
+    assert!(h.query_by_label("Exportieren").is_none());
 }
 
 #[test]

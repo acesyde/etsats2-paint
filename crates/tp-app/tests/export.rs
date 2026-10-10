@@ -220,3 +220,15 @@ fn dds_export_has_mipmaps() {
     assert_eq!(&bytes[84..88], b"DXT5");
     assert_eq!(u32::from_le_bytes(bytes[28..32].try_into().unwrap()), 11);
 }
+
+/// workspace-layout / texture-export: File › Export Texture… opens the
+/// dialog.
+#[test]
+fn opened_from_the_file_menu() {
+    let mut h = open();
+    h.get_by_label("File").click();
+    h.run();
+    h.get_by_label("Export Texture…").click();
+    settle(&mut h);
+    assert!(dialog(&h).is_some(), "export dialog open");
+}

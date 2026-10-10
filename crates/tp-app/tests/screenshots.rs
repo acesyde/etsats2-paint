@@ -29,8 +29,9 @@ fn save(harness: &mut egui_kittest::Harness<'static, tp_app::AppState>, name: &s
 /// The screens of the "TruckPaint 5" mockup: home, New Project, the three
 /// spaces (the Workshop with nothing selected, with a text selected, and
 /// its left tabs), the Export Mod dialog and the Vehicle Library, in English
-/// and German (the longest labels) at 100 % and 200 %. Files are named
-/// `screen_<language>_<screen>_<scale>.png`.
+/// and German (the longest labels) at 100 % and 200 %, as on macOS (the
+/// menus in the system menu bar, the top bar in the title strip). Files are
+/// named `screen_<language>_<screen>_<scale>.png`.
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_screens() {
@@ -70,6 +71,7 @@ fn render_screens() {
             ];
             let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
             let mut h = common::wgpu_harness_with(prefs, size);
+            mac_native(&mut h);
             save(&mut h, &name("home"));
 
             h.get_by_label(&tp_i18n::tr("home-new-project")).click();
@@ -163,6 +165,117 @@ fn render_screens() {
     h.get_by_label("Edit").click();
     h.run();
     save(&mut h, "menu_edit");
+}
+
+/// The window as on macOS once the menus are in the system menu bar: no
+/// menu row, the top bar in the title strip after the traffic lights.
+fn mac_native(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
+    h.state_mut().macos = true;
+    h.state_mut().native_menu_installed = true;
+}
+
+/// The top of the window on Windows and Linux: the drawn title bar (home
+/// screen, Project space, the Workshop with the Object menu open, as
+/// artboard 05) and the system title bar with the menu row, in English and
+/// German at 100 % and 200 %; then, at 960 px wide in German, the drawn bar
+/// and the macOS top bar. Files are named
+/// `title_bar_<language>_<mode>_<screen>_<scale>.png`.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_title_bars() {
+    use tp_app::layout::Space;
+    use tp_i18n::Language;
+    for language in [Language::English, Language::German] {
+        for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+            let code = language.code();
+            let name = |screen: &str| format!("title_bar_{code}_{screen}_{suffix}");
+            let mut prefs = Prefs {
+                ui_scale: scale,
+                ..Prefs::default()
+            };
+            prefs.set_language(Some(language));
+            let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+            for system in [false, true] {
+                let mode = if system { "system" } else { "drawn" };
+                let mut h = common::wgpu_harness_with(
+                    Prefs {
+                        system_title_bar: system,
+                        ..prefs.clone()
+                    },
+                    size,
+                );
+                save(&mut h, &name(&format!("{mode}_home")));
+                title_bar_project(&mut h);
+                common::show_space(&mut h, Space::Project);
+                save(&mut h, &name(&format!("{mode}_project")));
+                common::show_space(&mut h, Space::Workshop);
+                save(&mut h, &name(&format!("{mode}_workshop")));
+                open_menu(&mut h, "menu-object");
+                save(&mut h, &name(&format!("{mode}_workshop_object")));
+            }
+        }
+    }
+
+    // German at 960 px: every label whole.
+    let mut prefs = Prefs::default();
+    prefs.set_language(Some(Language::German));
+    for mac in [false, true] {
+        let mode = if mac { "mac" } else { "drawn" };
+        let mut h = common::wgpu_harness_with(prefs.clone(), Vec2::new(960.0, 700.0));
+        if mac {
+            mac_native(&mut h);
+        }
+        title_bar_project(&mut h);
+        for space in [Space::Project, Space::Workshop, Space::Brand] {
+            common::show_space(&mut h, space);
+            let screen = format!("{space:?}").to_lowercase();
+            save(&mut h, &format!("title_bar_de_{mode}_{screen}_960"));
+        }
+    }
+}
+
+/// The long-text check of the top of the window: every interface text 40 %
+/// longer, at the default window size, in the drawn title bar (home screen,
+/// Workshop, the Object menu open), the macOS top bar and the system title
+/// bar's menu row.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_title_bars_long_text() {
+    tp_i18n::set_lengthening(40);
+    for mode in ["drawn", "mac", "system"] {
+        let prefs = Prefs {
+            system_title_bar: mode == "system",
+            ..Prefs::default()
+        };
+        let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
+        if mode == "mac" {
+            mac_native(&mut h);
+        }
+        save(&mut h, &format!("title_bar_long_{mode}_home"));
+        title_bar_project(&mut h);
+        save(&mut h, &format!("title_bar_long_{mode}_workshop"));
+        if mode != "mac" {
+            open_menu(&mut h, "menu-object");
+            save(&mut h, &format!("title_bar_long_{mode}_workshop_object"));
+        }
+    }
+    tp_i18n::set_lengthening(0);
+}
+
+/// Opens the sample project, named "ACE Logistics", with the demo scene,
+/// in the Workshop.
+fn title_bar_project(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
+    common::create_project(h);
+    h.state_mut().workspace_mut().unwrap().project.name = "ACE Logistics".into();
+    demo_scene(h);
+    h.run();
+}
+
+/// Opens the menu titled with the text of `key`.
+fn open_menu(h: &mut egui_kittest::Harness<'static, tp_app::AppState>, key: &str) {
+    h.get_by_role_and_label(egui::accesskit::Role::Button, &tp_i18n::tr(key))
+        .click();
+    h.run();
 }
 
 /// Presses at document point `at` (a selection handle) and drags by `by`
