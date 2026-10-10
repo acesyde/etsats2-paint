@@ -10,16 +10,18 @@
 
 use egui::{
     Align, Align2, CentralPanel, CornerRadius, Frame, Id, Layout, Margin, Panel, Rect, Response,
-    RichText, ScrollArea, Sense, Stroke, Ui, UiBuilder, Vec2, WidgetInfo, WidgetType,
+    RichText, ScrollArea, Sense, Ui, UiBuilder, Vec2, WidgetInfo, WidgetType,
 };
-use tp_core::document::{Paint, StyleId};
+use tp_core::document::StyleId;
 use tp_core::{Asset, Look};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, radius, space, typography};
 use tp_ui::widgets::{IconButton, paint_checkerboard, paint_focus_ring};
 
+use super::super::brand_editor::paint_look;
 use super::super::panels::{self, PanelEnv, assets, colors, styles, symbols};
+use crate::brand_ops::{BrandEditTarget, symbol_usage_label, usage_label};
 use crate::commands::CommandId;
 use crate::layout::Space;
 use crate::state::disabled_reason_for;
@@ -29,6 +31,8 @@ use crate::ui::CommandUi;
 const INDEX_WIDTH: f32 = 220.0;
 /// Height of a card's text area (title and detail).
 const CARD_TEXT: f32 = 56.0;
+/// Height of a palette card's text area (name, hex value and usage).
+const PALETTE_TEXT: f32 = 72.0;
 /// Height of a palette card's color block.
 const PALETTE_BLOCK: f32 = 96.0;
 /// Padding of a card's text area.
@@ -75,6 +79,11 @@ impl Section {
     }
 }
 
+/// What the open before/after editor edits, if any.
+fn edited(env: &PanelEnv<'_>) -> Option<BrandEditTarget> {
+    env.ws.panels.brand_edit.as_ref().map(|e| e.target)
+}
+
 /// The entry of the index marked as the current one.
 fn current_id() -> Id {
     Id::new("brand_current_section")
@@ -95,6 +104,7 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
                 .inner_margin(Margin::symmetric(10, space::LG as i8)),
         )
         .show(ui, |ui| index(ui, env));
+    super::super::brand_editor::panel(ui, env);
     CentralPanel::no_frame()
         .frame(Frame::new().fill(color::SURFACE_0))
         .show(ui, |ui| {
@@ -216,26 +226,35 @@ fn hint(ui: &mut Ui, text: &str) {
     ui.add(egui::Label::new(RichText::new(text).color(color::TEXT_SECONDARY)).wrap());
 }
 
+/// How a card is marked.
+#[derive(Clone, Copy, Default)]
+struct Marks {
+    /// Outlined (a style the selection follows, the symbol being edited).
+    outlined: bool,
+    /// Filled as selected: the element the before/after editor edits.
+    edited: bool,
+}
+
 /// A card of `width` with a preview area `preview` high over its text
-/// area, named `label` for assistive technologies, which also read its
-/// `detail`; returns its response (hover, context menu), the preview's and
-/// the text area's rectangles.
+/// area `text` high, named `label` for assistive technologies, which also
+/// read its `detail`; returns its response (hover, context menu), the
+/// preview's and the text area's rectangles.
 fn card(
     ui: &mut Ui,
     width: f32,
-    preview: f32,
+    (preview, text): (f32, f32),
     label: &str,
     detail: &str,
-    marked: bool,
+    marks: Marks,
 ) -> (Response, Rect, Rect) {
-    let (rect, response) =
-        ui.allocate_exact_size(Vec2::new(width, preview + CARD_TEXT), Sense::click());
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, preview + text), Sense::click());
+    let selected = marks.outlined || marks.edited;
     response.widget_info(|| {
-        let mut info = WidgetInfo::selected(WidgetType::Other, true, marked, label);
+        let mut info = WidgetInfo::selected(WidgetType::Other, true, selected, label);
         info.current_text_value = Some(detail.to_owned());
         info
     });
-    super::paint_card(ui, rect, response.hovered(), marked);
+    super::paint_card(ui, rect, response.hovered(), marks.outlined, marks.edited);
     paint_focus_ring(ui, rect, &response, radius::CARD);
     let preview_rect = Rect::from_min_size(rect.min, Vec2::new(width, preview));
     let text = Rect::from_min_max(egui::pos2(rect.left(), preview_rect.bottom()), rect.max)
@@ -243,29 +262,71 @@ fn card(
     (response, preview_rect, text)
 }
 
-/// A card's title and detail lines in `rect`, clipped at `right`.
-fn card_text(ui: &Ui, rect: Rect, right: f32, title: &str, detail: &str, mono: bool) {
-    let clip = Rect::from_min_max(rect.min, egui::pos2(right, rect.bottom()));
-    let painter = ui.painter().with_clip_rect(clip.intersect(ui.clip_rect()));
-    painter.text(
-        rect.left_top(),
-        Align2::LEFT_TOP,
+/// A card's title and detail lines in `rect`, up to `right`, and a muted
+/// third line (a palette card's usage) at the bottom. A line too long ends
+/// with "…", and hovering the card (`response`) then shows the lines whole.
+fn card_text(
+    ui: &Ui,
+    response: &Response,
+    rect: Rect,
+    right: f32,
+    (title, detail, third): (&str, &str, Option<&str>),
+    mono: bool,
+) {
+    let painter = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
+    let width = right - rect.left();
+    let mut elided = elided_text(
+        &painter,
+        (rect.left_top(), Align2::LEFT_TOP),
         title,
         egui::FontId::new(typography::BODY, tp_ui::fonts::semibold_family()),
         color::TEXT_PRIMARY,
+        width,
     );
     let font = if mono {
         egui::FontId::monospace(typography::CAPTION)
     } else {
         egui::FontId::proportional(typography::CAPTION + 1.0)
     };
-    painter.text(
-        rect.left_bottom(),
-        Align2::LEFT_BOTTOM,
-        detail,
-        font,
-        color::TEXT_SECONDARY,
-    );
+    let small = egui::FontId::proportional(typography::CAPTION);
+    let small_size = small.size;
+    let detail_at = match third {
+        Some(third) => {
+            // Below the card's buttons: up to the card's edge.
+            let at = (rect.left_bottom(), Align2::LEFT_BOTTOM);
+            elided |= elided_text(&painter, at, third, small, color::TEXT_MUTED, rect.width());
+            rect.left_bottom() - Vec2::new(0.0, small_size + space::XS + 2.0)
+        }
+        None => rect.left_bottom(),
+    };
+    let at = (detail_at, Align2::LEFT_BOTTOM);
+    elided |= elided_text(&painter, at, detail, font, color::TEXT_SECONDARY, width);
+    if elided {
+        let whole: Vec<&str> = [title, detail, third.unwrap_or("")]
+            .into_iter()
+            .filter(|l| !l.is_empty())
+            .collect();
+        response.clone().on_hover_text(whole.join("\n"));
+    }
+}
+
+/// Paints `text` on one line, `anchor` placed by `align`, ending with "…"
+/// past `width`; returns whether it was cut.
+fn elided_text(
+    painter: &egui::Painter,
+    (anchor, align): (egui::Pos2, Align2),
+    text: &str,
+    font: egui::FontId,
+    color: egui::Color32,
+    width: f32,
+) -> bool {
+    let mut job = egui::text::LayoutJob::simple_singleline(text.to_owned(), font, color);
+    job.wrap = egui::text::TextWrapping::truncate_at_width(width.max(0.0));
+    let galley = painter.layout_job(job);
+    let elided = galley.elided;
+    let rect = align.anchor_size(anchor, galley.size());
+    painter.galley(rect.min, galley, color);
+    elided
 }
 
 /// A Ui laid out right to left in a card's text area, for its buttons.
@@ -295,8 +356,8 @@ fn top_corners() -> CornerRadius {
     }
 }
 
-/// The Palette: New Color, then a card per swatch (its color, name and
-/// hex value) with Edit Swatch…, Add to / Update in Library and Delete
+/// The Palette: New Color, then a card per swatch (its color, name, hex
+/// value and usage; the one being edited is filled) with Edit Swatch…, Add to / Update in Library and Delete
 /// Swatch in its menu.
 fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>) -> Response {
     let heading = section_header(ui, &Section::Palette.title(), |ui| {
@@ -316,11 +377,29 @@ fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>) -> Response {
         hint(ui, &tr("colors-palette-empty"));
         return heading;
     }
+    let usages: Vec<String> = palette
+        .iter()
+        .map(|s| usage_label(env.ws.usage().swatch(s.id)))
+        .collect();
+    let edited = edited(env);
     super::grid(ui, 150.0, palette.len(), |ui, i, width| {
         let swatch = &palette[i];
         let c = swatch.color;
         let hex = c.to_hex();
-        let (response, preview, text) = card(ui, width, PALETTE_BLOCK, &swatch.name, &hex, false);
+        let usage = &usages[i];
+        let marks = Marks {
+            edited: edited == Some(BrandEditTarget::Swatch(swatch.id)),
+            ..Marks::default()
+        };
+        let detail = format!("{hex} · {usage}");
+        let (response, preview, text) = card(
+            ui,
+            width,
+            (PALETTE_BLOCK, PALETTE_TEXT),
+            &swatch.name,
+            &detail,
+            marks,
+        );
         let block = preview.shrink(1.0);
         if c.a < 255 {
             paint_checkerboard(ui.painter(), block, 8.0);
@@ -335,46 +414,24 @@ fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>) -> Response {
             colors::swatch_menu(ui, env, swatch.id);
         });
         let right = actions.min_rect().left() - space::XS;
-        card_text(ui, text, right, &swatch.name, &hex, true);
+        card_text(
+            ui,
+            &response,
+            text,
+            right,
+            (&swatch.name, &hex, Some(usage)),
+            true,
+        );
         response.context_menu(|ui| colors::swatch_menu(ui, env, swatch.id));
     });
     heading
 }
 
-/// Paints a style's look in `rect`: its fill, outlined by its stroke.
-fn paint_look(ui: &Ui, rect: Rect, look: &Look) {
-    let painter = ui.painter();
-    match &look.fill {
-        Paint::Solid(c) => {
-            if c.a < 255 {
-                paint_checkerboard(painter, rect, 6.0);
-            }
-            painter.rect_filled(
-                rect,
-                radius::SM,
-                egui::Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a),
-            );
-        }
-        Paint::Gradient(g) => panels::properties::gradient_preview(g).paint(painter, rect),
-    }
-    if let Some(s) = &look.stroke {
-        let c = s.paint.first_color();
-        painter.rect_stroke(
-            rect,
-            radius::SM,
-            Stroke::new(
-                3.0,
-                egui::Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a),
-            ),
-            egui::StrokeKind::Inside,
-        );
-    }
-}
-
 /// Graphic styles, or text styles when `text`: New Style from Selection,
 /// then a card per style (its look, its name, in its own font for a text
-/// style, and a text style's size). The styles the selection follows are
-/// outlined and show a link icon. Select Users on This Texture sets
+/// style, a text style's size, and the usage). The styles the selection
+/// follows are outlined and show a link icon; the one being edited is
+/// filled. Select Users on This Texture sets
 /// `workshop`.
 fn style_section(ui: &mut Ui, env: &mut PanelEnv<'_>, text: bool, workshop: &mut bool) -> Response {
     let section = if text {
@@ -442,6 +499,11 @@ fn style_section(ui: &mut Ui, env: &mut PanelEnv<'_>, text: bool, workshop: &mut
         return heading;
     }
     let followed = env.ws.project.styles_of(&env.ws.selection);
+    let usages: Vec<String> = items
+        .iter()
+        .map(|item| usage_label(env.ws.usage().style(item.id)))
+        .collect();
+    let edited = edited(env);
     super::grid(ui, 200.0, items.len(), |ui, i, width| {
         let item = &items[i];
         let label = tr!(
@@ -453,8 +515,16 @@ fn style_section(ui: &mut Ui, env: &mut PanelEnv<'_>, text: bool, workshop: &mut
             name = item.name.as_str()
         );
         let marked = followed.contains(&item.id);
-        let size = item.font.as_ref().map_or("", |f| f.3.as_str());
-        let (response, preview, area) = card(ui, width, 56.0, &label, size, marked);
+        let marks = Marks {
+            outlined: marked,
+            edited: edited == Some(BrandEditTarget::Style(item.id)),
+        };
+        // A text style's size, then the usage.
+        let detail = match &item.font {
+            Some(f) => format!("{} · {}", f.3, usages[i]),
+            None => usages[i].clone(),
+        };
+        let (response, preview, area) = card(ui, width, (56.0, CARD_TEXT), &label, &detail, marks);
         paint_look(ui, preview.shrink(space::MD), &item.look);
         let mut actions = buttons(ui, area);
         if let Some(true) = card_menu(&mut actions, &item.name, |ui| {
@@ -475,7 +545,7 @@ fn style_section(ui: &mut Ui, env: &mut PanelEnv<'_>, text: bool, workshop: &mut
                     .layout(Layout::left_to_right(Align::Center)),
             );
             styles::rename_field(&mut field, env, item.id);
-        } else if let Some((family, weight, italic, size)) = &item.font {
+        } else if let Some((family, weight, italic, _)) = &item.font {
             // The name in the style's own font, then its size.
             let preview = env
                 .ws
@@ -486,9 +556,16 @@ fn style_section(ui: &mut Ui, env: &mut PanelEnv<'_>, text: bool, workshop: &mut
                 egui::pos2(right, area.top() + 20.0),
             );
             panels::character::draw_preview_mesh(ui, &preview, title);
-            card_text(ui, area, right, "", size, false);
+            card_text(ui, &response, area, right, ("", &detail, None), false);
         } else {
-            card_text(ui, area, right, &item.name, "", false);
+            card_text(
+                ui,
+                &response,
+                area,
+                right,
+                (&item.name, &detail, None),
+                false,
+            );
         }
         let mut select_users = false;
         response.context_menu(|ui| {
@@ -500,7 +577,8 @@ fn style_section(ui: &mut Ui, env: &mut PanelEnv<'_>, text: bool, workshop: &mut
 }
 
 /// Symbols: Create from Selection (Convert to Symbol), then a card per
-/// symbol (its icon, name and number of instances) with Place and Edit,
+/// symbol (its icon, name, number of instances and of textures holding
+/// them) with Place and Edit,
 /// which show the Workshop, and Rename, Duplicate, Add to / Update in
 /// Library and Delete in its menu.
 fn symbol_section(
@@ -537,8 +615,13 @@ fn symbol_section(
         let count = env.ws.project.instance_count(id);
         let editing = env.ws.project.editing_symbol == Some(id);
         let label = tr!("symbols-item", name = name);
-        let instances = symbols::instances_text(count);
-        let (response, preview, area) = card(ui, width, 64.0, &label, &instances, editing);
+        let instances = symbol_usage_label(env.ws.usage().symbol(id));
+        let marks = Marks {
+            outlined: editing,
+            ..Marks::default()
+        };
+        let (response, preview, area) =
+            card(ui, width, (64.0, CARD_TEXT), &label, &instances, marks);
         let inner = preview.shrink(1.0);
         ui.painter()
             .rect_filled(inner, top_corners(), color::SURFACE_2);
@@ -583,7 +666,7 @@ fn symbol_section(
             );
             symbols::rename_field(&mut field, env, id);
         } else {
-            card_text(ui, area, right, name, &instances, false);
+            card_text(ui, &response, area, right, (name, &instances, None), false);
         }
         response.context_menu(|ui| symbols::menu_items(ui, env, id, name, count));
     });
@@ -613,7 +696,14 @@ fn image_section(
         let uses = assets::uses_of(&env.ws.project, asset);
         let label = tr!("assets-item", name = asset.name.as_str());
         let detail = format!("{} · {}", assets::size_text(asset), assets::uses_text(uses));
-        let (_, preview, area) = card(ui, width, 96.0, &label, &detail, false);
+        let (response, preview, area) = card(
+            ui,
+            width,
+            (96.0, CARD_TEXT),
+            &label,
+            &detail,
+            Marks::default(),
+        );
         assets::paint_thumbnail(ui, env, asset, preview.shrink(space::SM));
         let mut actions = buttons(ui, area);
         *workshop |= assets::actions(&mut actions, env, asset, uses);
@@ -626,7 +716,14 @@ fn image_section(
             );
             assets::rename_field(&mut field, env);
         } else {
-            card_text(ui, area, right, &asset.name, &detail, false);
+            card_text(
+                ui,
+                &response,
+                area,
+                right,
+                (&asset.name, &detail, None),
+                false,
+            );
         }
     });
     heading

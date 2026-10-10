@@ -121,8 +121,8 @@ pub struct PanelState {
     pub renaming_asset: Option<(tp_core::document::AssetId, String)>,
     /// What the align commands align to (session only).
     pub align_to: crate::arrange::AlignTo,
-    /// Open Edit Swatch popup.
-    pub editing_swatch: Option<crate::brand_ops::SwatchEdit>,
+    /// Open before/after editor of a swatch or a graphic style.
+    pub brand_edit: Option<crate::brand_ops::BrandEdit>,
     /// Style being renamed in the Styles panel, with its edit buffer.
     pub renaming_style: Option<(tp_core::document::StyleId, String)>,
     /// Symbol being renamed in the Symbols panel, with its edit buffer.
@@ -199,6 +199,11 @@ pub struct Workspace {
     /// Thumbnails of the surfaces' artwork and of their templates (the
     /// Textures tab, the Project space).
     pub thumbnails: crate::surface_thumbnails::SurfaceThumbnails,
+    /// Thumbnails of the textures affected by the open before/after
+    /// editor, with its new value (reset when an edit starts).
+    pub preview_thumbs: crate::surface_thumbnails::SurfaceThumbnails,
+    /// Usage of the swatches, styles and symbols (see [`Workspace::usage`]).
+    pub usage_cache: crate::brand_ops::UsageCache,
     /// The mod's pictures shown by the Project space.
     pub mod_previews: crate::mod_previews::ModPreviews,
     /// Ramp textures of the gradients drawn on the canvas.
@@ -283,6 +288,10 @@ impl Workspace {
             text_session: None,
             images: ImageCache::default(),
             thumbnails: Default::default(),
+            preview_thumbs: crate::surface_thumbnails::SurfaceThumbnails::named(
+                "preview_thumbnail",
+            ),
+            usage_cache: Default::default(),
             mod_previews: Default::default(),
             gradients: Default::default(),
             place_request: None,

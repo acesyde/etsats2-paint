@@ -375,3 +375,38 @@ brand-new-color = New Color
 brand-new-style = New Style from Selection
 brand-create-from-selection = Create from Selection
 brand-actions-named = Actions for { $name }
+brand-usage = { $textures ->
+    [one] { $textures } texture
+   *[other] { $textures } textures
+} · { $objects ->
+    [one] { $objects } object
+   *[other] { $objects } objects
+}
+brand-unused = Unused
+brand-symbol-usage = { $instances ->
+    [one] { $instances } instance
+   *[other] { $instances } instances
+} · { $textures ->
+    [one] { $textures } texture
+   *[other] { $textures } textures
+}
+brand-impact = Impact: { $textures ->
+    [one] { $textures } texture
+   *[other] { $textures } textures
+}, { $objects ->
+    [one] { $objects } object
+   *[other] { $objects } objects
+}
+brand-impact-none = Not used yet
+brand-edit-color = Edit color
+brand-edit-style = Edit style
+brand-before = Before
+brand-after = After
+brand-impact-note = Thumbnails update live. Nothing is saved before Apply to Fleet.
+brand-impact-tile = Preview of { $name }
+brand-apply-to-fleet = Apply to Fleet
+brand-gradient-fill = Gradient
+brand-gradient-fill-hint = This fill is a gradient: change it with Redefine from Selection.
+styles-edit = Edit Style…
+styles-name-empty = Enter a name for the style.
+styles-name-taken = Another graphic style already has this name.

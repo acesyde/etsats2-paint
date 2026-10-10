@@ -97,15 +97,17 @@ pub fn create_project(harness: &mut Harness<'static, AppState>) {
 }
 
 /// Runs frames until the background renders of the open project (texture
-/// and template thumbnails, the mod's pictures) are shown, so that their
+/// and template thumbnails, the before/after editor's previews, the mod's
+/// pictures) are shown, so that their
 /// repaints don't land in the middle of a test's interaction.
 pub fn settle_renders(harness: &mut Harness<'static, AppState>) {
     for _ in 0..400 {
         harness.step();
-        let busy = harness
-            .state()
-            .workspace()
-            .is_some_and(|ws| ws.thumbnails.is_rendering() || ws.mod_previews.is_rendering());
+        let busy = harness.state().workspace().is_some_and(|ws| {
+            ws.thumbnails.is_rendering()
+                || ws.preview_thumbs.is_rendering()
+                || ws.mod_previews.is_rendering()
+        });
         if !busy {
             harness.run();
             return;

@@ -168,6 +168,7 @@ pub(super) fn paint_swatch(painter: &Painter, rect: Rect, swatch: SwatchColor) {
 pub struct ColorSwatch<'a> {
     color: SwatchColor,
     name: &'a str,
+    detail: Option<&'a str>,
     size: f32,
     selected: bool,
 }
@@ -177,9 +178,16 @@ impl<'a> ColorSwatch<'a> {
         Self {
             color,
             name,
+            detail: None,
             size: 20.0,
             selected: false,
         }
+    }
+
+    /// A second, muted line in the tooltip, under the name.
+    pub fn detail(mut self, detail: &'a str) -> Self {
+        self.detail = Some(detail);
+        self
     }
 
     pub fn size(mut self, size: f32) -> Self {
@@ -217,7 +225,13 @@ impl<'a> ColorSwatch<'a> {
             );
         }
         paint_focus_ring(ui, swatch_rect, &response, radius::SM);
-        response.on_hover_text(self.name)
+        match self.detail {
+            Some(detail) => response.on_hover_ui(|ui| {
+                ui.label(self.name);
+                ui.label(egui::RichText::new(detail).color(color::TEXT_SECONDARY));
+            }),
+            None => response.on_hover_text(self.name),
+        }
     }
 }
 

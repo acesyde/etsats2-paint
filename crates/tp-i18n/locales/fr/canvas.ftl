@@ -24,6 +24,7 @@ undo-unlock = Déverrouiller
 undo-change-fill = Modifier le fond
 undo-copy-from-cabin = Copier depuis la cabine
 undo-edit-swatch = Modifier la nuance
+undo-edit-style = Modifier le style
 undo-redefine-style = Redéfinir le style
 undo-rename-style = Renommer le style
 undo-change-stroke = Modifier le contour

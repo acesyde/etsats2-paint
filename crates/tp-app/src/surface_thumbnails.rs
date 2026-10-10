@@ -70,8 +70,9 @@ type Rendered = Vec<(usize, Key, ColorImage)>;
 type Templates = Vec<(AssetId, Option<ColorImage>)>;
 
 /// Thumbnails of a project's surfaces, by surface index.
-#[derive(Default)]
 pub struct SurfaceThumbnails {
+    /// Prefix of the textures' debug names.
+    name: &'static str,
     shown: HashMap<usize, Thumbnail>,
     /// The running render: surfaces, and templates when asked for.
     job: Option<Receiver<(Rendered, Templates)>>,
@@ -85,13 +86,43 @@ pub struct SurfaceThumbnails {
     templates: HashMap<AssetId, Option<TextureHandle>>,
 }
 
+impl Default for SurfaceThumbnails {
+    fn default() -> Self {
+        Self::named("surface_thumbnail")
+    }
+}
+
 impl SurfaceThumbnails {
+    /// Thumbnails whose textures are named "`name`_N" (for debugging).
+    pub fn named(name: &'static str) -> Self {
+        Self {
+            name,
+            shown: HashMap::new(),
+            job: None,
+            broken: false,
+            renders: 0,
+            templates: HashMap::new(),
+        }
+    }
+
     /// Picks up finished renders, then starts rendering the surfaces whose
     /// thumbnail is missing or stale. Nothing starts while a pointer button
     /// is down (a drag edits the artwork every frame): thumbnails catch up
     /// when it ends.
     pub fn update(&mut self, ctx: &egui::Context, project: &Project, fonts: &FontLibrary) {
-        self.update_with(ctx, project, fonts, false);
+        self.update_with(ctx, project, fonts, false, None);
+    }
+
+    /// Same, rendering only the surfaces `only` (the others are never
+    /// rendered).
+    pub fn update_only(
+        &mut self,
+        ctx: &egui::Context,
+        project: &Project,
+        fonts: &FontLibrary,
+        only: &[usize],
+    ) {
+        self.update_with(ctx, project, fonts, false, Some(only));
     }
 
     /// Same, also reading the templates that have no thumbnail yet (the
@@ -102,7 +133,7 @@ impl SurfaceThumbnails {
         project: &Project,
         fonts: &FontLibrary,
     ) {
-        self.update_with(ctx, project, fonts, true);
+        self.update_with(ctx, project, fonts, true, None);
     }
 
     fn update_with(
@@ -111,13 +142,14 @@ impl SurfaceThumbnails {
         project: &Project,
         fonts: &FontLibrary,
         templates: bool,
+        only: Option<&[usize]>,
     ) {
         if let Some(job) = &self.job {
             match job.try_recv() {
                 Ok((done, read)) => {
                     for (surface, key, image) in done {
                         let texture = ctx.load_texture(
-                            format!("surface_thumbnail_{surface}"),
+                            format!("{}_{surface}", self.name),
                             image.clone(),
                             TextureOptions::LINEAR,
                         );
@@ -158,6 +190,7 @@ impl SurfaceThumbnails {
         }
         let generation = fonts.generation();
         let stale: Vec<(usize, Key)> = (0..count)
+            .filter(|i| only.is_none_or(|only| only.contains(i)))
             .filter(|i| {
                 !self
                     .shown
@@ -314,5 +347,38 @@ mod tests {
         settle(&mut cache, &ctx, &p, &fonts);
         assert_eq!(cache.renders, 2);
         assert_eq!(cache.color_at(0, [0.5, 0.5]), Some(Rgba::rgb(0, 0, 255)));
+    }
+
+    #[test]
+    fn only_the_given_surfaces_are_rendered() {
+        let ctx = egui::Context::default();
+        let fonts = FontLibrary::bundled();
+        let mut p = project();
+        for name in ["Chassis", "Trailer"] {
+            let mut s = p.surfaces[0].clone();
+            s.name = name.into();
+            p.surfaces.push(s);
+        }
+        let mut cache = SurfaceThumbnails::named("preview");
+        let settle = |cache: &mut SurfaceThumbnails, p: &Project| {
+            for _ in 0..500 {
+                cache.update_only(&ctx, p, &fonts, &[0, 2]);
+                if !cache.is_rendering() {
+                    return;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            panic!("thumbnails never finished");
+        };
+        settle(&mut cache, &p);
+        assert_eq!(cache.renders, 2);
+        assert!(cache.texture(1).is_none());
+        // Only the surface whose objects changed is rendered again.
+        Arc::make_mut(&mut p.surfaces[2].objects[0]).fill = Paint::Solid(Rgba::rgb(0, 0, 255));
+        Arc::make_mut(&mut p.surfaces[1].objects[0]).fill = Paint::Solid(Rgba::rgb(0, 0, 255));
+        settle(&mut cache, &p);
+        assert_eq!(cache.renders, 3);
+        assert_eq!(cache.color_at(2, [0.5, 0.5]), Some(Rgba::rgb(0, 0, 255)));
+        assert_eq!(cache.color_at(0, [0.5, 0.5]), Some(Rgba::rgb(255, 0, 0)));
     }
 }

@@ -130,7 +130,7 @@ fn resources(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     if palette == 0 {
         panels::colors::palette_empty_hint(ui);
     } else {
-        panels::colors::palette_swatches(ui, env, SWATCH);
+        panels::colors::palette_swatches(ui, env, SWATCH, false);
         panels::colors::linked_swatch_label(ui, env);
     }
 

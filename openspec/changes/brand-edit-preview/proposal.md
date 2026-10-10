@@ -19,7 +19,7 @@ Depends on `new-design`, which creates the Brand space and moves the palette, st
 - **Text styles keep Redefine from Selection only.** Their before/after would need the whole character section and a re-layout of every text for each preview. Text styles get usage counts but no editor in this change.
 - **Unchanged:** the "Linked, not copied" rules (a link holds while the value equals its source), Delete Swatch, the Styles and Symbols actions, and the symbol view (Edit Symbol), which is already a full editor.
 
-Open question, not resolved here: **how does the Brand space relate to the personal library?** The library (`shared-library`) holds copies of swatches, styles and symbols shared by every project. The Brand space shows the project's own. It is not decided whether the Brand space should list library entries, show which elements came from the library, or offer Update in Library after an edit applied to the fleet. This change keeps Add / Update in Library and Import from Library… as they are.
+Out of scope, decided: **the Brand space and the personal library.** The library (`shared-library`) holds copies of swatches, styles and symbols shared by every project. This change does not list library entries, mark where an element came from, or offer Update in Library after Apply to Fleet. Add / Update in Library and Import from Library… stay as they are; this can be its own change later.
 
 ## Capabilities
 
@@ -30,6 +30,7 @@ Open question, not resolved here: **how does the Brand space relate to the perso
 - `color-panel`: Edit Swatch… opens the before/after editor instead of recoloring the document live. The "Edit the company red" and "Cancel an edit" scenarios change accordingly.
 - `shared-styles`: graphic styles gain Edit Style… through the before/after editor, and styles show their usage.
 - `symbols`: the symbol list shows instances and textures ("14 instances · 9 textures").
+- `brand-space`: the Palette, Graphic styles, Text styles and Symbols cards show their usage; the before/after editor opens as a panel on the right of the Brand space; graphic styles gain Edit Style… in their menu.
 
 ## Impact
 

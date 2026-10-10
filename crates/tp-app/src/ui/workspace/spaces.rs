@@ -65,13 +65,16 @@ fn add_button(ui: &mut Ui, label: &str, name: &str, disabled_reason: Option<&str
 }
 
 /// Paints the card frame of `rect` (radius 10): the panel surface with a hairline,
-/// raised when hovered; a `marked` card has a strong outline.
-fn paint_card(ui: &Ui, rect: egui::Rect, hovered: bool, marked: bool) {
+/// raised when hovered; a `marked` card has a strong outline, a `selected`
+/// one the selected fill.
+fn paint_card(ui: &Ui, rect: egui::Rect, hovered: bool, marked: bool, selected: bool) {
     let painter = ui.painter();
     painter.rect_filled(
         rect,
         radius::CARD,
-        if hovered {
+        if selected {
+            color::SELECTED
+        } else if hovered {
             color::SURFACE_2
         } else {
             color::SURFACE_1

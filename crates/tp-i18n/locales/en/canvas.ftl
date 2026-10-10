@@ -25,6 +25,7 @@ undo-unlock = Unlock
 undo-change-fill = Change Fill
 undo-copy-from-cabin = Copy From Cabin
 undo-edit-swatch = Edit Swatch
+undo-edit-style = Edit Style
 undo-redefine-style = Redefine Style
 undo-rename-style = Rename Style
 undo-change-stroke = Change Stroke
