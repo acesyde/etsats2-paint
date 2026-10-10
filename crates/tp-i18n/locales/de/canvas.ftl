@@ -24,6 +24,7 @@ undo-unlock = Entsperren
 undo-change-fill = Fläche ändern
 undo-copy-from-cabin = Von Kabine kopieren
 undo-edit-swatch = Farbfeld bearbeiten
+undo-edit-style = Stil bearbeiten
 undo-redefine-style = Stil neu definieren
 undo-rename-style = Stil umbenennen
 undo-change-stroke = Kontur ändern

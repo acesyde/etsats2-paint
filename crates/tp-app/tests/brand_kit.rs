@@ -173,7 +173,7 @@ fn edit_the_company_red_across_textures() {
     h.get_by_role_and_label(Role::TextInput, "Swatch hex color")
         .type_text("#8B0000");
     h.run();
-    h.get_by_label("OK").click();
+    h.get_by_label("Apply to Fleet").click();
     h.run();
     assert_eq!(get(&h, 0, a).fill, Paint::Solid(DARK_RED));
     assert_eq!(get(&h, 1, b).fill, Paint::Solid(DARK_RED), "other texture");
@@ -201,15 +201,137 @@ fn cancel_an_edit() {
     h.run();
     assert_eq!(
         get(&h, 0, a).fill,
-        Paint::Solid(Rgba::rgb(0, 255, 0)),
-        "live"
+        Paint::Solid(RED),
+        "nothing changes before Apply to Fleet"
     );
     h.key_press(Key::Escape);
     h.run();
-    assert!(ws(&h).panels.editing_swatch.is_none());
+    assert!(ws(&h).panels.brand_edit.is_none());
     assert_eq!(get(&h, 0, a).fill, Paint::Solid(RED));
     assert_eq!(ws(&h).project.swatch(id).unwrap().color, RED);
     assert_eq!(ws(&h).history.len(), steps);
+}
+
+/// The swatch `label` in the color popover (drawn after the lists).
+fn popover_swatch<'h>(h: &'h H, label: &'h str) -> egui_kittest::Node<'h> {
+    h.get_all_by_label(label).last().expect("swatch")
+}
+
+fn last_field<'h>(h: &'h H, label: &'h str) -> egui_kittest::Node<'h> {
+    h.get_all_by_role_and_label(Role::TextInput, label)
+        .last()
+        .expect("field")
+}
+
+/// Replaces the text of the last field `label` (the dialog's, over the
+/// inspector's) with `text`, then presses `then`.
+fn type_into_last(h: &mut H, label: &str, text: &str, then: Option<Key>) {
+    last_field(h, label).focus();
+    h.run();
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    last_field(h, label).type_text(text);
+    h.run();
+    if let Some(key) = then {
+        h.key_press(key);
+        h.run();
+    }
+}
+
+#[test]
+fn edit_the_company_red_from_the_popover() {
+    let mut h = open();
+    let (id, a, b) = company_red(&mut h, 1);
+    select(&mut h, &[a]);
+    common::open_color_popover(&mut h, ColorTarget::Fill);
+    let steps = ws(&h).history.len();
+    popover_swatch(&h, "Company red").click_secondary();
+    h.run();
+    h.get_all_by_label("Edit Swatch…").last().unwrap().click();
+    h.run();
+    // A dialog over the Workshop.
+    assert_eq!(ws(&h).space, tp_app::layout::Space::Workshop);
+    assert!(h.query_by_label("Edit color").is_some());
+    assert!(h.query_by_label("Impact: 2 textures, 2 objects").is_some());
+    type_into_last(&mut h, "Swatch hex color", "#8B0000", None);
+    assert_eq!(get(&h, 0, a).fill, Paint::Solid(RED), "not before Apply");
+    h.get_by_label("Apply to Fleet").click();
+    h.run();
+    assert!(ws(&h).panels.brand_edit.is_none());
+    assert_eq!(get(&h, 0, a).fill, Paint::Solid(DARK_RED));
+    assert_eq!(get(&h, 1, b).fill, Paint::Solid(DARK_RED), "other texture");
+    assert_eq!(ws(&h).project.swatch(id).unwrap().color, DARK_RED);
+    assert_eq!(ws(&h).history.len(), steps + 1);
+    ws_mut(&mut h).undo();
+    h.run();
+    assert_eq!(get(&h, 1, b).fill, Paint::Solid(RED));
+}
+
+#[test]
+fn usage_on_hover_in_the_popover() {
+    let mut h = open();
+    let (id, a, _) = company_red(&mut h, 1);
+    for x in [900.0, 1200.0] {
+        let mut o = rect(x);
+        o.fill = Paint::Solid(RED);
+        o.fill_swatch = Some(id);
+        add_on(&mut h, 0, o);
+    }
+    select(&mut h, &[a]);
+    common::open_color_popover(&mut h, ColorTarget::Fill);
+    popover_swatch(&h, "Company red").hover();
+    h.run();
+    assert!(h.query_by_label("2 textures · 4 objects").is_some());
+}
+
+#[test]
+fn edit_a_graphic_style_from_the_resources_tab() {
+    let mut h = open();
+    let ids: Vec<(usize, ObjectId)> = (0..3)
+        .map(|s| (s, add_on(&mut h, s, red_stroked(400.0))))
+        .collect();
+    select(&mut h, &[ids[0].1]);
+    let stripe = ws_mut(&mut h).new_graphic_style(1.0).unwrap();
+    for &(s, id) in &ids[1..] {
+        ws_mut(&mut h).project.active_surface = s;
+        ws_mut(&mut h).selection = vec![id];
+        ws_mut(&mut h).apply_style(stripe, 2.0);
+    }
+    ws_mut(&mut h).project.active_surface = 0;
+    select(&mut h, &[]);
+    let steps = ws(&h).history.len();
+    h.get_by_label("Graphic style Style 1").click_secondary();
+    h.run();
+    h.get_by_label("Edit Style…").click();
+    h.run();
+    assert!(h.query_by_label("Edit style").is_some());
+    assert!(h.query_by_label("Impact: 3 textures, 3 objects").is_some());
+    type_into_last(&mut h, "Opacity", "50", Some(Key::Enter));
+    h.get_by_label("Apply to Fleet").click();
+    h.run();
+    for &(s, id) in &ids {
+        let o = get(&h, s, id);
+        assert_eq!((o.opacity, o.style), (0.5, Some(stripe)));
+    }
+    assert_eq!(ws(&h).history.len(), steps + 1);
+    ws_mut(&mut h).undo();
+    h.run();
+    for &(s, id) in &ids {
+        assert_eq!(get(&h, s, id).opacity, 0.8);
+    }
+}
+
+#[test]
+fn no_editor_for_text_styles() {
+    let mut h = open();
+    let t = add_on(&mut h, 0, text(400.0));
+    ws_mut(&mut h).relayout_all_texts();
+    select(&mut h, &[t]);
+    ws_mut(&mut h).new_text_style(1.0).unwrap();
+    h.run();
+    h.get_by_label("Text style Text style 1").click_secondary();
+    h.run();
+    assert!(h.query_by_label("Edit Style…").is_none());
+    assert!(h.query_by_label("Redefine from Selection").is_some());
 }
 
 // ── Styles section ──────────────────────────────────────────────────────

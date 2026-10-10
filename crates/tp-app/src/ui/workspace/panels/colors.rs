@@ -60,12 +60,14 @@ fn selected_stop(ws: &Workspace, g: &Gradient) -> usize {
     ws.panels.gradient_stop.min(g.stops().len() - 1)
 }
 
-fn to_widget_hsv(c: Rgba) -> Hsv {
+/// The picker's HSV for `c`.
+pub(crate) fn to_widget_hsv(c: Rgba) -> Hsv {
     let h = Hsva::from(c);
     Hsv::new(h.h / 360.0, h.s, h.v, h.a)
 }
 
-fn from_color32(c: Color32) -> Rgba {
+/// The color a picker shows.
+pub(crate) fn from_color32(c: Color32) -> Rgba {
     let [r, g, b, a] = c.to_srgba_unmultiplied();
     Rgba::with_alpha(r, g, b, a)
 }
@@ -646,7 +648,7 @@ fn palette(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
         palette_empty_hint(ui);
         return;
     }
-    palette_swatches(ui, env, 22.0);
+    palette_swatches(ui, env, 22.0, true);
     linked_swatch_label(ui, env);
 }
 
@@ -698,20 +700,28 @@ pub fn palette_empty_hint(ui: &mut Ui) {
 /// when the target is a gradient, and links it to the swatch (one undo
 /// step); the swatch the target is linked to has a ring. Each swatch's
 /// context menu offers Edit Swatch…, Add to / Update in Library and Delete
-/// Swatch. Shared by every place that lists the palette.
-pub fn palette_swatches(ui: &mut Ui, env: &mut PanelEnv<'_>, size: f32) {
+/// Swatch. With `usage`, a swatch's tooltip also shows its usage. Shared by
+/// every place that lists the palette.
+pub fn palette_swatches(ui: &mut Ui, env: &mut PanelEnv<'_>, size: f32, usage: bool) {
     let target = env.ws.panels.color_target;
     let palette = env.ws.project.palette.clone();
     let linked = env.ws.linked_swatch(target);
+    let usages: Vec<Option<String>> = palette
+        .iter()
+        .map(|s| usage.then(|| crate::brand_ops::usage_label(env.ws.usage().swatch(s.id))))
+        .collect();
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = egui::vec2(space::XS, space::XS);
-        for s in &palette {
+        for (s, usage) in palette.iter().zip(&usages) {
             let c = s.color;
             let swatch = SwatchColor::Solid(Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a));
-            let response = ColorSwatch::new(swatch, &s.name)
+            let mut widget = ColorSwatch::new(swatch, &s.name)
                 .size(size)
-                .selected(linked == Some(s.id))
-                .show(ui);
+                .selected(linked == Some(s.id));
+            if let Some(usage) = usage {
+                widget = widget.detail(usage);
+            }
+            let response = widget.show(ui);
             if response.clicked() {
                 env.ws.panels.picker = None;
                 env.ws.apply_swatch(target, s.id);
@@ -756,78 +766,4 @@ pub fn linked_swatch_label(ui: &mut Ui, env: &PanelEnv<'_>) {
             .color(color::TEXT_SECONDARY),
     )
     .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
-}
-
-/// The Edit Swatch popup: name, picker and hex. Changes show live on every
-/// linked color; OK records one step, Cancel or Escape restores. Shown once
-/// per frame by the workspace, whichever list opened it.
-pub fn edit_swatch_popup(ctx: &egui::Context, env: &mut PanelEnv<'_>) {
-    let Some(mut edit) = env.ws.panels.editing_swatch.clone() else {
-        return;
-    };
-    let (mut ok, mut cancel) = (false, false);
-    let mut new_color = None;
-    crate::ui::dialogs::modal("edit_swatch_modal").show(ctx, |ui| {
-        ui.set_width(300.0);
-        crate::ui::dialogs::title(ui, tr("colors-edit-swatch").trim_end_matches('…'), None);
-        ui.add_space(space::MD);
-        ui.spacing_mut().item_spacing.y = space::SM;
-        let label = tr("colors-swatch-name");
-        crate::ui::dialogs::labelled(ui, &label, |ui| {
-            let name = ui.add(
-                TextEdit::singleline(&mut edit.name)
-                    .desired_width(f32::INFINITY)
-                    .margin(egui::Margin::symmetric(8, 5)),
-            );
-            name.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
-        });
-        let empty = edit.name.trim().is_empty();
-        if empty {
-            crate::ui::dialogs::problem(ui, &tr("colors-swatch-name-empty"));
-        }
-        let responses = [
-            sv_square(ui, &mut edit.hsv, 140.0),
-            hue_slider(ui, &mut edit.hsv),
-            alpha_slider(ui, &mut edit.hsv),
-        ];
-        if responses.iter().any(|r| r.changed()) {
-            let c = from_color32(edit.hsv.to_color32());
-            edit.hex = c.to_hex();
-            new_color = Some(c);
-        }
-        crate::ui::dialogs::labelled(ui, &tr("colors-hex"), |ui| {
-            let label = tr("colors-swatch-hex");
-            let hex = ui.add(
-                TextEdit::singleline(&mut edit.hex)
-                    .font(egui::TextStyle::Monospace)
-                    .desired_width(120.0)
-                    .margin(egui::Margin::symmetric(8, 5)),
-            );
-            hex.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
-            if hex.changed()
-                && let Some(c) = Rgba::from_hex(&edit.hex)
-            {
-                edit.hsv = to_widget_hsv(c);
-                new_color = Some(c);
-            }
-        });
-        crate::ui::dialogs::footer(ui, |ui| {
-            ok |= ui
-                .add_enabled(!empty, tp_ui::widgets::primary_button(&tr("button-ok")))
-                .clicked();
-            cancel |= ui
-                .add(tp_ui::widgets::secondary_button(&tr("button-cancel")))
-                .clicked();
-        });
-    });
-    cancel |= ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
-    env.ws.panels.editing_swatch = Some(edit);
-    if let Some(c) = new_color {
-        env.ws.preview_swatch_color(c);
-    }
-    if cancel {
-        env.ws.cancel_swatch_edit();
-    } else if ok {
-        env.ws.finish_swatch_edit(env.now);
-    }
 }

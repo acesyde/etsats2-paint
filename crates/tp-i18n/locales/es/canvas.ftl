@@ -24,6 +24,7 @@ undo-unlock = Desbloquear
 undo-change-fill = Cambiar relleno
 undo-copy-from-cabin = Copiar desde la cabina
 undo-edit-swatch = Editar muestra
+undo-edit-style = Editar estilo
 undo-redefine-style = Redefinir estilo
 undo-rename-style = Cambiar nombre del estilo
 undo-change-stroke = Cambiar trazo

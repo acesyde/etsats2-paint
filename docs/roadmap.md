@@ -270,7 +270,6 @@ None at the moment.
 | # | Change | What it does | Why now |
 |---|---|---|---|
 | 2 | `polishing` | Fixes, ergonomics, wording and performance across the app, with no new feature. | Smooths what the first players will meet, on the new design. |
-| 2d | `brand-edit-preview` | The Brand space shows where each element is used; editing a swatch previews its impact before "Apply to fleet". | A brand edit touches the whole fleet: say so before applying. |
 | 2e | `title-bar-menus` | Menus in the title bar on Windows and Linux, the system menu bar on macOS. Starts with a spike. | Gives the canvas the menu bar's row back. |
 | 2f | `drop-shadow` | Drop shadow as an appearance property. A new feature, optional and low priority. | Common on livery lettering. |
 | 3 | `paintjob-importer` | Prefills the game data of a custom vehicle (game path, cabin internal names, accessory ids) from Paintjob Packer's database. | Custom vehicle asks for game data most players don't know. |
@@ -283,6 +282,16 @@ None at the moment.
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `brand-edit-preview` (under `polishing`): the Brand space's cards say
+  where each element is used (textures and objects for swatches and styles,
+  instances and textures for symbols, Unused otherwise); Edit Swatch… and
+  Edit Style… open a before/after editor for swatches and graphic styles
+  (the Brand space's right panel, a dialog over the Workshop): name, picker
+  (fill or stroke, width, opacity for a style), Before / After, hex code,
+  and the impact with live thumbnails of the affected textures; nothing is
+  applied before Apply to Fleet (one undo step), Cancel or Escape leaves
+  the document untouched. Text styles have no editor yet, and the relation
+  to the library is left for later;
 - `command-palette` (under `polishing`): Cmd/Ctrl+K opens a command palette
   on every screen, even while a field has the focus (also View › Command
   Palette…); it lists every command with its shortcut, menu path (or group:

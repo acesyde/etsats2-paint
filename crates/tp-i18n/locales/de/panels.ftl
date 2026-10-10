@@ -377,3 +377,38 @@ brand-new-color = Neue Farbe
 brand-new-style = Neuer Stil aus Auswahl
 brand-create-from-selection = Aus Auswahl erstellen
 brand-actions-named = Aktionen für { $name }
+brand-usage = { $textures ->
+    [one] { $textures } Textur
+   *[other] { $textures } Texturen
+} · { $objects ->
+    [one] { $objects } Objekt
+   *[other] { $objects } Objekte
+}
+brand-unused = Nicht verwendet
+brand-symbol-usage = { $instances ->
+    [one] { $instances } Instanz
+   *[other] { $instances } Instanzen
+} · { $textures ->
+    [one] { $textures } Textur
+   *[other] { $textures } Texturen
+}
+brand-impact = Auswirkung: { $textures ->
+    [one] { $textures } Textur
+   *[other] { $textures } Texturen
+}, { $objects ->
+    [one] { $objects } Objekt
+   *[other] { $objects } Objekte
+}
+brand-impact-none = Noch nicht verwendet
+brand-edit-color = Farbe bearbeiten
+brand-edit-style = Stil bearbeiten
+brand-before = Vorher
+brand-after = Nachher
+brand-impact-note = Die Miniaturen werden live aktualisiert. Vor „Auf Flotte anwenden“ wird nichts gespeichert.
+brand-impact-tile = Vorschau von { $name }
+brand-apply-to-fleet = Auf Flotte anwenden
+brand-gradient-fill = Verlauf
+brand-gradient-fill-hint = Diese Fläche ist ein Verlauf: Ändern Sie sie mit „Aus Auswahl neu definieren“.
+styles-edit = Stil bearbeiten…
+styles-name-empty = Geben Sie einen Namen für den Stil ein.
+styles-name-taken = Ein anderer Grafikstil hat bereits diesen Namen.

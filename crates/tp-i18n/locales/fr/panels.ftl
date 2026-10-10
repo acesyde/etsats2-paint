@@ -378,3 +378,38 @@ brand-new-color = Nouvelle couleur
 brand-new-style = Nouveau style d’après la sélection
 brand-create-from-selection = Créer d’après la sélection
 brand-actions-named = Actions pour { $name }
+brand-usage = { $textures ->
+    [one] { $textures } texture
+   *[other] { $textures } textures
+} · { $objects ->
+    [one] { $objects } objet
+   *[other] { $objects } objets
+}
+brand-unused = Inutilisé
+brand-symbol-usage = { $instances ->
+    [one] { $instances } instance
+   *[other] { $instances } instances
+} · { $textures ->
+    [one] { $textures } texture
+   *[other] { $textures } textures
+}
+brand-impact = Impact : { $textures ->
+    [one] { $textures } texture
+   *[other] { $textures } textures
+}, { $objects ->
+    [one] { $objects } objet
+   *[other] { $objects } objets
+}
+brand-impact-none = Pas encore utilisé
+brand-edit-color = Modifier la couleur
+brand-edit-style = Modifier le style
+brand-before = Avant
+brand-after = Après
+brand-impact-note = Les vignettes se mettent à jour en direct. Rien n’est enregistré avant « Appliquer à la flotte ».
+brand-impact-tile = Aperçu de { $name }
+brand-apply-to-fleet = Appliquer à la flotte
+brand-gradient-fill = Dégradé
+brand-gradient-fill-hint = Ce fond est un dégradé : modifiez-le avec Redéfinir d’après la sélection.
+styles-edit = Modifier le style…
+styles-name-empty = Saisissez un nom pour le style.
+styles-name-taken = Un autre style graphique porte déjà ce nom.

@@ -744,10 +744,10 @@ impl AppState {
             CommandId::CloseProject => self.guard(ctx, PendingAction::CloseProject),
             CommandId::Preferences => self.modal = Some(Modal::Preferences),
             CommandId::Quit => self.guard(ctx, PendingAction::Quit),
-            CommandId::ShowSpace(space) => self.with_workspace(|ws| ws.space = space),
+            CommandId::ShowSpace(space) => self.with_workspace(|ws| ws.show_space(space)),
             CommandId::ShowLeftTab(tab) => {
                 self.prefs.layout.show_tab(tab);
-                self.with_workspace(|ws| ws.space = Space::Workshop);
+                self.with_workspace(|ws| ws.show_space(Space::Workshop));
             }
             CommandId::TogglePanels => {
                 self.prefs.layout.panels_hidden = !self.prefs.layout.panels_hidden;

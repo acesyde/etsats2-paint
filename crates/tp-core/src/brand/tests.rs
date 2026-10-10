@@ -296,6 +296,57 @@ fn redefine_changes_users_on_every_surface() {
 }
 
 #[test]
+fn a_new_look_reaches_every_follower() {
+    let mut p = project();
+    let source = p.add(styled(Paint::Solid(RED), 1.0));
+    let id = p.new_graphic_style(source, "Style").unwrap();
+    let other = add_on(&mut p, 1, rect(0.0));
+    p.active_surface = 1;
+    p.apply_graphic_style(id, &[other]);
+    p.active_surface = 0;
+    // A symbol whose content follows the style, placed on the second
+    // texture.
+    let logo = crate::document::SymbolId(p.fresh_id());
+    p.symbols.push(crate::symbols::Symbol {
+        id: logo,
+        name: "Logo".into(),
+        surface: Surface::new("Logo", 500.0),
+        origin: None,
+    });
+    p.editing_symbol = Some(logo);
+    let inside = p.add(rect(0.0));
+    p.apply_graphic_style(id, &[inside]);
+    p.editing_symbol = None;
+    let instance = p
+        .new_instance(logo, kurbo::Affine::IDENTITY)
+        .expect("instance");
+    let instance = add_on(&mut p, 1, instance);
+    p.refresh_instances();
+    let mut look = p.graphic_style(id).unwrap().look;
+    look.stroke.as_mut().unwrap().width = 8.0;
+    look.opacity = 0.5;
+    assert!(p.set_graphic_style_look(id, look));
+    assert!(
+        !p.set_graphic_style_look(StyleId(9999), look),
+        "no such style"
+    );
+    p.relink();
+    for (surface, o) in [(0, source), (1, other)] {
+        let o = get(&p, surface, o);
+        assert_eq!(o.stroke.unwrap().width, 8.0);
+        assert_eq!(o.opacity, 0.5);
+        assert_eq!(o.style, Some(id), "still follows");
+    }
+    let shown = &get(&p, 1, instance).children[0];
+    assert_eq!(
+        shown.stroke.unwrap().width,
+        8.0,
+        "the instance is refreshed"
+    );
+    assert_eq!(shown.opacity, 0.5);
+}
+
+#[test]
 fn deleting_a_style_keeps_looks() {
     let mut p = project();
     let source = p.add(styled(Paint::Solid(RED), 0.5));

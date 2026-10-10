@@ -1966,82 +1966,13 @@ fn render_custom_vehicle() {
 #[ignore = "needs a GPU; run manually for visual QA"]
 fn render_brand_kit() {
     use tp_app::state::Modal;
-    use tp_core::document::{
-        CharStyle, ColorStop, Frame, Gradient, GradientKind, Object, ObjectId, Paint, Rgba,
-        ShapeKind, StrokeStyle, TextBlock,
-    };
-    use tp_core::kurbo::{Point, Size};
     for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
         let mut prefs = Prefs::default();
         prefs.set_language(Some(language));
         let code = language.code();
         let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 1100.0));
         h.state_mut().prefs.layout.left_tab = LeftTab::Resources;
-        let package = tp_vehicles::Package::read(tp_app::vehicles::SAMPLES[0].bytes).unwrap();
-        let mut textures = tp_app::vehicle_project::default_textures(&package.manifest);
-        textures.push("high_roof".into());
-        let project =
-            tp_app::vehicle_project::fleet_project("ACE Logistics", &package, &textures).unwrap();
-        common::open_project(&mut h, project);
-        let ws = h.state_mut().workspace_mut().unwrap();
-        let p = &mut ws.project;
-        let (red, _) = p.add_swatch(Rgba::rgb(0xC0, 0x10, 0x20), "Color");
-        p.rename_swatch(red, "Company red");
-        let (grey, _) = p.add_swatch(Rgba::rgb(0x50, 0x55, 0x5A), "Color");
-        p.rename_swatch(grey, "Company grey");
-        p.add_swatch(Rgba::rgb(0xF0, 0xB4, 0x4C), "Color");
-        let frame = |x, y, w, h| Frame::new(Point::new(x, y), Size::new(w, h), 0.0);
-        let mut stripe = Object::new(
-            ObjectId(0),
-            ShapeKind::rectangle(),
-            frame(2048.0, 2600.0, 3600.0, 260.0),
-        );
-        stripe.name = "Stripe".into();
-        let mut stop = ColorStop::new(0.0, Rgba::rgb(0xC0, 0x10, 0x20));
-        stop.swatch = Some(red);
-        stripe.fill = Paint::Gradient(Gradient::new(
-            GradientKind::Linear,
-            &[stop, ColorStop::new(1.0, Rgba::rgb(0x50, 0x55, 0x5A))],
-        ));
-        let stripe = p.add(stripe);
-        p.new_graphic_style(stripe, "Style");
-        p.rename_style(p.graphic_styles[0].id, "Stripe");
-        let mut band = Object::new(
-            ObjectId(0),
-            ShapeKind::rectangle(),
-            frame(2048.0, 3000.0, 3600.0, 120.0),
-        );
-        band.fill = Paint::Solid(Rgba::rgb(0x50, 0x55, 0x5A));
-        band.fill_swatch = Some(grey);
-        band.stroke = Some(StrokeStyle {
-            paint: Paint::Solid(Rgba::rgb(0xC0, 0x10, 0x20)),
-            swatch: Some(red),
-            width: 12.0,
-            ..StrokeStyle::default()
-        });
-        let band = p.add(band);
-        p.new_graphic_style(band, "Style");
-        p.rename_style(p.graphic_styles[1].id, "Band");
-        let mut lettering = Object::new(
-            ObjectId(0),
-            ShapeKind::Text,
-            frame(1200.0, 1500.0, 10.0, 10.0),
-        );
-        lettering.fill = Paint::Solid(Rgba::rgb(0xC0, 0x10, 0x20));
-        lettering.fill_swatch = Some(red);
-        lettering.text = Some(TextBlock::new(
-            "ACE LOGISTICS",
-            CharStyle {
-                size: 260.0,
-                ..CharStyle::default()
-            },
-        ));
-        let lettering = p.add(lettering);
-        p.new_text_style(lettering, "Text style");
-        p.rename_style(p.text_styles[0].id, "Lettering");
-        ws.relayout_all_texts();
-        ws.selection = vec![band];
-        ws.panels.color_target = tp_app::workspace::ColorTarget::Fill;
+        let (red, _) = brand_fleet(&mut h);
         for _ in 0..20 {
             h.step();
         }
@@ -2050,7 +1981,7 @@ fn render_brand_kit() {
         ws.start_swatch_edit(red);
         save(&mut h, &format!("brand_edit_swatch_{code}"));
         let ws = h.state_mut().workspace_mut().unwrap();
-        ws.cancel_swatch_edit();
+        ws.cancel_brand_edit();
         let high_roof = ws
             .project
             .surfaces
@@ -2062,6 +1993,228 @@ fn render_brand_kit() {
         h.state_mut().modal = Some(Modal::CopyFromCabin(dialog));
         save(&mut h, &format!("brand_copy_from_cabin_{code}"));
     }
+}
+
+/// The before/after editor (artboard 07's right panel) on the brand kit's
+/// fleet, the band and the stripe also drawn on the other textures: the
+/// Brand space with the swatch editor and with the style editor open, a new
+/// value set (the tiles show it), in English and German at 100 % and 200 %,
+/// and the editor as a dialog over the Workshop. Files are named
+/// `brand_editor_<language>_<screen>_<scale>.png`.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_brand_editor() {
+    for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
+        for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+            let mut prefs = Prefs {
+                ui_scale: scale,
+                ..Prefs::default()
+            };
+            prefs.set_language(Some(language));
+            let code = language.code();
+            let name = |screen: &str| format!("brand_editor_{code}_{screen}_{suffix}");
+            let size = Vec2::new(1440.0, 900.0) * scale;
+            let mut h = common::wgpu_harness_with(prefs, size);
+            editor_fleet(&mut h);
+            common::show_space(&mut h, tp_app::layout::Space::Brand);
+            open_editor(&mut h, EditorTarget::Swatch);
+            save_settled(&mut h, &name("swatch"));
+            h.state_mut().workspace_mut().unwrap().cancel_brand_edit();
+            open_editor(&mut h, EditorTarget::Style);
+            save_settled(&mut h, &name("style"));
+            h.state_mut().workspace_mut().unwrap().cancel_brand_edit();
+            // Edit Swatch… from the Workshop: the same editor as a dialog.
+            common::show_space(&mut h, tp_app::layout::Space::Workshop);
+            open_editor(&mut h, EditorTarget::Swatch);
+            save_settled(&mut h, &name("workshop"));
+            h.state_mut().workspace_mut().unwrap().cancel_brand_edit();
+        }
+    }
+}
+
+/// The brand editor and the cards with every interface text 40 % longer
+/// (localization: Texts 40% longer), in English at 100 %.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_brand_editor_long_texts() {
+    use tp_core::document::{Frame, Object, ObjectId, ShapeKind};
+    use tp_core::kurbo::{Point, Size};
+    tp_i18n::set_lengthening(40);
+    let mut h = common::wgpu_harness_with(Prefs::default(), Vec2::new(1440.0, 1200.0));
+    editor_fleet(&mut h);
+    // A symbol, for its card's usage.
+    let ws = h.state_mut().workspace_mut().unwrap();
+    let badge = ws.project.add(Object::new(
+        ObjectId(0),
+        ShapeKind::Ellipse,
+        Frame::new(Point::new(900.0, 900.0), Size::new(400.0, 400.0), 0.0),
+    ));
+    let (logo, _) = ws.project.convert_to_symbol(&[badge], "Symbol").unwrap();
+    ws.project.rename_symbol(logo, "ACE badge");
+    common::show_space(&mut h, tp_app::layout::Space::Brand);
+    save_settled(&mut h, "brand_editor_long_cards");
+    open_editor(&mut h, EditorTarget::Swatch);
+    save_settled(&mut h, "brand_editor_long_swatch");
+    h.state_mut().workspace_mut().unwrap().cancel_brand_edit();
+    open_editor(&mut h, EditorTarget::Style);
+    save_settled(&mut h, "brand_editor_long_style");
+    h.state_mut().workspace_mut().unwrap().cancel_brand_edit();
+    common::show_space(&mut h, tp_app::layout::Space::Workshop);
+    open_editor(&mut h, EditorTarget::Swatch);
+    save_settled(&mut h, "brand_editor_long_workshop");
+    tp_i18n::set_lengthening(0);
+}
+
+/// What [`open_editor`] edits.
+enum EditorTarget {
+    Swatch,
+    Style,
+}
+
+/// The brand kit's fleet with the band and the stripe copied on every
+/// other texture, so the impact box shows several tiles.
+fn editor_fleet(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
+    brand_fleet(h);
+    let ws = h.state_mut().workspace_mut().unwrap();
+    let copies: Vec<_> = ws.project.surfaces[0]
+        .objects
+        .iter()
+        .filter(|o| o.text.is_none())
+        .cloned()
+        .collect();
+    let side = ws.project.surfaces[0].size;
+    for i in 1..ws.project.surfaces.len() {
+        ws.project.active_surface = i;
+        // Scaled to the texture's size.
+        let k = ws.project.surface().size / side;
+        for o in &copies {
+            let mut o = tp_core::document::Object::clone(o);
+            o.frame.center = (o.frame.center.to_vec2() * k).to_point();
+            o.frame.size *= k;
+            ws.project.add(o);
+        }
+    }
+    ws.set_active_surface(0);
+    ws.selection.clear();
+    common::settle_renders(h);
+}
+
+/// Opens the editor on Company red (a new green) or on the Band style (a
+/// new green fill), as the picker would set it.
+fn open_editor(h: &mut egui_kittest::Harness<'static, tp_app::AppState>, target: EditorTarget) {
+    use tp_app::brand_ops::EditValue;
+    use tp_core::document::{Paint, Rgba};
+    let green = Rgba::rgb(0x24, 0x5E, 0x45);
+    let ws = h.state_mut().workspace_mut().unwrap();
+    let value = match target {
+        EditorTarget::Swatch => {
+            let red = ws.project.palette[0].id;
+            ws.start_swatch_edit(red);
+            EditValue::Color(green)
+        }
+        EditorTarget::Style => {
+            let band = &ws.project.graphic_styles[1];
+            let mut look = band.look;
+            look.fill = Paint::Solid(green);
+            look.fill_swatch = None;
+            ws.start_style_edit(band.id);
+            EditValue::Look(look)
+        }
+    };
+    ws.set_edit_value(value);
+    let edit = ws.panels.brand_edit.as_mut().unwrap();
+    let hsva = tp_core::document::Hsva::from(green);
+    edit.hex = green.to_hex();
+    edit.hsv = tp_ui::widgets::Hsv::new(hsva.h / 360.0, hsva.s, hsva.v, hsva.a);
+}
+
+/// Saves once the preview thumbnails of the open editor are rendered.
+fn save_settled(h: &mut egui_kittest::Harness<'static, tp_app::AppState>, name: &str) {
+    h.run();
+    common::settle_renders(h);
+    save(h, name);
+}
+
+/// The brand kit's fleet: the sample truck with its default textures and
+/// the high roof, three swatches (Company red linked from a gradient stop,
+/// a stroke and a lettering; Company grey from a fill), the Stripe and
+/// Band graphic styles, the Lettering text style, the band selected.
+/// Returns Company red and the Band style.
+fn brand_fleet(
+    h: &mut egui_kittest::Harness<'static, tp_app::AppState>,
+) -> (tp_core::document::SwatchId, tp_core::document::StyleId) {
+    use tp_core::document::{
+        CharStyle, ColorStop, Frame, Gradient, GradientKind, Object, ObjectId, Paint, Rgba,
+        ShapeKind, StrokeStyle, TextBlock,
+    };
+    use tp_core::kurbo::{Point, Size};
+    let package = tp_vehicles::Package::read(tp_app::vehicles::SAMPLES[0].bytes).unwrap();
+    let mut textures = tp_app::vehicle_project::default_textures(&package.manifest);
+    textures.push("high_roof".into());
+    let project =
+        tp_app::vehicle_project::fleet_project("ACE Logistics", &package, &textures).unwrap();
+    common::open_project(h, project);
+    let ws = h.state_mut().workspace_mut().unwrap();
+    let p = &mut ws.project;
+    let (red, _) = p.add_swatch(Rgba::rgb(0xC0, 0x10, 0x20), "Color");
+    p.rename_swatch(red, "Company red");
+    let (grey, _) = p.add_swatch(Rgba::rgb(0x50, 0x55, 0x5A), "Color");
+    p.rename_swatch(grey, "Company grey");
+    p.add_swatch(Rgba::rgb(0xF0, 0xB4, 0x4C), "Color");
+    let frame = |x, y, w, h| Frame::new(Point::new(x, y), Size::new(w, h), 0.0);
+    let mut stripe = Object::new(
+        ObjectId(0),
+        ShapeKind::rectangle(),
+        frame(2048.0, 2600.0, 3600.0, 260.0),
+    );
+    stripe.name = "Stripe".into();
+    let mut stop = ColorStop::new(0.0, Rgba::rgb(0xC0, 0x10, 0x20));
+    stop.swatch = Some(red);
+    stripe.fill = Paint::Gradient(Gradient::new(
+        GradientKind::Linear,
+        &[stop, ColorStop::new(1.0, Rgba::rgb(0x50, 0x55, 0x5A))],
+    ));
+    let stripe = p.add(stripe);
+    p.new_graphic_style(stripe, "Style");
+    p.rename_style(p.graphic_styles[0].id, "Stripe");
+    let mut band = Object::new(
+        ObjectId(0),
+        ShapeKind::rectangle(),
+        frame(2048.0, 3000.0, 3600.0, 120.0),
+    );
+    band.fill = Paint::Solid(Rgba::rgb(0x50, 0x55, 0x5A));
+    band.fill_swatch = Some(grey);
+    band.stroke = Some(StrokeStyle {
+        paint: Paint::Solid(Rgba::rgb(0xC0, 0x10, 0x20)),
+        swatch: Some(red),
+        width: 12.0,
+        ..StrokeStyle::default()
+    });
+    let band = p.add(band);
+    p.new_graphic_style(band, "Style");
+    p.rename_style(p.graphic_styles[1].id, "Band");
+    let mut lettering = Object::new(
+        ObjectId(0),
+        ShapeKind::Text,
+        frame(1200.0, 1500.0, 10.0, 10.0),
+    );
+    lettering.fill = Paint::Solid(Rgba::rgb(0xC0, 0x10, 0x20));
+    lettering.fill_swatch = Some(red);
+    lettering.text = Some(TextBlock::new(
+        "ACE LOGISTICS",
+        CharStyle {
+            size: 260.0,
+            ..CharStyle::default()
+        },
+    ));
+    let lettering = p.add(lettering);
+    p.new_text_style(lettering, "Text style");
+    p.rename_style(p.text_styles[0].id, "Lettering");
+    ws.relayout_all_texts();
+    ws.selection = vec![band];
+    ws.panels.color_target = tp_app::workspace::ColorTarget::Fill;
+    let band_style = ws.project.graphic_styles[1].id;
+    (red, band_style)
 }
 
 /// Symbols: the Symbols section with two instances of a logo on a texture

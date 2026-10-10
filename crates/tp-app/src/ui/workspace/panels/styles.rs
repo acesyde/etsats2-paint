@@ -224,14 +224,21 @@ fn style_row(
     response.clicked()
 }
 
-/// The menu of a style: Rename, Redefine from Selection, Select Users on
-/// This Texture, Add to / Update in Library and Delete. Returns whether the
+/// The menu of a style: Rename, Edit Style… (graphic styles), Redefine
+/// from Selection, Select Users on This Texture, Add to / Update in Library and Delete. Returns whether the
 /// style's users were selected.
 pub fn menu_items(ui: &mut Ui, env: &mut PanelEnv<'_>, id: StyleId, name: &str) -> bool {
     let mut selected = false;
     let has_one = env.ws.selection.len() == 1;
     if ui.add(MenuRow::new(&tr("styles-rename"))).clicked() {
         env.ws.panels.renaming_style = Some((id, name.to_owned()));
+        ui.close();
+    }
+    // Text styles have no before/after editor.
+    if env.ws.project.graphic_style(id).is_some()
+        && ui.add(MenuRow::new(&tr("styles-edit"))).clicked()
+    {
+        env.ws.start_style_edit(id);
         ui.close();
     }
     if ui

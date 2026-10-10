@@ -3,6 +3,7 @@
 //! options bar, the tool rail, the left panel, the canvas area and the
 //! inspector.
 
+pub mod brand_editor;
 pub mod breadcrumb;
 pub mod canvas;
 pub mod inspector;
@@ -83,8 +84,10 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         };
     }
 
-    // Edit Swatch…, opened from any list of the palette.
-    panels::colors::edit_swatch_popup(&ctx, &mut env!());
+    // The before/after editor of a swatch or a graphic style: a panel of
+    // the Brand space, a dialog over the other spaces.
+    ws.update_brand_edit(&ctx);
+    brand_editor::modal(&ctx, &mut env!());
 
     match space {
         Space::Project => spaces::project::show(ui, &mut cmds, &mut env!()),

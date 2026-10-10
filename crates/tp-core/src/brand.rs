@@ -567,13 +567,26 @@ impl Project {
         if !takes_graphic_style(&o) {
             return false;
         }
+        self.restyle(id, Look::of(&o), Some(from))
+    }
+
+    /// Gives graphic style `id` the look `look`; every object following
+    /// it, on every surface and in the symbols, changes too, and keeps
+    /// following it.
+    pub fn set_graphic_style_look(&mut self, id: StyleId, look: Look) -> bool {
+        self.restyle(id, look, None)
+    }
+
+    /// Sets graphic style `id`'s look and gives it to its followers, and to
+    /// object `also`, which then follows it.
+    fn restyle(&mut self, id: StyleId, look: Look, also: Option<ObjectId>) -> bool {
         let Some(style) = self.graphic_styles.iter_mut().find(|s| s.id == id) else {
             return false;
         };
-        style.look = Look::of(&o);
+        style.look = look;
         let style = style.clone();
         update_surfaces(self, &mut |o| {
-            if o.style != Some(id) && o.id != from {
+            if o.style != Some(id) && Some(o.id) != also {
                 return false;
             }
             let before = o.clone();
