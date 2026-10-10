@@ -215,11 +215,14 @@ undo-change-font = Schrift ändern
 vehicle-panel-package = Paket { $version } · Spielversionen { $games }
 vehicle-panel-package-missing = Paket { $version } (nicht installiert)
 vehicle-panel-update = Version { $version } ist verfügbar
-vehicle-panel-texture = Textur { $name }
-vehicle-panel-layout-changed = Layout geändert
-vehicle-panel-dismiss = Verwerfen
-vehicle-panel-dismiss-named = Layoutänderung von { $name } verwerfen
-vehicle-panel-removed = Nicht in dieser Version
+vehicle-panel-texture = Textur { $name }, { $state }
+texture-state-empty = Leer
+texture-state-modified = Geändert
+texture-state-to-check = Zu prüfen
+texture-reason-layout-changed = Layout geändert in { $version }
+texture-reason-not-in-version = Nicht in dieser Version
+texture-mark-checked = Als geprüft markieren
+texture-mark-checked-named = { $name } als geprüft markieren
 vehicle-panel-opacity-name = Deckkraft der Vorlage
 
 ## Fleet
@@ -237,8 +240,7 @@ project-game-versions = Spielversionen
 project-game-versions-supported = Von allen Fahrzeugen unterstützt: { $versions }
 project-no-common-version = Keine Spielversion wird von allen Fahrzeugen unterstützt
 vehicle-actions-named = Aktionen für { $name }
-texture-layout-changed = Das Layout dieser Textur hat sich in Version { $version } geändert: Prüfen Sie Ihre Gestaltung.
-texture-not-in-version = Diese Textur gibt es in Version { $version } des Fahrzeugs nicht: Sie hat keine Vorlage.
+texture-notice-not-in-version = Nicht in dieser Version, nicht im Mod enthalten
 
 ## Styles panel
 
@@ -307,6 +309,16 @@ inspector-hint = Wählen Sie ein Objekt aus, um Anordnung, Fläche und Kontur ei
 inspector-main-texture = Haupttextur
 inspector-accessory-texture = Zubehörtextur
 inspector-texture-kind = { $kind } · { $size } × { $size } px
+inspector-on-texture = Auf dieser Textur
+inspector-in-symbol = In diesem Symbol
+inspector-objects = Objekte
+inspector-instances = Symbolinstanzen
+inspector-off-palette = Farben außerhalb der Palette
+inspector-off-palette-select = Objekte mit Farben außerhalb der Palette auswählen
+inspector-off-palette-locked = { $count ->
+    [one] { $count } gesperrtes Objekt wird nicht ausgewählt
+   *[other] { $count } gesperrte Objekte werden nicht ausgewählt
+}
 inspector-style = Stil
 inspector-style-none = Keiner
 stroke-none = Keine
@@ -340,6 +352,21 @@ project-not-set = Nicht festgelegt
 project-edit-in-export = In „Mod exportieren“ bearbeiten…
 project-picture-generated = Wird aus der ersten Haupttextur erzeugt
 project-cabin-ids = Interne Namen: { $ids }
+project-texture-states = { $modified ->
+    [0] {""}
+   *[other] {" · "}{ $modified } geändert
+}{ $check ->
+    [0] {""}
+   *[other] {" · "}{ $check } zu prüfen
+}
+project-filter-all = Alle
+project-filter-to-do = Offen
+project-filter-to-check = Zu prüfen
+project-nothing-to-do = Nichts zu tun
+project-before-exporting = Vor dem Export
+project-nothing-to-check = Nichts zu prüfen
+project-open = Öffnen
+project-open-named = { $name } öffnen
 
 ## Brand space
 

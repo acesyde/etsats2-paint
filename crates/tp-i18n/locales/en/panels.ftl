@@ -213,11 +213,14 @@ undo-change-font = Change Font
 vehicle-panel-package = Package { $version } · game versions { $games }
 vehicle-panel-package-missing = Package { $version } (not installed)
 vehicle-panel-update = Version { $version } is available
-vehicle-panel-texture = Texture { $name }
-vehicle-panel-layout-changed = Layout changed
-vehicle-panel-dismiss = Dismiss
-vehicle-panel-dismiss-named = Dismiss layout change of { $name }
-vehicle-panel-removed = Not in this version
+vehicle-panel-texture = Texture { $name }, { $state }
+texture-state-empty = Empty
+texture-state-modified = Modified
+texture-state-to-check = To check
+texture-reason-layout-changed = Layout changed in { $version }
+texture-reason-not-in-version = Not in this version
+texture-mark-checked = Mark as Checked
+texture-mark-checked-named = Mark { $name } as checked
 vehicle-panel-opacity-name = Template opacity
 
 ## Fleet
@@ -235,8 +238,7 @@ project-game-versions = Game versions
 project-game-versions-supported = Supported by every vehicle: { $versions }
 project-no-common-version = No game version is supported by every vehicle
 vehicle-actions-named = Actions for { $name }
-texture-layout-changed = The layout of this texture changed in version { $version }: check your artwork.
-texture-not-in-version = This texture is not in version { $version } of the vehicle: it has no template.
+texture-notice-not-in-version = Not in this version, left out of the mod
 
 ## Styles panel
 
@@ -305,6 +307,16 @@ inspector-hint = Select an object to set its layout, fill and stroke.
 inspector-main-texture = Main texture
 inspector-accessory-texture = Accessory texture
 inspector-texture-kind = { $kind } · { $size } × { $size } px
+inspector-on-texture = On this texture
+inspector-in-symbol = In this symbol
+inspector-objects = Objects
+inspector-instances = Symbol instances
+inspector-off-palette = Off-palette colors
+inspector-off-palette-select = Select objects with off-palette colors
+inspector-off-palette-locked = { $count ->
+    [one] { $count } locked object is left out of the selection
+   *[other] { $count } locked objects are left out of the selection
+}
 inspector-style = Style
 inspector-style-none = None
 stroke-none = None
@@ -338,6 +350,21 @@ project-not-set = Not set
 project-edit-in-export = Edit in Export Mod…
 project-picture-generated = Generated from the first main texture
 project-cabin-ids = Internal names: { $ids }
+project-texture-states = { $modified ->
+    [0] {""}
+   *[other] {" · "}{ $modified } modified
+}{ $check ->
+    [0] {""}
+   *[other] {" · "}{ $check } to check
+}
+project-filter-all = All
+project-filter-to-do = To do
+project-filter-to-check = To check
+project-nothing-to-do = Nothing to do
+project-before-exporting = Before exporting
+project-nothing-to-check = Nothing to check
+project-open = Open
+project-open-named = Open { $name }
 
 ## Brand space
 

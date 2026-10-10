@@ -570,9 +570,10 @@ impl Workspace {
         true
     }
 
-    /// Clears the "Layout changed" flag of surface `index` (one undo step).
+    /// Clears the "Layout changed" flag of surface `index`: Mark as
+    /// Checked (one undo step).
     pub fn dismiss_layout_change(&mut self, index: usize, now: f64) {
-        self.edit("undo-dismiss-layout", now, false, |project, _| {
+        self.edit("undo-mark-checked", now, false, |project, _| {
             if let Some(t) = project
                 .surfaces
                 .get_mut(index)
@@ -1236,21 +1237,26 @@ mod tests {
     }
 
     #[test]
-    fn dismiss_a_layout_change() {
+    fn mark_a_layout_change_as_checked() {
         let v1 = package("1.2.0", &[tex("cabin", "Cabin", 1024, 1)]);
         let mut ws = Workspace::new(fleet_project("T", &v1, &[]).unwrap());
         let v2 = package("1.3.0", &[tex("cabin", "Cabin", 1024, 2)]);
         ws.apply_update(&v2, &[], 1.0);
+        let to_check = tp_core::TextureState::ToCheck(tp_core::CheckReason::LayoutChanged);
+        assert_eq!(ws.project.surfaces[0].state(), to_check);
         ws.dismiss_layout_change(0, 2.0);
         assert_eq!(
             ws.project.surfaces[0].template.as_ref().unwrap().status,
             TemplateStatus::Current
         );
+        assert_eq!(ws.history.undo_label(), Some("undo-mark-checked"));
+        assert_eq!(ws.project.surfaces[0].state(), tp_core::TextureState::Empty);
         ws.undo();
         assert_eq!(
             ws.project.surfaces[0].template.as_ref().unwrap().status,
             TemplateStatus::LayoutChanged
         );
+        assert_eq!(ws.project.surfaces[0].state(), to_check);
     }
 
     #[test]

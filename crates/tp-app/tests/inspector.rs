@@ -13,12 +13,12 @@ use tp_app::AppState;
 use tp_app::prefs::Prefs;
 use tp_app::tool::Tool;
 use tp_app::workspace::{ColorTarget, Workspace};
-use tp_core::TemplateStatus;
 use tp_core::document::{
     CharStyle, Frame, Node, Object, ObjectId, Paint, PathData, Rgba, ShapeKind, StrokeStyle,
     Subpath, TextBlock,
 };
 use tp_core::kurbo::{Point, Size};
+use tp_core::{CheckReason, TemplateStatus, TextureState};
 
 type H = Harness<'static, AppState>;
 
@@ -389,31 +389,227 @@ fn nothing_selected_describes_the_texture() {
     assert!(has(&h, "Accessory texture · 1024 × 1024 px"));
 }
 
-#[test]
-fn layout_changed_notice_with_dismiss() {
-    let mut h = open();
-    ws_mut(&mut h)
+/// Flags the active texture with `status`.
+fn flag(h: &mut H, status: TemplateStatus) {
+    ws_mut(h)
         .project
         .surface_mut()
         .template
         .as_mut()
         .unwrap()
-        .status = TemplateStatus::LayoutChanged;
+        .status = status;
     h.run();
-    let dismiss = h
-        .query_all_by_label_contains("Dismiss layout change of")
+}
+
+fn state(h: &H) -> TextureState {
+    ws(h).project.surface().state()
+}
+
+#[test]
+fn layout_changed_notice_with_mark_as_checked() {
+    let mut h = open();
+    add(&mut h, ShapeKind::Ellipse, 800.0);
+    flag(&mut h, TemplateStatus::LayoutChanged);
+    let version = ws(&h).project.vehicles[0].version.clone();
+    assert!(
+        h.query_by_label(&format!("To check: Layout changed in {version}"))
+            .is_some()
+    );
+    assert_eq!(state(&h), TextureState::ToCheck(CheckReason::LayoutChanged));
+    let mark = h
+        .query_all_by_label_contains("as checked")
         .next()
-        .expect("Dismiss")
+        .expect("Mark as Checked")
         .rect();
     // In the inspector, under the texture's name.
-    assert!(dismiss.left() > h.get_by_label("Canvas").rect().right());
-    h.query_all_by_label_contains("Dismiss layout change of")
-        .next()
-        .unwrap()
+    assert!(mark.left() > h.get_by_label("Canvas").rect().right());
+    h.get_by_label("Mark TruckPaint Sample Truck › Standard cab as checked")
         .click();
     h.run();
-    let status = ws(&h).project.surface().template.as_ref().unwrap().status;
-    assert_eq!(status, TemplateStatus::Current);
+    // Marking a texture as checked: it takes its objects' state, as one
+    // undo step; Undo flags it again.
+    assert_eq!(state(&h), TextureState::Modified);
+    assert!(h.query_by_label_contains("To check:").is_none());
+    assert_eq!(ws(&h).history.undo_label(), Some("undo-mark-checked"));
+    ws_mut(&mut h).undo();
+    h.run();
+    assert_eq!(state(&h), TextureState::ToCheck(CheckReason::LayoutChanged));
+    assert!(
+        h.query_by_label_contains("To check: Layout changed")
+            .is_some()
+    );
+}
+
+#[test]
+fn not_in_this_version_notice() {
+    let mut h = open();
+    flag(&mut h, TemplateStatus::Removed);
+    assert!(
+        h.query_by_label("To check: Not in this version, left out of the mod")
+            .is_some()
+    );
+    assert!(h.query_by_label_contains("as checked").is_none());
+    assert_eq!(state(&h), TextureState::ToCheck(CheckReason::NotInVersion));
+}
+
+/// The value of a count of On this texture.
+fn count(h: &H, label: &str) -> String {
+    h.get_by_label(label).value().unwrap_or_default()
+}
+
+/// Edits object `id` (one undo step).
+fn edit(h: &mut H, id: ObjectId, f: impl FnOnce(&mut Object)) {
+    ws_mut(h).edit_object(id, "undo-change-fill", 0.0, f);
+    h.run();
+}
+
+fn fill(h: &mut H, id: ObjectId, color: Rgba) {
+    edit(h, id, |o| o.fill = Paint::Solid(color));
+}
+
+#[test]
+fn summary_of_a_texture() {
+    let mut h = open();
+    let ids: Vec<ObjectId> = (0..4)
+        .map(|i| add(&mut h, ShapeKind::rectangle(), 400.0 + 500.0 * f64::from(i)))
+        .collect();
+    fill(&mut h, ids[0], Rgba::rgb(0x15, 0x15, 0x15));
+    fill(&mut h, ids[1], Rgba::rgb(0x15, 0x15, 0x15));
+    fill(&mut h, ids[2], Rgba::rgb(0xC2, 0x3B, 0x2A));
+    let (swatch, _) = ws_mut(&mut h)
+        .project
+        .add_swatch(Rgba::rgb(0xC2, 0x3B, 0x2A), "Color");
+    edit(&mut h, ids[3], |o| {
+        o.fill = Paint::Solid(Rgba::rgb(0xC2, 0x3B, 0x2A));
+        o.fill_swatch = Some(swatch);
+    });
+    h.run();
+    assert!(has(&h, "On this texture"));
+    assert_eq!(count(&h, "Objects"), "4");
+    assert_eq!(count(&h, "Symbol instances"), "0");
+    // The rectangle linked to the swatch doesn't count; the one of the same
+    // value, not linked, does.
+    assert_eq!(count(&h, "Off-palette colors"), "2");
+    assert!(
+        h.query_by_label("Select objects with off-palette colors")
+            .is_some()
+    );
+    // The counts follow every edit.
+    edit(&mut h, ids[0], |o| o.visible = false);
+    edit(&mut h, ids[1], |o| o.visible = false);
+    h.run();
+    assert_eq!(count(&h, "Off-palette colors"), "1");
+}
+
+#[test]
+fn never_empty_on_this_texture_follows_the_properties() {
+    let h = open();
+    let title = h.get_by_label("Standard cab").rect().top();
+    let section = h.get_by_label("On this texture").rect().top();
+    let new_objects = h.get_by_label("New objects").rect().top();
+    assert!(title < section && section < new_objects);
+    assert_eq!(count(&h, "Objects"), "0");
+    assert_eq!(count(&h, "Off-palette colors"), "0");
+    assert!(
+        h.query_by_label("Select objects with off-palette colors")
+            .is_none()
+    );
+    assert!(h.query_by_label_contains("Nothing to").is_none());
+}
+
+/// A symbol "Logo" made of a circle filled with an unlinked color, with
+/// two instances on the texture, one of them inside a group.
+fn logo(h: &mut H) -> tp_core::document::SymbolId {
+    let circle = add(h, ShapeKind::Ellipse, 800.0);
+    fill(h, circle, Rgba::rgb(0x12, 0x34, 0x56));
+    select(h, &[circle]);
+    let symbol = ws_mut(h).convert_to_symbol(1.0).expect("a symbol");
+    ws_mut(h).place_symbol(symbol, Some(Point::new(2000.0, 2000.0)), 2.0);
+    ws_mut(h).group_selection(3.0);
+    ws_mut(h).selection.clear();
+    h.run();
+    symbol
+}
+
+#[test]
+fn instances_counted_their_colors_not() {
+    let mut h = open();
+    logo(&mut h);
+    assert_eq!(count(&h, "Objects"), "2");
+    assert_eq!(count(&h, "Symbol instances"), "2");
+    assert_eq!(count(&h, "Off-palette colors"), "0");
+}
+
+#[test]
+fn editing_a_symbol_counts_its_content() {
+    let mut h = open();
+    let symbol = logo(&mut h);
+    ws_mut(&mut h).edit_symbol(symbol, 4.0);
+    ws_mut(&mut h).selection.clear();
+    h.run();
+    assert!(has(&h, "In this symbol"));
+    assert!(!has(&h, "On this texture"));
+    assert_eq!(count(&h, "Objects"), "1");
+    assert_eq!(count(&h, "Off-palette colors"), "1");
+    assert!(h.query_by_label("Symbol instances").is_none());
+}
+
+#[test]
+fn selecting_the_off_palette_objects() {
+    let mut h = open();
+    let a = add(&mut h, ShapeKind::rectangle(), 400.0);
+    let b = add(&mut h, ShapeKind::rectangle(), 1000.0);
+    fill(&mut h, a, Rgba::rgb(0x15, 0x15, 0x15));
+    fill(&mut h, b, Rgba::rgb(0xEE, 0xEE, 0xEE));
+    select(&mut h, &[a, b]);
+    ws_mut(&mut h).group_selection(1.0);
+    let group = ws(&h).selection[0];
+    edit(&mut h, group, |o| o.name = "Stripes".into());
+    let text = add_text(&mut h, 2000.0);
+    let (swatch, _) = ws_mut(&mut h)
+        .project
+        .add_swatch(Rgba::rgb(0, 0, 0), "Color");
+    edit(&mut h, text, |o| {
+        o.fill = Paint::Solid(Rgba::rgb(0, 0, 0));
+        o.fill_swatch = Some(swatch);
+    });
+    ws_mut(&mut h).selection.clear();
+    h.run();
+    assert_eq!(count(&h, "Off-palette colors"), "2");
+    h.get_by_label("Select objects with off-palette colors")
+        .click();
+    h.run();
+    // The rectangles themselves, not their group nor the text.
+    let mut selection = ws(&h).selection.clone();
+    selection.sort();
+    let mut expected = vec![a, b];
+    expected.sort();
+    assert_eq!(selection, expected);
+    assert!(has(&h, "2 objects"));
+}
+
+#[test]
+fn locked_objects_are_left_out_of_the_selection() {
+    let mut h = open();
+    let a = add(&mut h, ShapeKind::rectangle(), 400.0);
+    let b = add(&mut h, ShapeKind::rectangle(), 1000.0);
+    fill(&mut h, a, Rgba::rgb(0x15, 0x15, 0x15));
+    fill(&mut h, b, Rgba::rgb(0x15, 0x15, 0x15));
+    ws_mut(&mut h).set_locked(b, true, 1.0);
+    h.run();
+    h.get_by_label("Select objects with off-palette colors")
+        .click();
+    h.run();
+    assert_eq!(ws(&h).selection, [a]);
+    // Every one of them locked: the count is plain text.
+    ws_mut(&mut h).selection.clear();
+    ws_mut(&mut h).set_locked(a, true, 2.0);
+    h.run();
+    assert_eq!(count(&h, "Off-palette colors"), "1");
+    assert!(
+        h.query_by_label("Select objects with off-palette colors")
+            .is_none()
+    );
 }
 
 #[test]

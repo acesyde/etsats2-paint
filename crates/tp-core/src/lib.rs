@@ -9,6 +9,7 @@ pub mod import;
 pub mod mod_settings;
 mod project;
 mod symbols;
+mod texture_status;
 
 pub use brand::{BrandKit, GraphicStyle, Look, Swatch, TextStyle};
 pub use import::LibraryKey;
@@ -20,3 +21,6 @@ pub use project::{
     TemplateStatus, TextureKey, TexturePart, TextureResolution,
 };
 pub use symbols::Symbol;
+pub use texture_status::{
+    CheckReason, OffPalette, TextureFilter, TextureState, is_drawn, off_palette,
+};

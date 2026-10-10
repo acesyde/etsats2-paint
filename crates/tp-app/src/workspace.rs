@@ -147,6 +147,9 @@ pub struct Workspace {
     pub session: u64,
     /// The space shown (Project, Workshop or Brand); not saved.
     pub space: crate::layout::Space,
+    /// Which textures the Project space lists (All when the project
+    /// opens); not saved.
+    pub texture_filter: tp_core::TextureFilter,
     pub tool: Tool,
     /// Tool to restore when the temporary Hand tool (Space) is released.
     pub tool_before_space: Option<Tool>,
@@ -235,6 +238,7 @@ impl Workspace {
             project,
             session: 0,
             space: crate::layout::Space::Project,
+            texture_filter: tp_core::TextureFilter::All,
             tool: Tool::default(),
             tool_before_space: None,
             path: None,

@@ -123,6 +123,18 @@ pub(crate) fn problem(ui: &mut Ui, text: &str) {
     });
 }
 
+/// A warning that doesn't block the action, with its own icon color so it
+/// can't be mistaken for a [`problem`].
+pub(crate) fn warning(ui: &mut Ui, text: &str) {
+    ui.horizontal_top(|ui| {
+        ui.spacing_mut().item_spacing.x = space::SM;
+        ui.label(icons::rich(icons::WARNING).color(color::WARNING));
+        let label =
+            ui.add(egui::Label::new(RichText::new(text).color(color::TEXT_SECONDARY)).wrap());
+        label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
+    });
+}
+
 /// Results of the last action (packages installed, files written): a
 /// success or an error each, with an icon so they don't rely on color.
 pub(crate) fn messages(ui: &mut Ui, messages: &[Result<String, String>]) {

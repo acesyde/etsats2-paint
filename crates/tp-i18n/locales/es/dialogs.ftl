@@ -323,6 +323,10 @@ mod-problem-game-data = Hay que instalar { $vehicle } { $version } para exportar
 mod-problem-bad-game-version = { $version } no es una versión del juego: escríbala como 1.56.* o 1.56.2.
 mod-problem-unsupported-game-version = { $vehicle } ({ $range }) no es compatible con la versión del juego { $version }.
 mod-problem-no-common-game-version = { $first } ({ $first_range }) y { $second } ({ $second_range }) no tienen ninguna versión del juego en común: actualice o quite uno de ellos.
+mod-warning-layout-changed = { $texture }: disposición cambiada
+mod-warning-not-in-version = { $texture }: no está en esta versión, excluida del mod
+mod-warning-empty-one = { $texture } está vacía, se exporta con el color del juego
+mod-warning-empty-many = { $count } texturas vacías, exportadas con el color del juego
 mod-export-done = Mod exportado a { $file }
 
 ## Import from Library

@@ -11,7 +11,9 @@ use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
 use tp_core::document::Rgba;
-use tp_core::{ModSettings, Project, ProjectVehicle, TemplateStatus, TexturePart};
+use tp_core::{
+    CheckReason, ModSettings, Project, ProjectVehicle, TemplateStatus, TexturePart, TextureState,
+};
 use tp_i18n::tr;
 use tp_render::{DdsEncoding, Pixmap, RenderOptions};
 use tp_text::FontLibrary;
@@ -211,6 +213,75 @@ fn game_version_problems(project: &Project, out: &mut Vec<Problem>) {
     }
     if let FleetVersions::Conflict { first, second } = fleet(project) {
         out.push(Problem::NoCommonGameVersion { first, second });
+    }
+}
+
+/// Something to look at before exporting, which doesn't block the export
+/// (the Project space's Before exporting, and the Export Mod dialog).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Warning {
+    /// Surface `surface` is To check.
+    ToCheck { surface: usize, reason: CheckReason },
+    /// These surfaces are Empty: exported transparent.
+    Empty { surfaces: Vec<usize> },
+}
+
+/// The warnings of `project`: each texture To check in project order, then
+/// one line for the Empty textures.
+pub fn warnings(project: &Project) -> Vec<Warning> {
+    let mut out = Vec::new();
+    let mut empty = Vec::new();
+    for (i, surface) in project.surfaces.iter().enumerate() {
+        match surface.state() {
+            TextureState::ToCheck(reason) => out.push(Warning::ToCheck { surface: i, reason }),
+            TextureState::Empty => empty.push(i),
+            TextureState::Modified => {}
+        }
+    }
+    if !empty.is_empty() {
+        out.push(Warning::Empty { surfaces: empty });
+    }
+    out
+}
+
+/// The name of surface `i` in a warning: its name, preceded by its vehicle
+/// ("<vehicle> › <texture>") when another surface has the same name.
+pub fn texture_label(project: &Project, i: usize) -> String {
+    let name = &project.surfaces[i].name;
+    let shared = project
+        .surfaces
+        .iter()
+        .enumerate()
+        .any(|(j, s)| j != i && s.name == *name);
+    match project.surface_names(i) {
+        Some((vehicle, texture)) if shared => format!("{vehicle} › {texture}"),
+        _ => name.clone(),
+    }
+}
+
+impl Warning {
+    /// The warning in the current language.
+    pub fn message(&self, project: &Project) -> String {
+        match self {
+            Warning::ToCheck { surface, reason } => {
+                let texture = texture_label(project, *surface);
+                match reason {
+                    CheckReason::LayoutChanged => {
+                        tr!("mod-warning-layout-changed", texture = texture)
+                    }
+                    CheckReason::NotInVersion => {
+                        tr!("mod-warning-not-in-version", texture = texture)
+                    }
+                }
+            }
+            Warning::Empty { surfaces } => match surfaces.as_slice() {
+                [one] => tr!(
+                    "mod-warning-empty-one",
+                    texture = texture_label(project, *one)
+                ),
+                _ => tr!("mod-warning-empty-many", count = surfaces.len()),
+            },
+        }
     }
 }
 
@@ -1452,5 +1523,143 @@ mod tests {
                 .keys()
                 .any(|k| k.contains("paint_job/accessory/"))
         );
+    }
+
+    /// The sample truck (both cabins, every accessory) and the sample
+    /// trailer (Base and every accessory), nothing drawn.
+    fn fleet() -> Project {
+        let package = example("sample_truck", "1.1.0");
+        let mut textures = crate::vehicle_project::default_textures(&package.manifest);
+        textures.push("high_roof".into());
+        let mut ws = Workspace::new(fleet_project("ACE", &package, &textures).unwrap());
+        let trailer = example("sample_trailer", "1.0.0");
+        let all = crate::vehicle_project::default_textures(&trailer.manifest);
+        ws.add_vehicle(&trailer, &all, 1.0).unwrap();
+        ws.project
+    }
+
+    fn surface_named(p: &Project, name: &str) -> usize {
+        p.surfaces.iter().position(|s| s.name == name).unwrap()
+    }
+
+    /// Puts a rectangle on texture `name` (Modified).
+    fn draw(p: &mut Project, name: &str) {
+        use tp_core::document::{Frame, Object, ObjectId, ShapeKind};
+        use tp_core::kurbo::{Point, Size};
+        let i = surface_named(p, name);
+        let id = ObjectId(9000 + i as u64);
+        let frame = Frame::new(Point::new(50.0, 50.0), Size::new(10.0, 10.0), 0.0);
+        p.surfaces[i]
+            .objects
+            .push(Arc::new(Object::new(id, ShapeKind::rectangle(), frame)));
+    }
+
+    fn flag(p: &mut Project, name: &str, status: TemplateStatus) {
+        let i = surface_named(p, name);
+        p.surfaces[i].template.as_mut().unwrap().status = status;
+    }
+
+    fn messages(p: &Project) -> Vec<String> {
+        warnings(p).iter().map(|w| w.message(p)).collect()
+    }
+
+    #[test]
+    fn warnings_of_a_fleet_with_work_left() {
+        let mut p = fleet();
+        let names: Vec<&str> = p.surfaces.iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(
+            names,
+            [
+                "Standard cab",
+                "High roof",
+                "Chassis",
+                "Cab accessories",
+                "Side skirts",
+                "Base",
+                "Curtain body 13.6 m",
+                "Curtain body 10.5 m",
+                "Mudflaps"
+            ]
+        );
+        for name in ["Chassis", "Cab accessories", "Side skirts", "Mudflaps"] {
+            draw(&mut p, name);
+        }
+        flag(&mut p, "Curtain body 13.6 m", TemplateStatus::LayoutChanged);
+        assert_eq!(
+            warnings(&p),
+            [
+                Warning::ToCheck {
+                    surface: 6,
+                    reason: CheckReason::LayoutChanged
+                },
+                Warning::Empty {
+                    surfaces: vec![0, 1, 5, 7]
+                }
+            ]
+        );
+        assert_eq!(
+            messages(&p),
+            [
+                "Curtain body 13.6 m: layout changed",
+                "4 textures empty, exported with the game's color"
+            ]
+        );
+        // Warnings never block the export.
+        p.mod_settings.internal_name = Some("ace".into());
+        assert_eq!(problems(&p), []);
+        flag(&mut p, "Mudflaps", TemplateStatus::Removed);
+        assert_eq!(
+            messages(&p)[1],
+            "Mudflaps: not in this version, left out of the mod"
+        );
+        assert_eq!(problems(&p), []);
+    }
+
+    #[test]
+    fn one_empty_texture_is_named() {
+        let mut p = fleet();
+        let names: Vec<String> = p.surfaces.iter().map(|s| s.name.clone()).collect();
+        for name in names.iter().filter(|n| *n != "High roof") {
+            draw(&mut p, name);
+        }
+        assert_eq!(
+            messages(&p),
+            ["High roof is empty, exported with the game's color"]
+        );
+    }
+
+    #[test]
+    fn same_name_in_two_vehicles_gets_the_vehicle() {
+        let mut p = fleet();
+        let names: Vec<String> = p.surfaces.iter().map(|s| s.name.clone()).collect();
+        for name in names.iter().filter(|n| *n != "Base") {
+            draw(&mut p, name);
+        }
+        assert_eq!(texture_label(&p, 5), "Base");
+        // A second trailer painting its own "Base".
+        let mut twin = p.surfaces[5].clone();
+        twin.template.as_mut().unwrap().package_id = "other.trailer".into();
+        p.surfaces.push(twin);
+        let mut vehicle = p.vehicles[1].clone();
+        vehicle.package_id = "other.trailer".into();
+        vehicle.name = "Other Trailer".into();
+        p.vehicles.push(vehicle);
+        draw(&mut p, "Mudflaps");
+        let last = p.surfaces.len() - 1;
+        p.surfaces[last].objects = p.surfaces[0].objects.clone();
+        assert_eq!(
+            messages(&p),
+            ["TruckPaint Sample Trailer › Base is empty, exported with the game's color"]
+        );
+    }
+
+    #[test]
+    fn nothing_left_has_no_warning() {
+        let mut p = fleet();
+        let names: Vec<String> = p.surfaces.iter().map(|s| s.name.clone()).collect();
+        for name in &names {
+            draw(&mut p, name);
+        }
+        assert_eq!(warnings(&p), []);
     }
 }

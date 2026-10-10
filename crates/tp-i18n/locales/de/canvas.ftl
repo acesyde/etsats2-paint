@@ -86,7 +86,7 @@ undo-rename-symbol = Symbol umbenennen
 undo-update-template = Vorlage aktualisieren
 undo-edit-mod-settings = Mod-Einstellungen ändern
 undo-edit-game-versions = Spielversionen ändern
-undo-dismiss-layout = Layoutänderung verwerfen
+undo-mark-checked = Als geprüft markieren
 
 ## Fleet
 

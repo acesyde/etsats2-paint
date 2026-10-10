@@ -108,7 +108,7 @@ fn vehicle_action(h: &mut H, vehicle: &str, item: &str) {
 /// Clicks a texture of the fleet tree (the Project space's, or the
 /// Workshop's Textures tab).
 fn pick_texture(h: &mut H, path: &str) {
-    h.get_by_label(&format!("Texture {path}")).click();
+    h.get_by_label_contains(&format!("Texture {path},")).click();
     h.run();
 }
 
@@ -375,16 +375,20 @@ fn update_from_the_vehicle_panel_and_undo() {
     let status = |h: &H, i: usize| ws(h).project.surfaces[i].template.as_ref().unwrap().status;
     assert_eq!(status(&h, 0), TemplateStatus::LayoutChanged);
     assert_eq!(status(&h, 1), TemplateStatus::Current);
-    // The Cabin's tile is flagged; no update is left.
-    assert_eq!(h.query_all_by_label("Layout changed").count(), 1);
+    // The Cabin's tile is To check, saying why; no update is left.
+    assert_eq!(h.query_all_by_label("Layout changed in 1.3.0").count(), 1);
+    assert!(
+        h.query_by_label_contains("Sample Truck › Cabin, To check")
+            .is_some()
+    );
     assert!(h.query_by_label_contains("available").is_none());
     // The inspector (nothing selected) says so for the active Cabin.
     show_workshop(&mut h);
     assert!(
-        h.query_by_label_contains("The layout of this texture changed in version 1.3.0")
+        h.query_by_label("To check: Layout changed in 1.3.0")
             .is_some()
     );
-    h.get_by_label("Dismiss layout change of Sample Truck › Cabin")
+    h.get_by_label("Mark Sample Truck › Cabin as checked")
         .click();
     h.run();
     assert_eq!(status(&h, 0), TemplateStatus::Current);
@@ -964,7 +968,8 @@ fn the_tree_groups_main_textures_and_accessories() {
         "TruckPaint Sample Trailer › Base",
     ] {
         assert!(
-            h.query_by_label(&format!("Texture {row}")).is_some(),
+            h.query_by_label_contains(&format!("Texture {row},"))
+                .is_some(),
             "{row}"
         );
     }
@@ -1136,7 +1141,7 @@ fn only_the_vehicle_with_a_newer_version_offers_an_update() {
 
 /// Whether the row of texture `path` in the fleet tree is highlighted.
 fn texture_selected(h: &H, path: &str) -> bool {
-    h.get_by_label(&format!("Texture {path}"))
+    h.get_by_label_contains(&format!("Texture {path},"))
         .accesskit_node()
         .toggled()
         .is_some_and(|t| t == egui::accesskit::Toggled::True)
@@ -1161,6 +1166,10 @@ fn texture_rows_show_the_artwork_without_the_template() {
             .is_some_and(|t| t.visible),
         "the template is shown on the canvas"
     );
+    // Its marker is a hollow ring: Empty.
+    let row = "Texture TruckPaint Sample Truck › Chassis, ";
+    assert!(h.query_by_label(&format!("{row}Empty")).is_some());
+    assert!(h.query_by_label("Modified").is_none());
     // A red rectangle covering the whole Chassis texture.
     let red = tp_core::document::Rgba::rgb(220, 0, 0);
     let side = ws(&h).project.surface().size;
@@ -1199,6 +1208,9 @@ fn texture_rows_show_the_artwork_without_the_template() {
     let renders = ws(&h).thumbnails.renders;
     settle(&mut h);
     assert_eq!(ws(&h).thumbnails.renders, renders, "nothing else changed");
+    // Its marker is now a filled dot: Modified.
+    assert!(h.query_by_label(&format!("{row}Modified")).is_some());
+    assert_eq!(h.query_all_by_label("Modified").count(), 1);
 }
 
 #[test]
@@ -1217,7 +1229,7 @@ fn an_update_flags_the_texture_rows() {
     let project = tp_app::vehicle_project::fleet_project("F", &package, &textures).unwrap();
     h.state_mut().open_project(project);
     show_workshop(&mut h);
-    assert!(h.query_by_label("Layout changed").is_none());
+    assert!(h.query_by_label_contains("Layout changed").is_none());
     h.state_mut().vehicles.install_samples().unwrap();
     h.run();
     h.get_by_label("Update the template of TruckPaint Sample Truck")
@@ -1225,6 +1237,15 @@ fn an_update_flags_the_texture_rows() {
     h.run();
     h.get_by_label("Update").click();
     settle(&mut h);
-    // The Standard cab's layout changed in 1.1.0: its row is flagged.
-    assert_eq!(h.query_all_by_label("Layout changed").count(), 1);
+    // The Standard cab's layout changed in 1.1.0: its row's marker is the
+    // warning icon, saying To check and why.
+    assert_eq!(
+        h.query_all_by_label("To check\nLayout changed in 1.1.0")
+            .count(),
+        1
+    );
+    assert!(
+        h.query_by_label_contains("Sample Truck › Standard cab, To check")
+            .is_some()
+    );
 }
