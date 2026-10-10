@@ -404,6 +404,13 @@ fn view_menu_lists_spaces_tabs_and_view_settings_in_order() {
                 .y
         })
         .collect();
+    // Command Palette… comes first, with its shortcut.
+    ys.insert(0, h.get_by_label("Command Palette…").rect().center().y);
+    assert!(
+        tp_app::commands::CommandId::CommandPalette
+            .shortcut()
+            .is_some()
+    );
     ys.push(h.get_by_label("Clear Guides").rect().center().y);
     ys.push(
         h.query_all_by_role_and_label(Role::CheckBox, "Snapping")

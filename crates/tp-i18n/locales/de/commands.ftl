@@ -31,6 +31,7 @@ cmd-send-backward = Schrittweise nach hinten
 cmd-new-layer = Neue Ebene
 cmd-duplicate-layer = Ebene duplizieren
 cmd-delete-layer = Ebene löschen
+cmd-command-palette = Befehlspalette…
 cmd-zoom-in = Einzoomen
 cmd-zoom-out = Auszoomen
 cmd-fit-to-screen = An Bildschirm anpassen
@@ -172,3 +173,20 @@ cmd-previous-texture = Vorherige Textur
 reason-one-texture = Das Projekt hat nur eine Textur.
 cmd-copy-from-cabin = Von Kabine kopieren…
 reason-no-other-cabin = Kopiert zwischen Haupttexturen desselben Lkw: Die aktive Textur ist Zubehör, gehört zu einem Anhänger oder ist die einzige lackierte Kabine.
+
+## Befehlspalette
+
+palette-placeholder = Befehle und Texturen suchen
+palette-placeholder-textures = Texturen suchen
+palette-no-match = Kein Befehl und keine Textur passt zu „{ $query }“.
+palette-heading-recent = Zuletzt verwendet
+palette-heading-textures = Texturen
+palette-heading-commands = Befehle
+palette-group-tools = Werkzeuge
+palette-group-colors = Farben
+palette-group-symbol = Symbol
+palette-hint-move = Bewegen
+palette-hint-run = Ausführen
+palette-hint-close = Schließen
+palette-unavailable = nicht verfügbar: { $reason }
+textures-search = Texturen suchen

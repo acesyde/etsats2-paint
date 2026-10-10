@@ -304,6 +304,15 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         }
         return;
     }
+    if matches!(state.modal, Some(Modal::CommandPalette(_))) {
+        let Some(Modal::CommandPalette(mut palette)) = state.modal.take() else {
+            unreachable!()
+        };
+        if super::palette::show(ctx, state, &mut palette) && state.modal.is_none() {
+            state.modal = Some(Modal::CommandPalette(palette));
+        }
+        return;
+    }
     if matches!(state.modal, Some(Modal::RemoveVehicle { .. })) {
         let Some(Modal::RemoveVehicle { package_id, name }) = state.modal.take() else {
             unreachable!()
@@ -333,6 +342,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         | Modal::Textures(_)
         | Modal::CustomVehicle(_)
         | Modal::CopyFromCabin(_)
+        | Modal::CommandPalette(_)
         | Modal::RemoveVehicle { .. } => {
             unreachable!("handled above")
         }

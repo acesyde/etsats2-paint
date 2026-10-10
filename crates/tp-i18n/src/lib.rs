@@ -132,6 +132,29 @@ thread_local! {
     /// Formatted messages without arguments.
     static CACHE: RefCell<HashMap<(Language, String), String>> = RefCell::new(HashMap::new());
     static WARNED: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+    static LENGTHENING: Cell<u32> = const { Cell::new(0) };
+}
+
+/// Lengthens every message of the calling thread by `percent` (0: off), by
+/// repeating its own letters, to check that layouts fit longer
+/// translations (the localization capability's "Texts 40% longer").
+pub fn set_lengthening(percent: u32) {
+    LENGTHENING.with(|l| l.set(percent));
+}
+
+fn lengthened(text: String) -> String {
+    let percent = LENGTHENING.with(Cell::get);
+    if percent == 0 {
+        return text;
+    }
+    let extra = (text.chars().count() * percent as usize).div_ceil(100);
+    let filler: String = text
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .cycle()
+        .take(extra)
+        .collect();
+    text + &filler
 }
 
 /// Sets the language of the calling thread.
@@ -181,16 +204,16 @@ fn format(id: &str, args: Option<&FluentArgs<'_>>) -> String {
 pub fn tr(id: &str) -> String {
     let key = (current(), id.to_owned());
     if let Some(hit) = CACHE.with(|c| c.borrow().get(&key).cloned()) {
-        return hit;
+        return lengthened(hit);
     }
     let text = format(id, None);
     CACHE.with(|c| c.borrow_mut().insert(key, text.clone()));
-    text
+    lengthened(text)
 }
 
 /// Message `id` with arguments, in the current language.
 pub fn tr_args(id: &str, args: &FluentArgs<'_>) -> String {
-    format(id, Some(args))
+    lengthened(format(id, Some(args)))
 }
 
 /// Whether message `id` exists in English (the source language).

@@ -4,7 +4,7 @@
 
 use egui::text::{LayoutJob, TextFormat};
 use egui::{Color32, CornerRadius, FontId, Label, Rect, Sense, Stroke, StrokeKind, Ui};
-use tp_core::TexturePart;
+use tp_core::{Project, TexturePart};
 use tp_i18n::tr;
 use tp_ui::tokens::{color, radius, space, stroke, typography};
 
@@ -31,10 +31,16 @@ impl Crumbs {
                 size: None,
             };
         }
-        let index = ws.project.active_surface;
-        let surface = ws.project.surface();
+        Self::of_texture(&ws.project, ws.project.active_surface)
+    }
+
+    /// The breadcrumb of texture `index`: "<vehicle> › Main textures|
+    /// Accessories › <texture>" and its size (the command palette's texture
+    /// rows too).
+    pub fn of_texture(project: &Project, index: usize) -> Self {
+        let surface = &project.surfaces[index];
         let size = Some(format!("{}²", surface.size.round() as u32));
-        let Some((vehicle, texture)) = ws.project.surface_names(index) else {
+        let Some((vehicle, texture)) = project.surface_names(index) else {
             return Self {
                 path: Vec::new(),
                 name: surface.name.clone(),
