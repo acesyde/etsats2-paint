@@ -33,10 +33,17 @@ fn state(prefs: Prefs) -> AppState {
     state
 }
 
+/// Frames `Harness::run` may take before it gives up. Thumbnails and mod
+/// pictures render on worker threads and ask for a repaint when done; on a
+/// slow CI machine that can land a few frames later than egui's default of
+/// 4 allows. A UI that never settles still fails, just later.
+const MAX_STEPS: u64 = 32;
+
 /// Harness running the whole application with in-memory preferences.
 pub fn harness_with(prefs: Prefs) -> Harness<'static, AppState> {
     Harness::builder()
         .with_size(SIZE)
+        .with_max_steps(MAX_STEPS)
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state(prefs))
 }
 
@@ -48,6 +55,7 @@ pub fn harness() -> Harness<'static, AppState> {
 pub fn wgpu_harness_with(prefs: Prefs, size: Vec2) -> Harness<'static, AppState> {
     Harness::builder()
         .with_size(size)
+        .with_max_steps(MAX_STEPS)
         .wgpu()
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state(prefs))
 }

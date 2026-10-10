@@ -55,7 +55,9 @@ fn add_rect(h: &mut H, name: &str) -> ObjectId {
     o.name = name.into();
     let id = ws_mut(h).project.add(o);
     ws_mut(h).selection = vec![id];
-    h.run();
+    // The new rectangle renders the texture's thumbnail again in the
+    // background: let it finish so the next `run` settles.
+    common::settle_renders(h);
     id
 }
 
