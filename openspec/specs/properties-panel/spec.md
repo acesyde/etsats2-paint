@@ -9,7 +9,7 @@ Gives a contextual summary of the selection and quick access to its appearance p
 ### Requirement: Selection summary
 The inspector header SHALL show what is selected: the object's name and kind (name and kind icon) for a single object or group, or "N objects" for several. With nothing selected, the inspector SHALL show the active texture's properties instead:
 - its name, its kind (main texture or accessory texture) and its size in pixels;
-- what a package update flagged for it, with its actions, as today (see the vehicle-projects capability): "Layout changed" with Dismiss, or "Not in this version";
+- when a package update flagged it, that it is **To check** (see the texture-status capability) and why: its layout changed in the vehicle's version, with a **Mark as Checked** action, or it is not in this version and is left out of the mod, with no action;
 - a hint to select an object to set its layout, fill and stroke.
 
 The template's Show Template and opacity settings SHALL NOT be in the inspector: they are view settings in the status bar (see the workspace-layout capability).
@@ -23,8 +23,12 @@ The template's Show Template and opacity settings SHALL NOT be in the inspector:
 - **THEN** the inspector shows "Cabin", that it is a main texture, "4096 × 4096 px" and the hint, and no template show or opacity setting
 
 #### Scenario: Layout changed notice
-- **WHEN** nothing is selected and an update flagged the active texture's layout as changed
-- **THEN** the inspector says "Layout changed" with a Dismiss action, and clicking Dismiss removes the notice
+- **WHEN** nothing is selected and an update to version 1.3.0 flagged the active texture's layout as changed
+- **THEN** the inspector says the texture is To check because its layout changed in 1.3.0, with a Mark as Checked action, and clicking Mark as Checked removes the notice
+
+#### Scenario: Not in this version notice
+- **WHEN** nothing is selected and the active texture is marked "Not in this version"
+- **THEN** the inspector says the texture is To check because it is not in this version and is left out of the mod, with no Mark as Checked action
 
 ### Requirement: Opacity
 The Appearance section of the inspector SHALL provide an opacity field and slider from 0% to 100% applying to every selected object. A slider drag SHALL be one undo step. Differing values SHALL show "Mixed".
@@ -84,7 +88,7 @@ The Properties panel SHALL become the **inspector**, on the right of the canvas 
 6. **Style:** the style the selection follows (see Style row), for shapes and texts.
 7. **Image:** the image information, for a single image (see Image information).
 
-With nothing selected, the inspector SHALL show the texture's properties (see Selection summary) and, below them, the look used for new objects (see Fill and stroke swatches) and, when the Text tool is active, the Text section for new texts.
+With nothing selected, the inspector SHALL show the texture's properties (see Selection summary), then On this texture (see On this texture summary), then the look used for new objects (see Fill and stroke swatches) and, when the Text tool is active, the Text section for new texts.
 
 The polygon settings for new polygons are in the Polygon tool's options bar (see the workspace-layout capability); the inspector's Polygon section edits the selected polygons.
 
@@ -106,7 +110,7 @@ The polygon settings for new polygons are in the Polygon tool's options bar (see
 
 #### Scenario: Never empty
 - **WHEN** nothing is selected
-- **THEN** the inspector shows the texture's properties, and no section reads "Nothing to transform" or another empty state
+- **THEN** the inspector shows the texture's properties, then On this texture, and no section reads "Nothing to transform" or another empty state
 
 ### Requirement: Symbol actions in the header
 The inspector header SHALL offer the symbol actions of the selection, running the same commands as the Object menu:
@@ -153,3 +157,29 @@ When every selected object is a polygon, the inspector SHALL show a **Polygon** 
 #### Scenario: Not for a mixed selection
 - **WHEN** a polygon and a rectangle are selected
 - **THEN** the inspector shows no Polygon section
+
+### Requirement: On this texture summary
+With nothing selected, the inspector SHALL show, under the texture's properties, a section **On this texture** with three counts of the active texture:
+- **Objects:** its top-level objects, as counted in the Layers tab's header;
+- **Symbol instances:** the symbol instances it holds, inside groups too;
+- **Off-palette colors:** its off-palette colors (see the texture-status capability).
+
+The counts SHALL follow every edit. When the off-palette count is above zero, it SHALL be shown in the signal color and be a button, named for assistive technologies "Select objects with off-palette colors"; clicking it SHALL select the objects using them that are unlocked (objects inside groups are selected themselves, as in the Layers tab), and the inspector then shows that selection. When some of those objects are locked, the count's tooltip SHALL say how many are left out of the selection. When every one of them is locked, or the count is zero, the count is plain text.
+
+While a symbol is being edited, the section SHALL read **In this symbol** and count the symbol's objects and off-palette colors, with no Symbol instances line (symbols don't nest).
+
+#### Scenario: Summary of a texture
+- **WHEN** nothing is selected and the active texture holds four top-level objects, none of them an instance, using two unlinked colors
+- **THEN** the inspector shows On this texture with Objects 4, Symbol instances 0 and Off-palette colors 2, the 2 in the signal color
+
+#### Scenario: Selecting the off-palette objects
+- **WHEN** the active texture holds a group "Stripes" whose two rectangles are filled with unlinked colors, and a text filled with a linked swatch, and the user clicks the Off-palette colors count
+- **THEN** the two rectangles are selected, not the group nor the text, and the inspector shows "2 objects"
+
+#### Scenario: Instances counted, their colors not
+- **WHEN** the active texture holds two instances of "Logo", one of them inside a group, and nothing else
+- **THEN** On this texture shows Objects 2, Symbol instances 2 and Off-palette colors 0
+
+#### Scenario: Editing a symbol
+- **WHEN** the user edits the symbol "Logo", whose content is a circle filled with an unlinked color, and nothing is selected
+- **THEN** the inspector shows In this symbol with Objects 1 and Off-palette colors 1, and no Symbol instances line
