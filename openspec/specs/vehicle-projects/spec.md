@@ -34,7 +34,7 @@ The project name SHALL default to the vehicle name.
 - **THEN** the project has no "Cab accessories" surface
 
 ### Requirement: Switching textures
-The user SHALL switch textures from the Workshop's Textures tab, from the textures of the Project space (see the project-screen capability), and with the keyboard: clicking a texture makes its surface active. There are no texture tabs above the canvas. Vehicle › Next Texture (Cmd/Ctrl+], also Cmd/Ctrl+Page Down) and Vehicle › Previous Texture (Cmd/Ctrl+[, also Cmd/Ctrl+Page Up) SHALL make the following or preceding surface active, in project order and wrapping around, without changing the space shown; they are disabled for a project with one texture.
+The user SHALL switch textures from the Workshop's Textures tab, from the textures of the Project space (see the project-screen capability), from the command palette (see the command-palette capability), and with the keyboard: clicking a texture makes its surface active. Choosing a texture in the command palette SHALL make its surface active and show the Workshop, from any space. There are no texture tabs above the canvas. Vehicle › Next Texture (Cmd/Ctrl+], also Cmd/Ctrl+Page Down) and Vehicle › Previous Texture (Cmd/Ctrl+[, also Cmd/Ctrl+Page Up) SHALL make the following or preceding surface active, in project order and wrapping around, without changing the space shown; they are disabled for a project with one texture.
 
 When the active surface changes:
 - the canvas, rulers, Layers tab, inspector and breadcrumb SHALL show that surface. The breadcrumb names it as "<vehicle> › Main textures|Accessories › <texture>" (see the workspace-spaces capability);
@@ -58,6 +58,10 @@ Undo and redo SHALL apply to the whole project. Undoing a change made on another
 #### Scenario: Page keys kept
 - **WHEN** the active texture is the sample truck's Chassis and the user presses Cmd/Ctrl+Page Up
 - **THEN** High roof becomes active
+
+#### Scenario: Switching from the palette
+- **WHEN** a rectangle is selected on Standard cab at 200% zoom, the user opens the command palette, chooses Chassis, then chooses Standard cab the same way
+- **THEN** Chassis becomes active with nothing selected, and Standard cab is shown again at 200% at the same place
 
 ### Requirement: Update Template
 Update Template SHALL work on one vehicle of the project. It is reached from that vehicle's update button or ⋯ menu in the Textures tab, from its vehicle card in the Project space (see the project-screen capability), or from Vehicle › Update Template…, which applies to the vehicle of the active surface. It SHALL be enabled when a newer version of that vehicle's package is installed.
@@ -195,7 +199,9 @@ This data SHALL be recorded when the vehicle enters the project, through New Pro
 - **THEN** that accessory records the game ids of 1.3.0, and Undo restores those of 1.2.0
 
 ### Requirement: Textures tab
-The Workshop's **Textures** tab (see the workspace-layout capability) SHALL show the fleet as a tree, with an **Add Vehicle** (+) button in its header that runs Vehicle › Add Vehicle…:
+The Workshop's **Textures** tab (see the workspace-layout capability) SHALL show the fleet as a tree, with an **Add Vehicle** (+) button in its header that runs Vehicle › Add Vehicle…, and above the tree a **Search textures** field showing the Command Palette shortcut at its right end in the platform's notation. Clicking the field, or giving it the keyboard focus and pressing Enter or typing, SHALL open the command palette limited to textures (see the command-palette capability), with what was typed in its field. The field itself SHALL never hold text nor filter the tree.
+
+The tree:
 - **each vehicle** is a group titled with its name, with its kind and package version below (the supported game versions on hover) and a **⋯** actions menu: **Textures…**, **Update Template…** (when a newer version is installed) and **Remove from Project** (disabled for the last vehicle). When a newer version is installed, an update button showing that version SHALL also appear next to the menu;
 - **under each vehicle**, its textures in project order:
   - a **Main textures** heading over its chosen main textures (a truck's cabins, a trailer's base);
@@ -225,6 +231,10 @@ The Project space SHALL offer the same vehicle actions (Add Vehicle…, Textures
 #### Scenario: Flagged texture in the tree
 - **WHEN** Update Template to version 1.3.0 flagged the Standard cab texture "Layout changed"
 - **THEN** its row shows the warning icon in the signal color, and hovering it says "To check" and "Layout changed in 1.3.0"
+
+#### Scenario: Search textures field
+- **WHEN** the Textures tab is shown on macOS in English
+- **THEN** a field reading "Search textures" with "⌘K" at its right end is shown above the tree, and clicking it opens the command palette listing only the project's textures
 
 ### Requirement: Template overlay as a view setting
 A surface's template SHALL be drawn on the canvas above the artwork, at the surface's size, as a locked overlay.
