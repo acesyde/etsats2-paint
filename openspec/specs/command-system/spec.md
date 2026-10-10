@@ -7,11 +7,15 @@ Provides one consistent way to define, trigger, enable/disable and display every
 ## Requirements
 
 ### Requirement: Commands as the single action path
-Every user action exposed in a menu, the tool bar, a context menu or a keyboard shortcut SHALL be a registered command with a stable identifier, a display label, an optional icon, an optional default shortcut and an enabled state. Triggering a command from any entry point SHALL produce the same effect.
+Every user action exposed in a menu, the tool bar, a context menu, the command palette (see the command-palette capability) or a keyboard shortcut SHALL be a registered command with a stable identifier, a display label, an optional icon, an optional default shortcut and an enabled state. Triggering a command from any entry point SHALL produce the same effect.
 
 #### Scenario: Same command from menu and shortcut
 - **WHEN** the user triggers View › Layers from the View menu and later presses `2`, in the Workshop with no text field focused
 - **THEN** both show the Layers tab of the left panel in the same way
+
+#### Scenario: Same command from the palette
+- **WHEN** a rectangle is selected and the user chooses Flip Horizontal in the command palette, then undoes it and chooses Object › Flip Horizontal from the menu
+- **THEN** both mirror the rectangle in the same way, as one undo step named "Flip Horizontal"
 
 ### Requirement: Platform-aware shortcuts
 Shortcuts SHALL use the Command key on macOS and the Control key on Linux and Windows for the primary modifier. Shortcut labels shown in menus and tooltips SHALL use the platform's notation (for example `⇧⌘Z` on macOS, `Ctrl+Shift+Z` elsewhere).
@@ -25,11 +29,15 @@ Shortcuts SHALL use the Command key on macOS and the Control key on Linux and Wi
 - **THEN** the Undo item shows `Ctrl+Z`
 
 ### Requirement: Disabled commands
-A disabled command SHALL NOT execute when triggered by any entry point, and its menu item and tool bar button SHALL be shown in the disabled style.
+A disabled command SHALL NOT execute when triggered by any entry point, and its menu item, tool bar button and command palette row SHALL be shown in the disabled style.
 
 #### Scenario: Shortcut of a disabled command
 - **WHEN** the user presses the shortcut of a command that is currently disabled
 - **THEN** nothing happens and no error is shown
+
+#### Scenario: Disabled command in the palette
+- **WHEN** nothing is selected and the user highlights Delete in the command palette and presses Enter
+- **THEN** nothing is deleted and the palette stays open
 
 ### Requirement: Shortcuts do not fire while typing
 Single-key and modifier shortcuts SHALL NOT be triggered while a text input has keyboard focus, except for shortcuts explicitly marked as global (such as Save).
@@ -115,6 +123,9 @@ The default command registry SHALL bind these shortcuts:
 | Gradient tool | `Shift+G` |
 | Export… (Export Mod) | `Cmd/Ctrl+E` |
 | Export Texture… | `Shift+Cmd/Ctrl+E` |
+| Command Palette | `Cmd/Ctrl+K` |
+
+Command Palette's shortcut SHALL be global: it acts on every screen, with or without a project, and while a text field has keyboard focus.
 
 The keys F5, F6, F7 and F8 SHALL NOT be bound: the commands View › Sidebar, the panel toggles (Colors, Layers, Properties and the other panels of the former panel stack) and Vehicle › Vehicle Information SHALL NOT exist. The Keyboard Shortcuts window SHALL list the shortcuts of this table.
 
@@ -125,6 +136,14 @@ The keys F5, F6, F7 and F8 SHALL NOT be bound: the commands View › Sidebar, th
 #### Scenario: Export by key
 - **WHEN** a project is open and the user presses `Cmd/Ctrl+E`
 - **THEN** the Export Mod dialog opens
+
+#### Scenario: Command palette by key
+- **WHEN** the Opacity field of the inspector has focus and the user presses `Cmd/Ctrl+K`
+- **THEN** the command palette opens
+
+#### Scenario: Command palette in the shortcuts window
+- **WHEN** the user opens Help › Keyboard Shortcuts
+- **THEN** it lists Command Palette with `⌘K` on macOS and `Ctrl+K` on Windows and Linux
 
 #### Scenario: Former panel keys do nothing
 - **WHEN** a project is open in the Workshop and the user presses F5, F6, F7 or F8
