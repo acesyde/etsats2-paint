@@ -31,6 +31,7 @@ cmd-send-backward = Hacia atrás
 cmd-new-layer = Nueva capa
 cmd-duplicate-layer = Duplicar capa
 cmd-delete-layer = Eliminar capa
+cmd-command-palette = Paleta de comandos…
 cmd-zoom-in = Acercar
 cmd-zoom-out = Alejar
 cmd-fit-to-screen = Ajustar a la pantalla
@@ -172,3 +173,20 @@ cmd-previous-texture = Textura anterior
 reason-one-texture = El proyecto tiene una sola textura.
 cmd-copy-from-cabin = Copiar desde la cabina…
 reason-no-other-cabin = Copia entre texturas principales de un mismo camión: la textura activa es un accesorio, la de un remolque o la única cabina pintada.
+
+## Paleta de comandos
+
+palette-placeholder = Buscar comandos y texturas
+palette-placeholder-textures = Buscar texturas
+palette-no-match = Ningún comando ni textura coincide con «{ $query }».
+palette-heading-recent = Recientes
+palette-heading-textures = Texturas
+palette-heading-commands = Comandos
+palette-group-tools = Herramientas
+palette-group-colors = Colores
+palette-group-symbol = Símbolo
+palette-hint-move = Mover
+palette-hint-run = Ejecutar
+palette-hint-close = Cerrar
+palette-unavailable = no disponible: { $reason }
+textures-search = Buscar texturas

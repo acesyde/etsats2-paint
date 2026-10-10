@@ -34,7 +34,7 @@ fn ws_mut(h: &mut H) -> &mut Workspace {
 /// A project for the sample truck in a window `height` high, in the
 /// Workshop.
 fn open_with_height(height: f32) -> H {
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(Vec2::new(1440.0, height))
         .build_ui_state(
             |ui, state: &mut AppState| state.show(ui),

@@ -2428,3 +2428,145 @@ fn render_texture_status() {
         }
     }
 }
+
+/// Saves a render after a few frames: the palette's blinking caret keeps
+/// `Harness::run` from settling.
+fn save_stepped(h: &mut egui_kittest::Harness<'static, tp_app::AppState>, name: &str) {
+    h.run_steps(6);
+    let image = h.render().expect("render");
+    image.save(out_dir().join(format!("{name}.png"))).unwrap();
+}
+
+/// A truck and trailer fleet in the Workshop with Empty, Modified and To
+/// check textures, nothing selected.
+fn palette_fleet(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
+    use tp_app::vehicles::{SAMPLE_ID, SAMPLE_TRAILER_ID};
+    use tp_core::document::{Frame, Object, ObjectId, ShapeKind};
+    use tp_core::kurbo::{Point, Size};
+    let load = |h: &egui_kittest::Harness<'static, tp_app::AppState>, id: &str, version: &str| {
+        h.state()
+            .vehicles
+            .load(id, &version.parse().unwrap())
+            .unwrap()
+    };
+    let truck = load(h, SAMPLE_ID, "1.1.0");
+    let textures = tp_app::vehicle_project::default_textures(&truck.manifest);
+    let project =
+        tp_app::vehicle_project::fleet_project("ACE Logistics", &truck, &textures).unwrap();
+    common::open_project(h, project);
+    let trailer = load(h, SAMPLE_TRAILER_ID, "1.0.0");
+    let all = tp_app::vehicle_project::default_textures(&trailer.manifest);
+    let ws = h.state_mut().workspace_mut().unwrap();
+    ws.add_vehicle(&trailer, &all, 1.0).unwrap();
+    for name in ["Chassis", "Mudflaps"] {
+        let i = ws
+            .project
+            .surfaces
+            .iter()
+            .position(|s| s.name == name)
+            .unwrap();
+        ws.project.active_surface = i;
+        let side = ws.project.surface().size;
+        ws.project.add(Object::new(
+            ObjectId(0),
+            ShapeKind::rectangle(),
+            Frame::new(
+                Point::new(side / 2.0, side / 2.0),
+                Size::new(side * 0.8, side * 0.3),
+                0.0,
+            ),
+        ));
+    }
+    ws.project.surfaces[0].template.as_mut().unwrap().status =
+        tp_core::TemplateStatus::LayoutChanged;
+    ws.set_active_surface(0);
+    ws.selection.clear();
+    common::settle_renders(h);
+}
+
+/// The command palette (artboard 04's "Search textures ⌘K" field opens
+/// it): the Workshop of a truck and trailer fleet with an empty query
+/// (Recent, Textures with their state markers, Commands), a query
+/// highlighting a disabled command (its reason in the footer), the
+/// textures-only mode from the Search textures field, the home screen and
+/// a narrow window, in English and German at 100 % and 200 %. Files are
+/// named `palette_<language>_<screen>_<scale>.png`.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_command_palette() {
+    use egui::{Key, Modifiers};
+    use tp_app::commands::CommandId;
+    for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
+        for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+            let mut prefs = Prefs {
+                ui_scale: scale,
+                ..Prefs::default()
+            };
+            prefs.set_language(Some(language));
+            let code = language.code();
+            let size = Vec2::new(1440.0, 900.0) * scale;
+            let mut h = common::wgpu_harness_with(prefs.clone(), size);
+            // The home screen.
+            h.run();
+            h.key_press_modifiers(Modifiers::COMMAND, Key::K);
+            save_stepped(&mut h, &format!("palette_{code}_home_{suffix}"));
+            h.key_press(Key::Escape);
+            h.run();
+
+            palette_fleet(&mut h);
+            h.state_mut().palette_recent = vec![
+                CommandId::ShowGrid,
+                CommandId::Flip(tp_core::document::FlipAxis::Horizontal),
+            ];
+            save(&mut h, &format!("palette_{code}_textures_tab_{suffix}"));
+            h.key_press_modifiers(Modifiers::COMMAND, Key::K);
+            save_stepped(&mut h, &format!("palette_{code}_empty_{suffix}"));
+            // A query, its first result a disabled command.
+            let query = if language == tp_i18n::Language::German {
+                "gruppieren"
+            } else {
+                "group"
+            };
+            h.event(egui::Event::Text(query.into()));
+            save_stepped(&mut h, &format!("palette_{code}_disabled_{suffix}"));
+            h.key_press(Key::Escape);
+            h.run_steps(4);
+            // Textures only, from the Search textures field.
+            h.get_by_label(&tp_i18n::tr("textures-search")).click();
+            h.run_steps(2);
+            h.event(egui::Event::Text("ch".into()));
+            save_stepped(&mut h, &format!("palette_{code}_textures_only_{suffix}"));
+            h.key_press(Key::Escape);
+            h.run_steps(4);
+
+            // A narrow window.
+            let mut h = common::wgpu_harness_with(prefs, Vec2::new(480.0, 700.0) * scale);
+            h.run();
+            h.key_press_modifiers(Modifiers::COMMAND, Key::K);
+            save_stepped(&mut h, &format!("palette_{code}_narrow_{suffix}"));
+        }
+    }
+}
+
+/// The palette and the Search textures field with every interface text
+/// 40 % longer (localization: Texts 40% longer), in English at 100 %.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_command_palette_long_texts() {
+    use egui::{Key, Modifiers};
+    tp_i18n::set_lengthening(40);
+    let mut h = common::wgpu_harness_with(Prefs::default(), Vec2::new(1440.0, 900.0));
+    palette_fleet(&mut h);
+    h.state_mut().palette_recent = vec![tp_app::commands::CommandId::ShowGrid];
+    save(&mut h, "palette_long_textures_tab");
+    h.key_press_modifiers(Modifiers::COMMAND, Key::K);
+    save_stepped(&mut h, "palette_long_empty");
+    h.event(egui::Event::Text("group".into()));
+    save_stepped(&mut h, "palette_long_disabled");
+    h.key_press(Key::Escape);
+    h.run_steps(4);
+    h.get_by_label(&tp_i18n::tr("textures-search")).click();
+    h.run_steps(2);
+    save_stepped(&mut h, "palette_long_textures_only");
+    tp_i18n::set_lengthening(0);
+}

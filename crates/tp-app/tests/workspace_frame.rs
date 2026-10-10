@@ -226,7 +226,7 @@ fn top_bar_names_the_project_and_its_game() {
 
 #[test]
 fn a_long_name_is_shortened_and_the_controls_stay_whole() {
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(Vec2::new(900.0, 700.0))
         .build_ui_state(
             |ui, state: &mut AppState| state.show(ui),

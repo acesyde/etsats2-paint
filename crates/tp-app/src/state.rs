@@ -106,6 +106,18 @@ pub enum Modal {
         package_id: String,
         name: String,
     },
+    /// The command palette.
+    CommandPalette(crate::ui::palette::Palette),
+}
+
+/// Opening of the command palette asked during the frame (the Textures
+/// tab's Search textures field); handled after it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PaletteOpen {
+    /// Lists only the project's textures.
+    pub textures_only: bool,
+    /// What was typed in the field.
+    pub query: String,
 }
 
 /// Objects copied or cut, and where they come from.
@@ -138,6 +150,12 @@ pub struct AppState {
     pub modal: Option<Modal>,
     /// Asked from the Vehicles panel during the frame; handled after it.
     pub vehicle_request: Option<VehicleRequest>,
+    /// Asked from the Search textures field during the frame; handled
+    /// after it.
+    pub palette_request: Option<PaletteOpen>,
+    /// The commands last run from the command palette, most recent first
+    /// (this session only).
+    pub palette_recent: Vec<CommandId>,
     pub show_gallery: bool,
     /// Commands triggered this frame, executed at the end of the frame.
     pub queue: Vec<CommandId>,
@@ -222,6 +240,8 @@ impl AppState {
             screen: Screen::Home,
             modal: None,
             vehicle_request: None,
+            palette_request: None,
+            palette_recent: Vec::new(),
             show_gallery: false,
             queue: Vec::new(),
             recent_available: Vec::new(),
@@ -449,6 +469,14 @@ impl AppState {
         if let Some(request) = self.vehicle_request.take() {
             self.handle_vehicle_request(request, ctx.input(|i| i.time));
         }
+        if let Some(request) = self.palette_request.take()
+            && self.modal.is_none()
+        {
+            self.modal = Some(Modal::CommandPalette(crate::ui::palette::Palette::new(
+                request.textures_only,
+                &request.query,
+            )));
+        }
         ui::dialogs::show_modal(&ctx, self);
         if self.show_gallery {
             ui::gallery::show(&ctx, &mut self.show_gallery);
@@ -552,7 +580,8 @@ impl AppState {
         let field_focused = ctx.text_edit_focused()
             || self.text_focus_last_frame
             || self.modal.is_some()
-            || tp_ui::widgets::keyboard_claimed(ctx);
+            || tp_ui::widgets::keyboard_claimed(ctx)
+            || ui::workspace::panels::vehicle::search_field_focused(ctx);
         let now = ctx.input(|i| i.time);
         let mut editing_text = false;
         if let Some(ws) = self.workspace_mut()
@@ -610,6 +639,24 @@ impl AppState {
     pub fn dispatch(&mut self, ctx: &egui::Context, id: CommandId) {
         if !is_enabled(id, &self.edit_context()) {
             return;
+        }
+        let palette_open = matches!(self.modal, Some(Modal::CommandPalette(_)));
+        // The palette's shortcut opens and closes it, never over another
+        // dialog; it changes nothing else (a text edit, a pen path or a
+        // panel edit in progress go on).
+        if id == CommandId::CommandPalette {
+            if palette_open {
+                self.modal = None;
+            } else if self.modal.is_none() {
+                self.modal = Some(Modal::CommandPalette(crate::ui::palette::Palette::new(
+                    false, "",
+                )));
+            }
+            return;
+        }
+        // Any other command closes the palette first.
+        if palette_open {
+            self.modal = None;
         }
         // Export Mod's key works while a mod setting is typed in (the
         // dialog proposes the typed Name), not over another dialog.
@@ -707,6 +754,7 @@ impl AppState {
             }
             CommandId::ResetWorkspace => self.prefs.layout.reset(),
             CommandId::DesignGallery => self.show_gallery = !self.show_gallery,
+            CommandId::CommandPalette => {}
             CommandId::KeyboardShortcuts => self.modal = Some(Modal::KeyboardShortcuts),
             CommandId::About => self.modal = Some(Modal::About),
             CommandId::SelectTool(tool) => {
@@ -1112,6 +1160,7 @@ fn keeps_text_session(id: CommandId) -> bool {
             | CommandId::Preferences
             | CommandId::Save
             | CommandId::SaveAs
+            | CommandId::CommandPalette
     )
 }
 

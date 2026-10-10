@@ -404,6 +404,13 @@ fn view_menu_lists_spaces_tabs_and_view_settings_in_order() {
                 .y
         })
         .collect();
+    // Command Palette… comes first, with its shortcut.
+    ys.insert(0, h.get_by_label("Command Palette…").rect().center().y);
+    assert!(
+        tp_app::commands::CommandId::CommandPalette
+            .shortcut()
+            .is_some()
+    );
     ys.push(h.get_by_label("Clear Guides").rect().center().y);
     ys.push(
         h.query_all_by_role_and_label(Role::CheckBox, "Snapping")
@@ -653,7 +660,7 @@ fn plain_tool_key_does_not_fire_with_command_modifier() {
 
 #[test]
 fn typing_in_text_field_does_not_switch_tools() {
-    let mut h = Harness::builder().with_size(common::SIZE).build_ui_state(
+    let mut h = common::builder().with_size(common::SIZE).build_ui_state(
         |ui, (state, text, frames): &mut (AppState, String, u32)| {
             state.show(ui);
             // The theme's fonts are usable from the second frame on.
@@ -737,7 +744,7 @@ fn ui_scale_applies_without_restart() {
 
 #[test]
 fn macos_menus_show_symbol_shortcuts() {
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(common::SIZE)
         .with_os(egui::os::OperatingSystem::Mac)
         .build_ui_state(

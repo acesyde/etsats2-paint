@@ -50,7 +50,7 @@ fn package_file(dir: &Path, version: &str, textures: &[SampleTexture]) -> PathBu
 fn app(dir: &Path) -> H {
     let mut state = AppState::with_prefs(Prefs::default(), None);
     state.vehicles = VehicleLibrary::open(&dir.join("library"));
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(Vec2::new(1440.0, 2000.0))
         .with_step_dt(1.0 / 4.0)
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state);

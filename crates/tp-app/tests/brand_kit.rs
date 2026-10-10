@@ -27,7 +27,7 @@ const DARK_RED: Rgba = Rgba::rgb(0x8B, 0, 0);
 fn open() -> H {
     let mut prefs = Prefs::default();
     prefs.layout.left_tab = tp_app::layout::LeftTab::Resources;
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
         .with_step_dt(1.0 / 4.0)
         .build_ui_state(

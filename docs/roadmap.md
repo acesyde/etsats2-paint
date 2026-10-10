@@ -270,7 +270,6 @@ None at the moment.
 | # | Change | What it does | Why now |
 |---|---|---|---|
 | 2 | `polishing` | Fixes, ergonomics, wording and performance across the app, with no new feature. | Smooths what the first players will meet, on the new design. |
-| 2c | `command-palette` | Ctrl/Cmd+K searches every command and every texture of the project. | Fast navigation in a large fleet. |
 | 2d | `brand-edit-preview` | The Brand space shows where each element is used; editing a swatch previews its impact before "Apply to fleet". | A brand edit touches the whole fleet: say so before applying. |
 | 2e | `title-bar-menus` | Menus in the title bar on Windows and Linux, the system menu bar on macOS. Starts with a spike. | Gives the canvas the menu bar's row back. |
 | 2f | `drop-shadow` | Drop shadow as an appearance property. A new feature, optional and low priority. | Common on livery lettering. |
@@ -284,6 +283,15 @@ None at the moment.
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `command-palette` (under `polishing`): Cmd/Ctrl+K opens a command palette
+  on every screen, even while a field has the focus (also View › Command
+  Palette…); it lists every command with its shortcut, menu path (or group:
+  Tools, Colors, Symbol), check mark and disabled reason, and the project's
+  textures with their state; fuzzy search ignoring case and accents, best
+  matches first; the commands recently run from it, for the session; the
+  Textures tab's Search textures field opens it limited to textures. The
+  menus' structure became data shared by the menu bar and the palette.
+  Convert to Symbol still has no shortcut;
 - `mod-settings-in-project` (under `polishing`): every mod setting and both
   pictures are edited in the Project space's Mod information column (labels
   above the fields, the internal name under Advanced, pictures chosen or

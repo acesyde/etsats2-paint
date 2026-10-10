@@ -1,38 +1,44 @@
 ## Why
 
-TruckPaint has about a hundred commands spread over eight menus, context menus and the panels, and a fleet can reach 30 to 40 textures. A player who knows what they want ("Flip Horizontal", "Chassis") still has to remember where it lives, or scroll the sidebar's tree. The redesign (`new-design`) moves every function into the Project, Workshop and Brand spaces, so for a while even regular players won't know where things went. A search box that reaches every command and every texture from the keyboard fixes both, and is cheap because every action is already a registered command.
+TruckPaint has about a hundred commands spread over eight menus, two submenus, context menus and the panels, and a fleet can reach 30 to 40 textures. A player who knows what they want ("Flip Horizontal", "Chassis") still has to remember where it lives, or scroll the Textures tab. Since `new-design` moved every function into the Project, Workshop and Brand spaces, even regular players don't always know where things went. A search box that reaches every command and every texture from the keyboard fixes both, and is cheap because every action is already a registered command and every texture already has a state (`texture-status`) and a breadcrumb path.
 
 ## What Changes
 
-- **Command palette.** Cmd+K (macOS) / Ctrl+K (Windows, Linux) opens a search field over the window, on any screen. It is also in the View menu and in the Workshop's "Search a texture ⌘K" field from the mockup.
-- **Every command is listed** from the command registry: its translated label, its icon, its shortcut in the platform's notation, and its menu as context ("Object › Flip Horizontal"). Disabled commands are listed but shown disabled with the reason the registry already gives, and can't be run. Commands that only make sense as a gesture (Nudge, Space for the Hand tool) are left out.
-- **The project's textures are listed** as "Vehicle › Main textures › Standard cab" ("Vehicle › Cabin › Texture"). Choosing one makes it the active texture, as clicking it in the sidebar does. Without a project, only commands are listed.
-- **Fuzzy search** over the label and its context, in the interface language, ignoring case and accents ("flp hor", "chassis", "retourner"). The best matches come first; with an empty query the palette shows recently run commands, then textures.
-- **Keyboard only:** Up/Down to move, Enter to run or go, Escape to close; the mouse works too. Running a command closes the palette and acts as if it was chosen from its menu, including undo labels.
-- The palette doesn't change the document by itself, and closing it leaves the selection, the active tool and the active texture as they were.
+- **Command palette.** Cmd+K (macOS) / Ctrl+K (Windows, Linux) opens a search field over the window, on the home screen and with a project open, in every space, even while a text field has focus. Pressing it again, Escape or a click outside closes it. It is not opened over a modal dialog. It is also in the View menu (Command Palette…).
+- **Search textures field.** The Workshop's Textures tab gets the mockup's "Search textures ⌘K" field at its top (artboard 04 of the "TruckPaint 5" spec). Clicking it opens the palette limited to the project's textures; Backspace in its empty query widens it to everything.
+- **Every command is listed** from the command registry: its translated label (Undo and Redo name the operation, as in the Edit menu), its icon, its shortcut in the platform's notation, its menu path as context ("Object › Align › Align Left"; commands outside the menus get a group: Tools, Colors, Symbol), and the check mark of a toggle. Disabled commands are listed after the enabled ones, in the disabled style, with the reason the registry gives, and can't be run. Commands that only make sense as a gesture (Nudge and its Shift variant; Space for the Hand tool is not a command) are left out, and so is the palette itself.
+- **The project's textures are listed** as "Vehicle › Main textures|Accessories › Texture", like the breadcrumb, with their state marker (Empty, Modified, To check) as in the Textures tab. Choosing one makes it the active texture and shows the Workshop, from any space, as clicking it in the Project space does. Without a project, only commands are listed.
+- **Fuzzy search** over the label and its context, in the interface language, ignoring case and accents ("flp hor", "chassis", "tout selectionner" finds "Tout sélectionner"). Words may come in any order. The best matches come first, the matched letters are highlighted. With an empty query the palette shows the commands recently run from it (this session), then the project's textures, then every command in menu order.
+- **Keyboard only:** Up/Down (and Page Up/Down) move the highlight, Enter runs the command or opens the texture, Escape closes; the mouse works too. Running a command closes the palette first, then acts as if the command was chosen from its menu, including undo labels.
+- The palette doesn't change the document by itself, and closing it leaves the selection, the active tool, the active texture, the space and a text being edited as they were.
 
-Shortcut check: no command uses Cmd/Ctrl+K today (Convert to Symbol has no shortcut). The mockup gives Convert to Symbol ⌘⇧K; the registry matches modifiers exactly, so ⌘K and ⌘⇧K don't collide, and the existing duplicate-shortcut test guards against a future clash. The palette's shortcut is global (it works while a text field has focus), like Save.
+Shortcut check: no command uses Cmd/Ctrl+K today, and Convert to Symbol still has no shortcut (the mockup suggests ⌘⇧K for it; that is left to a later change, and would not collide since the registry matches modifiers exactly). The `no_duplicate_default_shortcuts` test guards against a future clash. The palette's shortcut is global (it works while a text field has focus), like Save and Export….
 
 Non-goals:
-- searching objects, layers, symbols or swatches (may come later, same field);
+- searching objects, layers, symbols, swatches or styles (may come later, in the same field);
+- recent commands kept across sessions;
 - user-defined shortcuts or aliases;
 - typed arguments ("zoom 200").
 
 ## Capabilities
 
 ### New Capabilities
-- `command-palette`: opening and closing the palette, what it lists (commands with shortcut, context and disabled state; the project's textures), the search and its ordering, recent commands, and keyboard use.
+- `command-palette`: opening and closing the palette (shortcut, View menu, Search textures field), what it lists (commands with shortcut, menu path, toggle state and disabled reason; the project's textures with their state), the search and its ordering, recent commands, running a command or opening a texture, and keyboard use.
 
 ### Modified Capabilities
-- `command-system`: the palette becomes one more entry point of "Commands as the single action path", with the same effect and the same disabled behavior; Cmd/Ctrl+K is a default, global shortcut.
-- `vehicle-projects`: "Switching textures" names the sidebar's tree as the place to switch textures; the palette becomes a second way, with the same effects (selection cleared, view kept per surface).
+- `command-system`: "Commands as the single action path" names the palette as an entry point with the same effect; "Disabled commands" covers the palette's rows; "Default workspace shortcuts" adds Command Palette `Cmd/Ctrl+K` (global), listed in the Keyboard Shortcuts window.
+- `workspace-layout`: "Menu bar" adds Command Palette… as the first item of the View menu.
+- `vehicle-projects`: "Switching textures" adds the palette as a way to switch textures, with the same effects (selection cleared, view kept per surface); "Textures tab" adds the Search textures field at the top of the tab.
 
 ## Impact
 
-- **Depends on `new-design`:** the palette is drawn in the new design system and placed in its Workshop layout (the "Search a texture" field). Command labels and menu paths are read from the registry after the redesign has settled them.
+- **Builds on** `new-design` (spaces, Textures tab, tokens), `texture-status` (state markers) and the breadcrumb's "Vehicle › Main textures|Accessories › Texture" naming.
 - **tp-app:**
-  - `commands.rs`: a `CommandPalette` command with its shortcut; a way to list paletted commands with their menu path (today the menu structure lives only in `ui/menu_bar.rs`, so it moves to data both use); a flag for gesture-only commands;
-  - a new `ui/palette.rs`: the overlay, the fuzzy matcher (pure, unit-tested) and the result list;
-  - `state.rs`: recent commands (session only) and dispatch of a chosen texture through the existing texture switch.
-- **tp-i18n:** a few strings (placeholder, empty result, group names) in en/fr/es/de.
-- **Dependencies:** none expected; a small subsequence matcher is enough. A crate such as `nucleo-matcher` is an option for design.md.
+  - `commands.rs`: a `CommandPalette` command (`Cmd/Ctrl+K`, `Scope::Global`) and `in_palette()`, which leaves out Nudge and the palette;
+  - a new `menus.rs`: the menu structure as data (menus, submenus, separators, toggles), drawn by `ui/menu_bar.rs` and read by the palette for menu paths, so the two can't disagree;
+  - a new `palette.rs` (pure: text folding, fuzzy matcher, ranking, unit-tested) and `ui/palette.rs` (the overlay, the result rows, the keys);
+  - `state.rs`: a `Modal::CommandPalette` variant, the session's recent palette commands, and opening a chosen texture in the Workshop;
+  - `ui/workspace/panels/vehicle.rs`: the Search textures field.
+- **tp-i18n:** a dozen strings (command label, placeholders, empty result, footer hints, group names, accessibility names) in en/fr/es/de.
+- **Dependencies:** none. A small home-made subsequence matcher and accent-folding table are enough for about 130 entries; `nucleo-matcher` is weighed and set aside in design.md.
+- **Files:** no project or preferences format change.

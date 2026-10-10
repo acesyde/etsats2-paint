@@ -6,10 +6,10 @@ use tp_ui::icons;
 use tp_ui::tokens::{color, size, space};
 
 use super::CommandUi;
-use crate::commands::CommandId;
-use crate::layout::{LeftTab, Space, WorkspaceLayout};
+use crate::layout::WorkspaceLayout;
+use crate::menus::{self, Entry};
 
-/// Menu titles, in order.
+/// Menu titles, in order (the titles of [`menus::menus`]).
 pub const MENUS: [&str; 8] = [
     "menu-file",
     "menu-edit",
@@ -38,153 +38,46 @@ pub fn show(
         .on_hover_text(crate::paths::APP_NAME);
         ui.add_space(space::XS);
 
-        for title in MENUS {
-            ui.menu_button(tr(title), |ui| {
-                ui.set_min_width(220.0);
-                menu_contents(ui, cmds, title, layout, aids);
+        for menu in menus::menus() {
+            ui.menu_button(tr(menu.title), |ui| {
+                ui.set_min_width(menus::MENU_MIN_WIDTH);
+                menu_contents(ui, cmds, &menu.entries, layout, aids);
             });
         }
     });
 }
 
+/// Draws `entries` of a menu: items, toggles with their check mark,
+/// separators and submenus.
 fn menu_contents(
     ui: &mut Ui,
     cmds: &mut CommandUi<'_>,
-    title: &str,
+    entries: &[Entry],
     layout: Option<&WorkspaceLayout>,
     aids: crate::prefs::ViewAids,
 ) {
-    use CommandId::*;
-    let item = |ui: &mut Ui, cmds: &mut CommandUi<'_>, id| {
-        cmds.menu_item(ui, id);
-    };
-    match title {
-        "menu-file" => {
-            item(ui, cmds, NewProject);
-            item(ui, cmds, OpenProject);
-            ui.separator();
-            item(ui, cmds, Save);
-            item(ui, cmds, SaveAs);
-            ui.separator();
-            item(ui, cmds, Place);
-            ui.separator();
-            item(ui, cmds, CloseProject);
-            ui.separator();
-            item(ui, cmds, Quit);
-        }
-        "menu-edit" => {
-            item(ui, cmds, Undo);
-            item(ui, cmds, Redo);
-            ui.separator();
-            item(ui, cmds, Cut);
-            item(ui, cmds, Copy);
-            item(ui, cmds, Paste);
-            item(ui, cmds, Duplicate);
-            item(ui, cmds, Delete);
-            ui.separator();
-            item(ui, cmds, SelectAll);
-            item(ui, cmds, Deselect);
-            ui.separator();
-            item(ui, cmds, Preferences);
-        }
-        "menu-object" => {
-            item(ui, cmds, EditText);
-            ui.separator();
-            item(ui, cmds, Group);
-            item(ui, cmds, Ungroup);
-            ui.separator();
-            item(ui, cmds, ConvertToSymbol);
-            item(ui, cmds, ImportFromLibrary);
-            item(ui, cmds, EditSymbol);
-            item(ui, cmds, DetachInstance);
-            ui.separator();
-            item(ui, cmds, ConvertToPath);
-            item(ui, cmds, CreateOutlines);
-            ui.menu_button(tr("menu-combine"), |ui| {
-                ui.set_min_width(220.0);
-                for op in tp_core::document::BooleanOp::ALL {
-                    item(ui, cmds, Combine(op));
-                }
-            });
-            ui.menu_button(tr("menu-align"), |ui| {
-                ui.set_min_width(260.0);
-                for edge in tp_core::document::Edge::ALL {
-                    item(ui, cmds, Align(edge));
-                }
+    for entry in entries {
+        match entry {
+            Entry::Item(id) => {
+                cmds.menu_item(ui, *id);
+            }
+            Entry::Toggle(id) => {
+                let checked = menus::is_checked(*id, &cmds.edit, layout, aids);
+                cmds.menu_toggle(ui, *id, checked);
+            }
+            Entry::Separator => {
                 ui.separator();
-                use tp_core::document::{DistributeAxis, DistributeMode};
-                for (axis, mode) in [
-                    (DistributeAxis::Horizontal, DistributeMode::Centers),
-                    (DistributeAxis::Vertical, DistributeMode::Centers),
-                    (DistributeAxis::Horizontal, DistributeMode::Spacing),
-                    (DistributeAxis::Vertical, DistributeMode::Spacing),
-                ] {
-                    item(ui, cmds, Distribute(axis, mode));
-                }
-            });
-            ui.separator();
-            for axis in tp_core::document::FlipAxis::ALL {
-                item(ui, cmds, Flip(axis));
             }
-            ui.separator();
-            item(ui, cmds, BringForward);
-            item(ui, cmds, SendBackward);
-        }
-        "menu-layer" => {
-            item(ui, cmds, NewLayer);
-            item(ui, cmds, DuplicateLayer);
-            item(ui, cmds, DeleteLayer);
-        }
-        "menu-view" => {
-            let space = cmds.edit.space;
-            for s in Space::ALL {
-                cmds.menu_toggle(ui, ShowSpace(s), space == Some(s));
-            }
-            ui.separator();
-            let tab = layout.map(|l| l.left_tab);
-            for t in LeftTab::ALL {
-                cmds.menu_toggle(ui, ShowLeftTab(t), tab == Some(t));
-            }
-            ui.separator();
-            cmds.menu_toggle(ui, TogglePanels, layout.is_some_and(|l| l.panels_hidden));
-            ui.separator();
-            let template_shown = cmds.edit.template_visible;
-            cmds.menu_toggle(ui, ShowTemplate, template_shown);
-            cmds.menu_toggle(ui, ShowGrid, layout.is_some() && aids.grid);
-            cmds.menu_toggle(ui, ShowGuides, layout.is_some() && aids.guides);
-            item(ui, cmds, ClearGuides);
-            cmds.menu_toggle(ui, Snapping, layout.is_some() && aids.snapping);
-            ui.separator();
-            item(ui, cmds, ZoomIn);
-            item(ui, cmds, ZoomOut);
-            item(ui, cmds, FitToScreen);
-            item(ui, cmds, ActualSize);
-            ui.separator();
-            item(ui, cmds, ResetWorkspace);
-            if cfg!(debug_assertions) {
-                ui.separator();
-                item(ui, cmds, DesignGallery);
+            Entry::Submenu {
+                title,
+                min_width,
+                entries,
+            } => {
+                ui.menu_button(tr(title), |ui| {
+                    ui.set_min_width(*min_width);
+                    menu_contents(ui, cmds, entries, layout, aids);
+                });
             }
         }
-        "menu-vehicle" => {
-            item(ui, cmds, VehicleLibrary);
-            item(ui, cmds, AddVehicle);
-            ui.separator();
-            item(ui, cmds, NextTexture);
-            item(ui, cmds, PreviousTexture);
-            item(ui, cmds, CopyFromCabin);
-            ui.separator();
-            item(ui, cmds, UpdateTemplate);
-        }
-        "menu-export" => {
-            item(ui, cmds, ExportTexture);
-            item(ui, cmds, ExportMod);
-        }
-        "menu-help" => {
-            item(ui, cmds, KeyboardShortcuts);
-            ui.separator();
-            item(ui, cmds, About);
-        }
-        _ => {}
     }
 }

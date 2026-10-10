@@ -8,6 +8,16 @@ use tp_ui::widgets::{IconButton, MenuRow, ToolButton};
 use crate::commands::{CommandId, EditContext, ShortcutFormatter};
 use crate::state::{disabled_reason_for, is_enabled};
 
+/// A command's menu label in the current language, naming the operation
+/// for Undo/Redo ("Undo Move").
+pub fn command_label(id: CommandId, edit: &EditContext) -> String {
+    match (id, edit.undo_label, edit.redo_label) {
+        (CommandId::Undo, Some(action), _) => tr!("cmd-undo-action", action = tr(action)),
+        (CommandId::Redo, _, Some(action)) => tr!("cmd-redo-action", action = tr(action)),
+        _ => tr(id.meta().label),
+    }
+}
+
 /// Per-frame helper bound to the command queue.
 pub struct CommandUi<'q> {
     pub queue: &'q mut Vec<CommandId>,
@@ -31,11 +41,7 @@ impl<'q> CommandUi<'q> {
     /// Menu label in the current language, naming the operation for
     /// Undo/Redo ("Undo Move").
     pub fn label(&self, id: CommandId) -> String {
-        match (id, self.edit.undo_label, self.edit.redo_label) {
-            (CommandId::Undo, Some(action), _) => tr!("cmd-undo-action", action = tr(action)),
-            (CommandId::Redo, _, Some(action)) => tr!("cmd-redo-action", action = tr(action)),
-            _ => tr(id.meta().label),
-        }
+        command_label(id, &self.edit)
     }
 
     pub fn push(&mut self, id: CommandId) {

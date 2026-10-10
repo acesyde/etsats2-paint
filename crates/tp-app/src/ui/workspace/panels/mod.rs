@@ -31,6 +31,8 @@ pub struct PanelEnv<'a> {
     pub vehicles: &'a crate::vehicles::VehicleLibrary,
     /// An action on one of the project's vehicles, run after the frame.
     pub vehicle_request: &'a mut Option<crate::state::VehicleRequest>,
+    /// The command palette to open after the frame (Search textures).
+    pub palette_request: &'a mut Option<crate::state::PaletteOpen>,
     /// The personal library (Add to Library).
     pub library: &'a mut crate::library::LibraryStore,
     pub now: f64,

@@ -36,7 +36,7 @@ fn harness_in(recovery: Option<&Path>) -> H {
     if let Some(dir) = recovery {
         state.enable_recovery(dir);
     }
-    Harness::builder()
+    common::builder()
         .with_size(common::SIZE)
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state)
 }
@@ -669,7 +669,7 @@ fn preferences_from_a_build_before_the_spaces() {
     // Nothing else was written next to the file, and no message appears.
     let files: Vec<_> = std::fs::read_dir(dir.path()).unwrap().collect();
     assert_eq!(files.len(), 1);
-    let mut h = Harness::builder().with_size(common::SIZE).build_ui_state(
+    let mut h = common::builder().with_size(common::SIZE).build_ui_state(
         |ui, state: &mut AppState| state.show(ui),
         AppState::with_prefs(prefs, None),
     );
@@ -685,7 +685,7 @@ fn workspace_layout_survives_restart() {
     let store = || Some(PrefsStore::new(dir.path()));
     let mut state = AppState::new(store());
     state.system_fonts = false;
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(common::SIZE)
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state);
     common::create_project(&mut h);

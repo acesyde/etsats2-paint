@@ -15,7 +15,7 @@ type H = Harness<'static, AppState>;
 
 fn harness(tall: bool) -> H {
     let state = AppState::with_prefs(tp_app::prefs::Prefs::default(), None);
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(egui::Vec2::new(1440.0, if tall { 2400.0 } else { 900.0 }))
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state);
     common::create_project(&mut h);

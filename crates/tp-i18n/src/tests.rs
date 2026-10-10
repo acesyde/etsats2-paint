@@ -176,3 +176,17 @@ fn every_message_formats_without_errors() {
         }
     }
 }
+
+#[test]
+fn lengthening_makes_messages_longer() {
+    set_language(Language::English);
+    set_lengthening(40);
+    let long = tr("language-system");
+    set_lengthening(0);
+    let short = tr("language-system");
+    assert!(long.starts_with(&short));
+    assert_eq!(
+        long.chars().count(),
+        short.chars().count() + (short.chars().count() * 40).div_ceil(100)
+    );
+}

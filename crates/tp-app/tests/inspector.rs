@@ -24,7 +24,7 @@ type H = Harness<'static, AppState>;
 
 /// Tall window, so no section of the inspector scrolls.
 fn open() -> H {
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
         .with_step_dt(1.0 / 4.0)
         .build_ui_state(

@@ -31,7 +31,7 @@ fn ws_mut(h: &mut H) -> &mut Workspace {
 /// A tall window showing, in the Project space, a saved project named "ACE
 /// Logistics" for the sample truck painting its default textures.
 fn open() -> H {
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(Vec2::new(1440.0, 1800.0))
         .build_ui_state(
             |ui, state: &mut AppState| state.show(ui),

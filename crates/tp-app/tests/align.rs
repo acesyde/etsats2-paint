@@ -162,7 +162,7 @@ fn not_enough_objects_and_nothing_selected() {
 /// Tall window, so the inspector's Layout section shows whole.
 fn open_tall() -> H {
     let prefs = tp_app::prefs::Prefs::default();
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(egui::Vec2::new(1440.0, 2400.0))
         .build_ui_state(
             |ui, state: &mut AppState| state.show(ui),

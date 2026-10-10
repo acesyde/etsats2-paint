@@ -52,6 +52,7 @@ pub enum CommandId {
     DuplicateLayer,
     DeleteLayer,
     // View
+    CommandPalette,
     ZoomIn,
     ZoomOut,
     FitToScreen,
@@ -186,6 +187,12 @@ impl CommandId {
         )
     }
 
+    /// Commands the command palette lists: all but the held or repeated
+    /// keys (Nudge) and the palette itself.
+    pub fn in_palette(self) -> bool {
+        !matches!(self, Self::Nudge(..) | Self::CommandPalette)
+    }
+
     /// Commands whose key acts only in the Workshop (`Tab`, `G`).
     pub fn key_needs_workshop(self) -> bool {
         matches!(self, Self::TogglePanels | Self::ShowTemplate)
@@ -297,6 +304,7 @@ impl CommandId {
             NewLayer,
             DuplicateLayer,
             DeleteLayer,
+            CommandPalette,
             ZoomIn,
             ZoomOut,
             FitToScreen,
@@ -687,6 +695,14 @@ impl CommandId {
                 When(editable_selection, NEEDS_SELECTION),
             ),
 
+            // Global: it opens while a text field has the focus.
+            CommandPalette => m(
+                "cmd-command-palette",
+                Some(icons::SEARCH),
+                const { &[sc(CMD, Key::K)] },
+                Global,
+                When(|c| !c.gesture_active, ""),
+            ),
             ZoomIn => m(
                 "cmd-zoom-in",
                 None,
@@ -1168,7 +1184,7 @@ mod tests {
     #[test]
     fn default_workspace_shortcuts() {
         use CommandId::*;
-        let table: [(CommandId, &[KeyboardShortcut]); 19] = [
+        let table: [(CommandId, &[KeyboardShortcut]); 20] = [
             (ShowSpace(Space::Project), &[sc(CMD, Key::Num1)]),
             (ShowSpace(Space::Workshop), &[sc(CMD, Key::Num2)]),
             (ShowSpace(Space::Brand), &[sc(CMD, Key::Num3)]),
@@ -1194,6 +1210,7 @@ mod tests {
             (ExportTexture, &[sc(CMD_SHIFT, Key::E)]),
             (KeyboardShortcuts, &[sc(CMD, Key::Slash)]),
             (DefaultColors, &[sc(NONE, Key::D)]),
+            (CommandPalette, &[sc(CMD, Key::K)]),
         ];
         for (id, shortcuts) in table {
             assert_eq!(id.meta().shortcuts, shortcuts, "{id:?}");

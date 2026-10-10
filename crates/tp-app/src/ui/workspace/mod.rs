@@ -31,6 +31,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         screen,
         vehicles,
         vehicle_request,
+        palette_request,
         library,
         ..
     } = state;
@@ -75,6 +76,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
                 recent_colors: recent_colors.as_slice(),
                 vehicles: &*vehicles,
                 vehicle_request: &mut *vehicle_request,
+                palette_request: &mut *palette_request,
                 library: &mut *library,
                 now,
             }

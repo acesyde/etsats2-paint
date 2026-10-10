@@ -22,9 +22,106 @@ use crate::commands::CommandId;
 use crate::state::VehicleRequest;
 use crate::ui::CommandUi;
 
-/// The fleet tree of the Textures tab: clicking a texture makes it active.
+/// The fleet tree of the Textures tab under the Search textures field:
+/// clicking a texture makes it active.
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
+    if let Some(query) = search_field(ui, cmds) {
+        *env.palette_request = Some(crate::state::PaletteOpen {
+            textures_only: true,
+            query,
+        });
+    }
+    ui.add_space(space::SM);
     vehicles_section(ui, cmds, env);
+}
+
+/// The id of the Search textures field.
+pub fn search_field_id() -> egui::Id {
+    egui::Id::new("textures_search_field")
+}
+
+/// Whether the Search textures field has the keyboard focus: what is typed
+/// goes to the palette it opens, not to single-key shortcuts.
+pub fn search_field_focused(ctx: &egui::Context) -> bool {
+    ctx.memory(|m| m.has_focus(search_field_id()))
+}
+
+/// Height of the Search textures field.
+const SEARCH_HEIGHT: f32 = 28.0;
+
+/// The Search textures field: it looks like a field, with the Command
+/// Palette's shortcut at its right end, but holds no text. Clicking it, or
+/// Enter or typing while it has the focus, opens the palette limited to
+/// textures: returns what was typed.
+fn search_field(ui: &mut Ui, cmds: &CommandUi<'_>) -> Option<String> {
+    let label = tr("textures-search");
+    let rect = Rect::from_min_size(
+        ui.cursor().min,
+        Vec2::new(ui.available_width(), SEARCH_HEIGHT),
+    );
+    let response = ui.interact(rect, search_field_id(), Sense::click());
+    ui.advance_cursor_after_rect(rect);
+    response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, &label));
+    let painter = ui.painter();
+    painter.rect(
+        rect,
+        radius::LG,
+        color::FIELD,
+        Stroke::new(1.0, color::BORDER),
+        StrokeKind::Inside,
+    );
+    tp_ui::widgets::paint_focus_ring(ui, rect, &response, radius::LG);
+    let y = rect.center().y;
+    let icon = painter.text(
+        egui::pos2(rect.left() + space::SM + 2.0, y),
+        Align2::LEFT_CENTER,
+        icons::SEARCH,
+        icons::font(13.0),
+        color::TEXT_MUTED,
+    );
+    let mut right = rect.right() - space::SM - 2.0;
+    if let Some(shortcut) = cmds.shortcuts.command(CommandId::CommandPalette) {
+        let key = painter.text(
+            egui::pos2(right, y),
+            Align2::RIGHT_CENTER,
+            shortcut,
+            egui::FontId::monospace(tp_ui::tokens::typography::MONO),
+            color::TEXT_MUTED,
+        );
+        right = key.left() - space::SM;
+    }
+    let text = Rect::from_min_max(
+        egui::pos2(icon.right() + space::SM, rect.top()),
+        egui::pos2(right, rect.bottom()),
+    );
+    painter.with_clip_rect(text.intersect(ui.clip_rect())).text(
+        egui::pos2(text.left(), y),
+        Align2::LEFT_CENTER,
+        &label,
+        egui::FontId::proportional(tp_ui::tokens::typography::CONTROL),
+        color::TEXT_MUTED,
+    );
+    if response.clicked() {
+        return Some(String::new());
+    }
+    if response.has_focus() {
+        let (enter, typed) = ui.input_mut(|i| {
+            let enter = i.consume_key(egui::Modifiers::NONE, egui::Key::Enter);
+            let mut typed = String::new();
+            i.events.retain(|e| match e {
+                egui::Event::Text(t) => {
+                    typed.push_str(t);
+                    false
+                }
+                _ => true,
+            });
+            (enter, typed)
+        });
+        if enter || !typed.is_empty() {
+            return Some(typed);
+        }
+    }
+    None
 }
 
 /// The id of the Game versions field's text field (+ Add once clicked).
@@ -486,7 +583,7 @@ pub const STATE_DOT: f32 = 6.0;
 /// The marker of a state in the Textures tab, centered at `center`: a
 /// hollow ring for Empty, a filled dot for Modified and a warning icon in
 /// the signal color for To check, so the states differ by shape.
-fn paint_state_marker(painter: &egui::Painter, center: egui::Pos2, state: TextureState) {
+pub fn paint_state_marker(painter: &egui::Painter, center: egui::Pos2, state: TextureState) {
     let r = STATE_DOT / 2.0;
     match state {
         TextureState::Empty => {
@@ -505,6 +602,15 @@ fn paint_state_marker(painter: &egui::Painter, center: egui::Pos2, state: Textur
             );
         }
     }
+}
+
+/// The marker of `state` drawn in `rect` (16 pt square), saying `hover`
+/// (its state, and why To check) on hover and to assistive technologies.
+pub fn state_marker(ui: &mut Ui, rect: Rect, id: egui::Id, state: TextureState, hover: &str) {
+    paint_state_marker(ui.painter(), rect.center(), state);
+    ui.interact(rect, id, Sense::hover())
+        .on_hover_text(hover)
+        .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, hover));
 }
 
 /// Side of a texture's thumbnail in a row, in points.
@@ -573,10 +679,7 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     let right = size_rect.left() - space::SM;
     let marker =
         Rect::from_center_size(egui::pos2(right - 8.0, rect.center().y), Vec2::splat(16.0));
-    paint_state_marker(&painter, marker.center(), state);
-    ui.interact(marker, row.id.with("state"), Sense::hover())
-        .on_hover_text(hover.as_str())
-        .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, hover.as_str()));
+    state_marker(ui, marker, row.id.with("state"), state, &hover);
     let right = marker.left() - space::XS;
     let name_rect = Rect::from_min_max(
         egui::pos2(thumb.right() + space::SM, rect.top()),

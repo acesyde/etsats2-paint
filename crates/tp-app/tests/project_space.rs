@@ -42,7 +42,7 @@ fn ids(list: &[&str]) -> Vec<String> {
 /// Logistics" for the sample truck painting `truck` (if any) and the
 /// sample trailer painting `trailer` (if any).
 fn open(truck: Option<&[&str]>, trailer: Option<&[&str]>) -> H {
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(Vec2::new(1440.0, 1800.0))
         .build_ui_state(
             |ui, state: &mut AppState| state.show(ui),
@@ -711,7 +711,7 @@ fn show_leads_to_the_field() {
 #[test]
 fn problem_about_a_vehicle() {
     // A short window: the trailer's card is below the truck's.
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(Vec2::new(1440.0, 700.0))
         .build_ui_state(
             |ui, state: &mut AppState| state.show(ui),
