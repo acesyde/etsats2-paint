@@ -8,8 +8,8 @@ Lets a project share named looks across every texture of its fleet: graphic styl
 
 ### Requirement: Graphic and text styles
 A project SHALL hold two ordered lists of named styles, both starting empty:
-- **graphic styles:** a fill, a stroke (or none) and an opacity;
-- **text styles:** the whole look of a lettering. That is a character style (font family, weight, italic, size, alignment, letter spacing and line height), plus a fill, a stroke (or none) and an opacity.
+- **graphic styles:** a fill, a stroke (or none), an opacity and a shadow (or none);
+- **text styles:** the whole look of a lettering. That is a character style (font family, weight, italic, size, alignment, letter spacing and line height), plus a fill, a stroke (or none), an opacity and a shadow (or none).
 
 A style's colors MAY be linked to palette swatches. Editing such a swatch SHALL update the style, and every object following the style.
 
@@ -23,16 +23,20 @@ Style names SHALL NOT be empty. Two styles of the same kind SHALL NOT have the s
 - **WHEN** the graphic style "Stripe" fills with the swatch "Company red", and the user edits "Company red" to dark red
 - **THEN** "Stripe" fills with dark red, and so does every object following "Stripe"
 
+#### Scenario: A style carries the shadow
+- **WHEN** a text with a black shadow, offset 8 / 8, blur 8 is saved with New Style from Selection as the text style "Lettering", and the user applies "Lettering" to a text without shadow
+- **THEN** that text gets the same shadow and follows "Lettering"
+
 ### Requirement: Following a style
 An object SHALL follow at most one style. A shape follows graphic styles. A text follows either a graphic style or a text style, not both: applying one replaces the other.
 
 While it follows a style:
-- **graphic style:** the object's fill, stroke and opacity are the style's;
+- **graphic style:** the object's fill, stroke, opacity and shadow are the style's;
 - **gradients:** the style gives the gradient's kind and stops, but the gradient's position on the object (its start, end and radii) stays the object's own;
-- **text style:** a text's character settings, fill, stroke and opacity are the style's, with the same rule for gradients.
+- **text style:** a text's character settings, fill, stroke, opacity and shadow are the style's, with the same rule for gradients.
 
 The object SHALL stop following the style when its own look stops being equal to the style's. This happens when:
-- the user changes its fill, stroke or opacity, or, for a text style, its character settings;
+- the user changes its fill, stroke, opacity or shadow (adding, editing or removing it), or, for a text style, its character settings;
 - the user picks another swatch, another style, or the eyedropper's color for it.
 
 Moving, resizing, rotating, flipping, duplicating, grouping or copying an object SHALL NOT make it stop following its style. Neither SHALL moving it to another texture, or converting a shape to a path.
@@ -58,6 +62,10 @@ A group SHALL NOT follow a style. Applying a style to a group applies it to ever
 #### Scenario: Group
 - **WHEN** a group of two rectangles is selected and the user applies the graphic style "Stripe"
 - **THEN** both rectangles follow "Stripe", and the group follows no style
+
+#### Scenario: Changing the shadow detaches
+- **WHEN** a text follows "Lettering", which has a shadow, and the user removes the text's shadow
+- **THEN** the text no longer follows "Lettering"
 
 ### Requirement: Styles lists
 The project's styles SHALL be listed in two places: the **Styles** section of the Workshop's **Resources** tab, and the **Graphic styles** and **Text styles** sections of the Brand space (see the brand-space capability). Each place SHALL show **Graphic styles** and **Text styles** separately.

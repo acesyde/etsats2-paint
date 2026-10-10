@@ -44,6 +44,7 @@ The exported image SHALL be rendered from the vector document at the chosen size
 It SHALL include every visible object in stacking order, drawn with:
 
 - fill, stroke, opacity (including group opacity), rotation and rounded corners;
+- drop shadows, drawn as on the canvas (see the drop-shadow capability);
 - solid colors and linear and radial gradients, for fills and strokes alike, matching the canvas;
 - polygons, stars and paths with their exact curves, the same as on the canvas: closed subpaths filled with the non-zero rule (holes included), open subpaths drawn as lines of their width in the fill color with rounded ends, outlined by the stroke when set;
 - text drawn from the same glyph outlines as the canvas.
@@ -69,6 +70,10 @@ Raster images SHALL be resampled smoothly; SVG images SHALL be rendered from the
 #### Scenario: Gradient in the export
 - **WHEN** a 1024 × 1024 project has a full-surface rectangle with a linear fill gradient from opaque black at the left edge to opaque white at the right edge, and it is exported at 1024 px
 - **THEN** each pixel column's gray level increases from 0 to 255 from left to right, and the middle column is within one step of 128
+
+#### Scenario: Shadow in the export
+- **WHEN** a white square with a hard black shadow offset 10 / 10 lies on a red background and the texture is exported as PNG at full size
+- **THEN** the image shows the black shadow 10 px right and below the square, under it, as on the canvas
 
 ### Requirement: DDS for the games
 DDS export SHALL write a standard DDS file of the chosen size with a full mipmap chain down to 1×1, encoded either as BC3 (DXT5, alpha kept) or as uncompressed 32-bit RGBA, loadable by Euro Truck Simulator 2 and American Truck Simulator and common DDS tools.
