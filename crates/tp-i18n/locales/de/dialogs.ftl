@@ -328,6 +328,11 @@ mod-warning-not-in-version = { $texture }: nicht in dieser Version, nicht im Mod
 mod-warning-empty-one = { $texture } ist leer und wird in der Farbe des Spiels exportiert
 mod-warning-empty-many = { $count } Texturen leer, in der Farbe des Spiels exportiert
 mod-export-done = Mod exportiert nach { $file }
+mod-export-start = Exportieren
+mod-destination = Ziel
+mod-change-destination = Ändern…
+mod-export-replace-question = { $file } ist bereits vorhanden. Ersetzen?
+mod-export-replace = Ersetzen
 
 ## Import from Library
 

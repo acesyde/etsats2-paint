@@ -1,8 +1,7 @@
 //! Previews of the mod's pictures, the shop icon and the Mod Manager image,
-//! as the mod export makes them (see [`crate::mod_export::picture`]): for
-//! the Project space, rendered in a background thread and kept until the
-//! first texture's artwork, the fonts or the chosen pictures change; and
-//! the rendering shared with the Export Mod dialog's previews.
+//! as the mod export makes them (see [`crate::mod_export::picture`]), for
+//! the Project space: rendered in a background thread and kept until the
+//! first texture's artwork, the fonts or the chosen pictures change.
 //!
 //! Staleness is told as for the surface thumbnails: the previews remember
 //! the first texture's top-level objects, and any edit replaces at least one

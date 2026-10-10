@@ -47,6 +47,12 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     let now = ctx.input(|i| i.time);
     let mut cmds = CommandUi::new(&ctx, queue, edit);
     let space = ws.space;
+    // The Project space sets where its pictures take dropped files; a mod
+    // setting typed in when another space was shown is committed.
+    ws.picture_drop_zones = [None; 2];
+    if space != Space::Project {
+        ws.commit_mod_draft(now);
+    }
 
     Panel::top("menu_bar")
         .frame(bar_frame())

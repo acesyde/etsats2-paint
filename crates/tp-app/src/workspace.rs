@@ -206,6 +206,23 @@ pub struct Workspace {
     /// The file dialog should open to place images, at a point or the view
     /// center (Place command, Image tool).
     pub place_request: Option<Option<tp_core::kurbo::Point>>,
+    /// Where the Project space should take the player once shown: a
+    /// field of the Mod information column or a vehicle's card (Show on a
+    /// problem); taken by the space on its next frame.
+    pub reveal: Option<crate::mod_export::ProblemPlace>,
+    /// The text of the mod setting field being typed in, mirrored each
+    /// frame so that a command can commit it before the field sees that it
+    /// lost the focus (see [`Workspace::commit_mod_draft`]).
+    pub mod_draft: Option<(crate::mod_export::ModField, String)>,
+    /// The file dialog should open to choose this mod picture.
+    pub picture_request: Option<crate::mod_export::ModPicture>,
+    /// Where the mod pictures' previews are on screen this frame (shop
+    /// icon, Mod Manager image), to take files dropped on them; `None`
+    /// when not shown.
+    pub picture_drop_zones: [Option<Rect>; 2],
+    /// Why the last file chosen or dropped for a picture couldn't be used,
+    /// until the next picture change.
+    pub picture_error: Option<(crate::mod_export::ModPicture, String)>,
     /// Path being drawn with the Pen tool.
     pub pen: Option<crate::path_edit::PenSession>,
     /// Sides and star settings for new polygons.
@@ -269,6 +286,11 @@ impl Workspace {
             mod_previews: Default::default(),
             gradients: Default::default(),
             place_request: None,
+            reveal: None,
+            mod_draft: None,
+            picture_request: None,
+            picture_drop_zones: [None; 2],
+            picture_error: None,
             pen: None,
             polygon_style: Default::default(),
             line_width: tp_core::document::DEFAULT_LINE_WIDTH,

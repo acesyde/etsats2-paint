@@ -345,8 +345,6 @@ vehicle-textures-named = Texturas de { $name }
 project-texture-main = Principal
 project-texture-accessory = Accesorio
 project-mod-information = Información del mod
-project-not-set = Sin definir
-project-edit-in-export = Editar en Exportar mod…
 project-picture-generated = Generada a partir de la primera textura principal
 project-cabin-ids = Nombres internos: { $ids }
 project-texture-states = { $modified ->
@@ -365,6 +363,11 @@ project-before-exporting = Antes de exportar
 project-nothing-to-check = Nada que revisar
 project-open = Abrir
 project-open-named = Abrir { $name }
+project-show = Mostrar
+project-show-named = Mostrar { $name }
+project-picture-drop = o suelta aquí un PNG o un JPEG
+project-game-versions-add = Añadir
+project-game-version-remove = Quitar { $version }
 
 ## Brand space
 

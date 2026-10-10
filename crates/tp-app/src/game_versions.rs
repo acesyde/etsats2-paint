@@ -234,6 +234,8 @@ pub fn of_listed(text: &str) -> Option<Interval> {
 pub struct VehicleRange {
     pub vehicle: String,
     pub range: String,
+    /// The vehicle's package id (its card in the Project space).
+    pub package_id: String,
 }
 
 /// The game versions every vehicle of a fleet supports.
@@ -262,6 +264,7 @@ pub fn vehicle_ranges(project: &Project) -> Vec<(VehicleRange, Interval)> {
                 VehicleRange {
                     vehicle: v.name.clone(),
                     range: data.versions.clone(),
+                    package_id: v.package_id.clone(),
                 },
                 of_range_text(&data.versions),
             ))
@@ -315,6 +318,28 @@ impl Workspace {
         self.edit("undo-edit-game-versions", now, false, |project, _| {
             project.game_versions = versions;
         });
+    }
+
+    /// Adds `versions` at the end of the list, in order, leaving out those
+    /// already listed, as one undo step; records nothing when none is new.
+    pub fn add_game_versions(&mut self, versions: &[String], now: f64) {
+        let mut list = self.project.game_versions.clone();
+        for v in versions {
+            if !list.contains(v) {
+                list.push(v.clone());
+            }
+        }
+        self.set_game_versions(list, now);
+    }
+
+    /// Removes the game version at `index` as one undo step.
+    pub fn remove_game_version(&mut self, index: usize, now: f64) {
+        if index >= self.project.game_versions.len() {
+            return;
+        }
+        let mut list = self.project.game_versions.clone();
+        list.remove(index);
+        self.set_game_versions(list, now);
     }
 }
 
@@ -474,10 +499,12 @@ mod tests {
                 first: VehicleRange {
                     vehicle: "TruckPaint Sample Truck".into(),
                     range: ">=1.56".into(),
+                    package_id: p.vehicles[0].package_id.clone(),
                 },
                 second: VehicleRange {
                     vehicle: "Old Hauler".into(),
                     range: "<1.55".into(),
+                    package_id: "custom.old.hauler".into(),
                 },
             }
         );
@@ -485,6 +512,43 @@ mod tests {
             v.game_data = None;
         }
         assert_eq!(fleet(&p), FleetVersions::NoData);
+    }
+
+    #[test]
+    fn adding_game_versions_is_one_step() {
+        let mut ws = Workspace::new(truck());
+        let steps = ws.history.len();
+        ws.add_game_versions(&parse_list("1.56.*, 1.57.*"), 1.0);
+        assert_eq!(ws.project.game_versions, ["1.56.*", "1.57.*"]);
+        assert_eq!(ws.history.len(), steps + 1);
+        assert_eq!(ws.history.undo_label(), Some("undo-edit-game-versions"));
+        // Already listed: nothing recorded.
+        ws.add_game_versions(&["1.56.*".to_owned()], 2.0);
+        assert_eq!(ws.project.game_versions, ["1.56.*", "1.57.*"]);
+        assert_eq!(ws.history.len(), steps + 1);
+        ws.add_game_versions(&[], 3.0);
+        assert_eq!(ws.history.len(), steps + 1);
+        // Only the new ones, at the end.
+        ws.add_game_versions(&parse_list("1.57.*, 1.58.*"), 4.0);
+        assert_eq!(ws.project.game_versions, ["1.56.*", "1.57.*", "1.58.*"]);
+        ws.undo();
+        ws.undo();
+        assert!(ws.project.game_versions.is_empty(), "one Undo removes both");
+    }
+
+    #[test]
+    fn removing_a_game_version() {
+        let mut ws = Workspace::new(truck());
+        ws.set_game_versions(parse_list("1.56.*, 1.57.*"), 1.0);
+        let steps = ws.history.len();
+        ws.remove_game_version(0, 2.0);
+        assert_eq!(ws.project.game_versions, ["1.57.*"]);
+        assert_eq!(ws.history.len(), steps + 1);
+        assert_eq!(ws.history.undo_label(), Some("undo-edit-game-versions"));
+        ws.remove_game_version(5, 3.0);
+        assert_eq!(ws.history.len(), steps + 1);
+        ws.undo();
+        assert_eq!(ws.project.game_versions, ["1.56.*", "1.57.*"]);
     }
 
     #[test]

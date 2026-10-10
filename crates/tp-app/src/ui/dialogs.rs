@@ -69,31 +69,85 @@ pub(crate) fn labelled<R>(ui: &mut Ui, label: &str, body: impl FnOnce(&mut Ui) -
 /// Height of a dialog's single-line fields.
 pub(crate) const FIELD_HEIGHT: f32 = 34.0;
 
-/// A labelled single-line text field filling the width; returns its
-/// response.
-pub(crate) fn text_field(ui: &mut Ui, label: &str, text: &mut String) -> egui::Response {
-    text_field_in(ui, label, text, false)
+/// How a [`committed_text`] field shows its text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TextKind {
+    Single,
+    /// Single line, in the monospace face (versions).
+    Mono,
+    /// Several lines: Enter starts a new line.
+    Multiline,
 }
 
-/// The same field with its value in the monospace face (versions, paths).
-pub(crate) fn mono_text_field(ui: &mut Ui, label: &str, text: &mut String) -> egui::Response {
-    text_field_in(ui, label, text, true)
+/// What a [`committed_text`] field did this frame.
+pub(crate) struct Committed {
+    pub response: egui::Response,
+    /// The text being typed, while the field has the focus.
+    pub typing: Option<String>,
+    /// The text to commit: the field was left (Enter on a single line,
+    /// Tab, a click elsewhere), not with Escape.
+    pub committed: Option<String>,
+    /// The field was left this frame, committed or not.
+    pub left: bool,
 }
 
-fn text_field_in(ui: &mut Ui, label: &str, text: &mut String, mono: bool) -> egui::Response {
-    labelled(ui, label, |ui| {
-        let mut edit = TextEdit::singleline(text)
-            .desired_width(f32::INFINITY)
+/// A text field committed when it is left: it shows `current` unless it
+/// has the focus, when it shows what is typed (kept in egui's temporary
+/// data under `id`, so Undo and Redo show at once). Enter on a single line
+/// and leaving it commit; Escape restores `current`. As tall as the
+/// dialogs' fields (34 pt), named `label` for assistive technologies.
+/// `width`: its width, the available width when `None`.
+pub(crate) fn committed_text(
+    ui: &mut Ui,
+    id: egui::Id,
+    label: &str,
+    current: &str,
+    kind: TextKind,
+    hint: &str,
+    width: Option<f32>,
+) -> Committed {
+    tp_ui::widgets::remember_escape(ui, id);
+    let focused = ui.memory(|m| m.has_focus(id));
+    let mut buffer = ui
+        .data(|d| d.get_temp::<String>(id))
+        .unwrap_or_else(|| current.to_owned());
+    let width = width.unwrap_or(f32::INFINITY);
+    let edit = match kind {
+        TextKind::Multiline => TextEdit::multiline(&mut buffer)
+            .desired_rows(2)
+            .margin(Margin::symmetric(10, 8)),
+        TextKind::Single | TextKind::Mono => TextEdit::singleline(&mut buffer)
             .margin(Margin::symmetric(10, 0))
             .vertical_align(Align::Center)
-            .min_size(egui::vec2(0.0, FIELD_HEIGHT));
-        if mono {
-            edit = edit.font(egui::TextStyle::Monospace);
+            .min_size(egui::vec2(0.0, FIELD_HEIGHT)),
+    };
+    let mut edit = edit.id(id).desired_width(width).hint_text(hint);
+    if kind == TextKind::Mono {
+        edit = edit.font(egui::TextStyle::Monospace);
+    }
+    let response = ui.add(edit);
+    response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, label));
+    let mut out = Committed {
+        typing: None,
+        committed: None,
+        left: false,
+        response,
+    };
+    if out.response.has_focus() {
+        ui.data_mut(|d| d.insert_temp(id, buffer.clone()));
+        out.typing = Some(buffer);
+    } else if out.response.lost_focus() {
+        ui.data_mut(|d| d.remove::<String>(id));
+        out.left = true;
+        if !tp_ui::widgets::take_escape(ui, id) {
+            out.committed = Some(buffer);
         }
-        let response = ui.add(edit);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, label));
-        response
-    })
+    } else if !focused {
+        // Left without this field seeing it (it wasn't shown): what it
+        // held was committed by then.
+        ui.data_mut(|d| d.remove::<String>(id));
+    }
+    out
 }
 
 /// `columns` side by side, each `ratio` of the width (the gaps aside).

@@ -88,6 +88,88 @@ pub fn with_extension(path: PathBuf) -> PathBuf {
     PathBuf::from(name)
 }
 
+/// Where to export a mod by default: the game's mod folder when it exists,
+/// else the folder of the session's last mod export, else the user's
+/// Documents folder, else their home folder.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Folders {
+    pub documents: Option<PathBuf>,
+    /// The user's data folder (`~/Library/Application Support`,
+    /// `~/.local/share`).
+    pub data: Option<PathBuf>,
+    pub home: Option<PathBuf>,
+}
+
+impl Folders {
+    /// This computer's folders.
+    pub fn of_user() -> Self {
+        let user = directories::UserDirs::new();
+        let base = directories::BaseDirs::new();
+        Self {
+            documents: user
+                .as_ref()
+                .and_then(|u| u.document_dir().map(Path::to_path_buf)),
+            data: base.as_ref().map(|b| b.data_dir().to_path_buf()),
+            home: base.as_ref().map(|b| b.home_dir().to_path_buf()),
+        }
+    }
+}
+
+/// The file proposed for the mod of `project` when the Export Mod dialog
+/// opens: "<Name>.scs" in the game's mod folder when it exists under
+/// `folders`, else in `last_folder` (the last mod export of the session),
+/// else in the Documents folder, else in the home folder.
+pub fn destination(project: &Project, last_folder: Option<&Path>, folders: &Folders) -> PathBuf {
+    let folder = project
+        .game()
+        .and_then(|game| {
+            existing_mod_folder(game, folders.documents.as_deref(), folders.data.as_deref())
+        })
+        .or_else(|| last_folder.map(Path::to_path_buf))
+        .or_else(|| folders.documents.clone())
+        .or_else(|| folders.home.clone())
+        .unwrap_or_default();
+    folder.join(suggested_name(&project.mod_settings.name))
+}
+
+/// A mod setting, where a problem is fixed (see [`Problem::place`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ModField {
+    Name,
+    Author,
+    Version,
+    Description,
+    Price,
+    UnlockLevel,
+    InternalName,
+    GameVersions,
+}
+
+impl ModField {
+    /// The field's label in the current language.
+    pub fn label(self) -> String {
+        tr(match self {
+            ModField::Name => "mod-name",
+            ModField::Author => "mod-author",
+            ModField::Version => "mod-version",
+            ModField::Description => "mod-description",
+            ModField::Price => "mod-price",
+            ModField::UnlockLevel => "mod-unlock",
+            ModField::InternalName => "mod-internal-name",
+            ModField::GameVersions => "project-game-versions",
+        })
+    }
+}
+
+/// Where a problem is fixed in the Project space.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ProblemPlace {
+    /// A field of the Mod information column.
+    Field(ModField),
+    /// The card of the vehicle with this package id.
+    Vehicle(String),
+}
+
 /// Something that blocks the export.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Problem {
@@ -103,17 +185,19 @@ pub enum Problem {
         max: usize,
     },
     PriceZero,
-    /// Two vehicles share a game path.
+    /// Two vehicles share a game path; `package_id` is the second one's.
     SamePath {
         path: String,
         first: String,
         second: String,
+        package_id: String,
     },
     /// A vehicle's game data is missing: that package version must be
     /// installed.
     MissingGameData {
         vehicle: String,
         version: String,
+        package_id: String,
     },
     /// A listed game version isn't written like the game's.
     BadGameVersion {
@@ -136,13 +220,85 @@ fn sii_safe(text: &str) -> bool {
     !text.contains(['"', '\\', '\n', '\r'])
 }
 
-/// Everything that blocks exporting `project`, in the dialog's order.
-pub fn problems(project: &Project) -> Vec<Problem> {
-    problems_with(project, &project.mod_settings)
+impl Problem {
+    /// Where the problem is fixed: a field of the Mod information column,
+    /// or a vehicle's card.
+    pub fn place(&self) -> ProblemPlace {
+        let field = match self {
+            Problem::NameEmpty | Problem::NameInvalid => ModField::Name,
+            Problem::VersionInvalid => ModField::Version,
+            Problem::AuthorInvalid => ModField::Author,
+            Problem::InternalNameEmpty
+            | Problem::InternalNameInvalid
+            | Problem::InternalNameTooLong { .. } => ModField::InternalName,
+            Problem::PriceZero => ModField::Price,
+            Problem::BadGameVersion { .. } | Problem::UnsupportedGameVersion { .. } => {
+                ModField::GameVersions
+            }
+            Problem::SamePath { package_id, .. } | Problem::MissingGameData { package_id, .. } => {
+                return ProblemPlace::Vehicle(package_id.clone());
+            }
+            Problem::NoCommonGameVersion { first, .. } => {
+                return ProblemPlace::Vehicle(first.package_id.clone());
+            }
+        };
+        ProblemPlace::Field(field)
+    }
+
+    /// The problem in the current language.
+    pub fn message(&self) -> String {
+        match self {
+            Problem::NameEmpty => tr("mod-problem-name-empty"),
+            Problem::NameInvalid => tr("mod-problem-name-invalid"),
+            Problem::VersionInvalid => tr("mod-problem-version-invalid"),
+            Problem::AuthorInvalid => tr("mod-problem-author-invalid"),
+            Problem::InternalNameEmpty => tr("mod-problem-internal-empty"),
+            Problem::InternalNameInvalid => tr("mod-problem-internal-invalid"),
+            Problem::InternalNameTooLong { max } => {
+                tr!("mod-problem-internal-long", max = max.to_string())
+            }
+            Problem::PriceZero => tr("mod-problem-price"),
+            Problem::SamePath {
+                path,
+                first,
+                second,
+                ..
+            } => tr!(
+                "mod-problem-same-path",
+                path = path.as_str(),
+                first = first.as_str(),
+                second = second.as_str()
+            ),
+            Problem::MissingGameData {
+                vehicle, version, ..
+            } => tr!(
+                "mod-problem-game-data",
+                vehicle = vehicle.as_str(),
+                version = version.as_str()
+            ),
+            Problem::BadGameVersion { version } => {
+                tr!("mod-problem-bad-game-version", version = version.as_str())
+            }
+            Problem::UnsupportedGameVersion { version, vehicle } => tr!(
+                "mod-problem-unsupported-game-version",
+                version = version.as_str(),
+                vehicle = vehicle.vehicle.as_str(),
+                range = vehicle.range.as_str()
+            ),
+            Problem::NoCommonGameVersion { first, second } => tr!(
+                "mod-problem-no-common-game-version",
+                first = first.vehicle.as_str(),
+                first_range = first.range.as_str(),
+                second = second.vehicle.as_str(),
+                second_range = second.range.as_str()
+            ),
+        }
+    }
 }
 
-/// Everything that blocks exporting `project` with mod settings `s`.
-pub fn problems_with(project: &Project, s: &ModSettings) -> Vec<Problem> {
+/// Everything that blocks exporting `project`, in the dialog's order.
+pub fn problems(project: &Project) -> Vec<Problem> {
+    let s = &project.mod_settings;
     let mut out = Vec::new();
     if s.name.trim().is_empty() {
         out.push(Problem::NameEmpty);
@@ -176,6 +332,7 @@ pub fn problems_with(project: &Project, s: &ModSettings) -> Vec<Problem> {
             out.push(Problem::MissingGameData {
                 vehicle: v.name.clone(),
                 version: v.version.clone(),
+                package_id: v.package_id.clone(),
             });
             continue;
         };
@@ -184,6 +341,7 @@ pub fn problems_with(project: &Project, s: &ModSettings) -> Vec<Problem> {
                 path: data.path.clone(),
                 first: first.to_owned(),
                 second: v.name.clone(),
+                package_id: v.package_id.clone(),
             });
         }
     }
@@ -664,7 +822,7 @@ impl PictureFile {
     }
 }
 
-/// Where a mod picture comes from while the dialog is open.
+/// Where a mod picture comes from.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Picture {
     /// Rendered from the first texture.
@@ -709,24 +867,109 @@ impl Picture {
     }
 }
 
+/// One of the mod's two pictures.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ModPicture {
+    /// The shop icon.
+    Icon,
+    /// The Mod Manager image.
+    Image,
+}
+
+impl ModPicture {
+    /// Its size in pixels.
+    pub fn size(self) -> (u32, u32) {
+        match self {
+            ModPicture::Icon => ICON_SIZE,
+            ModPicture::Image => IMAGE_SIZE,
+        }
+    }
+}
+
 impl Workspace {
-    /// Sets the mod settings, with `icon` and `image` as their pictures, as
-    /// one undo step. Newly chosen pictures become assets, and the pictures
-    /// no longer used are removed. Records nothing when nothing changed.
-    pub fn set_mod_settings(
+    /// Changes the mod settings with `f` as one "Edit Mod Settings" undo
+    /// step; records nothing when nothing changed.
+    pub fn set_mod_setting(&mut self, now: f64, f: impl FnOnce(&mut ModSettings)) {
+        self.edit("undo-edit-mod-settings", now, false, |project, _| {
+            f(&mut project.mod_settings);
+        });
+    }
+
+    /// Commits the mod setting being typed in (see [`Self::mod_draft`]) as
+    /// its field would when left: one step, nothing when unchanged.
+    pub fn commit_mod_draft(&mut self, now: f64) {
+        let Some((field, text)) = self.mod_draft.take() else {
+            return;
+        };
+        self.commit_mod_field(field, text, now);
+    }
+
+    /// Commits `text` typed in the field of `field`. The internal name is
+    /// only set when it differs from the one in use, so that leaving its
+    /// field untouched keeps it following the Name; the game versions are
+    /// added to the list. The Price and the Unlock level take numbers (see
+    /// their fields) and are left alone.
+    pub fn commit_mod_field(&mut self, field: ModField, text: String, now: f64) {
+        match field {
+            ModField::Name => self.set_mod_setting(now, |s| s.name = text),
+            ModField::Author => self.set_mod_setting(now, |s| s.author = text),
+            ModField::Version => self.set_mod_setting(now, |s| s.version = text),
+            ModField::Description => self.set_mod_setting(now, |s| s.description = text),
+            ModField::InternalName => {
+                let limit = self.project.internal_name_limit();
+                self.set_mod_setting(now, |s| {
+                    if text != s.internal_name(limit) {
+                        s.internal_name = Some(text);
+                    }
+                });
+            }
+            ModField::GameVersions => {
+                self.add_game_versions(&crate::game_versions::parse_list(&text), now);
+            }
+            ModField::Price | ModField::UnlockLevel => {}
+        }
+    }
+
+    /// Makes file `name` (its `bytes`, or why they couldn't be read)
+    /// picture `which`, as one undo step. A file that isn't a PNG or JPEG
+    /// changes nothing and is reported under the picture.
+    pub fn use_picture_file(
         &mut self,
-        mut settings: ModSettings,
-        icon: &Picture,
-        image: &Picture,
+        which: ModPicture,
+        name: &str,
+        bytes: Result<Vec<u8>, String>,
         now: f64,
     ) {
+        let stem = Path::new(name)
+            .file_stem()
+            .map_or_else(|| name.to_owned(), |s| s.to_string_lossy().into_owned());
+        match bytes.and_then(|bytes| PictureFile::read(&stem, bytes)) {
+            Ok(file) => {
+                self.picture_error = None;
+                self.set_mod_picture(which, &Picture::File(file), now);
+            }
+            Err(reason) => {
+                self.picture_error = Some((
+                    which,
+                    tr!("mod-picture-failed", file = name, reason = reason),
+                ));
+            }
+        }
+    }
+
+    /// Sets picture `which` as one "Edit Mod Settings" undo step. A newly
+    /// chosen picture becomes an asset, and the previous one is removed
+    /// when no longer used. Records nothing when nothing changed.
+    pub fn set_mod_picture(&mut self, which: ModPicture, picture: &Picture, now: f64) {
         self.edit("undo-edit-mod-settings", now, false, |project, _| {
-            let previous = [project.mod_settings.icon, project.mod_settings.image];
-            settings.icon = icon.add_to(project);
-            settings.image = image.add_to(project);
-            project.mod_settings = settings;
-            for asset in previous.into_iter().flatten() {
-                project.remove_asset(asset);
+            let asset = picture.add_to(project);
+            let slot = match which {
+                ModPicture::Icon => &mut project.mod_settings.icon,
+                ModPicture::Image => &mut project.mod_settings.image,
+            };
+            let previous = std::mem::replace(slot, asset);
+            if let Some(previous) = previous.filter(|p| Some(*p) != asset) {
+                project.remove_asset(previous);
             }
         });
     }
@@ -1180,6 +1423,194 @@ mod tests {
         );
     }
 
+    /// The sample truck's package id.
+    const TRUCK_ID: &str = "community.truckpaint.sample_truck";
+
+    #[test]
+    fn each_problem_is_fixed_in_its_place() {
+        use crate::game_versions::VehicleRange;
+        let range = |id: &str| VehicleRange {
+            vehicle: "V".into(),
+            range: ">=1.56".into(),
+            package_id: id.into(),
+        };
+        let field = ProblemPlace::Field;
+        let cases = [
+            (Problem::NameEmpty, field(ModField::Name)),
+            (Problem::NameInvalid, field(ModField::Name)),
+            (Problem::VersionInvalid, field(ModField::Version)),
+            (Problem::AuthorInvalid, field(ModField::Author)),
+            (Problem::InternalNameEmpty, field(ModField::InternalName)),
+            (Problem::InternalNameInvalid, field(ModField::InternalName)),
+            (
+                Problem::InternalNameTooLong { max: 10 },
+                field(ModField::InternalName),
+            ),
+            (Problem::PriceZero, field(ModField::Price)),
+            (
+                Problem::SamePath {
+                    path: "p".into(),
+                    first: "A".into(),
+                    second: "B".into(),
+                    package_id: "b".into(),
+                },
+                ProblemPlace::Vehicle("b".into()),
+            ),
+            (
+                Problem::MissingGameData {
+                    vehicle: "A".into(),
+                    version: "1.0.0".into(),
+                    package_id: "a".into(),
+                },
+                ProblemPlace::Vehicle("a".into()),
+            ),
+            (
+                Problem::BadGameVersion {
+                    version: "1.56.x".into(),
+                },
+                field(ModField::GameVersions),
+            ),
+            (
+                Problem::UnsupportedGameVersion {
+                    version: "1.55.*".into(),
+                    vehicle: range("a"),
+                },
+                field(ModField::GameVersions),
+            ),
+            (
+                Problem::NoCommonGameVersion {
+                    first: range("first"),
+                    second: range("second"),
+                },
+                ProblemPlace::Vehicle("first".into()),
+            ),
+        ];
+        for (problem, place) in cases {
+            assert_eq!(problem.place(), place, "{problem:?}");
+        }
+        // The messages are unchanged.
+        assert_eq!(Problem::NameEmpty.message(), "The mod needs a name.");
+        assert_eq!(
+            Problem::BadGameVersion {
+                version: "1.56.x".into()
+            }
+            .message(),
+            "1.56.x isn't a game version: write it like 1.56.* or 1.56.2."
+        );
+    }
+
+    #[test]
+    fn each_setting_edit_is_one_step() {
+        let mut ws = Workspace::new(truck(&["standard"]));
+        let steps = ws.history.len();
+        ws.set_mod_setting(1.0, |s| s.author = "Jane".into());
+        assert_eq!(ws.project.mod_settings.author, "Jane");
+        assert_eq!(ws.history.len(), steps + 1);
+        assert_eq!(ws.history.undo_label(), Some("undo-edit-mod-settings"));
+        // An unchanged value records nothing.
+        let name = ws.project.mod_settings.name.clone();
+        ws.set_mod_setting(2.0, |s| s.name = name);
+        assert_eq!(ws.history.len(), steps + 1);
+        ws.undo();
+        assert_eq!(ws.project.mod_settings.author, "");
+    }
+
+    /// A PNG of `w` × `h` pixels of `rgb`.
+    fn png(w: u32, h: u32, rgb: [u8; 3]) -> PictureFile {
+        let image = image::RgbaImage::from_pixel(w, h, image::Rgba([rgb[0], rgb[1], rgb[2], 255]));
+        let mut bytes = Vec::new();
+        image
+            .write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png)
+            .unwrap();
+        PictureFile::read("picture", bytes).unwrap()
+    }
+
+    #[test]
+    fn choosing_a_picture_adds_an_asset_and_generated_removes_it() {
+        let mut ws = Workspace::new(truck(&["standard"]));
+        let assets = ws.project.assets.len();
+        let steps = ws.history.len();
+        let red = Picture::File(png(8, 4, [255, 0, 0]));
+        ws.set_mod_picture(ModPicture::Image, &red, 1.0);
+        let first = ws.project.mod_settings.image.expect("chosen");
+        assert_eq!(ws.project.assets.len(), assets + 1);
+        assert_eq!(ws.project.mod_settings.icon, None);
+        assert_eq!(ws.history.len(), steps + 1);
+        assert_eq!(ws.history.undo_label(), Some("undo-edit-mod-settings"));
+        // Another picture replaces it: the first one is removed.
+        ws.set_mod_picture(
+            ModPicture::Image,
+            &Picture::File(png(8, 4, [0, 0, 255])),
+            2.0,
+        );
+        let second = ws.project.mod_settings.image.expect("chosen");
+        assert_ne!(first, second);
+        assert!(!ws.project.assets.contains_key(&first));
+        assert_eq!(ws.project.assets.len(), assets + 1);
+        // Undo restores the previous picture and its asset.
+        ws.undo();
+        assert_eq!(ws.project.mod_settings.image, Some(first));
+        assert!(ws.project.assets.contains_key(&first));
+        assert!(!ws.project.assets.contains_key(&second));
+        // Back to the generated picture: the asset goes away.
+        ws.set_mod_picture(ModPicture::Image, &Picture::Generated, 3.0);
+        assert_eq!(ws.project.mod_settings.image, None);
+        assert_eq!(ws.project.assets.len(), assets);
+        // Generated again: nothing recorded.
+        let steps = ws.history.len();
+        ws.set_mod_picture(ModPicture::Image, &Picture::Generated, 4.0);
+        assert_eq!(ws.history.len(), steps);
+    }
+
+    #[test]
+    fn destination_of_a_mod() {
+        let dir = tempfile::tempdir().unwrap();
+        let folders = Folders {
+            documents: Some(dir.path().join("Documents")),
+            data: Some(dir.path().join("data")),
+            home: Some(dir.path().to_path_buf()),
+        };
+        let mut project = truck(&["standard"]);
+        project.mod_settings.name = "ACE Logistics".into();
+        let last = dir.path().join("last");
+        // No game folder: the last export's folder, else Documents, else
+        // the home folder.
+        assert_eq!(
+            destination(&project, Some(&last), &folders),
+            last.join("ACE Logistics.scs")
+        );
+        assert_eq!(
+            destination(&project, None, &folders),
+            dir.path().join("Documents").join("ACE Logistics.scs")
+        );
+        let homeless = Folders {
+            documents: None,
+            ..folders.clone()
+        };
+        assert_eq!(
+            destination(&project, None, &homeless),
+            dir.path().join("ACE Logistics.scs")
+        );
+        // The game's mod folder when it exists.
+        let game = mod_folder_in(
+            "ets2",
+            folders.documents.as_deref(),
+            folders.data.as_deref(),
+        )
+        .unwrap();
+        std::fs::create_dir_all(&game).unwrap();
+        assert_eq!(
+            destination(&project, Some(&last), &folders),
+            game.join("ACE Logistics.scs")
+        );
+        // Characters that can't be in a file name.
+        project.mod_settings.name = "A/B: C".into();
+        assert_eq!(
+            destination(&project, None, &folders),
+            game.join("A-B- C.scs")
+        );
+    }
+
     const TRUCK_DEF: &str = "def/vehicle/truck/truckpaint.sample/paint_job";
     const TRUCK_TEX: &str = "vehicle/truck/upgrade/paintjob/ace/truckpaint.sample";
 
@@ -1227,11 +1658,13 @@ mod tests {
             Problem::MissingGameData {
                 vehicle: "TruckPaint Sample Truck".into(),
                 version: "1.1.0".into(),
+                package_id: TRUCK_ID.into(),
             },
         );
         let mut p = truck(&["standard"]);
         let mut twin = p.vehicles[0].clone();
         twin.name = "Twin".into();
+        twin.package_id = "custom.twin".into();
         p.vehicles.push(twin);
         assert_eq!(
             problems(&p),
@@ -1239,6 +1672,7 @@ mod tests {
                 path: "truckpaint.sample".into(),
                 first: "TruckPaint Sample Truck".into(),
                 second: "Twin".into(),
+                package_id: "custom.twin".into(),
             }]
         );
         assert!(plan(&p).is_err());
@@ -1274,20 +1708,12 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_edited_settings() {
-        let p = truck(&["standard"]);
-        let mut s = p.mod_settings.clone();
-        s.price = 0;
-        assert_eq!(problems_with(&p, &s), [Problem::PriceZero]);
-        assert_eq!(problems(&p), []);
-    }
-
-    #[test]
     fn game_version_problems() {
         use crate::game_versions::VehicleRange;
         let truck_range = || VehicleRange {
             vehicle: "TruckPaint Sample Truck".into(),
             range: ">=1.56".into(),
+            package_id: TRUCK_ID.into(),
         };
         let mut p = truck(&["standard"]);
         p.game_versions = vec!["1.56.x".into()];
@@ -1323,6 +1749,7 @@ mod tests {
                 second: VehicleRange {
                     vehicle: "Old Hauler".into(),
                     range: "<1.55".into(),
+                    package_id: "custom.old.hauler".into(),
                 },
             }]
         );

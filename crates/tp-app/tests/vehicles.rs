@@ -918,7 +918,8 @@ fn add_vehicle_lists_only_the_project_game() {
     h.get_by_role_and_label(Role::RadioButton, "Krone Cool Liner")
         .click();
     settle(&mut h);
-    h.get_by_label("Add").click();
+    // The Add Vehicle dialog's, over the Game versions' + Add.
+    common::last(&h, "Add").click();
     settle(&mut h);
     assert!(h.state().modal.is_none());
     let p = &ws(&h).project;
@@ -955,7 +956,8 @@ fn the_tree_groups_main_textures_and_accessories() {
     h.get_by_role_and_label(Role::RadioButton, "TruckPaint Sample Trailer")
         .click();
     settle(&mut h);
-    h.get_by_label("Add").click();
+    // The Add Vehicle dialog's, over the Game versions' + Add.
+    common::last(&h, "Add").click();
     settle(&mut h);
     // One heading of each per vehicle: both vehicles have main textures and
     // accessories.

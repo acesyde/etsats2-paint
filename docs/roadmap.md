@@ -145,10 +145,16 @@ mod's manifest gets as `compatible_versions[]`, typed as the game writes them
 the author adds the new version and exports a new version of the mod. The
 list starts empty (no `compatible_versions`).
 
-Under the field, the Project space shows the versions every vehicle supports,
-computed from the packages' ranges. Export Mod blocks a badly written
-version, a version a vehicle's package doesn't support, and a fleet whose
-vehicles have no version in common.
+Since `mod-settings-in-project`, each version is a chip with a remove
+button, and **+ Add** takes versions typed as the game writes them; adding
+or removing versions is one undo step. A badly written version is marked on
+its chip.
+
+Under the chips, the Project space shows the versions every vehicle
+supports, computed from the packages' ranges. Export Mod blocks a badly
+written version, a version a vehicle's package doesn't support, and a fleet
+whose vehicles have no version in common; the problems about the versions
+are also shown under the field.
 
 ### No 3D preview (decided after `mod-export`)
 The 3D preview was only ever a placeholder, and it is dropped: TruckPaint
@@ -193,19 +199,26 @@ graphic styles and text styles, with the images its symbols use.
 ### The mod (shipped in `mod-export`)
 Export › Export Mod… writes the whole fleet as **one `.scs` file**: one paint
 job, in one mod, in the format Paintjob Packer (MIT) has shipped for years.
-- **Ready to install:** the save dialog opens in the game's mod folder when
-  it exists (`Documents/<game>/mod` on Windows, the user's data folder on
-  macOS and Linux), else in the last export folder of the session.
+- **Ready to install:** the Export Mod dialog proposes `<Name>.scs` in the
+  game's mod folder when it exists (`Documents/<game>/mod` on Windows, the
+  user's data folder on macOS and Linux), else in the last export folder of
+  the session, else in Documents; **Change…** picks another file, and an
+  existing file is only replaced once the player confirms.
 - **Settings live in the project:** Name (shop and Mod Manager), Version,
   Author, Description, Price, Unlock level and an internal name derived from
   the Name (at most 12 characters, or 10 when a truck has several main
-  textures, whose paint jobs are `<name>_a`, `<name>_b`…). Editing them and
-  exporting is one undo step. The Version shown in the Project space is the
-  mod version.
+  textures, whose paint jobs are `<name>_a`, `<name>_b`…). Since
+  `mod-settings-in-project` they are edited in the Project space's Mod
+  information column (the internal name under Advanced), each committed
+  edit being its own undo step. The Export Mod dialog edits nothing: it
+  shows a summary, the destination with Change…, the problems (each with
+  Show, which leads to the field or vehicle card where it is fixed) and the
+  texture warnings, and never changes the project nor its undo history.
 - **Pictures are generated, and can be replaced:** the shop icon (256×64)
   and the Mod Manager image (276×162) are rendered from the first main
-  texture, or made from a PNG or JPEG the player chooses, stored in the
-  project.
+  texture, or made from a PNG or JPEG the player chooses (Choose Image…
+  or dropped on the preview, in the Project space), stored in the project;
+  each change is one undo step.
 - **Projects record the game data** of their vehicles (game path, versions,
   alternate UV set, colour picker, required mods, and the game ids and
   main-texture position of each texture), so a project exports on a
@@ -257,7 +270,6 @@ None at the moment.
 | # | Change | What it does | Why now |
 |---|---|---|---|
 | 2 | `polishing` | Fixes, ergonomics, wording and performance across the app, with no new feature. | Smooths what the first players will meet, on the new design. |
-| 2b | `mod-settings-in-project` | The mod information is edited on the Project screen; the Export dialog keeps the destination and the checks. | Export becomes one dialog, one check, one button. |
 | 2c | `command-palette` | Ctrl/Cmd+K searches every command and every texture of the project. | Fast navigation in a large fleet. |
 | 2d | `brand-edit-preview` | The Brand space shows where each element is used; editing a swatch previews its impact before "Apply to fleet". | A brand edit touches the whole fleet: say so before applying. |
 | 2e | `title-bar-menus` | Menus in the title bar on Windows and Linux, the system menu bar on macOS. Starts with a spike. | Gives the canvas the menu bar's row back. |
@@ -272,6 +284,15 @@ None at the moment.
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `mod-settings-in-project` (under `polishing`): every mod setting and both
+  pictures are edited in the Project space's Mod information column (labels
+  above the fields, the internal name under Advanced, pictures chosen or
+  dropped), one undo step per committed edit (Enter or leaving commits,
+  Escape restores); Game versions as chips with + Add; the problems that
+  block the export shown under their fields and first in Before exporting,
+  each with Show; the Export Mod dialog only checks and writes: summary,
+  destination with Change…, problems with Show, warnings, one Export button,
+  and exporting records nothing;
 - `texture-status` (under `polishing`): each texture is Empty, Modified or
   To check (flagged by Update Template), computed from the project and never
   stored, shown on the Project space's tiles (dot and label) and in the

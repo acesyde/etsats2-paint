@@ -461,59 +461,304 @@ fn thumbnails_follow_the_artwork() {
     );
 }
 
+/// The text of text field `name`.
+fn field(h: &H, name: &str) -> String {
+    h.get_by_role_and_label(Role::TextInput, name)
+        .value()
+        .unwrap_or_default()
+}
+
+/// Types `text` in field `name` (replacing its text) and presses Enter.
+fn type_into(h: &mut H, name: &str, text: &str) {
+    h.get_by_role_and_label(Role::TextInput, name).focus();
+    h.run();
+    h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+    h.key_press(egui::Key::Backspace);
+    h.get_by_role_and_label(Role::TextInput, name)
+        .type_text(text);
+    h.run();
+    h.key_press(egui::Key::Enter);
+    h.run();
+}
+
 #[test]
 fn mod_information_of_a_new_project() {
     let h = open(Some(&["standard"]), None);
-    // The name is in the top bar and the column.
-    assert!(h.query_all_by_label("ACE Logistics").count() >= 2);
-    assert!(h.query_by_label("1.0").is_some());
-    assert_eq!(h.query_all_by_label("Not set").count(), 2);
     for picture in ["Shop icon", "Mod Manager image"] {
         assert!(
             h.query_by_role_and_label(Role::Image, picture).is_some(),
             "{picture}"
         );
     }
+    // Both are placeholders: the first texture holds no artwork yet.
+    assert_eq!(
+        h.query_all_by_label("Generated from the first main texture\nor drop a PNG or JPEG here")
+            .count(),
+        2
+    );
     assert!(ws(&h).mod_previews.textures().is_some(), "both rendered");
-    let field = h.get_by_role_and_label(Role::TextInput, "Game versions");
-    assert_eq!(field.value().unwrap_or_default(), "");
+    assert_eq!(field(&h, "Name"), "ACE Logistics");
+    assert_eq!(field(&h, "Author"), "");
+    assert_eq!(field(&h, "Version"), "1.0");
+    assert_eq!(field(&h, "Description"), "");
+    assert_eq!(field(&h, "Price"), "5000");
+    assert_eq!(field(&h, "Unlock level"), "0");
+    // No game version, and + Add.
+    assert!(ws(&h).project.game_versions.is_empty());
+    assert!(h.query_by_role_and_label(Role::Button, "Add").is_some());
+    // Advanced is collapsed.
+    let advanced = h.get_by_label("Advanced");
+    assert_eq!(
+        advanced.accesskit_node().toggled(),
+        Some(egui::accesskit::Toggled::False)
+    );
+    assert!(
+        h.query_by_role_and_label(Role::TextInput, "Internal name")
+            .is_none()
+    );
     // Before exporting: its only texture is empty.
     assert!(h.query_by_label("Before exporting").is_some());
     assert!(
         h.query_by_label("Standard cab is empty, exported with the game's color")
             .is_some()
     );
+    // Column order: pictures, Name, Author | Version, Game versions,
+    // Description, Price | Unlock level, Advanced.
+    let top = |label: &str| h.get_by_label(label).rect().top();
+    let input = |label: &str| h.get_by_role_and_label(Role::TextInput, label).rect();
+    let image = h
+        .get_by_role_and_label(Role::Image, "Mod Manager image")
+        .rect();
+    assert!(image.top() < input("Name").top());
+    assert!(input("Name").top() < input("Author").top());
+    assert_eq!(input("Author").top(), input("Version").top());
+    assert!((input("Version").width() - 96.0).abs() < 1.0);
+    assert!(input("Author").top() < top("Game versions"));
+    assert!(top("Game versions") < input("Description").top());
+    assert!(input("Description").top() < input("Price").top());
+    assert_eq!(input("Price").top(), input("Unlock level").top());
+    assert!(input("Price").top() < top("Advanced"));
+    assert!(top("Advanced") < top("Before exporting"));
 }
 
 #[test]
-fn edit_in_export_mod_opens_the_dialog() {
+fn no_edit_in_export_mod() {
     let mut h = open(Some(&["standard"]), None);
-    h.get_by_label("Edit in Export Mod…").click();
+    assert!(h.query_by_label("Edit in Export Mod…").is_none());
+    h.get_by_role_and_label(Role::Button, "Export…").click();
     h.run_steps(3);
     assert!(matches!(h.state().modal, Some(Modal::ExportMod(_))));
 }
 
 #[test]
-fn edit_in_export_mod_is_disabled_while_editing_a_symbol() {
-    let mut h = open(Some(&["standard"]), None);
-    let ws = ws_mut(&mut h);
-    let id = ws.project.add(Object::new(
-        ObjectId(0),
-        ShapeKind::rectangle(),
-        Frame::new(Point::new(500.0, 500.0), Size::new(100.0, 100.0), 0.0),
-    ));
-    ws.selection = vec![id];
-    let symbol = ws.convert_to_symbol(0.0).unwrap();
-    ws.edit_symbol(symbol, 0.0);
-    ws.space = Space::Project;
+fn internal_name_under_advanced() {
+    let mut h = open(None, Some(&["base"]));
+    h.get_by_label("Advanced").click();
     h.run();
+    assert_eq!(field(&h, "Internal name"), "ace_logistic");
     assert!(
-        h.get_by_label("Edit in Export Mod…")
+        h.query_by_label_contains("Names the paint job in the game")
+            .is_some()
+    );
+}
+
+#[test]
+fn internal_name_follows_the_name_until_edited() {
+    let mut h = open(None, Some(&["base"]));
+    h.get_by_label("Advanced").click();
+    h.run();
+    type_into(&mut h, "Name", "Blue Line");
+    assert_eq!(field(&h, "Internal name"), "blue_line");
+    assert_eq!(ws(&h).project.mod_settings.internal_name, None);
+    // Leaving it untouched keeps it following the Name.
+    let steps = ws(&h).history.len();
+    h.get_by_role_and_label(Role::TextInput, "Internal name")
+        .focus();
+    h.run();
+    h.key_press(egui::Key::Tab);
+    h.run();
+    assert_eq!(ws(&h).history.len(), steps);
+    assert_eq!(ws(&h).project.mod_settings.internal_name, None);
+    type_into(&mut h, "Internal name", "acelog");
+    type_into(&mut h, "Name", "ACE Freight");
+    assert_eq!(field(&h, "Internal name"), "acelog");
+    assert_eq!(
+        ws(&h).project.mod_settings.internal_name.as_deref(),
+        Some("acelog")
+    );
+}
+
+#[test]
+fn mod_settings_are_read_only_here() {
+    let mut h = open(Some(&["standard"]), None);
+    for label in ["Supported by every vehicle: >=1.56", "256 × 64"] {
+        h.get_by_label(label).click();
+        h.run();
+        assert!(h.ctx.memory(|m| m.focused()).is_none(), "{label}");
+        h.get_by_label(label).hover();
+        h.run();
+        assert_ne!(
+            h.ctx.output(|o| o.cursor_icon),
+            egui::CursorIcon::Text,
+            "{label}"
+        );
+    }
+}
+
+#[test]
+fn version_follows_the_mod_settings() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(None, Some(&["base"]));
+    h.state_mut().mod_folders = Default::default();
+    h.state_mut().last_mod_folder = Some(dir.path().to_path_buf());
+    type_into(&mut h, "Version", "1.2");
+    h.get_by_role_and_label(Role::Button, "Export…").click();
+    h.run_steps(3);
+    h.get_all_by_role_and_label(Role::Button, "Export")
+        .last()
+        .unwrap()
+        .click();
+    for _ in 0..2000 {
+        h.step();
+        if h.state().modal.is_none() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    settle(&mut h);
+    assert_eq!(field(&h, "Version"), "1.2");
+    let path = dir.path().join("ACE Logistics.scs");
+    let mut zip = zip::ZipArchive::new(std::fs::File::open(&path).unwrap()).unwrap();
+    let mut manifest = String::new();
+    std::io::Read::read_to_string(&mut zip.by_name("manifest.sii").unwrap(), &mut manifest)
+        .unwrap();
+    assert!(manifest.contains("package_version: \"1.2\""), "{manifest}");
+}
+
+#[test]
+fn empty_name_shown_under_its_field() {
+    let mut h = open(Some(&["standard"]), None);
+    type_into(&mut h, "Name", "");
+    let message = "The mod needs a name.";
+    let lines: Vec<f32> = h
+        .get_all_by_label(message)
+        .map(|n| n.rect().top())
+        .collect();
+    assert_eq!(lines.len(), 2, "under the field and in Before exporting");
+    let name = h.get_by_role_and_label(Role::TextInput, "Name").rect();
+    let author = h.get_by_role_and_label(Role::TextInput, "Author").rect();
+    assert!(lines[0] > name.bottom() && lines[0] < author.top());
+    // First in Before exporting, before the warnings.
+    let warning = h
+        .get_by_label("Standard cab is empty, exported with the game's color")
+        .rect()
+        .top();
+    assert!(lines[1] > h.get_by_label("Before exporting").rect().top());
+    assert!(lines[1] < warning);
+    assert!(
+        !h.get_by_role_and_label(Role::Button, "Export…")
             .accesskit_node()
             .is_disabled()
     );
-    // No texture is highlighted while a symbol is edited.
-    assert!(!highlighted(&h, &format!("{TRUCK} › Standard cab")));
+    // Fixed: gone on the next frame.
+    type_into(&mut h, "Name", "ACE");
+    assert!(h.query_by_label(message).is_none());
+}
+
+#[test]
+fn internal_name_problem_opens_advanced() {
+    let mut h = open(None, Some(&["base"]));
+    // Set while the project held only the trailer (12 characters).
+    ws_mut(&mut h).project.mod_settings.internal_name = Some("ace_logistic".into());
+    h.run();
+    assert!(
+        h.query_by_role_and_label(Role::TextInput, "Internal name")
+            .is_none()
+    );
+    ws_mut(&mut h)
+        .add_vehicle(&sample(0), &ids(&["standard"]), 0.0)
+        .unwrap();
+    ws_mut(&mut h).space = Space::Project;
+    settle(&mut h);
+    assert_eq!(
+        h.get_by_label("Advanced").accesskit_node().toggled(),
+        Some(egui::accesskit::Toggled::True)
+    );
+    let message = "The internal name can have at most 10 characters.";
+    let lines: Vec<f32> = h
+        .get_all_by_label(message)
+        .map(|n| n.rect().top())
+        .collect();
+    assert_eq!(lines.len(), 2);
+    let field = h
+        .get_by_role_and_label(Role::TextInput, "Internal name")
+        .rect();
+    assert!(lines[0] > field.bottom());
+    assert!(lines[1] > h.get_by_label("Before exporting").rect().top());
+}
+
+#[test]
+fn show_leads_to_the_field() {
+    let mut h = open(Some(&["standard"]), None);
+    ws_mut(&mut h).project.mod_settings.price = 0;
+    h.run();
+    h.get_by_label("Show Price").click();
+    h.run();
+    let price = h.get_by_role_and_label(Role::TextInput, "Price");
+    assert!(price.is_focused());
+}
+
+#[test]
+fn problem_about_a_vehicle() {
+    // A short window: the trailer's card is below the truck's.
+    let mut h = Harness::builder()
+        .with_size(Vec2::new(1440.0, 700.0))
+        .build_ui_state(
+            |ui, state: &mut AppState| state.show(ui),
+            AppState::with_prefs(Default::default(), None),
+        );
+    h.state_mut().vehicles = common::sample_library();
+    let project =
+        tp_app::vehicle_project::fleet_project("ACE Logistics", &sample(0), &ids(WHOLE_TRUCK))
+            .unwrap();
+    h.state_mut().open_project(project);
+    ws_mut(&mut h)
+        .add_vehicle(&sample(1), &ids(WHOLE_TRAILER), 0.0)
+        .unwrap();
+    ws_mut(&mut h).project.vehicles[1].game_data = None;
+    ws_mut(&mut h).space = Space::Project;
+    settle(&mut h);
+    let card = |h: &H| {
+        h.get_by_label(&format!("Actions for {TRAILER}"))
+            .rect()
+            .top()
+    };
+    assert!(card(&h) > 700.0, "below the window");
+    // Before exporting is below the window too.
+    h.get_by_label(&format!("Show {TRAILER}")).click_accesskit();
+    h.run();
+    assert!(card(&h) < 700.0, "scrolled into view");
+}
+
+#[test]
+fn problems_before_warnings() {
+    let mut h = open(Some(&["standard", "high_roof"]), None);
+    draw(&mut h, "Standard cab");
+    ws_mut(&mut h).project.mod_settings.price = 0;
+    h.run();
+    let price = h
+        .get_all_by_label("The price must be more than 0.")
+        .last()
+        .unwrap()
+        .rect()
+        .top();
+    let warning = h
+        .get_by_label("High roof is empty, exported with the game's color")
+        .rect()
+        .top();
+    assert!(price < warning);
+    assert!(h.query_by_label("Show Price").is_some());
+    assert!(h.query_by_label("Nothing to check").is_none());
 }
 
 #[test]
