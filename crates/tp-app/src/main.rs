@@ -3,9 +3,9 @@
 
 use std::process::ExitCode;
 
-use tp_app::TruckPaintApp;
 use tp_app::paths::{APP_NAME, AppDirs};
 use tp_app::prefs::PrefsStore;
+use tp_app::{AppState, TruckPaintApp};
 
 fn main() -> ExitCode {
     let dirs = AppDirs::resolve();
@@ -15,12 +15,20 @@ fn main() -> ExitCode {
         tracing::warn!("no home directory found: preferences will not be saved");
     }
 
+    let store = dirs.as_ref().map(|d| PrefsStore::new(&d.config));
+    // The preferences say how the window opens (its title bar).
+    let state = AppState::new(store);
+    let mode = state.title_bar_mode();
+    tracing::info!(?mode, "title bar");
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_title(APP_NAME)
-            .with_app_id("truckpaint")
-            .with_inner_size([1440.0, 900.0])
-            .with_min_inner_size([960.0, 600.0]),
+        viewport: tp_app::title_bar::initial_viewport(
+            egui::ViewportBuilder::default()
+                .with_title(APP_NAME)
+                .with_app_id("truckpaint")
+                .with_inner_size([1440.0, 900.0])
+                .with_min_inner_size([960.0, 600.0]),
+            mode,
+        ),
         persist_window: true,
         persistence_path: dirs.as_ref().map(|d| d.config.join("window.ron")),
         // Text glyphs and image edges are drawn as raw triangles (egui only
@@ -29,7 +37,6 @@ fn main() -> ExitCode {
         ..Default::default()
     };
 
-    let store = dirs.as_ref().map(|d| PrefsStore::new(&d.config));
     let recovery_dir = dirs.as_ref().map(|d| d.recovery());
     let vehicles_dir = dirs.as_ref().map(|d| d.vehicles());
     let library_path = dirs.as_ref().map(|d| d.library());
@@ -39,7 +46,7 @@ fn main() -> ExitCode {
         Box::new(move |cc| {
             Ok(Box::new(TruckPaintApp::new(
                 cc,
-                store,
+                state,
                 recovery_dir,
                 vehicles_dir,
                 library_path,

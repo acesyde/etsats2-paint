@@ -662,6 +662,8 @@ fn opening_a_texture_from_the_project_space() {
 fn command_that_opens_a_dialog() {
     let mut h = open();
     search(&mut h, "export mod");
+    // Its path names the File menu, where Export Mod… is.
+    assert!(has_row(&h, "File › Export Mod…"));
     press(&mut h, Key::Enter);
     assert!(matches!(h.state().modal, Some(Modal::ExportMod(_))));
 }

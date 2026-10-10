@@ -112,9 +112,9 @@ fn pick_texture(h: &mut H, path: &str) {
     h.run();
 }
 
-/// Whether the breadcrumb (top bar and canvas) shows `text`.
+/// Whether the breadcrumb (inlaid in the canvas) shows `text`.
 fn breadcrumb_shows(h: &H, text: &str) -> bool {
-    h.query_all_by_label_contains(text).count() == 2
+    h.query_all_by_label_contains(text).count() == 1
 }
 
 /// Shows the Workshop (New Project opens the Project space).

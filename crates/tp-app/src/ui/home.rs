@@ -12,12 +12,14 @@ use tp_ui::theme::{display_style, label_strong_style, title_style};
 use tp_ui::tokens::{color, radius, size, space};
 use tp_ui::widgets::{EmptyState, IconButton, paint_focus_ring, primary_button, secondary_button};
 
+use super::workspace::top_bar;
 use super::{CommandUi, menu_bar};
 use crate::commands::{CommandId, EditContext};
 use crate::prefs::{RecentProject, now_unix};
 use crate::recent_thumbnails::RecentThumbnails;
 use crate::recovery::Recovered;
 use crate::state::{AppState, PendingAction, disabled_reason, is_enabled};
+use crate::title_bar::TitleBarMode;
 
 /// Width of the home screen's content, at most.
 const CONTENT_WIDTH: f32 = 1040.0;
@@ -31,13 +33,37 @@ const CARD_GAP: f32 = space::LG;
 
 pub fn show(ui: &mut Ui, state: &mut AppState) {
     let ctx = ui.ctx().clone();
+    let mode = state.title_bar_mode();
+    let menu_row = state.draws_menu_row();
+    let double_click = state.double_click;
     let mut cmds = CommandUi::new(&ctx, &mut state.queue, EditContext::default());
 
-    Panel::top("home_menu_bar")
-        .frame(bar_frame())
-        .show(ui, |ui| {
-            menu_bar::show(ui, &mut cmds, None, Default::default())
-        });
+    match mode {
+        // An empty title strip that moves the window.
+        TitleBarMode::MacNative => {
+            Panel::top("home_title_bar")
+                .exact_size(size::TOP_BAR_HEIGHT)
+                .frame(bar_frame())
+                .show(ui, |ui| top_bar::drag_area(ui, double_click));
+        }
+        // The mark, the menus and the window controls.
+        TitleBarMode::Drawn => {
+            Panel::top("home_title_bar")
+                .exact_size(size::TOP_BAR_HEIGHT)
+                .frame(bar_frame().inner_margin(Margin::ZERO))
+                .show(ui, |ui| {
+                    super::title_bar::show(ui, &mut cmds, None, None, Default::default())
+                });
+        }
+        TitleBarMode::System => {}
+    }
+    if menu_row {
+        Panel::top("home_menu_bar")
+            .frame(bar_frame())
+            .show(ui, |ui| {
+                menu_bar::show(ui, &mut cmds, None, Default::default())
+            });
+    }
 
     // The thumbnails of the files that are there.
     let paths: Vec<&std::path::Path> = state

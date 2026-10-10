@@ -42,7 +42,11 @@ fn closing_project_returns_home() {
     let mut h = harness();
     create_project(&mut h);
     open_menu(&mut h, "File");
-    h.get_by_label("Close").click();
+    // File › Close, under the title bar's Close control.
+    h.get_all_by_label("Close")
+        .max_by(|a, b| a.rect().top().total_cmp(&b.rect().top()))
+        .unwrap()
+        .click();
     h.run();
     // A new project has unsaved changes: the prompt comes first.
     h.get_by_label("Don't Save").click();
@@ -232,6 +236,32 @@ fn menus_are_in_order() {
         })
         .collect();
     assert!(menus.windows(2).all(|w| w[0] < w[1]), "{menus:?}");
+    // No Export menu: its items are in File.
+    assert!(h.query_by_label("Export").is_none());
+}
+
+/// workspace-layout: Export items in File.
+#[test]
+fn export_items_in_file() {
+    let mut h = harness();
+    create_project(&mut h);
+    open_menu(&mut h, "File");
+    let top = |label| h.get_by_role_and_label(Role::Button, label).rect().top();
+    let (texture, export, quit) = (top("Export Texture…"), top("Export Mod…"), top("Quit"));
+    assert!(
+        texture < export && export < quit,
+        "{texture} {export} {quit}"
+    );
+    use tp_app::commands::CommandId;
+    let shortcut = |id: CommandId| id.shortcut().map(|s| (s.modifiers, s.logical_key));
+    assert_eq!(
+        shortcut(CommandId::ExportTexture),
+        Some((Modifiers::COMMAND | Modifiers::SHIFT, Key::E))
+    );
+    assert_eq!(
+        shortcut(CommandId::ExportMod),
+        Some((Modifiers::COMMAND, Key::E))
+    );
 }
 
 #[test]
@@ -714,6 +744,7 @@ fn preferences_reset_to_defaults() {
     let prefs = Prefs {
         ui_scale: 1.5,
         text_scale: 1.25,
+        system_title_bar: true,
         ..Prefs::default()
     };
     let mut h = harness_with(prefs);
@@ -724,6 +755,8 @@ fn preferences_reset_to_defaults() {
     h.run();
     assert_eq!(h.state().prefs.ui_scale, 1.0);
     assert_eq!(h.state().prefs.text_scale, 1.0);
+    // The title bar choice stays.
+    assert!(h.state().prefs.system_title_bar);
 }
 
 #[test]

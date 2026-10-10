@@ -20,6 +20,8 @@ pub mod logging;
 pub mod menus;
 pub mod mod_export;
 pub mod mod_previews;
+#[cfg(target_os = "macos")]
+pub mod native_menu;
 pub mod outline_text;
 pub mod package_previews;
 pub mod palette;
@@ -38,6 +40,7 @@ pub mod symbol_ops;
 pub mod text_engine;
 pub mod text_input;
 pub mod text_session;
+pub mod title_bar;
 pub mod tool;
 pub mod ui;
 pub mod vehicle_project;

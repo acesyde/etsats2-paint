@@ -69,6 +69,9 @@ pub struct Prefs {
     /// Interface language chosen by the user (`en`, `fr`, `es`, `de`), or
     /// `None` to follow the system.
     pub language: Option<String>,
+    /// Use the system title bar instead of the drawn one (Windows and
+    /// Linux; Reset to defaults keeps it).
+    pub system_title_bar: bool,
 }
 
 impl Default for Prefs {
@@ -82,6 +85,7 @@ impl Default for Prefs {
             recent_colors: Vec::new(),
             view_aids: ViewAids::default(),
             language: None,
+            system_title_bar: false,
         }
     }
 }
@@ -400,6 +404,25 @@ mod tests {
         assert!(loaded.issue.is_none());
         assert_eq!(loaded.prefs.ui_scale, 1.25);
         assert!(loaded.prefs.recent_colors.is_empty());
+    }
+
+    #[test]
+    fn file_without_the_title_bar_choice_uses_the_drawn_bar() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = PrefsStore::new(dir.path());
+        fs::write(store.path(), "(version: 1, ui_scale: 1.25)").unwrap();
+        let loaded = store.load();
+        assert!(loaded.issue.is_none());
+        assert!(!loaded.prefs.system_title_bar);
+        let mut prefs = Prefs {
+            system_title_bar: true,
+            ..Prefs::default()
+        };
+        store.save(&prefs).unwrap();
+        assert!(store.load().prefs.system_title_bar);
+        // Reset to defaults keeps it.
+        prefs.reset_scaling();
+        assert!(prefs.system_title_bar);
     }
 
     #[test]

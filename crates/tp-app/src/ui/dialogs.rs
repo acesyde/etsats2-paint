@@ -328,7 +328,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         return;
     };
     let close = match modal_kind {
-        Modal::Preferences => preferences(ctx, &mut state.prefs),
+        Modal::Preferences => preferences(ctx, &mut state.prefs, !state.macos),
         Modal::KeyboardShortcuts => shortcuts(ctx),
         Modal::About => about(ctx),
         Modal::Message { title, text } => message(ctx, title, text),
@@ -472,8 +472,9 @@ fn scale_slider(
     (r, value.changed())
 }
 
-/// Returns true when the dialog should close.
-fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
+/// Returns true when the dialog should close. `title_bar` offers the
+/// system title bar option (Windows and Linux).
+fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs, title_bar: bool) -> bool {
     let response = modal("preferences_modal").show(ctx, |ui| {
         ui.set_width(440.0);
         title(ui, &tr("home-preferences"), None);
@@ -531,6 +532,12 @@ fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs) -> bool {
                 ctx.request_repaint();
             }
         });
+        if title_bar {
+            // Its hint on hover keeps the dialog within the smallest window
+            // at large UI scales.
+            ui.checkbox(&mut prefs.system_title_bar, tr("prefs-system-title-bar"))
+                .on_hover_text(tr("prefs-system-title-bar-hint"));
+        }
         ui.add_space(space::SM);
         section(ui, &tr("prefs-canvas"));
         labelled(ui, &tr("prefs-grid-spacing"), |ui| {

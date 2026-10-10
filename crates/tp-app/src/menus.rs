@@ -52,8 +52,8 @@ fn groups() -> Vec<(&'static str, Vec<CommandId>)> {
     ]
 }
 
-/// The menus of the menu bar, in order (File, Edit, Object, Layer, View,
-/// Vehicle, Export, Help). The design system gallery is in debug builds
+/// The menus drawn in the window, in order (File, Edit, Object, Layer,
+/// View, Vehicle, Help). The design system gallery is in debug builds
 /// only.
 pub fn menus() -> Vec<Menu> {
     use CommandId::*;
@@ -140,6 +140,9 @@ pub fn menus() -> Vec<Menu> {
                 Separator,
                 Item(CloseProject),
                 Separator,
+                Item(ExportTexture),
+                Item(ExportMod),
+                Separator,
                 Item(Quit),
             ],
         ),
@@ -180,12 +183,53 @@ pub fn menus() -> Vec<Menu> {
                 Item(UpdateTemplate),
             ],
         ),
-        menu("menu-export", vec![Item(ExportTexture), Item(ExportMod)]),
         menu(
             "menu-help",
             vec![Item(KeyboardShortcuts), Separator, Item(About)],
         ),
     ]
+}
+
+/// The macOS application menu (titled TruckPaint): About, Preferences and
+/// Quit, which [`menus_for`] takes out of Help, Edit and File.
+pub fn app_menu() -> Menu {
+    use CommandId::*;
+    use Entry::{Item, Separator};
+    Menu {
+        title: "menu-app",
+        entries: vec![
+            Item(About),
+            Separator,
+            Item(Preferences),
+            Separator,
+            Item(Quit),
+        ],
+    }
+}
+
+/// The menus of the platform: [`menus`] elsewhere; on macOS (`mac`) the
+/// application menu first, and About, Preferences and Quit only there.
+pub fn menus_for(mac: bool) -> Vec<Menu> {
+    let mut menus = menus();
+    if !mac {
+        return menus;
+    }
+    let app = app_menu();
+    let moved = |entry: &Entry| match entry {
+        Entry::Item(id) => app.entries.contains(&Entry::Item(*id)),
+        _ => false,
+    };
+    for menu in &mut menus {
+        // Each moved item goes with the separator before it.
+        while let Some(at) = menu.entries.iter().position(moved) {
+            menu.entries.remove(at);
+            if at > 0 && menu.entries.get(at - 1) == Some(&Entry::Separator) {
+                menu.entries.remove(at - 1);
+            }
+        }
+    }
+    menus.insert(0, app);
+    menus
 }
 
 /// Whether toggle `id` is on: the space shown, the left tab, Hide Panels,
@@ -220,10 +264,15 @@ pub struct CatalogEntry {
     pub toggle: bool,
 }
 
-/// Every command the palette lists, in menu order with its menu path, then
-/// the commands outside the menus with their group. A command shown twice
-/// keeps its first path.
+/// Every command the palette lists, in menu order with its menu path (the
+/// platform's menus, [`menus_for`]), then the commands outside the menus
+/// with their group. A command shown twice keeps its first path.
 pub fn catalog() -> Vec<CatalogEntry> {
+    catalog_for(cfg!(target_os = "macos"))
+}
+
+/// [`catalog`] with the menus of macOS (`mac`) or of the other platforms.
+pub fn catalog_for(mac: bool) -> Vec<CatalogEntry> {
     fn walk(entries: &[Entry], path: &mut Vec<&'static str>, out: &mut Vec<CatalogEntry>) {
         for entry in entries {
             match entry {
@@ -246,7 +295,7 @@ pub fn catalog() -> Vec<CatalogEntry> {
         }
     }
     let mut out = Vec::new();
-    for menu in menus() {
+    for menu in menus_for(mac) {
         let mut path = vec![menu.title];
         walk(&menu.entries, &mut path, &mut out);
     }
@@ -280,17 +329,84 @@ mod tests {
 
     #[test]
     fn every_paletted_command_is_in_the_catalog_once() {
-        let catalog = catalog();
-        for id in CommandId::all() {
-            let count = catalog.iter().filter(|e| e.id == id).count();
-            if id == CommandId::DesignGallery && !cfg!(debug_assertions) {
-                assert_eq!(count, 0, "{id:?}");
-            } else if id.in_palette() {
-                assert_eq!(count, 1, "{id:?}");
-            } else {
-                assert_eq!(count, 0, "{id:?}");
+        for mac in [false, true] {
+            let catalog = catalog_for(mac);
+            for id in CommandId::all() {
+                let count = catalog.iter().filter(|e| e.id == id).count();
+                if id == CommandId::DesignGallery && !cfg!(debug_assertions) {
+                    assert_eq!(count, 0, "{id:?}");
+                } else if id.in_palette() {
+                    assert_eq!(count, 1, "{id:?} (mac: {mac})");
+                } else {
+                    assert_eq!(count, 0, "{id:?}");
+                }
             }
         }
+    }
+
+    fn commands_of(menu: &Menu) -> Vec<CommandId> {
+        let mut out = Vec::new();
+        menu_commands(&menu.entries, &mut out);
+        out
+    }
+
+    fn find<'a>(menus: &'a [Menu], title: &str) -> &'a Menu {
+        menus.iter().find(|m| m.title == title).unwrap()
+    }
+
+    #[test]
+    fn export_items_end_the_file_menu() {
+        use CommandId::*;
+        let menus = menus();
+        assert!(menus.iter().all(|m| m.title != "menu-export"));
+        let file = &find(&menus, "menu-file").entries;
+        assert_eq!(
+            file[file.len() - 5..],
+            [
+                Entry::Separator,
+                Entry::Item(ExportTexture),
+                Entry::Item(ExportMod),
+                Entry::Separator,
+                Entry::Item(Quit),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_macos_app_menu_holds_about_preferences_and_quit() {
+        use CommandId::*;
+        let mac = menus_for(true);
+        assert_eq!(mac[0], app_menu());
+        assert_eq!(commands_of(&mac[0]), [About, Preferences, Quit]);
+        assert!(!commands_of(find(&mac, "menu-file")).contains(&Quit));
+        assert!(!commands_of(find(&mac, "menu-edit")).contains(&Preferences));
+        assert!(!commands_of(find(&mac, "menu-help")).contains(&About));
+        // No separator is left at the end of a menu.
+        for menu in &mac {
+            assert_ne!(
+                menu.entries.last(),
+                Some(&Entry::Separator),
+                "{}",
+                menu.title
+            );
+        }
+        assert_eq!(
+            mac[1..].iter().map(|m| m.title).collect::<Vec<_>>(),
+            crate::ui::menu_bar::MENUS
+        );
+        assert_eq!(menus_for(false), menus());
+        let catalog = catalog_for(true);
+        let path = |id| catalog.iter().find(|e| e.id == id).unwrap().path.clone();
+        assert_eq!(path(Preferences), ["menu-app"]);
+        assert_eq!(path(ExportMod), ["menu-file"]);
+        assert_eq!(
+            catalog_for(false)
+                .iter()
+                .find(|e| e.id == Preferences)
+                .unwrap()
+                .path,
+            ["menu-edit"]
+        );
     }
 
     #[test]

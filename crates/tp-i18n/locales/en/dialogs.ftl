@@ -91,6 +91,8 @@ export-background = Background
 export-transparent = Transparent
 export-background-color = Background color
 prefs-language = Language
+prefs-system-title-bar = Use the system title bar
+prefs-system-title-bar-hint = The window's frame and title bar come from the system, with the menus in a row below. Useful when the window can't be moved or resized.
 file-dev-format = { $file } uses a development format that this version cannot open.
 
 ## Vehicle packages

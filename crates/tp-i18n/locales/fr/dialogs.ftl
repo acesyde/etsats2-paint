@@ -90,6 +90,8 @@ export-background = Arrière-plan
 export-transparent = Transparent
 export-background-color = Couleur d’arrière-plan
 prefs-language = Langue
+prefs-system-title-bar = Utiliser la barre de titre du système
+prefs-system-title-bar-hint = Le cadre et la barre de titre de la fenêtre sont ceux du système, avec les menus sur une ligne en dessous. Utile si la fenêtre ne peut pas être déplacée ou redimensionnée.
 file-dev-format = { $file } utilise un format de développement que cette version ne peut pas ouvrir.
 
 ## Vehicle packages
