@@ -45,7 +45,7 @@ Instances inside the selection SHALL be detached first: their content goes into 
 - **THEN** the circle and the text are back as plain objects, and the project has no symbol
 
 ### Requirement: Symbols lists
-The project's symbols SHALL be listed in two places: the **Symbols** section of the Workshop's **Resources** tab, and the **Symbols** section of the Brand space (see the brand-space capability). Both SHALL list the project's symbols, each with its name and its number of instances in the project. With no symbol, the Resources tab SHALL show a short explanation of what symbols are and how to make one, with a **Convert to Symbol** button.
+The project's symbols SHALL be listed in two places: the **Symbols** section of the Workshop's **Resources** tab, and the **Symbols** section of the Brand space (see the brand-space capability). Both SHALL list the project's symbols, each with its name and its number of instances in the project; the Brand space SHALL also show the number of textures holding them, as "14 instances · 9 textures", or "Unused" (see the brand-impact capability). With no symbol, the Resources tab SHALL show a short explanation of what symbols are and how to make one, with a **Convert to Symbol** button.
 
 Each symbol SHALL offer:
 - **Place:** adds an instance at 100% in the middle of the visible part of the active texture, and selects it. Dragging the symbol's row of the Resources tab onto the canvas places it at the drop point;
@@ -71,6 +71,10 @@ Each change SHALL be one undo step.
 #### Scenario: Instance count in the Resources tab
 - **WHEN** "Logo" has six instances across the fleet
 - **THEN** the Symbols section of the Resources tab lists "Logo" with "6 instances"
+
+#### Scenario: Instances and textures in Brand
+- **WHEN** "Logo" has four instances on the Cab and two on the Chassis
+- **THEN** the Symbols section of Brand lists "Logo" with "6 instances · 2 textures"
 
 ### Requirement: Editing a symbol
 **Edit Symbol** SHALL show the symbol alone on the canvas of the Workshop, on its own artboard, with every tool, the rulers, the guides of the symbol and the Layers tab listing its content. It is reached from:
