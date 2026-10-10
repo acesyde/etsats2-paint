@@ -3,7 +3,8 @@
 //! Polygon, Style, Image), each shown only when it applies; with nothing
 //! selected, the active texture's properties, what is on it (On this
 //! texture) and the look of new objects.
-//! Colors and stroke settings open in popovers anchored to their rows.
+//! Colors, stroke and shadow settings open in popovers anchored to their
+//! rows.
 
 use egui::{Frame, Margin, Panel, Rect, RichText, ScrollArea, Ui, WidgetInfo, WidgetType};
 use tp_core::TexturePart;
@@ -11,7 +12,7 @@ use tp_core::document::{Object, ShapeKind, tree};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, size, space, typography};
-use tp_ui::widgets::{IconButton, PaintRow, Popover, secondary_button};
+use tp_ui::widgets::{IconButton, PaintRow, Popover, SwatchColor, secondary_button};
 
 use super::panels::{self, PanelEnv, properties, styles};
 use crate::commands::CommandId;
@@ -32,6 +33,11 @@ pub fn stroke_popover() -> egui::Id {
 /// The line settings popover (dashes, caps and joins of lines).
 pub fn line_popover() -> egui::Id {
     Popover::id("inspector_line")
+}
+
+/// The shadow popover of the Shadow row.
+pub fn shadow_popover() -> egui::Id {
+    Popover::id("inspector_shadow")
 }
 
 /// The inspector, resizable by its left edge within bounds; its width is
@@ -325,11 +331,17 @@ fn selection(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     section(ui, Some(&tr("inspector-appearance")), |ui| {
         properties::opacity(ui, env, &objects);
         // Instances show their symbol's look; images have no fill nor
-        // stroke.
-        if instances_only || only_images {
+        // stroke, but a shadow.
+        if instances_only {
             return;
         }
-        paint_rows(ui, env);
+        if !only_images {
+            paint_rows(ui, env);
+        }
+        shadow_row(ui, env);
+        if only_images {
+            return;
+        }
         if let Some(lines) = properties::selected_lines(&objects) {
             line_settings(ui, env, &lines);
         }
@@ -554,6 +566,65 @@ fn open_color(ctx: &egui::Context, env: &mut PanelEnv<'_>, target: ColorTarget) 
     } else {
         Popover::open(ctx, color_popover());
     }
+}
+
+// --- Shadow row ---------------------------------------------------------------------
+
+/// The Shadow row: the color and the summary ("8 / 8 · 8", or "Mixed",
+/// the full values on hover) opening the shadow popover, and the remove
+/// button at the row's right end; or "+ Add a shadow" when no selected
+/// object has a shadow. Left out when no selected object can have a
+/// shadow (groups, instances).
+fn shadow_row(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+    let shadows = env.ws.selected_shadows();
+    if shadows.is_empty() {
+        return;
+    }
+    if shadows.iter().all(Option::is_none) {
+        let text = tr("inspector-add-shadow");
+        let add = ui.add(
+            egui::Button::new(
+                RichText::new(&text)
+                    .size(typography::CONTROL)
+                    .color(color::TEXT_MUTED),
+            )
+            .frame(false)
+            .min_size(egui::vec2(0.0, size::HIT_MIN)),
+        );
+        add.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, &text));
+        if add.clicked() {
+            env.ws.add_shadow(env.now);
+        }
+        return;
+    }
+    let colors = shadows.iter().map(|s| s.map(|s| s.color));
+    let swatch = match properties::common(colors) {
+        Some(Some(c)) => {
+            SwatchColor::Solid(egui::Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a))
+        }
+        _ => SwatchColor::Mixed,
+    };
+    let summary = panels::shadow::summary(&shadows);
+    let full = panels::shadow::summary_full(&shadows);
+    let name = tr("inspector-shadow");
+    let remove_name = tr("inspector-shadow-remove");
+    let open = Popover::is_open(ui.ctx(), shadow_popover());
+    let row = PaintRow::new(swatch, &name, &name)
+        .value(&summary, false)
+        .hover_text(full.as_deref().unwrap_or(&name))
+        .target(open)
+        .action(icons::CLOSE, &remove_name)
+        .show(ui);
+    let remove = row.action.as_ref().is_some_and(|r| r.clicked());
+    if row.swatch.clicked() {
+        Popover::toggle(ui.ctx(), shadow_popover());
+    }
+    if remove {
+        env.ws.remove_shadow(env.now);
+    }
+    Popover::new(shadow_popover(), popover_anchor(ui, row.row)).show(ui, |ui| {
+        panels::shadow::popover(ui, env);
+    });
 }
 
 /// The Width field of the selected lines, and the button opening their

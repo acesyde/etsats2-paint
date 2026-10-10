@@ -7,6 +7,7 @@ mod history;
 mod object;
 pub mod paint;
 pub mod path;
+mod shadow;
 pub mod stroke_region;
 mod transform;
 pub mod tree;
@@ -27,6 +28,7 @@ pub use paint::{
 pub use path::{
     DEFAULT_LINE_WIDTH, HandleSide, Node, NodeRef, PathData, PointRef, SegmentHit, Subpath,
 };
+pub use shadow::{MAX_SHADOW_BLUR, MAX_SHADOW_OFFSET, Shadow};
 pub use stroke_region::stroke_region;
 pub use transform::{
     FlipAxis, Handle, ResizeOptions, angle_around, apply_affine, flip, resize, rotate,

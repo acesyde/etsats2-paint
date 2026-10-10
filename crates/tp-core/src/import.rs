@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use crate::brand::{GraphicStyle, Look, Swatch, TextStyle};
 use crate::document::{
-    AssetId, Object, Paint, ShapeKind, StrokeStyle, StyleId, SwatchId, SymbolId,
+    AssetId, Object, Paint, Shadow, ShapeKind, StrokeStyle, StyleId, SwatchId, SymbolId,
 };
 use crate::project::{Project, Surface};
 use crate::symbols::Symbol;
@@ -77,14 +77,20 @@ impl Found {
         }
     }
 
+    fn shadow(&mut self, shadow: Option<&Shadow>) {
+        self.swatches.extend(shadow.and_then(|s| s.swatch));
+    }
+
     fn look(&mut self, look: &Look) {
         self.paint(&look.fill, look.fill_swatch);
         self.stroke(look.stroke.as_ref());
+        self.shadow(look.shadow.as_ref());
     }
 
     fn object(&mut self, o: &Object) {
         self.paint(&o.fill, o.fill_swatch);
         self.stroke(o.stroke.as_ref());
+        self.shadow(o.shadow.as_ref());
         self.styles.extend(o.style);
         self.styles.extend(o.text.as_ref().and_then(|t| t.style_id));
         match o.kind {
@@ -226,6 +232,14 @@ fn remap_paint(paint: &mut Paint, link: &mut Option<SwatchId>, map: &HashMap<Swa
     }
 }
 
+/// Points a shadow's swatch link to the target's swatch (a link to a
+/// swatch not brought is dropped).
+fn remap_shadow(shadow: &mut Option<Shadow>, map: &HashMap<SwatchId, SwatchId>) {
+    if let Some(s) = shadow {
+        s.swatch = s.swatch.and_then(|id| map.get(&id).copied());
+    }
+}
+
 /// `look` linked to the target's swatches, with their colors.
 fn remap_look(look: &Look, map: &HashMap<SwatchId, SwatchId>, into: &Project) -> Look {
     let mut look = *look;
@@ -233,6 +247,7 @@ fn remap_look(look: &Look, map: &HashMap<SwatchId, SwatchId>, into: &Project) ->
     if let Some(s) = &mut look.stroke {
         remap_paint(&mut s.paint, &mut s.swatch, map);
     }
+    remap_shadow(&mut look.shadow, map);
     for swatch in &into.palette {
         look.recolor(swatch.id, swatch.color);
     }
@@ -246,6 +261,7 @@ fn remap_object(o: &mut Object, done: &Imported) {
     if let Some(s) = &mut o.stroke {
         remap_paint(&mut s.paint, &mut s.swatch, &done.swatches);
     }
+    remap_shadow(&mut o.shadow, &done.swatches);
     o.style = o.style.and_then(|id| done.styles.get(&id).copied());
     if let Some(t) = &mut o.text {
         t.style_id = t.style_id.and_then(|id| done.styles.get(&id).copied());

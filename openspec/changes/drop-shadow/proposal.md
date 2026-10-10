@@ -19,7 +19,7 @@ Depends on `new-design` (the inspector's Appearance section).
 - **Styles carry the shadow.** Graphic and text styles describe the whole look, so they include the shadow (or none). Changing an object's shadow detaches it from its style, like changing its fill. Redefine from Selection and New Style from Selection take the shadow.
 - **Rendered everywhere:** on the canvas, and identically in Export Texture (PNG, DDS) and in Export Mod's textures. A shadow that extends past the texture is clipped like any object. Hit testing and selection bounds ignore the shadow.
 - **Saved in project files** as an optional field of objects and styles in format 1. Files without it open with no shadows.
-  - Older builds ignore the field: they open a file with shadows, without them, and a save from such a build drops them. Since no TruckPaint release exists yet (distribution is roadmap #4), staying in format 1 is proposed rather than raising the format. The design confirms this.
+  - Older builds ignore the field: they open a file with shadows, without them, and a save from such a build drops them. No TruckPaint release exists yet (distribution is roadmap #4), so the format stays 1 (decided).
 - **Library and paste:** a shadow's swatch link is a dependency like a fill's, so Add to Library, Import from Library and paste across projects bring it.
 
 Non-goals: inner shadows, glows, several shadows, spread, blend modes, shadows on groups or instances.
@@ -37,6 +37,8 @@ Non-goals: inner shadows, glows, several shadows, spread, blend modes, shadows o
 - `texture-export`: Rendering fidelity lists shadows, identical to the canvas. Export Mod uses the same renderer, so it follows.
 - `project-files`: objects and styles save their shadow and its swatch link. Files without shadows open unchanged.
 - `shared-library`: a shadow's swatch link counts among the swatches an element uses, for Add to Library and import.
+- `properties-panel`: Appearance lists the Shadow row (or + Add a shadow), left out for groups and instances.
+- `brand-impact`: a swatch's usage counts objects whose shadow links to it.
 
 ## Impact
 
@@ -49,4 +51,4 @@ Non-goals: inner shadows, glows, several shadows, spread, blend modes, shadows o
   - the Appearance row and popover;
   - strings in en/fr/es/de.
 - **tp-file:** optional `shadow` on `FileObject`, `FileGraphicStyle` and `FileTextStyle` in format 1 (see above).
-- **Performance:** blur cost grows with radius and object size on 4096² textures. The canvas cache and a maximum radius (to fix in design) bound it.
+- **Performance:** blur cost grows with radius and object size on 4096² textures. The blur is capped at 200 px, and the canvas cache renders shadows on a worker at a zoom-tied resolution (see design).

@@ -413,3 +413,17 @@ brand-gradient-fill-hint = Ce fond est un dégradé : modifiez-le avec Redéfini
 styles-edit = Modifier le style…
 styles-name-empty = Saisissez un nom pour le style.
 styles-name-taken = Un autre style graphique porte déjà ce nom.
+
+## Drop shadow
+inspector-add-shadow = + Ajouter une ombre
+inspector-shadow = Ombre
+inspector-shadow-summary = { $x } / { $y } · { $blur }
+inspector-shadow-summary-full = Décalage { $x } / { $y }, flou { $blur }
+inspector-shadow-remove = Supprimer l’ombre
+shadow-opacity = Opacité de l’ombre
+shadow-offset-x = Décalage X
+shadow-offset-y = Décalage Y
+shadow-blur = Flou
+undo-add-shadow = Ajouter une ombre
+undo-change-shadow = Modifier l’ombre
+undo-remove-shadow = Supprimer l’ombre

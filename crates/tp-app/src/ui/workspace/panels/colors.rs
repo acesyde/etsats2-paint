@@ -519,6 +519,16 @@ fn alpha_field(ui: &mut Ui, changes: &mut Vec<ChannelChange>, alpha: Option<f64>
 }
 
 fn hex_field(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
+    hex_field_with(ui, env, current, apply_now);
+}
+
+/// The hex code of `current`, giving a valid code typed in to `apply`.
+fn hex_field_with(
+    ui: &mut Ui,
+    env: &mut PanelEnv<'_>,
+    current: Option<Rgba>,
+    apply: fn(&mut PanelEnv<'_>, Rgba),
+) {
     let id = ui.id().with("hex_field");
     let error_id = id.with("error");
     let mut buffer = ui
@@ -559,7 +569,7 @@ fn hex_field(ui: &mut Ui, env: &mut PanelEnv<'_>, current: Option<Rgba>) {
                 match Rgba::from_hex(&buffer) {
                     Some(c) => {
                         error = false;
-                        apply_now(env, c);
+                        apply(env, c);
                     }
                     None => error = !buffer.trim().is_empty(),
                 }
@@ -704,8 +714,25 @@ pub fn palette_empty_hint(ui: &mut Ui) {
 /// every place that lists the palette.
 pub fn palette_swatches(ui: &mut Ui, env: &mut PanelEnv<'_>, size: f32, usage: bool) {
     let target = env.ws.panels.color_target;
-    let palette = env.ws.project.palette.clone();
     let linked = env.ws.linked_swatch(target);
+    swatches(ui, env, size, usage, linked, |env, id| {
+        env.ws.panels.picker = None;
+        env.ws.apply_swatch(target, id);
+        env.ws.commit_pending(env.now);
+    });
+}
+
+/// The palette's swatches, the one `linked` has a ring; a click calls
+/// `pick` with the swatch.
+fn swatches(
+    ui: &mut Ui,
+    env: &mut PanelEnv<'_>,
+    size: f32,
+    usage: bool,
+    linked: Option<tp_core::document::SwatchId>,
+    mut pick: impl FnMut(&mut PanelEnv<'_>, tp_core::document::SwatchId),
+) {
+    let palette = env.ws.project.palette.clone();
     let usages: Vec<Option<String>> = palette
         .iter()
         .map(|s| usage.then(|| crate::brand_ops::usage_label(env.ws.usage().swatch(s.id))))
@@ -723,9 +750,7 @@ pub fn palette_swatches(ui: &mut Ui, env: &mut PanelEnv<'_>, size: f32, usage: b
             }
             let response = widget.show(ui);
             if response.clicked() {
-                env.ws.panels.picker = None;
-                env.ws.apply_swatch(target, s.id);
-                env.ws.commit_pending(env.now);
+                pick(env, s.id);
             }
             response.context_menu(|ui| swatch_menu(ui, env, s.id));
         }
@@ -756,6 +781,11 @@ pub fn swatch_menu(ui: &mut Ui, env: &mut PanelEnv<'_>, id: tp_core::document::S
 /// selected stop) is linked to a swatch.
 pub fn linked_swatch_label(ui: &mut Ui, env: &PanelEnv<'_>) {
     let linked = env.ws.linked_swatch(env.ws.panels.color_target);
+    linked_label(ui, env, linked);
+}
+
+/// "Linked to <swatch>" with a link icon, for swatch `linked`.
+fn linked_label(ui: &mut Ui, env: &PanelEnv<'_>, linked: Option<tp_core::document::SwatchId>) {
     let Some(s) = linked.and_then(|id| env.ws.project.swatch(id)) else {
         return;
     };
@@ -766,4 +796,57 @@ pub fn linked_swatch_label(ui: &mut Ui, env: &PanelEnv<'_>) {
             .color(color::TEXT_SECONDARY),
     )
     .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+}
+
+/// The color of the selected shadows in the shadow popover: the picker,
+/// the hex code and the brand palette, whose swatches link the shadows as
+/// they link a fill. `current` is the shadows' color (`None`: they
+/// differ), `linked` the swatch they share.
+pub fn shadow_color(
+    ui: &mut Ui,
+    env: &mut PanelEnv<'_>,
+    current: Option<Rgba>,
+    linked: Option<tp_core::document::SwatchId>,
+) {
+    let base = current.unwrap_or(Rgba::rgb(0, 0, 0));
+    let mut hsv = match env.ws.panels.picker {
+        Some((shown, hsv)) if Some(shown) == current => hsv,
+        _ => to_widget_hsv(base),
+    };
+    let responses = [
+        sv_square(ui, &mut hsv, 128.0),
+        hue_slider(ui, &mut hsv),
+        alpha_slider(ui, &mut hsv),
+    ];
+    if responses.iter().any(|r| r.changed()) {
+        let color = from_color32(hsv.to_color32());
+        env.ws.panels.picker = Some((color, hsv));
+        env.ws.set_shadow_color(color);
+    }
+    if responses
+        .iter()
+        .any(|r| r.drag_stopped() || (r.changed() && !r.dragged()))
+    {
+        env.ws.commit_pending(env.now);
+    }
+    hex_field_with(ui, env, current, |env, c| {
+        env.ws.panels.picker = None;
+        env.ws.set_shadow_color(c);
+        env.ws.commit_pending(env.now);
+    });
+    ui.label(
+        RichText::new(tr("colors-brand-palette"))
+            .small()
+            .color(color::TEXT_MUTED),
+    );
+    if env.ws.project.palette.is_empty() {
+        palette_empty_hint(ui);
+        return;
+    }
+    swatches(ui, env, 22.0, true, linked, |env, id| {
+        env.ws.panels.picker = None;
+        env.ws.link_shadow(id);
+        env.ws.commit_pending(env.now);
+    });
+    linked_label(ui, env, linked);
 }

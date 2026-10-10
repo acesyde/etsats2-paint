@@ -208,6 +208,8 @@ pub struct Workspace {
     pub mod_previews: crate::mod_previews::ModPreviews,
     /// Ramp textures of the gradients drawn on the canvas.
     pub gradients: crate::gradient_textures::GradientTextures,
+    /// Shadow layers drawn on the canvas.
+    pub shadows: crate::shadow_cache::ShadowCache,
     /// The file dialog should open to place images, at a point or the view
     /// center (Place command, Image tool).
     pub place_request: Option<Option<tp_core::kurbo::Point>>,
@@ -294,6 +296,7 @@ impl Workspace {
             usage_cache: Default::default(),
             mod_previews: Default::default(),
             gradients: Default::default(),
+            shadows: Default::default(),
             place_request: None,
             reveal: None,
             mod_draft: None,

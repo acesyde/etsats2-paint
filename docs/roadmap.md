@@ -270,7 +270,6 @@ None at the moment.
 | # | Change | What it does | Why now |
 |---|---|---|---|
 | 2 | `polishing` | Fixes, ergonomics, wording and performance across the app, with no new feature. | Smooths what the first players will meet, on the new design. |
-| 2f | `drop-shadow` | Drop shadow as an appearance property. A new feature, optional and low priority. | Common on livery lettering. |
 | 3 | `paintjob-importer` | Prefills the game data of a custom vehicle (game path, cabin internal names, accessory ids) from Paintjob Packer's database. | Custom vehicle asks for game data most players don't know. |
 | 4 | `distribution` | Release builds and installers. Includes a macOS `.app` bundle (so the app menu's bold name reads "TruckPaint", not the binary's name), and the manual checks of the drawn title bar on Windows, Linux X11 and Wayland (moving, double-click, resize grips, window controls, menus, the system title bar option and `TRUCKPAINT_SYSTEM_TITLE_BAR=1`). | A player can go from vehicle to mod without building the app. |
 | 5 | `marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once players have the app and can make packages easily. |
@@ -281,6 +280,13 @@ None at the moment.
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `drop-shadow`: one drop shadow per shape, path, text or image, set in
+  the inspector's Appearance section (+ Add a shadow, then a Shadow row and
+  its popover): color (which can be linked to a swatch), opacity, offset
+  and blur from 0 to 200 px. Graphic styles carry it, and it looks the same
+  on the canvas and in Export Texture and Export Mod. Projects stay format
+  1, with an optional field. Left out of the Brand space's Edit Style…
+  editor and of the look of new objects;
 - `title-bar-menus` (under `polishing`): one 40 px bar at the top of the
   window. On macOS the menus are in the system menu bar (with the app menu:
   About, Settings…, Hide, Quit) and the top bar sits in the window's

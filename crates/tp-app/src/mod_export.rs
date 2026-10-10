@@ -1321,6 +1321,199 @@ mod tests {
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 
+    /// drop-shadow: Export Mod's textures go through the same renderer as
+    /// Export Texture, so a shadow is the same in both.
+    #[test]
+    fn a_shadow_in_the_mods_texture_matches_the_render() {
+        use tp_core::document::{CharStyle, Frame, Object, ObjectId, Rgba, Shadow, ShapeKind};
+        use tp_core::kurbo::{Point, Size, Vec2};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ACE.scs");
+        let mut project = small_truck();
+        let mut text = Object::new(
+            ObjectId(0),
+            ShapeKind::Text,
+            Frame::new(Point::new(100.0, 100.0), Size::new(120.0, 80.0), 0.0),
+        );
+        text.text = Some(tp_core::document::TextBlock::new(
+            "I",
+            CharStyle {
+                size: 80.0,
+                ..CharStyle::default()
+            },
+        ));
+        text.shadow = Some(Shadow {
+            color: Rgba::rgb(20, 40, 160),
+            opacity: 1.0,
+            offset: Vec2::new(40.0, 40.0),
+            blur: 0.0,
+            ..Shadow::DEFAULT
+        });
+        project.add(text);
+        let size = 256;
+        let options = RenderOptions {
+            size,
+            background: None,
+        };
+        let rendered = |p: &Project| {
+            let pixmap =
+                tp_render::render(p, 0, options, &mut FontLibrary::bundled(), &mut |_, _| true)
+                    .unwrap();
+            tp_render::to_rgba(&pixmap)
+        };
+        let with = rendered(&project);
+        let mut plain = project.clone();
+        let objects = plain.surface().objects.clone();
+        let mut last = (*objects[objects.len() - 1]).clone();
+        last.shadow = None;
+        plain.surface_mut().replace(&[last]);
+        let without = rendered(&plain);
+        // A pixel of the shadow alone, inside a 4 × 4 block it fills.
+        let (x, y) = (0..size / 4)
+            .flat_map(|by| (0..size / 4).map(move |bx| (bx * 4, by * 4)))
+            .find(|&(bx, by)| {
+                (0..4).all(|dy| {
+                    (0..4).all(|dx| {
+                        with.get_pixel(bx + dx, by + dy).0[3] == 255
+                            && without.get_pixel(bx + dx, by + dy).0[3] == 0
+                    })
+                })
+            })
+            .expect("a block of shadow");
+        assert_eq!(
+            export(&project, &path),
+            ExportOutcome::Written(path.clone())
+        );
+        let mut zip = archive(&path);
+        let name = zip
+            .file_names()
+            .find(|n| n.ends_with("/cabin.dds"))
+            .unwrap()
+            .to_owned();
+        let dds = read_entry(&mut zip, &name);
+        let mut pixels = vec![0u8; (size * size * 4) as usize];
+        let top = (size * size) as usize;
+        texpresso::Format::Bc3.decompress(&dds[128..128 + top], 256, 256, &mut pixels);
+        let at = ((y * size + x) * 4) as usize;
+        let exported = &pixels[at..at + 4];
+        let expected = with.get_pixel(x, y).0;
+        assert!(
+            exported
+                .iter()
+                .zip(expected)
+                .all(|(a, b)| a.abs_diff(b) <= 8),
+            "{exported:?} vs {expected:?}"
+        );
+    }
+
+    /// drop-shadow: the cost of shadows in an export. The sample truck's
+    /// 4096 px Standard cab with 20 texts with a blur of 8 and a lettering
+    /// across the texture with a blur of 200: the export stays under 3 s.
+    /// Timings are printed (`--release -- --ignored --nocapture`).
+    #[test]
+    #[ignore = "performance measurement: run in release"]
+    fn shadowed_export_performance() {
+        use std::time::Instant;
+        use tp_core::document::{CharStyle, Frame, Object, ObjectId, Shadow, ShapeKind};
+        use tp_core::kurbo::{Point, Size};
+        let mut project = truck(&["standard"]);
+        let text = |content: &str, at: Point, size: f64, blur: f64| {
+            let mut o = Object::new(
+                ObjectId(0),
+                ShapeKind::Text,
+                Frame::new(at, Size::new(size * content.len() as f64, size * 1.3), 0.0),
+            );
+            o.text = Some(tp_core::document::TextBlock::new(
+                content,
+                CharStyle {
+                    size,
+                    ..CharStyle::default()
+                },
+            ));
+            o.shadow = Some(Shadow {
+                blur,
+                ..Shadow::DEFAULT
+            });
+            o
+        };
+        for i in 0..20 {
+            let at = Point::new(
+                400.0 + f64::from(i % 4) * 1000.0,
+                400.0 + f64::from(i / 4) * 800.0,
+            );
+            project.add(text("ACE 24/7", at, 120.0, 8.0));
+        }
+        project.add(text(
+            "ACE LOGISTICS",
+            Point::new(2048.0, 2048.0),
+            560.0,
+            200.0,
+        ));
+        let surface = project.surface().size;
+        assert_eq!(surface, 4096.0);
+        let options = RenderOptions {
+            size: 4096,
+            background: None,
+        };
+        let mut fonts = FontLibrary::bundled();
+        let render = |p: &Project, fonts: &mut FontLibrary| {
+            tp_render::render(p, 0, options, fonts, &mut |_, _| true).unwrap()
+        };
+        let mut plain = project.clone();
+        let unshadowed: Vec<Object> = plain
+            .surface()
+            .objects
+            .iter()
+            .map(|o| Object {
+                shadow: None,
+                ..(**o).clone()
+            })
+            .collect();
+        plain.surface_mut().replace(&unshadowed);
+        render(&plain, &mut fonts);
+        let start = Instant::now();
+        render(&plain, &mut fonts);
+        let without = start.elapsed();
+        let start = Instant::now();
+        let pixmap = render(&project, &mut fonts);
+        let with = start.elapsed();
+        // The lettering's shadow spreads far around it.
+        let covered = |p: &Pixmap| p.pixels().iter().filter(|c| c.alpha() > 0).count();
+        let plain_pixmap = render(&plain, &mut fonts);
+        println!(
+            "covered: {} vs {}",
+            covered(&pixmap),
+            covered(&plain_pixmap)
+        );
+        assert!(covered(&pixmap) > covered(&plain_pixmap) * 3);
+        assert!(pixmap.pixel(2048, 2048 + 600).unwrap().alpha() > 0);
+        let start = Instant::now();
+        tp_render::encode_dds(&pixmap, DdsEncoding::Bc3, &mut |_, _| true).unwrap();
+        let encode = start.elapsed();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ACE.scs");
+        let start = Instant::now();
+        assert_eq!(
+            export(&project, &path),
+            ExportOutcome::Written(path.clone())
+        );
+        let whole = start.elapsed();
+        println!(
+            "4096 px, 20 texts at blur 8 and a lettering at blur 200:\n  \
+             render without shadows {without:?}\n  render with shadows {with:?}\n  \
+             DDS encoding {encode:?}\n  Export Texture (render + DDS) {:?}\n  \
+             Export Mod (whole mod) {whole:?}",
+            with + encode
+        );
+        let limit = std::time::Duration::from_secs(3);
+        assert!(
+            with + encode < limit,
+            "Export Texture took {:?}",
+            with + encode
+        );
+        assert!(whole < limit, "Export Mod took {whole:?}");
+    }
+
     #[test]
     fn cancelling_leaves_no_file_and_keeps_an_earlier_one() {
         let dir = tempfile::tempdir().unwrap();

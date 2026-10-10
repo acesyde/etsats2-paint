@@ -10,7 +10,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::document::{
-    CharStyle, Object, ObjectId, Paint, Rgba, ShapeKind, StrokeStyle, StyleId, SwatchId, tree,
+    CharStyle, Object, ObjectId, Paint, Rgba, Shadow, ShapeKind, StrokeStyle, StyleId, SwatchId,
+    tree,
 };
 use crate::import::LibraryKey;
 use crate::project::Project;
@@ -26,14 +27,15 @@ pub struct Swatch {
     pub origin: Option<LibraryKey>,
 }
 
-/// A fill, a stroke and an opacity: what a style gives an object besides
-/// character settings.
+/// A fill, a stroke, an opacity and a shadow: what a style gives an object
+/// besides character settings.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Look {
     pub fill: Paint,
     pub fill_swatch: Option<SwatchId>,
     pub stroke: Option<StrokeStyle>,
     pub opacity: f32,
+    pub shadow: Option<Shadow>,
 }
 
 /// A named look for shapes and texts.
@@ -145,6 +147,7 @@ impl Look {
             fill_swatch: o.fill_swatch,
             stroke: o.stroke,
             opacity: o.opacity,
+            shadow: o.shadow,
         }
     }
 
@@ -154,6 +157,7 @@ impl Look {
             && self.fill_swatch == o.fill_swatch
             && same_stroke(self.stroke.as_ref(), o.stroke.as_ref())
             && self.opacity == o.opacity
+            && self.shadow == o.shadow
     }
 
     /// Gives `o` this look, keeping its own gradient positions.
@@ -168,6 +172,9 @@ impl Look {
             None => s,
         });
         o.opacity = self.opacity;
+        if o.takes_shadow() {
+            o.shadow = self.shadow;
+        }
     }
 
     /// Recolors the parts linked to swatch `id`.
@@ -177,6 +184,7 @@ impl Look {
             let link = s.swatch;
             recolor(&mut s.paint, link, id, color);
         }
+        recolor_shadow(&mut self.shadow, id, color);
     }
 
     /// Drops the swatch links that no longer match.
@@ -187,6 +195,7 @@ impl Look {
             unlink_paint(&mut s.paint, &mut link, swatches);
             s.swatch = link;
         }
+        unlink_shadow(&mut self.shadow, swatches);
     }
 }
 
@@ -268,6 +277,32 @@ fn recolor(paint: &mut Paint, link: Option<SwatchId>, id: SwatchId, color: Rgba)
         }
     }
     changed
+}
+
+/// Recolors a shadow linked to `id`; returns whether anything changed.
+fn recolor_shadow(shadow: &mut Option<Shadow>, id: SwatchId, color: Rgba) -> bool {
+    match shadow {
+        Some(s) if s.swatch == Some(id) && s.color != color => {
+            s.color = color;
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Drops a shadow's swatch link when its color no longer matches; returns
+/// whether anything changed.
+fn unlink_shadow(shadow: &mut Option<Shadow>, swatches: &HashMap<SwatchId, Rgba>) -> bool {
+    match shadow {
+        Some(s)
+            if s.swatch
+                .is_some_and(|id| swatches.get(&id) != Some(&s.color)) =>
+        {
+            s.swatch = None;
+            true
+        }
+        _ => false,
+    }
 }
 
 /// Drops the swatch links of a paint that no longer match; returns
@@ -428,6 +463,7 @@ impl Project {
                 let link = s.swatch;
                 changed |= recolor(&mut s.paint, link, id, color);
             }
+            changed |= recolor_shadow(&mut o.shadow, id, color);
             changed
         });
         self.refresh_instances();
@@ -462,6 +498,7 @@ impl Project {
                     changed = true;
                 }
             }
+            changed |= unlink_shadow(&mut o.shadow, &swatches);
             if let Some(id) = o.text.as_ref().and_then(|t| t.style_id)
                 && !text.get(&id).is_some_and(|s| s.matches(o))
             {
@@ -678,6 +715,7 @@ impl Project {
                 let link = s.swatch;
                 recolor(&mut s.paint, link, swatch.id, swatch.color);
             }
+            recolor_shadow(&mut o.shadow, swatch.id, swatch.color);
         }
         // An instance's content follows its symbol.
         if !o.is_instance() {

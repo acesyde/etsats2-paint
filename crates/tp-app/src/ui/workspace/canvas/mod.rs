@@ -96,6 +96,7 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     ws.text.prune();
     ws.images.prune();
     ws.gradients.prune();
+    ws.shadows.prune(now);
 
     // An asset dragged from the Images section and dropped here.
     if let Some(asset) = response.dnd_release_payload::<tp_core::document::AssetId>() {

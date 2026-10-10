@@ -833,3 +833,281 @@ fn gradient_opacity_and_transparent_stops() {
     assert_eq!((mid[0], mid[1], mid[2]), (255, 0, 0), "never darkened");
     assert!(mid[3].abs_diff(64) <= 2, "{mid:?}");
 }
+
+// ── Shadows ─────────────────────────────────────────────────────────────
+
+fn hard() -> tp_core::document::Shadow {
+    tp_core::document::Shadow {
+        color: BLACK,
+        swatch: None,
+        opacity: 1.0,
+        offset: tp_core::kurbo::Vec2::new(10.0, 10.0),
+        blur: 0.0,
+    }
+}
+
+/// A white 100 × 100 square at (500, 500) with a hard black shadow offset
+/// 10 / 10, at `opacity`.
+fn shadowed_square(opacity: f32) -> Object {
+    let mut o = shape(
+        ShapeKind::rectangle(),
+        (550.0, 550.0),
+        (100.0, 100.0),
+        0.0,
+        WHITE,
+    );
+    o.opacity = opacity;
+    o.shadow = Some(hard());
+    o
+}
+
+#[test]
+fn hard_shadow() {
+    let mut p = project(TextureResolution::R2048);
+    p.add(shadowed_square(1.0));
+    let img = draw(&p, 2048, Some(RED));
+    for (x, y) in [(600, 510), (609, 609), (605, 560), (520, 605), (510, 609)] {
+        assert_eq!(px(&img, x, y), [0, 0, 0, 255], "shadow at {x}, {y}");
+    }
+    for (x, y) in [(500, 500), (550, 550), (599, 599)] {
+        assert_eq!(px(&img, x, y), [255; 4], "square at {x}, {y}");
+    }
+    for (x, y) in [(610, 560), (560, 610), (505, 505 - 6), (509, 605)] {
+        assert_eq!(px(&img, x, y), [255, 0, 0, 255], "background at {x}, {y}");
+    }
+}
+
+#[test]
+fn blur_zero_draws_the_tinted_silhouette() {
+    let mut p = project(TextureResolution::R2048);
+    let mut o = shadowed_square(1.0);
+    o.shadow = Some(tp_core::document::Shadow {
+        color: BLUE,
+        opacity: 0.5,
+        ..hard()
+    });
+    p.add(o);
+    let img = draw(&p, 2048, Some(WHITE));
+    assert!(
+        close(px(&img, 605, 605), [127, 127, 255, 255], 1),
+        "{:?}",
+        px(&img, 605, 605)
+    );
+}
+
+#[test]
+fn opacity_applies_to_the_shadow() {
+    let mut p = project(TextureResolution::R2048);
+    p.add(shadowed_square(0.5));
+    let img = draw(&p, 2048, Some(RED));
+    // Half black over red.
+    assert!(
+        close(px(&img, 605, 605), [128, 0, 0, 255], 1),
+        "{:?}",
+        px(&img, 605, 605)
+    );
+    // Through a group's opacity.
+    let mut p = project(TextureResolution::R2048);
+    let square = p.add(shadowed_square(1.0));
+    let group = p.group(&[square]).unwrap();
+    let mut g = (**p.surface().get(group).unwrap()).clone();
+    g.opacity = 0.5;
+    p.surface_mut().replace(&[g]);
+    let img = draw(&p, 2048, Some(RED));
+    assert!(
+        close(px(&img, 605, 605), [128, 0, 0, 255], 1),
+        "{:?}",
+        px(&img, 605, 605)
+    );
+}
+
+#[test]
+fn a_hidden_object_draws_no_shadow() {
+    let mut p = project(TextureResolution::R2048);
+    let mut o = shadowed_square(1.0);
+    o.visible = false;
+    p.add(o);
+    let img = draw(&p, 2048, Some(RED));
+    assert_eq!(px(&img, 605, 605), [255, 0, 0, 255]);
+}
+
+#[test]
+fn the_shadow_lies_under_its_object_and_over_the_ones_below() {
+    let mut p = project(TextureResolution::R2048);
+    // A blue square below, covering where the shadow falls.
+    p.add(shape(
+        ShapeKind::rectangle(),
+        (600.0, 600.0),
+        (100.0, 100.0),
+        0.0,
+        BLUE,
+    ));
+    p.add(shadowed_square(1.0));
+    // And a blue square above the shadow.
+    p.add(shape(
+        ShapeKind::rectangle(),
+        (605.0, 640.0),
+        (10.0, 10.0),
+        0.0,
+        BLUE,
+    ));
+    let img = draw(&p, 2048, Some(RED));
+    assert_eq!(px(&img, 605, 560), [0, 0, 0, 255], "over the square below");
+    assert_eq!(px(&img, 590, 590), [255; 4], "under its object");
+    assert_eq!(
+        px(&img, 605, 640),
+        [0, 0, 255, 255],
+        "under the square above"
+    );
+}
+
+#[test]
+fn a_blurred_shadow_fades_across_its_edge() {
+    let mut p = project(TextureResolution::R2048);
+    let mut o = shadowed_square(1.0);
+    o.shadow = Some(tp_core::document::Shadow {
+        blur: 20.0,
+        ..hard()
+    });
+    p.add(o);
+    let img = draw(&p, 2048, Some(WHITE));
+    // The shadow's right edge is at x = 610: about half there, darker
+    // inside, clear far outside.
+    let level = |x| px(&img, x, 560)[0];
+    assert!((118..=138).contains(&level(610)), "{}", level(610));
+    assert!(level(603) < level(610) && level(617) > level(610));
+    assert_eq!(level(650), 255);
+}
+
+#[test]
+fn a_shadow_past_the_edge_is_clipped_and_still_blurred() {
+    let mut p = project(TextureResolution::R2048);
+    // A square past the left edge: its blurred shadow still shows the
+    // part beyond the edge.
+    let mut o = shape(
+        ShapeKind::rectangle(),
+        (0.0, 500.0),
+        (200.0, 200.0),
+        0.0,
+        WHITE,
+    );
+    o.shadow = Some(tp_core::document::Shadow {
+        blur: 20.0,
+        offset: tp_core::kurbo::Vec2::new(0.0, 0.0),
+        ..hard()
+    });
+    p.add(o);
+    let img = draw(&p, 2048, Some(WHITE));
+    // Below the square (y = 610), close to the left edge the shadow is
+    // as dark as further in.
+    let a = px(&img, 0, 605)[0];
+    let b = px(&img, 50, 605)[0];
+    assert!(a.abs_diff(b) <= 1, "{a} vs {b}");
+}
+
+#[test]
+fn an_images_shadow_follows_its_alpha() {
+    // Opaque on its left half, transparent on its right half.
+    let mut pixels = image::RgbaImage::from_pixel(40, 20, image::Rgba([0, 0, 255, 255]));
+    for x in 20..40 {
+        for y in 0..20 {
+            pixels.put_pixel(x, y, image::Rgba([0, 0, 0, 0]));
+        }
+    }
+    let mut bytes = Vec::new();
+    pixels
+        .write_to(
+            &mut std::io::Cursor::new(&mut bytes),
+            image::ImageFormat::Png,
+        )
+        .unwrap();
+    let mut p = project(TextureResolution::R2048);
+    let (asset, _) = p.add_asset(
+        "half",
+        AssetKind::Raster,
+        Arc::from(bytes),
+        Size::new(40.0, 20.0),
+    );
+    let mut image = shape(
+        ShapeKind::Image { asset },
+        (1000.0, 1000.0),
+        (400.0, 200.0),
+        0.0,
+        WHITE,
+    );
+    image.shadow = Some(tp_core::document::Shadow {
+        offset: tp_core::kurbo::Vec2::new(0.0, 300.0),
+        ..hard()
+    });
+    p.add(image);
+    let img = draw(&p, 2048, Some(WHITE));
+    assert_eq!(px(&img, 850, 1300), [0, 0, 0, 255], "under the opaque half");
+    assert_eq!(px(&img, 1150, 1300), [255; 4], "under the transparent half");
+}
+
+#[test]
+fn shadow_in_the_exported_png() {
+    let mut p = project(TextureResolution::R2048);
+    p.add(shadowed_square(1.0));
+    let pixmap = render(
+        &p,
+        0,
+        RenderOptions {
+            size: 2048,
+            background: Some(RED),
+        },
+        &mut FontLibrary::bundled(),
+        &mut |_, _| true,
+    )
+    .unwrap();
+    let png = tp_render::encode_png(&pixmap).unwrap();
+    let img = image::load_from_memory(&png).unwrap().to_rgba8();
+    assert_eq!(px(&img, 605, 605), [0, 0, 0, 255], "the shadow");
+    assert_eq!(px(&img, 550, 550), [255; 4], "the square over it");
+    assert_eq!(px(&img, 615, 605), [255, 0, 0, 255], "the background");
+}
+
+#[test]
+fn a_texts_shadow() {
+    let mut p = project(TextureResolution::R2048);
+    let mut t = shape(
+        ShapeKind::Text,
+        (1000.0, 1000.0),
+        (800.0, 300.0),
+        0.0,
+        WHITE,
+    );
+    t.text = Some(TextBlock::new(
+        "I",
+        CharStyle {
+            size: 300.0,
+            ..CharStyle::default()
+        },
+    ));
+    let plain = draw(
+        &{
+            let mut q = project(TextureResolution::R2048);
+            q.add(t.clone());
+            q
+        },
+        512,
+        Some(RED),
+    );
+    t.shadow = Some(tp_core::document::Shadow {
+        offset: tp_core::kurbo::Vec2::new(400.0, 0.0),
+        ..hard()
+    });
+    p.add(t);
+    let shadowed = draw(&p, 512, Some(RED));
+    // Each white pixel of the text has a black one 100 px (at 512) right.
+    let mut checked = 0;
+    for y in 0..512 {
+        for x in 0..400 {
+            if px(&plain, x, y) == [255; 4] {
+                assert_eq!(px(&shadowed, x + 100, y), [0, 0, 0, 255], "{x}, {y}");
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked > 100);
+}

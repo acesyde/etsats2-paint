@@ -367,3 +367,96 @@ fn unique_names_take_the_first_free_number() {
     assert_eq!(unique_name("Logo", |n| taken.contains(&n)), "Logo 3");
     assert_eq!(unique_name("Badge", |n| taken.contains(&n)), "Badge");
 }
+
+// ── Shadows ─────────────────────────────────────────────────────────────
+
+const NIGHT: Rgba = Rgba::rgb(10, 10, 30);
+
+/// Adds the swatch "Night".
+fn add_night(p: &mut Project) -> SwatchId {
+    let (id, _) = p.add_swatch(NIGHT, "Color");
+    p.rename_swatch(id, "Night");
+    id
+}
+
+fn night_shadow(swatch: SwatchId) -> Option<Shadow> {
+    Some(Shadow {
+        color: NIGHT,
+        swatch: Some(swatch),
+        ..Shadow::DEFAULT
+    })
+}
+
+#[test]
+fn a_shadows_swatch_comes_along() {
+    let mut p = empty();
+    let night = add_night(&mut p);
+    let mut t = text("TITRE");
+    t.shadow = night_shadow(night);
+    let t = p.add(t);
+    let titre = p.new_text_style(t, "Titre").unwrap();
+    let picks = Picks {
+        text_styles: vec![titre],
+        ..Picks::default()
+    };
+    assert_eq!(closure(&p, &picks).swatches, vec![night]);
+    let library = library_of(&mut p, &picks);
+    assert_eq!(library.palette.len(), 1);
+    assert_eq!(library.palette[0].name, "Night");
+    let shadow = library.text_styles[0].look.shadow.unwrap();
+    assert_eq!(shadow.swatch, Some(library.palette[0].id));
+}
+
+#[test]
+fn a_symbols_shadow_link_is_remapped_to_an_equal_swatch() {
+    let mut a = empty();
+    let night = add_night(&mut a);
+    let mut t = text("ACE");
+    t.shadow = night_shadow(night);
+    let t = a.add(t);
+    let (logo, _) = a.convert_to_symbol(&[t], "Symbol").unwrap();
+    let mut b = empty();
+    b.add_swatch(Rgba::rgb(1, 2, 3), "Other");
+    let own = add_night(&mut b);
+    assert_ne!(own, night);
+    import(&a, &symbol_picks(logo), &mut b, ImportMode::Import);
+    assert_eq!(b.palette.len(), 2, "the equal swatch is reused");
+    let content = all(&b.symbols[0].surface.objects);
+    let shadow = content.iter().find_map(|o| o.shadow).unwrap();
+    assert_eq!((shadow.color, shadow.swatch), (NIGHT, Some(own)));
+}
+
+#[test]
+fn a_pasted_shadow_without_its_swatch_is_unlinked() {
+    let mut a = empty();
+    let night = add_night(&mut a);
+    let mut t = text("ACE");
+    t.shadow = night_shadow(night);
+    let mut b = empty();
+    let done = import(
+        &a,
+        &Picks {
+            objects: vec![t],
+            ..Picks::default()
+        },
+        &mut b,
+        ImportMode::Import,
+    );
+    // The swatch comes along with the pasted object.
+    let shadow = done.objects[0].shadow.unwrap();
+    assert_eq!(shadow.swatch, Some(b.palette[0].id));
+    a.palette.clear();
+    let mut c = empty();
+    let mut orphan = text("B");
+    orphan.shadow = night_shadow(night);
+    let done = import(
+        &a,
+        &Picks {
+            objects: vec![orphan],
+            ..Picks::default()
+        },
+        &mut c,
+        ImportMode::Import,
+    );
+    assert_eq!(done.objects[0].shadow.unwrap().swatch, None);
+}

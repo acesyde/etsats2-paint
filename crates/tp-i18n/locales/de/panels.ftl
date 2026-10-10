@@ -412,3 +412,17 @@ brand-gradient-fill-hint = Diese Fläche ist ein Verlauf: Ändern Sie sie mit �
 styles-edit = Stil bearbeiten…
 styles-name-empty = Geben Sie einen Namen für den Stil ein.
 styles-name-taken = Ein anderer Grafikstil hat bereits diesen Namen.
+
+## Drop shadow
+inspector-add-shadow = + Schatten hinzufügen
+inspector-shadow = Schatten
+inspector-shadow-summary = { $x } / { $y } · { $blur }
+inspector-shadow-summary-full = Versatz { $x } / { $y }, Unschärfe { $blur }
+inspector-shadow-remove = Schatten entfernen
+shadow-opacity = Deckkraft des Schattens
+shadow-offset-x = Versatz X
+shadow-offset-y = Versatz Y
+shadow-blur = Unschärfe
+undo-add-shadow = Schatten hinzufügen
+undo-change-shadow = Schatten ändern
+undo-remove-shadow = Schatten entfernen
