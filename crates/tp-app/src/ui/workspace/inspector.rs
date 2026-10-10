@@ -1,12 +1,13 @@
 //! The Workshop's inspector, on the right of the canvas area: the settings
 //! of the selection, section by section (header, Layout, Text, Appearance,
 //! Polygon, Style, Image), each shown only when it applies; with nothing
-//! selected, the active texture's properties and the look of new objects.
+//! selected, the active texture's properties, what is on it (On this
+//! texture) and the look of new objects.
 //! Colors and stroke settings open in popovers anchored to their rows.
 
 use egui::{Frame, Margin, Panel, Rect, RichText, ScrollArea, Ui, WidgetInfo, WidgetType};
 use tp_core::TexturePart;
-use tp_core::document::{Object, ShapeKind};
+use tp_core::document::{Object, ShapeKind, tree};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, size, space, typography};
@@ -109,9 +110,9 @@ fn caption(ui: &mut Ui, text: &str) {
 
 // --- Nothing selected -----------------------------------------------------------
 
-/// The active texture (name, kind, size, the notices of a package update),
-/// the look of new objects, the Text section for new texts with the Text
-/// tool, and a hint.
+/// The active texture (name, kind, size, its To check notice), On this
+/// texture, the look of new objects, the Text section for new texts with
+/// the Text tool, and a hint.
 fn nothing_selected(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     section(ui, None, |ui| {
         ui.spacing_mut().item_spacing.y = space::XS;
@@ -138,6 +139,7 @@ fn nothing_selected(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         );
         panels::vehicle::texture_notices(ui, env);
     });
+    on_this_texture(ui, env);
     section(ui, Some(&tr("inspector-new-objects")), |ui| {
         paint_rows(ui, env);
     });
@@ -155,6 +157,143 @@ fn nothing_selected(ui: &mut Ui, env: &mut PanelEnv<'_>) {
                     .color(color::TEXT_DISABLED),
             );
         });
+}
+
+/// What the active texture holds: its top-level objects, its symbol
+/// instances and its off-palette colors ("In this symbol", without
+/// instances, while a symbol is edited). An off-palette count above zero
+/// is a button selecting the unlocked objects using them.
+fn on_this_texture(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+    let editing = env.ws.is_editing_symbol();
+    let objects = &env.ws.project.surface().objects;
+    let count = objects.len();
+    let instances = instance_count(objects);
+    let off = tp_core::off_palette(objects);
+    let (locked, unlocked): (Vec<_>, Vec<_>) = off
+        .objects
+        .iter()
+        .partition(|id| tree::effective_flags(objects, **id).is_some_and(|(_, l)| l));
+    let heading = tr(if editing {
+        "inspector-in-symbol"
+    } else {
+        "inspector-on-texture"
+    });
+    let mut select = false;
+    section(ui, Some(&heading), |ui| {
+        count_row(
+            ui,
+            &tr("inspector-objects"),
+            count,
+            color::TEXT_PRIMARY,
+            false,
+        );
+        if !editing {
+            count_row(
+                ui,
+                &tr("inspector-instances"),
+                instances,
+                color::TEXT_PRIMARY,
+                false,
+            );
+        }
+        let colors = off.colors.len();
+        let ink = if colors == 0 {
+            color::TEXT_PRIMARY
+        } else {
+            color::SIGNAL
+        };
+        let clickable = colors > 0 && !unlocked.is_empty();
+        if let Some(button) = count_row(ui, &tr("inspector-off-palette"), colors, ink, clickable) {
+            let name = tr("inspector-off-palette-select");
+            button.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, &name));
+            let button = if locked.is_empty() {
+                button.on_hover_text(&name)
+            } else {
+                button.on_hover_text(format!(
+                    "{name}\n{}",
+                    tr!("inspector-off-palette-locked", count = locked.len())
+                ))
+            };
+            select = button.clicked();
+        }
+    });
+    if select {
+        env.ws.selection = unlocked.into_iter().copied().collect();
+        env.ws.normalize_selection();
+    }
+}
+
+/// The symbol instances among `objects`, inside groups too (not inside
+/// instances: symbols don't nest).
+fn instance_count(objects: &[std::sync::Arc<Object>]) -> usize {
+    objects
+        .iter()
+        .map(|o| match o.kind {
+            ShapeKind::Instance { .. } => 1,
+            ShapeKind::Group => instance_count(&o.children),
+            _ => 0,
+        })
+        .sum()
+}
+
+/// A row of On this texture: its label on the left, its count on the right
+/// in the monospace face (12), named for assistive technologies as the
+/// label with the count as its value. With `button`, the count is a
+/// button (returned) with a hover fill.
+fn count_row(
+    ui: &mut Ui,
+    label: &str,
+    count: usize,
+    ink: egui::Color32,
+    button: bool,
+) -> Option<egui::Response> {
+    let body = egui::TextStyle::Body.resolve(ui.style());
+    let mono = egui::FontId::monospace(typography::CAPTION + 1.0);
+    let value = count.to_string();
+    let painter = ui.painter();
+    let name = painter.layout_no_wrap(label.to_owned(), body, color::TEXT_SECONDARY);
+    let number = painter.layout_no_wrap(value.clone(), mono, ink);
+    let height = name.size().y.max(number.size().y) + 2.0;
+    let (rect, row) = ui.allocate_exact_size(
+        egui::vec2(ui.available_width(), height),
+        egui::Sense::hover(),
+    );
+    row.widget_info(|| {
+        // Not a Label: its name would become its value.
+        let mut info = WidgetInfo::labeled(WidgetType::Other, true, label);
+        info.current_text_value = Some(value.clone());
+        info
+    });
+    let painter = ui.painter();
+    painter.galley(
+        egui::pos2(rect.left(), rect.center().y - name.size().y / 2.0),
+        name,
+        color::TEXT_SECONDARY,
+    );
+    let pad = space::XS;
+    let target = Rect::from_min_max(
+        egui::pos2(rect.right() - number.size().x - 2.0 * pad, rect.top()),
+        rect.right_bottom(),
+    );
+    let response = button.then(|| {
+        let response = ui.interact(target, row.id.with("button"), egui::Sense::click());
+        if response.hovered() {
+            ui.painter()
+                .rect_filled(target, tp_ui::tokens::radius::SM, color::SURFACE_2);
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+        tp_ui::widgets::paint_focus_ring(ui, target, &response, tp_ui::tokens::radius::SM);
+        response
+    });
+    ui.painter().galley(
+        egui::pos2(
+            target.right() - pad - number.size().x,
+            rect.center().y - number.size().y / 2.0,
+        ),
+        number,
+        ink,
+    );
+    response
 }
 
 // --- Selection ------------------------------------------------------------------

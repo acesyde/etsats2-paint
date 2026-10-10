@@ -2232,3 +2232,129 @@ fn run(h: &mut egui_kittest::Harness<'static, tp_app::AppState>, id: tp_app::com
     h.run_steps(3);
     h.run();
 }
+
+/// The texture states: the Project space of a truck and trailer fleet with
+/// Empty, Modified and To check textures (All, then To do, then Before
+/// exporting expanded), the Workshop with nothing selected (On this
+/// texture, and a To check notice) and the Export Mod dialog's warnings,
+/// in English and German at 100 % and 200 %. Files are named
+/// `status_<language>_<screen>_<scale>.png`.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_texture_status() {
+    use tp_app::layout::Space;
+    use tp_app::state::Modal;
+    use tp_app::vehicles::{SAMPLE_ID, SAMPLE_TRAILER_ID};
+    use tp_core::document::{Frame, Object, ObjectId, Rgba, ShapeKind};
+    use tp_core::kurbo::{Point, Size};
+    for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
+        for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+            let mut prefs = Prefs {
+                ui_scale: scale,
+                ..Prefs::default()
+            };
+            prefs.set_language(Some(language));
+            let code = language.code();
+            let size = Vec2::new(1440.0, 900.0) * scale;
+            let mut h = common::wgpu_harness_with(prefs, size);
+            let load =
+                |h: &egui_kittest::Harness<'static, tp_app::AppState>, id: &str, version: &str| {
+                    h.state()
+                        .vehicles
+                        .load(id, &version.parse().unwrap())
+                        .unwrap()
+                };
+            let truck = load(&h, SAMPLE_ID, "1.1.0");
+            let mut textures = tp_app::vehicle_project::default_textures(&truck.manifest);
+            textures.push("high_roof".into());
+            let project =
+                tp_app::vehicle_project::fleet_project("ACE Logistics", &truck, &textures).unwrap();
+            h.state_mut().open_project(project);
+            let trailer = load(&h, SAMPLE_TRAILER_ID, "1.0.0");
+            let all = tp_app::vehicle_project::default_textures(&trailer.manifest);
+            let ws = h.state_mut().workspace_mut().unwrap();
+            ws.add_vehicle(&trailer, &all, 1.0).unwrap();
+            // Paint the accessories and the mudflaps; four rectangles on
+            // the side skirts, two of their colors off the palette.
+            let paint = |ws: &mut tp_app::workspace::Workspace, name: &str, colors: &[Rgba]| {
+                let i = ws
+                    .project
+                    .surfaces
+                    .iter()
+                    .position(|s| s.name == name)
+                    .unwrap();
+                ws.project.active_surface = i;
+                let side = ws.project.surface().size;
+                for (k, color) in colors.iter().enumerate() {
+                    let mut o = Object::new(
+                        ObjectId(0),
+                        ShapeKind::rectangle(),
+                        Frame::new(
+                            Point::new(side / 2.0, side * (0.2 + 0.2 * k as f64)),
+                            Size::new(side * 0.9, side * 0.15),
+                            0.0,
+                        ),
+                    );
+                    o.fill = (*color).into();
+                    ws.project.add(o);
+                }
+            };
+            let navy = Rgba::rgb(0x1E, 0x2A, 0x4A);
+            let red = Rgba::rgb(0xC2, 0x3B, 0x2A);
+            paint(ws, "Chassis", &[navy]);
+            paint(ws, "Cab accessories", &[red]);
+            paint(ws, "Mudflaps", &[navy]);
+            let gold = Rgba::rgb(0xE8, 0xB0, 0x30);
+            paint(ws, "Side skirts", &[navy, red, gold, red]);
+            let (swatch, _) = ws.project.add_swatch(red, "Color");
+            let ids: Vec<ObjectId> = ws.project.surface().objects.iter().map(|o| o.id).collect();
+            for id in &ids {
+                ws.edit_object(*id, "undo-change-fill", 1.0, |o| {
+                    if o.fill.solid_color() == Some(red) {
+                        o.fill_swatch = Some(swatch);
+                    }
+                });
+            }
+            let body = ws
+                .project
+                .surfaces
+                .iter()
+                .position(|s| s.name == "Curtain body 13.6 m")
+                .unwrap();
+            ws.project.surfaces[body].template.as_mut().unwrap().status =
+                tp_core::TemplateStatus::LayoutChanged;
+            ws.selection.clear();
+            ws.space = Space::Project;
+            common::settle_renders(&mut h);
+            save(&mut h, &format!("status_{code}_project_{suffix}"));
+            h.get_by_role_and_label(
+                egui::accesskit::Role::RadioButton,
+                &tp_i18n::tr("project-filter-to-do"),
+            )
+            .click();
+            h.run();
+            save(&mut h, &format!("status_{code}_todo_{suffix}"));
+            h.state_mut().workspace_mut().unwrap().texture_filter = tp_core::TextureFilter::All;
+            h.get_by_label(&tp_i18n::tr!("mod-warning-empty-many", count = 4))
+                .click();
+            h.run();
+            save(&mut h, &format!("status_{code}_before_exporting_{suffix}"));
+            // The Workshop with nothing selected: On this texture.
+            common::show_space(&mut h, Space::Workshop);
+            h.run();
+            save(&mut h, &format!("status_{code}_workshop_{suffix}"));
+            // A texture To check.
+            h.state_mut()
+                .workspace_mut()
+                .unwrap()
+                .set_active_surface(body);
+            common::settle_renders(&mut h);
+            save(&mut h, &format!("status_{code}_to_check_{suffix}"));
+            // The Export Mod dialog's warnings.
+            h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::E);
+            wait_mod_preview(&mut h);
+            assert!(matches!(h.state().modal, Some(Modal::ExportMod(_))));
+            save(&mut h, &format!("status_{code}_export_mod_{suffix}"));
+        }
+    }
+}

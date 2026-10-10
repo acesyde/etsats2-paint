@@ -212,11 +212,14 @@ undo-change-font = Cambiar fuente
 vehicle-panel-package = Paquete { $version } · versiones del juego { $games }
 vehicle-panel-package-missing = Paquete { $version } (no instalado)
 vehicle-panel-update = La versión { $version } está disponible
-vehicle-panel-texture = Textura { $name }
-vehicle-panel-layout-changed = Disposición cambiada
-vehicle-panel-dismiss = Descartar
-vehicle-panel-dismiss-named = Descartar el cambio de disposición de { $name }
-vehicle-panel-removed = No está en esta versión
+vehicle-panel-texture = Textura { $name }, { $state }
+texture-state-empty = Vacía
+texture-state-modified = Modificada
+texture-state-to-check = Por revisar
+texture-reason-layout-changed = Disposición cambiada en { $version }
+texture-reason-not-in-version = No está en esta versión
+texture-mark-checked = Marcar como revisada
+texture-mark-checked-named = Marcar { $name } como revisada
 vehicle-panel-opacity-name = Opacidad de la plantilla
 
 ## Fleet
@@ -234,8 +237,7 @@ project-game-versions = Versiones del juego
 project-game-versions-supported = Compatibles con todos los vehículos: { $versions }
 project-no-common-version = Ninguna versión del juego es compatible con todos los vehículos
 vehicle-actions-named = Acciones de { $name }
-texture-layout-changed = La disposición de esta textura cambió en la versión { $version }: revise su diseño.
-texture-not-in-version = Esta textura no existe en la versión { $version } del vehículo: no tiene plantilla.
+texture-notice-not-in-version = No está en esta versión, excluida del mod
 
 ## Styles panel
 
@@ -304,6 +306,16 @@ inspector-hint = Seleccione un objeto para ajustar su disposición, relleno y tr
 inspector-main-texture = Textura principal
 inspector-accessory-texture = Textura de accesorio
 inspector-texture-kind = { $kind } · { $size } × { $size } px
+inspector-on-texture = En esta textura
+inspector-in-symbol = En este símbolo
+inspector-objects = Objetos
+inspector-instances = Instancias de símbolo
+inspector-off-palette = Colores fuera de la paleta
+inspector-off-palette-select = Seleccionar los objetos con colores fuera de la paleta
+inspector-off-palette-locked = { $count ->
+    [one] { $count } objeto bloqueado queda fuera de la selección
+   *[other] { $count } objetos bloqueados quedan fuera de la selección
+}
 inspector-style = Estilo
 inspector-style-none = Ninguno
 stroke-none = Ninguno
@@ -337,6 +349,22 @@ project-not-set = Sin definir
 project-edit-in-export = Editar en Exportar mod…
 project-picture-generated = Generada a partir de la primera textura principal
 project-cabin-ids = Nombres internos: { $ids }
+project-texture-states = { $modified ->
+    [0] {""}
+    [one] {" · "}{ $modified } modificada
+   *[other] {" · "}{ $modified } modificadas
+}{ $check ->
+    [0] {""}
+   *[other] {" · "}{ $check } por revisar
+}
+project-filter-all = Todas
+project-filter-to-do = Pendientes
+project-filter-to-check = Por revisar
+project-nothing-to-do = Nada pendiente
+project-before-exporting = Antes de exportar
+project-nothing-to-check = Nada que revisar
+project-open = Abrir
+project-open-named = Abrir { $name }
 
 ## Brand space
 

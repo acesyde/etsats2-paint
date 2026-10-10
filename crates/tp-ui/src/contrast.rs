@@ -117,6 +117,17 @@ pub fn theme_pairs() -> Vec<ContrastPair> {
         color::SURFACE_3,
         Disabled,
     );
+    // A To check texture on the hover fill (the active tile or row): the
+    // signal color is too dark there for text (the label switches to ink),
+    // but its dot and warning icon are graphics, which need 3:1. An Empty
+    // texture's label switches from muted to secondary text there.
+    add(
+        "signal (graphic)",
+        color::SIGNAL,
+        "hover",
+        color::SURFACE_3,
+        Disabled,
+    );
     // Chips (the game badge, the active space) show ink or secondary text.
     add("ink", color::TEXT_PRIMARY, "chip", color::CHIP, Primary);
     add(
@@ -197,6 +208,9 @@ mod tests {
         }
         assert!(names.contains(&"text_on_primary on primary pill".to_owned()));
         assert!(names.contains(&"ink on chip".to_owned()));
+        // The states of the textures on the hovered and active tiles.
+        assert!(names.contains(&"signal (graphic) on hover".to_owned()));
+        assert!(names.contains(&"text_secondary on hover".to_owned()));
     }
 
     /// The check is not vacuous: darkening a token below its minimum is

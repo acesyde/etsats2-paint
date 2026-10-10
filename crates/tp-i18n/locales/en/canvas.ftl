@@ -87,7 +87,7 @@ undo-rename-symbol = Rename Symbol
 undo-update-template = Update Template
 undo-edit-mod-settings = Edit Mod Settings
 undo-edit-game-versions = Edit Game Versions
-undo-dismiss-layout = Dismiss Layout Change
+undo-mark-checked = Mark as Checked
 
 ## Fleet
 

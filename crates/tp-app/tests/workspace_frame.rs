@@ -152,14 +152,14 @@ fn project_frame_has_no_workshop_parts() {
 fn clicking_a_texture_in_the_project_space_shows_it_in_the_workshop() {
     let mut h = open();
     key_cmd(&mut h, Key::Num1);
-    h.get_by_label("Texture TruckPaint Sample Truck › Side skirts")
+    h.get_by_label_contains("Texture TruckPaint Sample Truck › Side skirts,")
         .click();
     h.run();
     assert_eq!(space(&h), Space::Workshop);
     assert_eq!(ws(&h).project.surface().name, "Side skirts");
     // Highlighted in the Textures tab.
     assert_eq!(
-        h.get_by_label("Texture TruckPaint Sample Truck › Side skirts")
+        h.get_by_label_contains("Texture TruckPaint Sample Truck › Side skirts,")
             .accesskit_node()
             .toggled(),
         Some(Toggled::True)
@@ -610,7 +610,7 @@ fn tabs_show_their_content() {
     let name = ws(&h).project.surface().get(id).unwrap().name.clone();
     let rows = |h: &H| h.query_all_by_label(&name).count();
     assert!(
-        h.query_by_label("Texture TruckPaint Sample Truck › Chassis")
+        h.query_by_label_contains("Texture TruckPaint Sample Truck › Chassis,")
             .is_some()
     );
     let without_layers = rows(&h);
@@ -619,7 +619,7 @@ fn tabs_show_their_content() {
     assert_eq!(h.state().prefs.layout.left_tab, LeftTab::Layers);
     assert_eq!(rows(&h), without_layers + 1, "the layer's row");
     assert!(
-        h.query_by_label("Texture TruckPaint Sample Truck › Chassis")
+        h.query_by_label_contains("Texture TruckPaint Sample Truck › Chassis,")
             .is_none()
     );
     h.get_by_role_and_label(Role::RadioButton, "Resources")

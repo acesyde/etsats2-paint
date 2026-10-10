@@ -1,7 +1,8 @@
 //! Export Mod dialog: the mod settings labelled above their fields, the
 //! internal name under Advanced, the mod's pictures, a summary of what the
-//! mod holds, the problems that block it just above the buttons, and the
-//! export's progress.
+//! mod holds, the problems that block it just above the buttons, then the
+//! warnings about the textures (which don't block it), and the export's
+//! progress.
 
 use std::sync::mpsc::{self, Receiver};
 
@@ -423,6 +424,10 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ModExportDia
 
     let limit = ws.project.internal_name_limit();
     let problems = crate::mod_export::problems_with(&ws.project, &dialog.settings);
+    let warnings: Vec<String> = crate::mod_export::warnings(&ws.project)
+        .iter()
+        .map(|w| w.message(&ws.project))
+        .collect();
     let exporting = dialog.job.as_ref().map(|j| (j.progress(), j.path.clone()));
     let mut keep = true;
     let mut start_export = false;
@@ -441,12 +446,13 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ModExportDia
         super::vehicle_dialogs::game_name(game)
     );
     // Sized to its content; the fields only scroll when the window is too
-    // short for them, the title, the problems and the buttons.
+    // short for them, the title, the problems, the warnings and the buttons.
     // The chrome: the dialog's margins, title, footer and a little room
     // around it.
     let chrome = 2.0 * space::XL + 70.0 + 64.0 + 2.0 * space::LG;
     let body_height =
-        (ctx.content_rect().height() - chrome - 24.0 * problems.len() as f32).max(240.0);
+        (ctx.content_rect().height() - chrome - 24.0 * (problems.len() + warnings.len()) as f32)
+            .max(240.0);
     super::dialogs::modal("mod_export_modal").show(ctx, |ui| {
         // 640 points wide with the dialog's margins.
         ui.set_width(640.0 - 2.0 * space::XL);
@@ -501,6 +507,18 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ModExportDia
             ui.add_space(space::MD);
             for problem in &problems {
                 super::dialogs::problem(ui, &problem_message(problem));
+            }
+        }
+        // The warnings about the textures, which don't block it. No Open
+        // here: leaving the dialog would lose the edited settings.
+        if !warnings.is_empty() {
+            ui.add_space(if problems.is_empty() {
+                space::MD
+            } else {
+                space::XS
+            });
+            for warning in &warnings {
+                super::dialogs::warning(ui, warning);
             }
         }
         match &exporting {

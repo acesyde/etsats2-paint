@@ -1,8 +1,8 @@
 //! The project's fleet as a tree, vehicle › Main textures / Accessories ›
 //! texture (the Textures tab); what the Project space shares with it (a
-//! vehicle's ⋯ menu, kind and package, a texture's part and flag, the Game
-//! versions field); and the active texture's notices shown by the
-//! inspector ([`texture_notices`]). The template's visibility and opacity
+//! vehicle's ⋯ menu, kind and package, a texture's part and state, the
+//! Game versions field); and the active texture's To check notice shown by
+//! the inspector ([`texture_notices`]). The template's visibility and opacity
 //! are in the status bar.
 
 use egui::collapsing_header::CollapsingState;
@@ -10,7 +10,7 @@ use egui::{
     Align, Align2, Layout, Rect, RichText, Sense, Stroke, StrokeKind, TextEdit, Ui, Vec2,
     WidgetInfo, WidgetType,
 };
-use tp_core::{ProjectVehicle, TemplateStatus, TexturePart};
+use tp_core::{CheckReason, Project, ProjectVehicle, TexturePart, TextureState};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
@@ -251,13 +251,90 @@ pub fn package_text(env: &PanelEnv<'_>, vehicle: &ProjectVehicle) -> String {
     }
 }
 
-/// What an update flagged on a texture, if anything: "Layout changed" or
-/// "Not in this version".
-pub fn flag(status: Option<TemplateStatus>) -> Option<String> {
-    match status? {
-        TemplateStatus::LayoutChanged => Some(tr("vehicle-panel-layout-changed")),
-        TemplateStatus::Removed => Some(tr("vehicle-panel-removed")),
-        TemplateStatus::Current => None,
+/// A texture state's label: "Empty", "Modified" or "To check".
+pub fn state_label(state: TextureState) -> String {
+    tr(match state {
+        TextureState::Empty => "texture-state-empty",
+        TextureState::Modified => "texture-state-modified",
+        TextureState::ToCheck(_) => "texture-state-to-check",
+    })
+}
+
+/// Why a texture is To check, the package `version` of its vehicle given:
+/// "Layout changed in 1.3.0" or "Not in this version" (none for the other
+/// states).
+pub fn state_tooltip(state: TextureState, version: &str) -> Option<String> {
+    match state {
+        TextureState::ToCheck(CheckReason::LayoutChanged) => {
+            Some(tr!("texture-reason-layout-changed", version = version))
+        }
+        TextureState::ToCheck(CheckReason::NotInVersion) => {
+            Some(tr("texture-reason-not-in-version"))
+        }
+        _ => None,
+    }
+}
+
+/// The package version of the vehicle surface `i` belongs to (empty when
+/// unknown).
+pub fn vehicle_version(project: &Project, i: usize) -> String {
+    project
+        .vehicle_of(i)
+        .map(|v| v.version.clone())
+        .unwrap_or_default()
+}
+
+/// A texture's name for assistive technologies: "Texture <vehicle> ›
+/// <texture>, <state>".
+pub fn texture_name(project: &Project, i: usize) -> String {
+    let path = project.surface_names(i).map_or_else(
+        || project.surfaces[i].name.clone(),
+        |(v, t)| format!("{v} › {t}"),
+    );
+    tr!(
+        "vehicle-panel-texture",
+        name = path.as_str(),
+        state = state_label(project.surfaces[i].state())
+    )
+}
+
+/// The dot of a state and its label's color, in the Project space's tiles
+/// and Before exporting: muted for Empty, primary for Modified, the signal
+/// color for To check. `hover_fill` is true on a hovered or active tile,
+/// where muted text lacks contrast.
+pub fn state_colors(state: TextureState, hover_fill: bool) -> (egui::Color32, egui::Color32) {
+    match state {
+        TextureState::Empty if hover_fill => (color::BORDER_STRONG, color::TEXT_SECONDARY),
+        TextureState::Empty => (color::BORDER_STRONG, color::TEXT_MUTED),
+        TextureState::Modified => (color::TEXT_SECONDARY, color::TEXT_PRIMARY),
+        TextureState::ToCheck(_) => (color::SIGNAL, color::SIGNAL),
+    }
+}
+
+/// Diameter of a state's dot, in points.
+pub const STATE_DOT: f32 = 6.0;
+
+/// The marker of a state in the Textures tab, centered at `center`: a
+/// hollow ring for Empty, a filled dot for Modified and a warning icon in
+/// the signal color for To check, so the states differ by shape.
+fn paint_state_marker(painter: &egui::Painter, center: egui::Pos2, state: TextureState) {
+    let r = STATE_DOT / 2.0;
+    match state {
+        TextureState::Empty => {
+            painter.circle_stroke(center, r - 0.5, Stroke::new(1.0, color::TEXT_MUTED));
+        }
+        TextureState::Modified => {
+            painter.circle_filled(center, r, color::TEXT_SECONDARY);
+        }
+        TextureState::ToCheck(_) => {
+            painter.text(
+                center,
+                Align2::CENTER_CENTER,
+                icons::WARNING,
+                icons::font(14.0),
+                color::SIGNAL,
+            );
+        }
     }
 }
 
@@ -266,7 +343,7 @@ const THUMB: f32 = 26.0;
 /// Height of a texture row.
 const ROW_HEIGHT: f32 = THUMB + 10.0;
 
-/// A texture: thumbnail of its artwork, name, size and the update's flag;
+/// A texture: thumbnail of its artwork, name, size and its state's marker;
 /// clicking makes it active. The active texture's row is filled and its
 /// name drawn in ink, as in the mockup.
 fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
@@ -275,21 +352,16 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     let surface = &env.ws.project.surfaces[i];
     let name = surface.name.clone();
     let size = format!("{}", surface.size);
-    let flag = flag(surface.template.as_ref().map(|t| t.status));
-    let label = env
-        .ws
-        .project
-        .surface_names(i)
-        .map_or_else(|| name.clone(), |(v, t)| format!("{v} › {t}"));
+    let state = surface.state();
+    let label = texture_name(&env.ws.project, i);
+    let hover = match state_tooltip(state, &vehicle_version(&env.ws.project, i)) {
+        Some(reason) => format!("{}\n{reason}", state_label(state)),
+        None => state_label(state),
+    };
     let (rect, row) =
         ui.allocate_exact_size(Vec2::new(ui.available_width(), ROW_HEIGHT), Sense::click());
     row.widget_info(|| {
-        WidgetInfo::selected(
-            WidgetType::SelectableLabel,
-            true,
-            active,
-            tr!("vehicle-panel-texture", name = label.as_str()),
-        )
+        WidgetInfo::selected(WidgetType::SelectableLabel, true, active, label.as_str())
     });
     let painter = ui.painter().clone();
     if active {
@@ -320,7 +392,7 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
         StrokeKind::Outside,
     );
 
-    // Size and flag at the right end, the name in between.
+    // Size and state at the right end, the name in between.
     let mono = egui::TextStyle::Monospace.resolve(ui.style());
     let size_rect = painter.text(
         egui::pos2(rect.right() - space::SM, rect.center().y),
@@ -329,22 +401,14 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
         egui::FontId::new(mono.size - 1.0, mono.family),
         color::TEXT_DISABLED,
     );
-    let mut right = size_rect.left() - space::SM;
-    if let Some(flag) = &flag {
-        let icon =
-            Rect::from_center_size(egui::pos2(right - 8.0, rect.center().y), Vec2::splat(16.0));
-        painter.text(
-            icon.center(),
-            Align2::CENTER_CENTER,
-            icons::WARNING,
-            icons::font(14.0),
-            color::WARNING,
-        );
-        ui.interact(icon, row.id.with("flag"), Sense::hover())
-            .on_hover_text(flag.as_str())
-            .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, flag.as_str()));
-        right = icon.left() - space::XS;
-    }
+    let right = size_rect.left() - space::SM;
+    let marker =
+        Rect::from_center_size(egui::pos2(right - 8.0, rect.center().y), Vec2::splat(16.0));
+    paint_state_marker(&painter, marker.center(), state);
+    ui.interact(marker, row.id.with("state"), Sense::hover())
+        .on_hover_text(hover.as_str())
+        .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, hover.as_str()));
+    let right = marker.left() - space::XS;
     let name_rect = Rect::from_min_max(
         egui::pos2(thumb.right() + space::SM, rect.top()),
         egui::pos2(right, rect.bottom()),
@@ -365,11 +429,12 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     }
 }
 
-/// What an update flagged on the active texture, in the inspector when
-/// nothing is selected: "Layout changed" with Dismiss, or "Not in this
-/// version".
+/// The active texture's To check notice, in the inspector when nothing is
+/// selected: "To check" and why, "Layout changed in <version>" with Mark
+/// as Checked, or "Not in this version, left out of the mod" with no
+/// action.
 pub fn texture_notices(ui: &mut Ui, env: &mut PanelEnv<'_>) {
-    let Some(template) = env.ws.project.surface().template.clone() else {
+    let TextureState::ToCheck(reason) = env.ws.project.surface().state() else {
         return;
     };
     let index = env.ws.project.active_surface;
@@ -378,40 +443,63 @@ pub fn texture_notices(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         .project
         .surface_names(index)
         .map_or_else(String::new, |(v, t)| format!("{v} › {t}"));
-    let version = env
-        .ws
-        .project
-        .vehicle_of(index)
-        .map(|v| v.version.clone())
-        .unwrap_or_default();
-    match template.status {
-        TemplateStatus::LayoutChanged => {
-            ui.add_space(space::SM);
-            ui.label(
-                RichText::new(tr!("texture-layout-changed", version = version.as_str()))
-                    .small()
-                    .color(color::WARNING),
-            );
-            let dismiss = ui.small_button(tr("vehicle-panel-dismiss"));
-            dismiss.widget_info(|| {
-                WidgetInfo::labeled(
-                    WidgetType::Button,
-                    true,
-                    tr!("vehicle-panel-dismiss-named", name = name.as_str()),
-                )
-            });
-            if dismiss.clicked() {
-                env.ws.dismiss_layout_change(index, env.now);
-            }
+    let version = vehicle_version(&env.ws.project, index);
+    ui.add_space(space::SM);
+    let to_check = state_label(TextureState::ToCheck(reason));
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = space::XS;
+        ui.label(icons::rich(icons::WARNING).color(color::SIGNAL));
+        ui.label(
+            RichText::new(&to_check)
+                .text_style(label_strong_style())
+                .color(color::SIGNAL),
+        );
+    });
+    let why = match reason {
+        CheckReason::LayoutChanged => {
+            tr!("texture-reason-layout-changed", version = version.as_str())
         }
-        TemplateStatus::Removed => {
-            ui.add_space(space::SM);
-            ui.label(
-                RichText::new(tr!("texture-not-in-version", version = version.as_str()))
-                    .small()
-                    .color(color::TEXT_SECONDARY),
-            );
+        CheckReason::NotInVersion => tr("texture-notice-not-in-version"),
+    };
+    let text = format!("{to_check}: {why}");
+    ui.add(egui::Label::new(RichText::new(&why).small().color(color::TEXT_SECONDARY)).wrap())
+        .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text.as_str()));
+    if reason == CheckReason::LayoutChanged {
+        let mark = ui.small_button(tr("texture-mark-checked"));
+        mark.widget_info(|| {
+            WidgetInfo::labeled(
+                WidgetType::Button,
+                true,
+                tr!("texture-mark-checked-named", name = name.as_str()),
+            )
+        });
+        if mark.clicked() {
+            env.ws.dismiss_layout_change(index, env.now);
         }
-        TemplateStatus::Current => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn states_read_their_label_and_reason() {
+        let changed = TextureState::ToCheck(CheckReason::LayoutChanged);
+        let removed = TextureState::ToCheck(CheckReason::NotInVersion);
+        assert_eq!(state_label(TextureState::Empty), "Empty");
+        assert_eq!(state_label(TextureState::Modified), "Modified");
+        assert_eq!(state_label(changed), "To check");
+        assert_eq!(state_label(removed), "To check");
+        assert_eq!(state_tooltip(TextureState::Empty, "1.3.0"), None);
+        assert_eq!(state_tooltip(TextureState::Modified, "1.3.0"), None);
+        assert_eq!(
+            state_tooltip(changed, "1.3.0").as_deref(),
+            Some("Layout changed in 1.3.0")
+        );
+        assert_eq!(
+            state_tooltip(removed, "1.3.0").as_deref(),
+            Some("Not in this version")
+        );
     }
 }

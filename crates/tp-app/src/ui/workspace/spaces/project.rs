@@ -1,23 +1,25 @@
-//! The Project space: on the left, the Vehicles header and one card per
-//! vehicle (its thumbnail, package, cabins, main texture mode, update,
-//! actions and textures; clicking a texture shows it in the Workshop); on
-//! the right, the Mod information column (the mod's pictures and settings,
-//! read only, Edit in Export Mod…, and the editable Game versions field).
+//! The Project space: on the left, the Vehicles header (counts, texture
+//! filter, Add Vehicle…) and one card per vehicle (its thumbnail, package,
+//! cabins, main texture mode, update, actions and textures with their
+//! states; clicking a texture shows it in the Workshop); on the right, the
+//! Mod information column (the mod's pictures and settings, read only,
+//! Edit in Export Mod…, the editable Game versions field and Before
+//! exporting).
 
 use egui::{
     Align, Align2, CentralPanel, Frame, Layout, Margin, Panel, Rect, Response, RichText,
     ScrollArea, Sense, Stroke, StrokeKind, Ui, UiBuilder, Vec2, WidgetInfo, WidgetType,
 };
-use tp_core::{Project, ProjectVehicle, TexturePart};
+use tp_core::{Project, ProjectVehicle, TextureFilter, TexturePart, TextureState};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{canvas, color, radius, space, typography};
-use tp_ui::widgets::{paint_focus_ring, secondary_button};
+use tp_ui::widgets::{SegmentedControl, paint_focus_ring, secondary_button};
 
 use super::super::panels::{PanelEnv, vehicle};
 use crate::commands::CommandId;
 use crate::layout::Space;
-use crate::mod_export::{ICON_SIZE, IMAGE_SIZE};
+use crate::mod_export::{ICON_SIZE, IMAGE_SIZE, Warning};
 use crate::state::VehicleRequest;
 use crate::ui::CommandUi;
 
@@ -33,8 +35,8 @@ const TILE_THUMB: Vec2 = Vec2::new(150.0, 108.0);
 const TILE_PAD: f32 = 8.0;
 const TILE_WIDTH: f32 = TILE_THUMB.x + 2.0 * TILE_PAD;
 /// Height of a tile's text under the thumbnail: name, kind and size, and
-/// the update's flag.
-const TILE_TEXT: f32 = 58.0;
+/// the state.
+const TILE_TEXT: f32 = 68.0;
 
 pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     Panel::right("project_mod_information")
@@ -60,17 +62,37 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
         });
 }
 
+/// "2 vehicles · 9 textures · 4 modified · 1 to check" (a state's part is
+/// left out when it is zero).
+fn header_counts(project: &Project) -> String {
+    let (mut modified, mut check) = (0, 0);
+    for surface in &project.surfaces {
+        match surface.state() {
+            TextureState::Modified => modified += 1,
+            TextureState::ToCheck(_) => check += 1,
+            TextureState::Empty => {}
+        }
+    }
+    let counts = tr!(
+        "project-vehicles-count",
+        vehicles = project.vehicles.len(),
+        textures = project.surfaces.len()
+    );
+    let states = tr!("project-texture-states", modified = modified, check = check);
+    format!("{counts}{states}")
+}
+
 /// The Vehicles header, then one card per vehicle in project order.
 fn vehicles(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     let ctx = ui.ctx().clone();
     env.ws
         .thumbnails
         .update_with_templates(&ctx, &env.ws.project, &env.ws.text.fonts);
-    let project = &env.ws.project;
-    let counts = tr!(
-        "project-vehicles-count",
-        vehicles = project.vehicles.len(),
-        textures = project.surfaces.len()
+    let counts = header_counts(&env.ws.project);
+    let (all, to_do, to_check) = (
+        tr("project-filter-all"),
+        tr("project-filter-to-do"),
+        tr("project-filter-to-check"),
     );
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
@@ -79,12 +101,22 @@ fn vehicles(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
             ui.label(RichText::new(&counts).color(color::TEXT_SECONDARY));
         });
         ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
+            ui.spacing_mut().item_spacing.x = space::SM;
             cmds.secondary_icon_button(
                 ui,
                 CommandId::AddVehicle,
                 icons::ADD,
                 &tr("cmd-add-vehicle"),
             );
+            // The filter, left of Add Vehicle….
+            if let Some(filter) = SegmentedControl::new()
+                .segment(TextureFilter::All, "", &all, None)
+                .segment(TextureFilter::ToDo, "", &to_do, None)
+                .segment(TextureFilter::ToCheck, "", &to_check, None)
+                .show(ui, env.ws.texture_filter)
+            {
+                env.ws.texture_filter = filter;
+            }
         });
     });
 
@@ -392,15 +424,21 @@ fn paint_texture(ui: &Ui, env: &PanelEnv<'_>, surface: usize, rect: Rect, uv: Re
     }
 }
 
-/// The vehicle's textures in project order, under Main textures and
-/// Accessories (a heading is left out when it would list nothing).
+/// The vehicle's textures that match the texture filter, in project order,
+/// under Main textures and Accessories (a heading is left out when it would
+/// list nothing); "Nothing to do" when none matches.
 fn textures(ui: &mut Ui, env: &mut PanelEnv<'_>, v: &ProjectVehicle) {
     let range = env.ws.project.vehicle_range(&v.package_id);
+    let filter = env.ws.texture_filter;
     let mut first = true;
     for part in [TexturePart::Main, TexturePart::Accessory] {
+        let project = &env.ws.project;
         let items: Vec<usize> = range
             .clone()
-            .filter(|i| vehicle::part_of(&env.ws.project, *i) == part)
+            .filter(|i| {
+                vehicle::part_of(project, *i) == part
+                    && filter.matches(project.surfaces[*i].state())
+            })
             .collect();
         if items.is_empty() {
             continue;
@@ -422,10 +460,14 @@ fn textures(ui: &mut Ui, env: &mut PanelEnv<'_>, v: &ProjectVehicle) {
             }
         });
     }
+    if first {
+        ui.label(RichText::new(tr("project-nothing-to-do")).color(color::TEXT_MUTED));
+    }
 }
 
 /// A texture: thumbnail of its artwork over its template, name, kind and
-/// size, and the update's flag. Clicking it (or Enter / Space) makes it
+/// size, and its state (a dot and its label, the reason on hover for To
+/// check). Clicking it (or Enter / Space) makes it
 /// the active texture and shows the Workshop. The active texture's tile is
 /// outlined, marked by an indicator bar and its thumbnail ringed.
 fn texture_tile(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
@@ -435,20 +477,15 @@ fn texture_tile(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     let surface = &project.surfaces[i];
     let name = surface.name.clone();
     let detail = texture_detail(project, i);
-    let flag = vehicle::flag(surface.template.as_ref().map(|t| t.status));
-    let label = project
-        .surface_names(i)
-        .map_or_else(|| name.clone(), |(v, t)| format!("{v} › {t}"));
+    let state = surface.state();
+    let state_text = vehicle::state_label(state);
+    let reason = vehicle::state_tooltip(state, &vehicle::vehicle_version(project, i));
+    let label = vehicle::texture_name(project, i);
 
     let size = Vec2::new(TILE_WIDTH, TILE_PAD + TILE_THUMB.y + TILE_TEXT);
     let (rect, tile) = ui.allocate_exact_size(size, Sense::click());
     tile.widget_info(|| {
-        WidgetInfo::selected(
-            WidgetType::SelectableLabel,
-            true,
-            active,
-            tr!("vehicle-panel-texture", name = label.as_str()),
-        )
+        WidgetInfo::selected(WidgetType::SelectableLabel, true, active, label.as_str())
     });
     if !ui.is_rect_visible(rect) {
         return;
@@ -487,7 +524,7 @@ fn texture_tile(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
         StrokeKind::Outside,
     );
 
-    // Name, kind and size, then the flag.
+    // Name, kind and size, then the state.
     let text = Rect::from_min_max(
         egui::pos2(thumb.left() + 2.0, thumb.bottom() + space::SM),
         egui::pos2(thumb.right(), rect.bottom() - TILE_PAD),
@@ -506,33 +543,36 @@ fn texture_tile(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
             color::TEXT_SECONDARY
         },
     );
-    clipped.text(
+    let detail_rect = clipped.text(
         text.left_top() + Vec2::new(0.0, line),
         Align2::LEFT_TOP,
         &detail,
         egui::FontId::monospace(typography::CAPTION),
         color::TEXT_DISABLED,
     );
-    if let Some(flag) = &flag {
-        let top = text.top() + 2.0 * line;
-        let icon = clipped.text(
-            egui::pos2(text.left(), top),
-            Align2::LEFT_TOP,
-            icons::WARNING,
-            icons::font(typography::CAPTION + 1.0),
-            color::WARNING,
-        );
-        clipped.text(
-            egui::pos2(icon.right() + space::XS, top),
-            Align2::LEFT_TOP,
-            flag,
-            egui::FontId::proportional(typography::CAPTION),
-            color::WARNING,
-        );
+    // The muted label lacks contrast on the hovered and active fills, the
+    // signal color on the active one (its dot keeps it).
+    let (dot, mut ink) = vehicle::state_colors(state, active || tile.hovered());
+    if active && state.is_to_check() {
+        ink = color::TEXT_PRIMARY;
+    }
+    let top = detail_rect.bottom() + space::XXS + 1.0;
+    let font = egui::FontId::proportional(typography::CAPTION);
+    let height = ui.fonts_mut(|f| f.row_height(&font));
+    let r = vehicle::STATE_DOT / 2.0;
+    clipped.circle_filled(egui::pos2(text.left() + r, top + height / 2.0), r, dot);
+    clipped.text(
+        egui::pos2(text.left() + vehicle::STATE_DOT + space::XS + 2.0, top),
+        Align2::LEFT_TOP,
+        &state_text,
+        font,
+        ink,
+    );
+    if let Some(reason) = &reason {
         let area = Rect::from_min_max(egui::pos2(text.left(), top), text.right_bottom());
-        ui.interact(area, tile.id.with("flag"), Sense::hover())
-            .on_hover_text(flag.as_str())
-            .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, flag.as_str()));
+        ui.interact(area, tile.id.with("state"), Sense::hover())
+            .on_hover_text(reason.as_str())
+            .widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, reason.as_str()));
     }
     if tile.clicked() {
         env.ws.set_active_surface(i);
@@ -541,7 +581,8 @@ fn texture_tile(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
 }
 
 /// The Mod information column: the mod's pictures, its settings read only,
-/// Edit in Export Mod…, and the Game versions field with its hint.
+/// Edit in Export Mod…, the Game versions field with its hint, and Before
+/// exporting.
 fn mod_information(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     let ctx = ui.ctx().clone();
     env.ws
@@ -609,8 +650,196 @@ fn mod_information(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>
                 cmds.secondary_button(ui, CommandId::ExportMod, &tr("project-edit-in-export"));
                 ui.add_space(space::SM);
                 vehicle::game_versions_field(ui, env);
+                ui.add_space(space::SM);
+                before_exporting(ui, env);
             });
         });
+}
+
+/// The project's warnings (see [`crate::mod_export::warnings`]), each with
+/// a dot in its state's color: a To check line with Open, then the Empty
+/// line, expanding to its textures with Open (Open on the line itself for
+/// one). "Nothing to check" when there is none. Open makes the texture
+/// active and shows the Workshop.
+fn before_exporting(ui: &mut Ui, env: &mut PanelEnv<'_>) {
+    super::caps_heading(ui, &tr("project-before-exporting"));
+    let project = &env.ws.project;
+    let warnings = crate::mod_export::warnings(project);
+    if warnings.is_empty() {
+        ui.label(
+            RichText::new(tr("project-nothing-to-check"))
+                .small()
+                .color(color::TEXT_MUTED),
+        );
+        return;
+    }
+    let label = |i: usize| crate::mod_export::texture_label(project, i);
+    let (empty_dot, _) = vehicle::state_colors(TextureState::Empty, false);
+    let mut open = None;
+    for warning in &warnings {
+        let text = warning.message(project);
+        match warning {
+            Warning::ToCheck { surface, .. } => {
+                let row = warning_row(
+                    ui,
+                    (color::SIGNAL, color::TEXT_PRIMARY),
+                    &text,
+                    None,
+                    Some(&label(*surface)),
+                );
+                if row.opened {
+                    open = Some(*surface);
+                }
+            }
+            Warning::Empty { surfaces } => {
+                let colors = (empty_dot, color::TEXT_SECONDARY);
+                if let [one] = surfaces.as_slice() {
+                    if warning_row(ui, colors, &text, None, Some(&label(*one))).opened {
+                        open = Some(*one);
+                    }
+                    continue;
+                }
+                let id = ui.id().with("before_exporting_empty");
+                let expanded = ui.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
+                if warning_row(ui, colors, &text, Some(expanded), None).toggled {
+                    ui.data_mut(|d| d.insert_temp(id, !expanded));
+                }
+                if expanded {
+                    for &i in surfaces {
+                        let indent = CARET_WIDTH + space::SM;
+                        ui.horizontal_top(|ui| {
+                            ui.add_space(indent);
+                            let row = warning_row(ui, colors, &label(i), None, Some(&label(i)));
+                            if row.opened {
+                                open = Some(i);
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    }
+    if let Some(i) = open {
+        env.ws.set_active_surface(i);
+        env.ws.space = Space::Workshop;
+    }
+}
+
+/// Width of the caret of an expanding warning line.
+const CARET_WIDTH: f32 = 14.0;
+
+/// What was clicked on a warning line.
+struct RowClick {
+    /// The line itself (it expands).
+    toggled: bool,
+    /// Its Open button.
+    opened: bool,
+}
+
+/// A warning line: a dot and the wrapped text in `colors` (dot, text), with
+/// a caret when it expands (`caret`: whether it is expanded, the line is
+/// then a button), and an Open button for texture `open` at its right.
+fn warning_row(
+    ui: &mut Ui,
+    colors: (egui::Color32, egui::Color32),
+    text: &str,
+    caret: Option<bool>,
+    open: Option<&str>,
+) -> RowClick {
+    ui.horizontal_top(|ui| {
+        ui.spacing_mut().item_spacing.x = space::SM;
+        let font = egui::TextStyle::Small.resolve(ui.style());
+        let row = ui.fonts_mut(|f| f.row_height(&font));
+        let button = open.map_or(0.0, |_| open_width(ui) + space::SM);
+        let width = ui.available_width() - button;
+        let caret_width = if caret.is_some() { CARET_WIDTH } else { 0.0 };
+        let wrap = width - vehicle::STATE_DOT - space::SM - caret_width;
+        let galley = ui.painter().layout(text.to_owned(), font, colors.1, wrap);
+        // At least the interaction height, the first line centered in it.
+        let lead = ((ui.spacing().interact_size.y - row) / 2.0).max(0.0);
+        let height = galley.size().y + 2.0 * lead;
+        let sense = if caret.is_some() {
+            Sense::click()
+        } else {
+            Sense::hover()
+        };
+        let (rect, response) = ui.allocate_exact_size(Vec2::new(width, height), sense);
+        response.widget_info(|| match caret {
+            Some(expanded) => {
+                let mut info = WidgetInfo::labeled(WidgetType::CollapsingHeader, true, text);
+                info.selected = Some(expanded);
+                info
+            }
+            None => WidgetInfo::labeled(WidgetType::Label, true, text),
+        });
+        let top = rect.top() + lead;
+        let painter = ui.painter();
+        let r = vehicle::STATE_DOT / 2.0;
+        painter.circle_filled(egui::pos2(rect.left() + r, top + row / 2.0), r, colors.0);
+        let mut x = rect.left() + vehicle::STATE_DOT + space::SM;
+        if let Some(expanded) = caret {
+            let icon = if expanded {
+                icons::EXPANDED
+            } else {
+                icons::COLLAPSED
+            };
+            painter.text(
+                egui::pos2(x, top + row / 2.0),
+                Align2::LEFT_CENTER,
+                icon,
+                icons::font(12.0),
+                color::TEXT_SECONDARY,
+            );
+            x += caret_width;
+            paint_focus_ring(ui, rect, &response, radius::SM);
+        }
+        painter.galley(egui::pos2(x, top), galley, colors.1);
+        let opened = open.is_some_and(|name| open_button(ui, name, height, lead));
+        RowClick {
+            toggled: response.clicked(),
+            opened,
+        }
+    })
+    .inner
+}
+
+/// The width of an Open button.
+fn open_width(ui: &Ui) -> f32 {
+    let font = egui::TextStyle::Small.resolve(ui.style());
+    ui.painter()
+        .layout_no_wrap(tr("project-open"), font, color::TEXT_SECONDARY)
+        .size()
+        .x
+}
+
+/// A small Open button for texture `name`, `height` tall with its text
+/// `lead` below its top (on its line's first line); whether it was clicked.
+/// Its text brightens on hover.
+fn open_button(ui: &mut Ui, name: &str, height: f32, lead: f32) -> bool {
+    let font = egui::TextStyle::Small.resolve(ui.style());
+    let (rect, button) = ui.allocate_exact_size(Vec2::new(open_width(ui), height), Sense::click());
+    button.widget_info(|| {
+        WidgetInfo::labeled(
+            WidgetType::Button,
+            true,
+            tr!("project-open-named", name = name),
+        )
+    });
+    let ink = if button.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        color::TEXT_PRIMARY
+    } else {
+        color::TEXT_SECONDARY
+    };
+    ui.painter().text(
+        egui::pos2(rect.left(), rect.top() + lead),
+        Align2::LEFT_TOP,
+        tr("project-open"),
+        font,
+        ink,
+    );
+    paint_focus_ring(ui, rect, &button, radius::SM);
+    button.clicked()
 }
 
 /// A picture of the mod at its size in pixels, under its title; an empty

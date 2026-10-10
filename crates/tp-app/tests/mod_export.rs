@@ -327,3 +327,84 @@ fn export_from_the_brand_space() {
     assert!(dialog(&h).is_some(), "the Export Mod dialog opens");
     assert!(!dialog(&h).unwrap().advanced, "Advanced is collapsed");
 }
+
+/// Puts a rectangle on texture `name` (it becomes Modified).
+fn draw(h: &mut H, name: &str) {
+    let ws = ws_mut(h);
+    let i = ws
+        .project
+        .surfaces
+        .iter()
+        .position(|s| s.name == name)
+        .unwrap();
+    let active = ws.project.active_surface;
+    ws.project.active_surface = i;
+    ws.project.add(Object::new(
+        ObjectId(0),
+        ShapeKind::rectangle(),
+        Frame::new(Point::new(200.0, 200.0), Size::new(100.0, 100.0), 0.0),
+    ));
+    ws.project.active_surface = active;
+}
+
+/// Flags texture `name` "Layout changed".
+fn flag_layout_changed(h: &mut H, name: &str) {
+    let ws = ws_mut(h);
+    let surface = ws
+        .project
+        .surfaces
+        .iter_mut()
+        .find(|s| s.name == name)
+        .unwrap();
+    surface.template.as_mut().unwrap().status = tp_core::TemplateStatus::LayoutChanged;
+}
+
+#[test]
+fn warnings_dont_block() {
+    let mut h = open();
+    flag_layout_changed(&mut h, "Chassis");
+    open_dialog(&mut h);
+    // Texture to check warned, then the empty ones.
+    let check = h.get_by_label("Chassis: layout changed").rect();
+    let empty = h
+        .get_by_label("2 textures empty, exported with the game's color")
+        .rect();
+    assert!(check.top() < empty.top());
+    assert!(!common::last(&h, "Export…").accesskit_node().is_disabled());
+    // A problem is listed before them, and alone disables Export….
+    dialog_mut(&mut h).settings.name.clear();
+    settle(&mut h);
+    let problem = h.get_by_label("The mod needs a name.").rect();
+    assert!(problem.top() < h.get_by_label("Chassis: layout changed").rect().top());
+    assert!(common::last(&h, "Export…").accesskit_node().is_disabled());
+}
+
+#[test]
+fn empty_textures_warned_and_exported_transparent() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("ace.scs");
+    let mut h = open();
+    draw(&mut h, "Chassis");
+    draw(&mut h, "Cab accessories");
+    h.run();
+    open_dialog(&mut h);
+    assert!(
+        h.query_by_label("Side skirts is empty, exported with the game's color")
+            .is_some()
+    );
+    script(&mut h, std::slice::from_ref(&path), &[]);
+    export(&mut h);
+    assert!(dialog(&h).is_none(), "exported");
+    let mut archive = zip::ZipArchive::new(std::fs::File::open(&path).unwrap()).unwrap();
+    let name = archive
+        .file_names()
+        .find(|n| n.contains("side_skirts") && n.ends_with(".dds"))
+        .expect("the Side skirts texture")
+        .to_owned();
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut archive.by_name(&name).unwrap(), &mut bytes).unwrap();
+    // Its first block (BC3, after the 128-byte header) is fully transparent.
+    let mut pixels = [0u8; 64];
+    texpresso::Format::Bc3.decompress(&bytes[128..144], 4, 4, &mut pixels);
+    assert!(pixels.chunks(4).all(|p| p[3] == 0), "{pixels:?}");
+}

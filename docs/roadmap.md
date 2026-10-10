@@ -257,7 +257,6 @@ None at the moment.
 | # | Change | What it does | Why now |
 |---|---|---|---|
 | 2 | `polishing` | Fixes, ergonomics, wording and performance across the app, with no new feature. | Smooths what the first players will meet, on the new design. |
-| 2a | `texture-status` | Each texture shows its state (empty, modified, to check); an "on this texture" summary with off-palette colors; a "before exporting" list. | Shown in the mockup; makes a fleet of 30 textures readable. |
 | 2b | `mod-settings-in-project` | The mod information is edited on the Project screen; the Export dialog keeps the destination and the checks. | Export becomes one dialog, one check, one button. |
 | 2c | `command-palette` | Ctrl/Cmd+K searches every command and every texture of the project. | Fast navigation in a large fleet. |
 | 2d | `brand-edit-preview` | The Brand space shows where each element is used; editing a swatch previews its impact before "Apply to fleet". | A brand edit touches the whole fleet: say so before applying. |
@@ -266,13 +265,24 @@ None at the moment.
 | 3 | `paintjob-importer` | Prefills the game data of a custom vehicle (game path, cabin internal names, accessory ids) from Paintjob Packer's database. | Custom vehicle asks for game data most players don't know. |
 | 4 | `distribution` | Release builds and installers. | A player can go from vehicle to mod without building the app. |
 | 5 | `marketplace` | Browses and installs community packages from a GitHub-hosted index. | Once players have the app and can make packages easily. |
-| 5a | `template-update-impact` | A template update says what it changes and which projects it touches; affected textures become "to check" and affected objects are flagged. Nothing moves automatically. Works with local packages too (needs `texture-status`). | Updates become frequent once packages come from the marketplace. |
+| 5a | `template-update-impact` | A template update says what it changes and which projects it touches; affected textures become "to check" and affected objects are flagged. Nothing moves automatically. Works with local packages too; builds on the To check state of `texture-status` (shipped). | Updates become frequent once packages come from the marketplace. |
 | 5b | `first-run` | A three-step first launch: language and game, vehicles to install from the catalog, first project. | Needs the marketplace catalog. |
 
 ## Shipped
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `texture-status` (under `polishing`): each texture is Empty, Modified or
+  To check (flagged by Update Template), computed from the project and never
+  stored, shown on the Project space's tiles (dot and label) and in the
+  Textures tab (ring, dot or warning icon); the Vehicles header counts the
+  Modified and To check textures and filters All / To do / To check; Dismiss
+  became Mark as Checked; the inspector with nothing selected shows On this
+  texture (objects, symbol instances, off-palette colors, which select the
+  objects using them); Before exporting, in the Mod information column and
+  among Export Mod's checks, warns about the textures To check and the Empty
+  ones without blocking the export. `template-update-impact` can now build
+  on To check;
 - `new-design`: the interface redone after the "TruckPaint 5" design spec,
   with constant functionality: Geist and JetBrains Mono, one accent per
   meaning; the Project, Workshop and Brand spaces (Cmd/Ctrl+1/2/3) with an

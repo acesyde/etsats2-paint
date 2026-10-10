@@ -215,11 +215,14 @@ undo-change-font = Modifier la police
 vehicle-panel-package = Paquet { $version } · versions du jeu { $games }
 vehicle-panel-package-missing = Paquet { $version } (non installé)
 vehicle-panel-update = La version { $version } est disponible
-vehicle-panel-texture = Texture { $name }
-vehicle-panel-layout-changed = Disposition modifiée
-vehicle-panel-dismiss = Ignorer
-vehicle-panel-dismiss-named = Ignorer le changement de disposition de { $name }
-vehicle-panel-removed = Absente de cette version
+vehicle-panel-texture = Texture { $name }, { $state }
+texture-state-empty = Vide
+texture-state-modified = Modifiée
+texture-state-to-check = À vérifier
+texture-reason-layout-changed = Disposition modifiée en { $version }
+texture-reason-not-in-version = Absente de cette version
+texture-mark-checked = Marquer comme vérifiée
+texture-mark-checked-named = Marquer { $name } comme vérifiée
 vehicle-panel-opacity-name = Opacité du gabarit
 
 ## Fleet
@@ -237,8 +240,7 @@ project-game-versions = Versions du jeu
 project-game-versions-supported = Prises en charge par tous les véhicules : { $versions }
 project-no-common-version = Aucune version du jeu n’est prise en charge par tous les véhicules
 vehicle-actions-named = Actions pour { $name }
-texture-layout-changed = La disposition de cette texture a changé en version { $version } : vérifiez votre dessin.
-texture-not-in-version = Cette texture n’existe pas dans la version { $version } du véhicule : elle n’a pas de gabarit.
+texture-notice-not-in-version = Absente de cette version, exclue du mod
 
 ## Styles panel
 
@@ -307,6 +309,16 @@ inspector-hint = Sélectionnez un objet pour régler sa disposition, son fond et
 inspector-main-texture = Texture principale
 inspector-accessory-texture = Texture d'accessoire
 inspector-texture-kind = { $kind } · { $size } × { $size } px
+inspector-on-texture = Sur cette texture
+inspector-in-symbol = Dans ce symbole
+inspector-objects = Objets
+inspector-instances = Instances de symbole
+inspector-off-palette = Couleurs hors palette
+inspector-off-palette-select = Sélectionner les objets aux couleurs hors palette
+inspector-off-palette-locked = { $count ->
+    [one] { $count } objet verrouillé reste hors de la sélection
+   *[other] { $count } objets verrouillés restent hors de la sélection
+}
 inspector-style = Style
 inspector-style-none = Aucun
 stroke-none = Aucun
@@ -340,6 +352,22 @@ project-not-set = Non renseigné
 project-edit-in-export = Modifier dans Exporter le mod…
 project-picture-generated = Générée à partir de la première texture principale
 project-cabin-ids = Noms internes : { $ids }
+project-texture-states = { $modified ->
+    [0] {""}
+    [one] {" · "}{ $modified } modifiée
+   *[other] {" · "}{ $modified } modifiées
+}{ $check ->
+    [0] {""}
+   *[other] {" · "}{ $check } à vérifier
+}
+project-filter-all = Tout
+project-filter-to-do = À faire
+project-filter-to-check = À vérifier
+project-nothing-to-do = Rien à faire
+project-before-exporting = Avant d’exporter
+project-nothing-to-check = Rien à vérifier
+project-open = Ouvrir
+project-open-named = Ouvrir { $name }
 
 ## Brand space
 
