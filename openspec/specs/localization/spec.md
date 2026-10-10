@@ -11,7 +11,7 @@ The interface SHALL be available in English (international), French, Spanish and
 
 #### Scenario: Interface in German
 - **WHEN** the language is German
-- **THEN** the menu bar shows "Datei", "Bearbeiten", "Objekt", "Ebene", "Ansicht", "Fahrzeug", "Exportieren" and "Hilfe"
+- **THEN** the menus are "Datei", "Bearbeiten", "Objekt", "Ebene", "Ansicht", "Fahrzeug" and "Hilfe"
 
 #### Scenario: Missing translation falls back to English
 - **WHEN** a text has no French translation and the language is French

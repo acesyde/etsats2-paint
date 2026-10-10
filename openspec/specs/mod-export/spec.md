@@ -7,7 +7,7 @@ Turns a project into the deliverable of the app: one ready-to-install Euro Truck
 ## Requirements
 
 ### Requirement: Export Mod dialog
-Export › Export Mod… (Cmd/Ctrl+E) SHALL be available when a project is open, except while a symbol is being edited. It SHALL also be reached from the **Export…** button of the top bar, shown in every space (see the workspace-spaces capability). They SHALL be enabled and disabled together, with the same reason as a tooltip.
+File › Export Mod… (Cmd/Ctrl+E) SHALL be available when a project is open, except while a symbol is being edited. It SHALL also be reached from the **Export…** button of the top bar, shown in every space (see the workspace-spaces capability). They SHALL be enabled and disabled together, with the same reason as a tooltip.
 
 The dialog SHALL edit nothing: the mod settings and pictures are edited in the Project space (see the project-screen capability). It SHALL be titled "Export Mod" with the project's name and game below the title, and SHALL hold, from top to bottom:
 - **a summary of the mod:** each vehicle of the project, with the main textures and accessories it paints. For a truck with several main textures, each main texture lists its cabins, and the cabins of textures that aren't painted are listed as "not painted";

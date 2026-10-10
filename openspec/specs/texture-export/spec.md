@@ -7,7 +7,7 @@ Turns the vector livery into a texture file — PNG, or DDS for Euro Truck Simul
 ## Requirements
 
 ### Requirement: Export Texture dialog
-Export › Export Texture… (Shift+Cmd/Ctrl+E), available when a project is open, SHALL open a dialog offering:
+File › Export Texture… (Shift+Cmd/Ctrl+E), available when a project is open, SHALL open a dialog offering:
 - the format: PNG or DDS;
 - the output size: the active surface's size by default, or 1/2 or 1/4 of it;
 - the background: an opaque color (white by default) or transparent;
