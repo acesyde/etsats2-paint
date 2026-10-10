@@ -531,3 +531,189 @@ fn a_text_style_follows_its_swatch_and_replaces_a_graphic_style() {
     assert_eq!(o.fill, Paint::Solid(DARK_RED));
     assert_eq!(o.text.unwrap().style_id, Some(id), "still follows");
 }
+
+// ── Shadows ─────────────────────────────────────────────────────────────
+
+const NIGHT: Rgba = Rgba::rgb(10, 10, 30);
+const DARK_BLUE: Rgba = Rgba::rgb(0, 0, 80);
+
+/// A text whose shadow is `NIGHT`, linked to `swatch`.
+fn shadowed(swatch: Option<SwatchId>) -> Object {
+    let mut o = text("ACE");
+    o.shadow = Some(Shadow {
+        color: NIGHT,
+        swatch,
+        ..Shadow::DEFAULT
+    });
+    o
+}
+
+#[test]
+fn shadow_color_follows_its_swatch() {
+    let mut p = project();
+    let (night, _) = p.add_swatch(NIGHT, "Night");
+    let t = add_on(&mut p, 1, shadowed(Some(night)));
+    p.set_swatch_color(night, DARK_BLUE);
+    p.relink();
+    let s = get(&p, 1, t).shadow.unwrap();
+    assert_eq!((s.color, s.swatch), (DARK_BLUE, Some(night)));
+}
+
+#[test]
+fn another_shadow_color_unlinks() {
+    let mut p = project();
+    let (night, _) = p.add_swatch(NIGHT, "Night");
+    let t = p.add(shadowed(Some(night)));
+    let mut o = get(&p, 0, t);
+    o.shadow.as_mut().unwrap().color = RED;
+    p.surface_mut().replace(&[o]);
+    p.relink();
+    let s = get(&p, 0, t).shadow.unwrap();
+    assert_eq!((s.color, s.swatch), (RED, None));
+}
+
+#[test]
+fn deleting_the_swatch_keeps_the_shadow_color() {
+    let mut p = project();
+    let (night, _) = p.add_swatch(NIGHT, "Night");
+    let t = p.add(shadowed(Some(night)));
+    let id = p.new_text_style(t, "Lettering").unwrap();
+    p.delete_swatch(night);
+    let s = get(&p, 0, t).shadow.unwrap();
+    assert_eq!((s.color, s.swatch), (NIGHT, None));
+    let look = p.text_style(id).unwrap().look.shadow.unwrap();
+    assert_eq!((look.color, look.swatch), (NIGHT, None));
+    assert_eq!(
+        get(&p, 0, t).text.unwrap().style_id,
+        Some(id),
+        "still follows"
+    );
+}
+
+#[test]
+fn groups_and_instances_never_take_a_shadow() {
+    let mut p = project();
+    assert!(rect(0.0).takes_shadow() && text("A").takes_shadow());
+    let mut image = rect(0.0);
+    image.kind = ShapeKind::Image {
+        asset: crate::document::AssetId(1),
+    };
+    assert!(image.takes_shadow());
+    let source = p.add(shadowed(None));
+    let id = p.new_graphic_style(source, "Style").unwrap();
+    let a = p.add(rect(200.0));
+    let group = p.group(&[a]).unwrap();
+    p.apply_graphic_style(id, &[group]);
+    assert_eq!(get(&p, 0, group).shadow, None);
+    assert_eq!(get(&p, 0, a).shadow, get(&p, 0, source).shadow);
+    assert!(!get(&p, 0, group).takes_shadow());
+    let (symbol, instance) = p.convert_to_symbol(&[group], "Symbol").unwrap();
+    let mut o = get(&p, 0, instance);
+    assert!(o.is_instance() && !o.takes_shadow());
+    // A style given to the instance's object skips it.
+    let style = p.graphic_style(id).unwrap().clone();
+    style.apply_to(&mut o);
+    assert_eq!(o.shadow, None);
+    assert!(p.symbol(symbol).is_some());
+}
+
+#[test]
+fn a_style_carries_the_shadow() {
+    let mut p = project();
+    let source = p.add(shadowed(None));
+    let id = p.new_text_style(source, "Lettering").unwrap();
+    assert_eq!(
+        p.text_style(id).unwrap().look.shadow,
+        get(&p, 0, source).shadow
+    );
+    let plain = p.add(text("B"));
+    p.apply_text_style(id, &[plain]);
+    p.relink();
+    let o = get(&p, 0, plain);
+    assert_eq!(o.shadow, get(&p, 0, source).shadow);
+    assert_eq!(o.text.unwrap().style_id, Some(id));
+    // Graphic styles too.
+    let graphic = p.new_graphic_style(source, "Style").unwrap();
+    assert_eq!(
+        p.graphic_style(graphic).unwrap().look.shadow,
+        get(&p, 0, source).shadow
+    );
+}
+
+#[test]
+fn changing_the_shadow_detaches() {
+    let mut p = project();
+    let source = p.add(shadowed(None));
+    let id = p.new_text_style(source, "Lettering").unwrap();
+    let blurred = p.add(text("B"));
+    p.apply_text_style(id, &[blurred]);
+    for (o, f) in [
+        (
+            source,
+            &(|o: &mut Object| o.shadow = None) as &dyn Fn(&mut Object),
+        ),
+        (blurred, &|o: &mut Object| {
+            o.shadow.as_mut().unwrap().blur = 20.0
+        }),
+    ] {
+        let mut o = get(&p, 0, o);
+        f(&mut o);
+        p.surface_mut().replace(&[o]);
+    }
+    p.relink();
+    assert_eq!(get(&p, 0, source).text.unwrap().style_id, None);
+    assert_eq!(get(&p, 0, blurred).text.unwrap().style_id, None);
+}
+
+#[test]
+fn redefine_takes_the_shadow() {
+    let mut p = project();
+    let source = p.add(text("A"));
+    let id = p.new_text_style(source, "Lettering").unwrap();
+    let follower = p.add(text("B"));
+    p.apply_text_style(id, &[follower]);
+    let graphic_source = p.add(rect(300.0));
+    let graphic = p.new_graphic_style(graphic_source, "Style").unwrap();
+    let graphic_follower = p.add(rect(500.0));
+    p.apply_graphic_style(graphic, &[graphic_follower]);
+    for o in [source, graphic_source] {
+        let mut o = get(&p, 0, o);
+        o.shadow = Some(Shadow::DEFAULT);
+        p.surface_mut().replace(&[o]);
+    }
+    assert!(p.redefine_text_style(id, source));
+    assert!(p.redefine_graphic_style(graphic, graphic_source));
+    p.relink();
+    assert_eq!(p.text_style(id).unwrap().look.shadow, Some(Shadow::DEFAULT));
+    assert_eq!(get(&p, 0, follower).shadow, Some(Shadow::DEFAULT));
+    assert_eq!(get(&p, 0, follower).text.unwrap().style_id, Some(id));
+    assert_eq!(get(&p, 0, graphic_follower).shadow, Some(Shadow::DEFAULT));
+    assert_eq!(get(&p, 0, graphic_follower).style, Some(graphic));
+}
+
+#[test]
+fn clamped_bounds_every_field() {
+    let wild = Shadow {
+        color: RED,
+        swatch: None,
+        opacity: 3.0,
+        offset: Vec2::new(-5000.0, f64::NAN),
+        blur: 10_000.0,
+    };
+    let s = wild.clamped();
+    assert_eq!(s.opacity, 1.0);
+    assert_eq!(s.offset, Vec2::new(-1000.0, Shadow::DEFAULT.offset.y));
+    assert_eq!(s.blur, 200.0);
+    let low = Shadow {
+        opacity: -1.0,
+        offset: Vec2::new(2000.0, -2000.0),
+        blur: -4.0,
+        ..Shadow::DEFAULT
+    }
+    .clamped();
+    assert_eq!(
+        (low.opacity, low.offset, low.blur),
+        (0.0, Vec2::new(1000.0, -1000.0), 0.0)
+    );
+    assert_eq!(Shadow::DEFAULT.clamped(), Shadow::DEFAULT);
+}

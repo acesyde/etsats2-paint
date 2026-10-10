@@ -9,7 +9,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use tp_core::document::{
     AssetId, Cap, CharStyle, ColorStop, DEFAULT_MITER_LIMIT, Dash, Frame, Gradient, GradientKind,
-    Join, LineStyle, MIN_STOPS, Node, Object, ObjectId, Paint, PathData, Rgba, ShapeKind,
+    Join, LineStyle, MIN_STOPS, Node, Object, ObjectId, Paint, PathData, Rgba, Shadow, ShapeKind,
     StrokeAlign, StrokeStyle, StyleId, Subpath, SwatchId, SymbolId, TextAlign, TextBlock,
 };
 use tp_core::kurbo::{Point, Size, Vec2};
@@ -105,7 +105,7 @@ pub struct FileSwatch {
     pub origin: Option<String>,
 }
 
-/// A named fill, stroke and opacity.
+/// A named fill, stroke, opacity and shadow.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FileGraphicStyle {
     pub id: u64,
@@ -116,6 +116,8 @@ pub struct FileGraphicStyle {
     #[serde(default)]
     pub stroke: Option<FileStroke>,
     pub opacity: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadow: Option<FileShadow>,
     /// The library entry it came from or was added to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<String>,
@@ -143,6 +145,8 @@ pub struct FileTextStyle {
     pub stroke: Option<FileStroke>,
     #[serde(default)]
     pub opacity: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadow: Option<FileShadow>,
     /// The library entry it came from or was added to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<String>,
@@ -476,6 +480,21 @@ pub struct FileObject {
     /// A text or an image drawn reversed across its vertical axis.
     #[serde(default, skip_serializing_if = "is_false")]
     pub mirrored: bool,
+    /// The drop shadow (missing: none).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadow: Option<FileShadow>,
+}
+
+/// A drop shadow: color and its swatch link, opacity, offset and blur in
+/// texture pixels.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileShadow {
+    pub color: [u8; 4],
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub swatch: Option<u64>,
+    pub opacity: f32,
+    pub offset: [f64; 2],
+    pub blur: f64,
 }
 
 fn is_false(b: &bool) -> bool {
@@ -628,6 +647,28 @@ fn stroke_from_file(s: &FileStroke, id: u64) -> Result<StrokeStyle, String> {
     })
 }
 
+fn shadow_to_file(s: &Shadow) -> FileShadow {
+    FileShadow {
+        color: color(s.color),
+        swatch: s.swatch.map(|w| w.0),
+        opacity: s.opacity,
+        offset: [s.offset.x, s.offset.y],
+        blur: s.blur,
+    }
+}
+
+/// The shadow of `s`, its values brought into range.
+fn shadow_from_file(s: &FileShadow) -> Shadow {
+    Shadow {
+        color: rgba(s.color),
+        swatch: s.swatch.map(SwatchId),
+        opacity: s.opacity,
+        offset: Vec2::new(s.offset[0], s.offset[1]),
+        blur: s.blur,
+    }
+    .clamped()
+}
+
 fn origin_to_file(origin: Option<&LibraryKey>) -> Option<String> {
     origin.map(|k| k.0.clone())
 }
@@ -657,6 +698,7 @@ fn brand_to_file(project: &Project, file: &mut FileProject) {
             fill_swatch: s.look.fill_swatch.map(|w| w.0),
             stroke: s.look.stroke.as_ref().map(stroke_to_file),
             opacity: s.look.opacity,
+            shadow: s.look.shadow.as_ref().map(shadow_to_file),
             origin: origin_to_file(s.origin.as_ref()),
         })
         .collect();
@@ -677,6 +719,7 @@ fn brand_to_file(project: &Project, file: &mut FileProject) {
             fill_swatch: s.look.fill_swatch.map(|w| w.0),
             stroke: s.look.stroke.as_ref().map(stroke_to_file),
             opacity: Some(s.look.opacity),
+            shadow: s.look.shadow.as_ref().map(shadow_to_file),
             origin: origin_to_file(s.origin.as_ref()),
         })
         .collect();
@@ -711,6 +754,7 @@ fn brand_from_file(file: &FileProject) -> Result<BrandKit, String> {
                         .map(|st| stroke_from_file(st, s.id))
                         .transpose()?,
                     opacity: s.opacity.clamp(0.0, 1.0),
+                    shadow: s.shadow.as_ref().map(shadow_from_file),
                 },
                 origin: origin_from_file(s.origin.as_ref()),
             })
@@ -744,6 +788,7 @@ fn brand_from_file(file: &FileProject) -> Result<BrandKit, String> {
                         .map(|st| stroke_from_file(st, s.id))
                         .transpose()?,
                     opacity: s.opacity.unwrap_or(1.0).clamp(0.0, 1.0),
+                    shadow: s.shadow.as_ref().map(shadow_from_file),
                 },
                 origin: origin_from_file(s.origin.as_ref()),
             })
@@ -849,6 +894,7 @@ fn object_to_file(o: &Object) -> FileObject {
         line_width: o.path_data().map(|p| p.line_width),
         line_style: o.path_data().map(|p| line_style_to_file(&p.line_style)),
         mirrored: o.mirrored,
+        shadow: o.shadow.as_ref().map(shadow_to_file),
     }
 }
 
@@ -1122,6 +1168,9 @@ fn object_from_file(
     // Only texts and images carry a mirror; other kinds carry it in their
     // geometry.
     o.mirrored = f.mirrored && matches!(kind, ShapeKind::Text | ShapeKind::Image { .. });
+    if o.takes_shadow() {
+        o.shadow = f.shadow.as_ref().map(shadow_from_file);
+    }
     o.children = f
         .children
         .iter()

@@ -410,3 +410,17 @@ brand-gradient-fill-hint = This fill is a gradient: change it with Redefine from
 styles-edit = Edit Style…
 styles-name-empty = Enter a name for the style.
 styles-name-taken = Another graphic style already has this name.
+
+## Drop shadow
+inspector-add-shadow = + Add a shadow
+inspector-shadow = Shadow
+inspector-shadow-summary = { $x } / { $y } · { $blur }
+inspector-shadow-summary-full = Offset { $x } / { $y }, blur { $blur }
+inspector-shadow-remove = Remove shadow
+shadow-opacity = Shadow opacity
+shadow-offset-x = Offset X
+shadow-offset-y = Offset Y
+shadow-blur = Blur
+undo-add-shadow = Add Shadow
+undo-change-shadow = Change Shadow
+undo-remove-shadow = Remove Shadow

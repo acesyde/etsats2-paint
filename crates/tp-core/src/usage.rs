@@ -3,7 +3,7 @@
 //! before it is made.
 //!
 //! One walk over the textures counts everything. A swatch changes the
-//! objects whose fill, stroke or gradient stops link to it, and each
+//! objects whose fill, stroke, shadow or gradient stops link to it, and each
 //! instance of a symbol whose content has such an object (the instance
 //! counts once). A style changes the objects that follow it, and the
 //! instances whose symbol content follows it. Objects inside groups count
@@ -98,6 +98,7 @@ impl Links {
         if let Some(s) = &o.stroke {
             self.paint(&s.paint, s.swatch);
         }
+        self.swatches.extend(o.shadow.and_then(|s| s.swatch));
         self.styles.extend(o.style);
         self.styles.extend(o.text.as_ref().and_then(|t| t.style_id));
     }

@@ -8,6 +8,7 @@ pub mod colors;
 pub mod layers;
 pub mod line_style;
 pub mod properties;
+pub mod shadow;
 pub mod stroke;
 pub mod styles;
 pub mod symbols;

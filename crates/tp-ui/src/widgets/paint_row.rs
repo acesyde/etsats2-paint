@@ -3,10 +3,11 @@ use egui::{
     Vec2, WidgetInfo, WidgetText, WidgetType,
 };
 
+use super::IconButton;
 use super::color_widgets::paint_swatch;
 use super::{SwatchColor, paint_focus_ring};
 use crate::icons;
-use crate::tokens::{color, radius, space, stroke, typography};
+use crate::tokens::{color, radius, size, space, stroke, typography};
 
 /// Height of a paint row.
 pub const PAINT_ROW_HEIGHT: f32 = 32.0;
@@ -15,7 +16,8 @@ pub const PAINT_ROW_HEIGHT: f32 = 32.0;
 /// paint's swatch, the row's name and its value ("#5B8DEF", a linked
 /// swatch's name, "Linear", "Mixed"). The swatch side opens the color
 /// popover; an optional summary at the right end ("6 px · Outside") opens
-/// the row's own settings.
+/// the row's own settings, and an optional icon button at the very end
+/// (the Shadow row's remove button) acts on the row.
 ///
 /// The row the color editor targets is outlined, and reported as selected
 /// to assistive technology, so the target does not rely on color alone. A
@@ -28,6 +30,8 @@ pub struct PaintRow<'a> {
     linked: bool,
     target: bool,
     summary: Option<(&'a str, &'a str)>,
+    action: Option<(&'a str, &'a str)>,
+    hover: Option<&'a str>,
 }
 
 /// What a [`PaintRow`] reports.
@@ -38,6 +42,8 @@ pub struct PaintRowResponse {
     pub swatch: Response,
     /// The summary at the right end, when the row has one.
     pub summary: Option<Response>,
+    /// The icon button at the right end, when the row has one.
+    pub action: Option<Response>,
 }
 
 impl<'a> PaintRow<'a> {
@@ -52,6 +58,8 @@ impl<'a> PaintRow<'a> {
             linked: false,
             target: false,
             summary: None,
+            action: None,
+            hover: None,
         }
     }
 
@@ -74,12 +82,38 @@ impl<'a> PaintRow<'a> {
         self
     }
 
+    /// An icon button at the right end, inside the row (`icon`, accessible
+    /// name and tooltip `name`).
+    pub fn action(mut self, icon: &'a str, name: &'a str) -> Self {
+        self.action = Some((icon, name));
+        self
+    }
+
+    /// The tooltip of the swatch side, instead of the accessible name (the
+    /// full text of a shortened value).
+    pub fn hover_text(mut self, text: &'a str) -> Self {
+        self.hover = Some(text);
+        self
+    }
+
     pub fn show(self, ui: &mut Ui) -> PaintRowResponse {
         let (row, _) = ui.allocate_exact_size(
             Vec2::new(ui.available_width(), PAINT_ROW_HEIGHT),
             Sense::hover(),
         );
         let mono = egui::FontId::monospace(typography::CAPTION);
+
+        // The action button at the very end, then the summary before it.
+        let action_rect = self.action.map(|_| {
+            Rect::from_min_size(
+                egui::pos2(
+                    row.right() - 4.0 - size::HIT_MIN,
+                    row.center().y - size::HIT_MIN / 2.0,
+                ),
+                Vec2::splat(size::HIT_MIN),
+            )
+        });
+        let end = action_rect.map_or(row.right() - 2.0, |r| r.left() - 2.0);
 
         // The summary first: the swatch side takes what is left.
         let summary = self.summary.map(|(text, name)| {
@@ -88,8 +122,8 @@ impl<'a> PaintRow<'a> {
                     .layout_no_wrap(text.to_owned(), mono.clone(), color::TEXT_SECONDARY);
             let width = galley.size().x + 2.0 * space::SM;
             let rect = Rect::from_min_max(
-                egui::pos2(row.right() - width - 2.0, row.top() + 3.0),
-                egui::pos2(row.right() - 2.0, row.bottom() - 3.0),
+                egui::pos2(end - width, row.top() + 3.0),
+                egui::pos2(end, row.bottom() - 3.0),
             );
             let response = ui.interact(
                 rect,
@@ -105,7 +139,10 @@ impl<'a> PaintRow<'a> {
         });
         let swatch_side = match &summary {
             Some((rect, ..)) => Rect::from_min_max(row.min, egui::pos2(rect.left(), row.max.y)),
-            None => row,
+            None => match action_rect {
+                Some(rect) => Rect::from_min_max(row.min, egui::pos2(rect.left(), row.max.y)),
+                None => row,
+            },
         };
         let swatch = ui.interact(
             swatch_side,
@@ -213,10 +250,15 @@ impl<'a> PaintRow<'a> {
             }
             response
         });
+        let action = self
+            .action
+            .zip(action_rect)
+            .map(|((icon, name), rect)| ui.put(rect, IconButton::new(icon, name)));
         PaintRowResponse {
             row,
-            swatch: swatch.on_hover_text(self.name),
+            swatch: swatch.on_hover_text(self.hover.unwrap_or(self.name)),
             summary,
+            action,
         }
     }
 }

@@ -33,6 +33,8 @@ pub mod project_io;
 pub mod recent_thumbnails;
 pub mod recovery;
 pub mod saver;
+pub mod shadow_cache;
+pub mod shadow_ops;
 pub mod snap;
 pub mod state;
 pub mod surface_thumbnails;

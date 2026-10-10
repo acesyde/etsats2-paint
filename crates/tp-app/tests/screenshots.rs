@@ -2836,3 +2836,137 @@ fn render_command_palette_long_texts() {
     save_stepped(&mut h, "palette_long_textures_only");
     tp_i18n::set_lengthening(0);
 }
+
+/// The lettering scene with drop shadows: a dark, soft shadow under the
+/// title and a wide, blurred one under the PNG logo. Returns the title,
+/// the logo and the phone number (no shadow), after the shadow renders.
+fn shadow_scene(
+    h: &mut egui_kittest::Harness<'static, tp_app::AppState>,
+) -> [tp_core::document::ObjectId; 3] {
+    use tp_core::document::{Rgba, Shadow};
+    use tp_core::kurbo::Vec2 as DocVec;
+    let ids = lettering_scene(h);
+    let (title, phone, logo) = (ids[0], ids[1], ids[4]);
+    {
+        let ws = h.state_mut().workspace_mut().unwrap();
+        let shadowed = |id, shadow| {
+            let mut o = (**ws.project.surface().get(id).unwrap()).clone();
+            o.shadow = Some(shadow);
+            o
+        };
+        let title = shadowed(
+            title,
+            Shadow {
+                color: Rgba::rgb(0x15, 0x15, 0x18),
+                opacity: 0.7,
+                offset: DocVec::new(24.0, 24.0),
+                blur: 16.0,
+                ..Shadow::DEFAULT
+            },
+        );
+        let logo = shadowed(
+            logo,
+            Shadow {
+                opacity: 0.6,
+                offset: DocVec::new(40.0, 48.0),
+                blur: 60.0,
+                ..Shadow::DEFAULT
+            },
+        );
+        ws.project.surface_mut().replace(&[title, logo]);
+    }
+    wait_for_images(h);
+    common::settle_renders(h);
+    [title, logo, phone]
+}
+
+/// Saves once the shadow and thumbnail renders are done.
+fn save_shadowed(h: &mut egui_kittest::Harness<'static, tp_app::AppState>, name: &str) {
+    common::settle_renders(h);
+    save(h, name);
+}
+
+/// Drop shadows in the Workshop, as on macOS, in English and German at
+/// 100 % and 200 %: the shadowed lettering and logo with nothing selected,
+/// the title selected (the Shadow row), its shadow popover open, the logo
+/// selected, and the phone number selected (+ Add a shadow). Then, in
+/// English, the title and the logo zoomed in, the shadow under each.
+/// Files are named `shadow_<language>_<screen>_<scale>.png`.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_drop_shadow() {
+    use tp_i18n::Language;
+    let popover = tp_app::ui::workspace::inspector::shadow_popover();
+    for language in [Language::English, Language::German] {
+        for (scale, suffix) in [(1.0, "100"), (2.0, "200")] {
+            let code = language.code();
+            let name = |screen: &str| format!("shadow_{code}_{screen}_{suffix}");
+            let mut prefs = Prefs {
+                ui_scale: scale,
+                ..Prefs::default()
+            };
+            prefs.set_language(Some(language));
+            let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+            let mut h = common::wgpu_harness_with(prefs, size);
+            mac_native(&mut h);
+            common::create_project(&mut h);
+            let [title, logo, phone] = shadow_scene(&mut h);
+            save_shadowed(&mut h, &name("workshop"));
+            h.state_mut().workspace_mut().unwrap().selection = vec![title];
+            save_shadowed(&mut h, &name("text"));
+            tp_ui::widgets::Popover::open(&h.ctx, popover);
+            save_shadowed(&mut h, &name("popover"));
+            h.key_press(egui::Key::Escape);
+            h.run();
+            h.state_mut().workspace_mut().unwrap().selection = vec![logo];
+            save_shadowed(&mut h, &name("image"));
+            h.state_mut().workspace_mut().unwrap().selection = vec![phone];
+            save_shadowed(&mut h, &name("add"));
+        }
+    }
+    let mut h = common::wgpu_harness_with(Prefs::default(), Vec2::new(1440.0, 900.0));
+    mac_native(&mut h);
+    common::create_project(&mut h);
+    shadow_scene(&mut h);
+    for (zoom, center, name) in [
+        (1.0, (1500.0, 1450.0), "shadow_zoom_text"),
+        (1.0, (3000.0, 1300.0), "shadow_zoom_image"),
+    ] {
+        {
+            let view = h
+                .state_mut()
+                .workspace_mut()
+                .unwrap()
+                .viewport
+                .as_mut()
+                .unwrap();
+            view.center = tp_core::kurbo::Point::new(center.0, center.1);
+            view.set_zoom_centered(zoom);
+        }
+        h.step();
+        wait_for_images(&mut h);
+        save_shadowed(&mut h, name);
+    }
+}
+
+/// The Shadow row and its popover with every interface text 40 % longer,
+/// in English at 100 %: the title selected, its popover open, and the
+/// phone number selected (+ Add a shadow).
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_drop_shadow_long_texts() {
+    tp_i18n::set_lengthening(40);
+    let mut h = common::wgpu_harness_with(Prefs::default(), Vec2::new(1440.0, 900.0));
+    mac_native(&mut h);
+    common::create_project(&mut h);
+    let [title, _, phone] = shadow_scene(&mut h);
+    h.state_mut().workspace_mut().unwrap().selection = vec![title];
+    save_shadowed(&mut h, "shadow_long_text");
+    tp_ui::widgets::Popover::open(&h.ctx, tp_app::ui::workspace::inspector::shadow_popover());
+    save_shadowed(&mut h, "shadow_long_popover");
+    h.key_press(egui::Key::Escape);
+    h.run();
+    h.state_mut().workspace_mut().unwrap().selection = vec![phone];
+    save_shadowed(&mut h, "shadow_long_add");
+    tp_i18n::set_lengthening(0);
+}

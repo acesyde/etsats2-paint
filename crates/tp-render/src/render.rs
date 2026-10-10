@@ -9,8 +9,8 @@ use resvg::tiny_skia::{
 };
 use resvg::usvg;
 use tp_core::document::{
-    self as doc, AssetId, Frame, GradientKind, LineStyle, Object, Rgba, ShapeKind, stroke_region,
-    tree,
+    self as doc, AssetId, DEFAULT_MITER_LIMIT, Frame, GradientKind, LineStyle, Object, Rgba,
+    ShapeKind, stroke_region, tree,
 };
 use tp_core::kurbo::{Affine, BezPath, PathEl, Rect, Shape, Vec2};
 use tp_core::{Asset, AssetKind, Project};
@@ -73,7 +73,7 @@ fn skia_transform(a: Affine) -> Transform {
 
 /// Document-space geometry of a shape: the filled area, the outline the
 /// stroke follows, and the lines of a path's open subpaths with their width.
-struct Outline {
+pub(crate) struct Outline {
     fill: BezPath,
     stroke: BezPath,
     lines: Option<(BezPath, f64)>,
@@ -94,6 +94,44 @@ impl Outline {
             stroke: object.stroke_path(),
             lines: object.line_path(),
         }
+    }
+
+    /// The same outline moved by `v`.
+    pub(crate) fn translated(&self, v: Vec2) -> Self {
+        let t = Affine::translate(v);
+        Self {
+            fill: t * self.fill.clone(),
+            stroke: t * self.stroke.clone(),
+            lines: self.lines.as_ref().map(|(l, w)| (t * l.clone(), *w)),
+        }
+    }
+
+    /// The area `object` covers when drawn with this outline: the paths'
+    /// bounds grown by what strokes, line widths and miter joins add.
+    pub(crate) fn drawn_bounds(&self, object: &Object) -> Rect {
+        let stroke = object
+            .stroke
+            .filter(|s| s.width > 0.0 && s.paint.is_visible());
+        // A miter reaches `miter_limit` half-widths out; tiny-skia's default
+        // stroke uses 4.
+        let reach = |line: &LineStyle| line.miter_limit.max(DEFAULT_MITER_LIMIT);
+        let mut bounds = self.fill.bounding_box();
+        if let Some(s) = stroke {
+            // Outside strokes are a full width out.
+            let grow = s.width * reach(&s.line);
+            bounds = bounds.union(self.stroke.bounding_box().inflate(grow, grow));
+        }
+        if let Some((lines, width)) = &self.lines {
+            let line = object
+                .path
+                .as_ref()
+                .map(|p| p.line_style)
+                .unwrap_or_default();
+            let casing = stroke.map_or(0.0, |s| s.width);
+            let grow = (width / 2.0 + casing) * reach(&line);
+            bounds = bounds.union(lines.bounding_box().inflate(grow, grow));
+        }
+        bounds
     }
 }
 
@@ -235,7 +273,7 @@ fn draw_path(pixmap: &mut Pixmap, outline: &Outline, object: &Object, opacity: f
 
 /// Decoded assets for the duration of a render.
 #[derive(Default)]
-struct AssetCache {
+pub(crate) struct AssetCache {
     raster: HashMap<AssetId, Option<Arc<image::RgbaImage>>>,
     svg: HashMap<AssetId, Option<Arc<usvg::Tree>>>,
 }
@@ -368,6 +406,89 @@ fn draw_image(
     );
 }
 
+/// What drawing objects one by one keeps between them: glyph outlines and
+/// decoded images. Keep one for a series of renders of the same project
+/// (the canvas's shadow layers); it holds no reference to the project.
+#[derive(Default)]
+pub struct DrawCache {
+    pub(crate) glyphs: GlyphCache,
+    pub(crate) assets: AssetCache,
+}
+
+/// What an object draws: the outline of a shape, a path or a text, or an
+/// image.
+pub(crate) enum Geometry<'a> {
+    Outline(Outline),
+    Image(&'a Asset),
+}
+
+impl<'a> Geometry<'a> {
+    /// The geometry of `object`; `asset` is its image's asset. Groups,
+    /// instances, texts without content and images without their asset
+    /// draw nothing.
+    pub(crate) fn of(
+        object: &Object,
+        asset: Option<&'a Asset>,
+        fonts: &mut FontLibrary,
+        glyphs: &mut GlyphCache,
+    ) -> Option<Self> {
+        match object.kind {
+            ShapeKind::Rectangle { .. } | ShapeKind::Ellipse | ShapeKind::Polygon { .. } => {
+                Some(Self::Outline(Outline::same(object.path())))
+            }
+            ShapeKind::Path => Some(Self::Outline(Outline::of(object))),
+            ShapeKind::Text => {
+                let block = object.text.as_ref()?;
+                let layout = tp_text::layout(fonts, &block.content, &block.style);
+                let outline = layout_to_doc(object) * glyphs.outline(fonts, &layout);
+                Some(Self::Outline(Outline::same(outline)))
+            }
+            ShapeKind::Image { .. } => asset.map(Self::Image),
+            ShapeKind::Group | ShapeKind::Instance { .. } => None,
+        }
+    }
+
+    /// The document area `object` covers when drawn.
+    pub(crate) fn drawn_bounds(&self, object: &Object) -> Rect {
+        match self {
+            Self::Outline(outline) => outline.drawn_bounds(object),
+            Self::Image(_) => object.frame.bounding_box(),
+        }
+    }
+
+    /// The same geometry moved by `v` (`object` must be moved with it).
+    pub(crate) fn translated(&self, v: Vec2) -> Self {
+        match self {
+            Self::Outline(outline) => Self::Outline(outline.translated(v)),
+            Self::Image(asset) => Self::Image(asset),
+        }
+    }
+
+    /// Draws `object` with this geometry, `scale` mapping the document to
+    /// pixels.
+    pub(crate) fn draw(
+        &self,
+        pixmap: &mut Pixmap,
+        object: &Object,
+        opacity: f32,
+        scale: f64,
+        assets: &mut AssetCache,
+    ) {
+        match self {
+            Self::Outline(outline) => draw_path(pixmap, outline, object, opacity, scale),
+            Self::Image(asset) => draw_image(pixmap, object, asset, opacity, scale, assets),
+        }
+    }
+}
+
+/// The asset `object` shows, if it is an image.
+fn asset_of<'a>(project: &'a Project, object: &Object) -> Option<&'a Asset> {
+    match object.kind {
+        ShapeKind::Image { asset } => project.assets.get(&asset).map(|a| &**a),
+        _ => None,
+    }
+}
+
 /// Renders surface `surface` of `project`. `progress(done, total)` is called
 /// after each object; returning false cancels.
 pub fn render(
@@ -386,43 +507,33 @@ pub fn render(
         return Ok(pixmap);
     };
     let scale = f64::from(size) / surface.size;
+    let clip = Rect::new(0.0, 0.0, surface.size, surface.size);
     let objects = tree::draw_list(&surface.objects);
     let total = objects.len();
-    let mut glyphs = GlyphCache::default();
-    let mut assets = AssetCache::default();
+    let mut cache = DrawCache::default();
     for (i, (object, opacity)) in objects.iter().enumerate() {
-        match object.kind {
-            ShapeKind::Rectangle { .. } | ShapeKind::Ellipse | ShapeKind::Polygon { .. } => {
-                draw_path(
-                    &mut pixmap,
-                    &Outline::same(object.path()),
-                    object,
-                    *opacity,
-                    scale,
+        let asset = asset_of(project, object);
+        if let Some(geometry) = Geometry::of(object, asset, fonts, &mut cache.glyphs) {
+            // The shadow goes just under its object.
+            if let Some(layer) = crate::shadow::layer_of(
+                &geometry,
+                object,
+                *opacity,
+                scale,
+                Some(clip),
+                &mut cache.assets,
+            ) {
+                let at = layer.origin.to_vec2() * scale;
+                pixmap.draw_pixmap(
+                    at.x.round() as i32,
+                    at.y.round() as i32,
+                    layer.pixmap.as_ref(),
+                    &PixmapPaint::default(),
+                    Transform::identity(),
+                    None,
                 );
             }
-            ShapeKind::Path => {
-                draw_path(&mut pixmap, &Outline::of(object), object, *opacity, scale);
-            }
-            ShapeKind::Text => {
-                if let Some(block) = &object.text {
-                    let layout = tp_text::layout(fonts, &block.content, &block.style);
-                    let outline = layout_to_doc(object) * glyphs.outline(fonts, &layout);
-                    draw_path(
-                        &mut pixmap,
-                        &Outline::same(outline),
-                        object,
-                        *opacity,
-                        scale,
-                    );
-                }
-            }
-            ShapeKind::Image { asset } => {
-                if let Some(asset) = project.assets.get(&asset) {
-                    draw_image(&mut pixmap, object, asset, *opacity, scale, &mut assets);
-                }
-            }
-            ShapeKind::Group | ShapeKind::Instance { .. } => {}
+            geometry.draw(&mut pixmap, object, *opacity, scale, &mut cache.assets);
         }
         if !progress(i + 1, total) {
             return Err(Cancelled);

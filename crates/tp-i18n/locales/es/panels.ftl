@@ -410,3 +410,17 @@ brand-gradient-fill-hint = Este relleno es un degradado: cámbielo con Redefinir
 styles-edit = Editar estilo…
 styles-name-empty = Escriba un nombre para el estilo.
 styles-name-taken = Otro estilo gráfico ya tiene este nombre.
+
+## Drop shadow
+inspector-add-shadow = + Añadir una sombra
+inspector-shadow = Sombra
+inspector-shadow-summary = { $x } / { $y } · { $blur }
+inspector-shadow-summary-full = Desplazamiento { $x } / { $y }, desenfoque { $blur }
+inspector-shadow-remove = Quitar sombra
+shadow-opacity = Opacidad de la sombra
+shadow-offset-x = Desplazamiento X
+shadow-offset-y = Desplazamiento Y
+shadow-blur = Desenfoque
+undo-add-shadow = Añadir sombra
+undo-change-shadow = Cambiar sombra
+undo-remove-shadow = Quitar sombra

@@ -1151,3 +1151,89 @@ fn unmirrored_objects_write_nothing_new() {
         "the fixture is unchanged"
     );
 }
+
+// ── Shadows ─────────────────────────────────────────────────────────────
+
+const NIGHT: Rgba = Rgba::rgb(10, 10, 30);
+
+#[test]
+fn shadow_saved_and_reopened() {
+    use tp_core::document::Shadow;
+    let mut p = plain_project();
+    let (night, _) = p.add_swatch(NIGHT, "Color");
+    p.rename_swatch(night, "Night");
+    let shadow = Shadow {
+        color: NIGHT,
+        swatch: Some(night),
+        opacity: 0.6,
+        offset: Vec2::new(4.0, 6.0),
+        blur: 12.0,
+    };
+    let mut text = Object::new(
+        ObjectId(0),
+        ShapeKind::Text,
+        Frame::new(Point::new(500.0, 500.0), Size::new(600.0, 120.0), 0.0),
+    );
+    text.text = Some(TextBlock::new("ACE", CharStyle::default()));
+    text.shadow = Some(shadow);
+    let text = p.add(text);
+    let graphic = p.new_graphic_style(text, "Style").unwrap();
+    let lettering = p.new_text_style(text, "Text style").unwrap();
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap())
+        .unwrap()
+        .project;
+    assert_same_document(&p, &opened);
+    assert_eq!(opened.surface().get(text).unwrap().shadow, Some(shadow));
+    assert_eq!(
+        opened.graphic_style(graphic).unwrap().look.shadow,
+        Some(shadow)
+    );
+    assert_eq!(
+        opened.text_style(lettering).unwrap().look.shadow,
+        Some(shadow)
+    );
+}
+
+#[test]
+fn files_without_shadows_open_and_save_without_them() {
+    let fixture = std::fs::read(fixture(1)).unwrap();
+    let opened = tp_file::from_bytes(&fixture).unwrap().project;
+    fn none(list: &[Arc<Object>]) -> bool {
+        list.iter().all(|o| o.shadow.is_none() && none(&o.children))
+    }
+    assert!(opened.surfaces.iter().all(|s| none(&s.objects)));
+    assert!(opened.symbols.iter().all(|s| none(&s.surface.objects)));
+    assert!(
+        opened
+            .graphic_styles
+            .iter()
+            .all(|s| s.look.shadow.is_none())
+    );
+    assert!(opened.text_styles.iter().all(|s| s.look.shadow.is_none()));
+    let written = document_text(&tp_file::to_bytes(&opened).unwrap());
+    assert!(!written.contains("shadow"));
+}
+
+#[test]
+fn shadow_values_are_clamped_on_opening() {
+    let mut p = plain_project();
+    let mut o = Object::new(
+        ObjectId(0),
+        ShapeKind::rectangle(),
+        Frame::new(Point::new(500.0, 500.0), Size::new(100.0, 100.0), 0.0),
+    );
+    o.shadow = Some(tp_core::document::Shadow {
+        blur: 10_000.0,
+        opacity: 4.0,
+        offset: Vec2::new(5000.0, -3.0),
+        ..tp_core::document::Shadow::DEFAULT
+    });
+    let id = p.add(o);
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap())
+        .unwrap()
+        .project;
+    let s = opened.surface().get(id).unwrap().shadow.unwrap();
+    assert_eq!(s.blur, 200.0);
+    assert_eq!(s.opacity, 1.0);
+    assert_eq!(s.offset, Vec2::new(1000.0, -3.0));
+}

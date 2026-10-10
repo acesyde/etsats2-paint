@@ -7,6 +7,7 @@ use kurbo::{Affine, BezPath, Ellipse, PathEl, Point, Rect, RoundedRect, Shape, S
 use super::color::{DEFAULT_FILL, Rgba};
 use super::paint::Paint;
 use super::path::{Node, PathData, Subpath, polygon_points};
+use super::shadow::Shadow;
 
 /// Smallest width or height an object may have, in texture pixels.
 pub const MIN_SIZE: f64 = 1.0;
@@ -366,6 +367,9 @@ pub struct Object {
     /// (see [`Object::content_affine`]). Always false for other kinds,
     /// whose geometry carries mirrors.
     pub mirrored: bool,
+    /// The drop shadow; always `None` for groups and instances (see
+    /// [`Object::takes_shadow`]).
+    pub shadow: Option<Shadow>,
 }
 
 impl Object {
@@ -387,6 +391,7 @@ impl Object {
             text: None,
             path: None,
             mirrored: false,
+            shadow: None,
         }
     }
 
@@ -542,6 +547,12 @@ impl Object {
 
     pub fn is_instance(&self) -> bool {
         self.kind.is_instance()
+    }
+
+    /// Whether the object can have a drop shadow: shapes, paths, texts and
+    /// images, not groups or instances.
+    pub fn takes_shadow(&self) -> bool {
+        !self.has_content()
     }
 
     /// Whether the object's children are drawn and measured (a group or an

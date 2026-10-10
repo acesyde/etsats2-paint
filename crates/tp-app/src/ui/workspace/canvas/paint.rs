@@ -75,7 +75,11 @@ pub fn paint(
     // Objects, bottom to top, culled to the visible area.
     let bucket = zoom_bucket(f64::from(map.scale));
     let draw_list = tp_core::document::tree::draw_list(&surface.objects);
+    let zoom = f64::from(map.scale * ui.ctx().pixels_per_point());
+    ws.shadows.begin_frame(ui.ctx(), ws.text.fonts.generation());
     for (object, opacity) in &draw_list {
+        // The shadow first, just under its object.
+        draw_shadow(&painter, ws, object, *opacity, map, area, zoom, now);
         let bounds = screen_rect(map, object.frame.bounding_box());
         if !bounds.intersects(area) {
             continue;
@@ -101,6 +105,8 @@ pub fn paint(
             }
         }
     }
+
+    ws.shadows.end_frame(ui.ctx(), &ws.text.fonts);
 
     draw_template(ui.ctx(), &painter, ws, map);
     draw_grid_and_guides(&painter, ws, map, area);
@@ -248,6 +254,46 @@ fn draw_grid_and_guides(painter: &Painter, ws: &Workspace, map: &ScreenMap, area
     {
         let guide = tp_core::Guide::new(*axis, *position);
         super::aids::paint_guide(painter, map, area, &guide, tokens::GUIDE);
+    }
+}
+
+/// Draws the shadow of `object`, if it has one and it may show in `area`:
+/// its cached layer, rendered in the background when missing.
+#[allow(clippy::too_many_arguments)]
+fn draw_shadow(
+    painter: &Painter,
+    ws: &mut Workspace,
+    object: &Object,
+    opacity: f32,
+    map: &ScreenMap,
+    area: Rect,
+    zoom: f64,
+    now: f64,
+) {
+    let Some(shadow) = object.shadow.filter(|_| object.takes_shadow()) else {
+        return;
+    };
+    // Where the shadow can reach: the object moved by the offset, grown by
+    // its stroke or line and by the blur's spread.
+    let grow = object.stroke.map_or(0.0, |s| s.width)
+        + object.path.as_ref().map_or(0.0, |p| p.line_width)
+        + 1.5 * shadow.blur
+        + 2.0;
+    let reach = (object.frame.bounding_box() + shadow.offset).inflate(grow, grow);
+    if !screen_rect(map, reach).intersects(area) {
+        return;
+    }
+    let asset = match object.kind {
+        ShapeKind::Image { asset } => ws.project.assets.get(&asset).cloned(),
+        _ => None,
+    };
+    if let Some(layer) = ws.shadows.layer(object, opacity, zoom, asset.as_ref(), now) {
+        painter.image(
+            layer.texture,
+            screen_rect(map, layer.rect),
+            Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
+            Color32::WHITE,
+        );
     }
 }
 

@@ -220,3 +220,24 @@ fn logo_named(p: &mut Project, name: &str) -> SymbolId {
     p.rename_symbol(id, name);
     id
 }
+
+#[test]
+fn through_a_shadow() {
+    let (mut p, _) = fleet();
+    let (night, _) = p.add_swatch(Rgba::rgb(10, 10, 30), "Night");
+    let mut t = rect();
+    t.kind = ShapeKind::Text;
+    t.text = Some(TextBlock::new("ACE", CharStyle::default()));
+    t.shadow = Some(crate::document::Shadow {
+        color: Rgba::rgb(10, 10, 30),
+        swatch: Some(night),
+        ..crate::document::Shadow::DEFAULT
+    });
+    add_on(&mut p, 0, t.clone());
+    let count = p.usage().swatch(night).clone();
+    assert_eq!((count.objects, count.textures()), (1, 1));
+    // Inside a symbol's content, each instance counts.
+    let logo = logo(&mut p, vec![t]);
+    place(&mut p, logo, 1);
+    assert_eq!(p.usage().swatch(night).objects, 2);
+}
