@@ -8,7 +8,7 @@ Tells the player how far an edit to a shared element reaches before it is made: 
 ### Requirement: Usage of shared elements
 Each swatch, graphic style and text style SHALL have a **usage**: the number of objects it changes and the number of textures holding them, over every texture of the project.
 
-- A **swatch** changes an object when the object's fill, stroke or one of its gradient stops is linked to it. It also changes each instance of a symbol whose content has such an object: the instance counts as one object.
+- A **swatch** changes an object when the object's fill, stroke, shadow or one of its gradient stops is linked to it. It also changes each instance of a symbol whose content has such an object: the instance counts as one object.
 - A **style** changes the objects that follow it, including the texts that follow a text style.
 - Objects inside groups count one by one; a group itself is not counted. An instance counts as one object, whatever its content holds.
 - A texture counts once, however many of its objects are counted.
@@ -40,6 +40,10 @@ The usage SHALL read "11 textures · 38 objects", with singular forms for one ("
 #### Scenario: Symbol usage
 - **WHEN** "Logo" has four instances on the Cab and two on the Chassis
 - **THEN** its usage reads "6 instances · 2 textures"
+
+#### Scenario: Through a shadow
+- **WHEN** the only use of "Night" is the shadow of one text on the Cab
+- **THEN** the usage of "Night" reads "1 texture · 1 object"
 
 ### Requirement: Before/after editor
 Editing a swatch or a graphic style SHALL go through a **before/after editor**. It SHALL show:

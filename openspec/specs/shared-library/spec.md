@@ -25,8 +25,8 @@ The library SHALL be written when it changes, completely before it replaces the 
 
 ### Requirement: Add to Library
 The context menu of a symbol, of a swatch and of a style SHALL offer **Add to Library** wherever the element is listed: symbols and styles in the Workshop's Resources tab and in the Brand space; swatches in the palette of the color popover, in the Palette section of the Resources tab, and in the Brand space. It SHALL copy the element into the library with everything it uses:
-- a symbol, with the images its objects show, the swatches their fills, strokes and gradient stops link to, and the styles they follow;
-- a style, with the swatches its look links to;
+- a symbol, with the images its objects show, the swatches their fills, strokes, gradient stops and shadows link to, and the styles they follow;
+- a style, with the swatches its look links to, its shadow's included;
 - a swatch, alone.
 
 The element and each dependency SHALL be linked to their library entry. When the element is already linked to an entry of the library, the item SHALL read **Update in Library** and SHALL replace that entry's content and name with the project's. Dependencies are added the same way: linked entries are updated, and the others are added. Adding to the library SHALL NOT change the project's content and SHALL NOT add an undo step. The library origins it records are saved with the project (the project shows unsaved changes) and are not part of the undo history: Undo and Redo keep them.
@@ -42,6 +42,10 @@ The element and each dependency SHALL be linked to their library entry. When the
 #### Scenario: Same item in every list
 - **WHEN** the swatch "Vert Ardent" was added to the library and the user opens its context menu in the Brand space, then in the color popover's palette
 - **THEN** both menus offer Update in Library
+
+#### Scenario: A shadow's swatch comes along
+- **WHEN** the text style "Titre" has a shadow linked to the swatch "Night" and the user chooses Add to Library on "Titre"
+- **THEN** the library holds "Titre" and "Night"
 
 ### Requirement: Import from Library
 **Import from Library…** SHALL be available when a project is open, except while a symbol is being edited, from three places: the Object menu, a button in the header of the Brand space, and a button in the Workshop's Resources tab. Each SHALL be disabled under the same rule, with a tooltip saying why. It SHALL open a dialog listing the library's symbols, swatches, graphic styles and text styles in four groups, each with its name and a preview (the color for a swatch, the symbol's content for a symbol). Each element has a checkbox:

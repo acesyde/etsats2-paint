@@ -12,14 +12,14 @@ A project SHALL be saved as one `.truckpaint` file containing everything needed 
 - the project's name, game versions and surfaces, with each surface's name and size;
 - the project's vehicles, each with its package id, version, name, brand, kind and game, and its game data: game path, supported game versions, whether it uses the alternate UV set and the colour picker, and the mods it requires;
 - each surface's template: the vehicle and texture it belongs to, whether that texture is a main texture or an accessory, its game ids, its image, opacity, visibility, layout version and status;
-- the full object tree, with every object's identity, name, kind, geometry (including polygon settings, the points and handles of every path subpath with its open or closed state, and the path's line width), fill, stroke, opacity, visibility and lock flags;
+- the full object tree, with every object's identity, name, kind, geometry (including polygon settings, the points and handles of every path subpath with its open or closed state, and the path's line width), fill, stroke, opacity, shadow (color, opacity, offset, blur), visibility and lock flags;
 - each text's content and character style;
 - image references;
 - whether each text and image is mirrored;
 - the guides of each surface;
 - the project palette: each swatch's identity, name and color;
-- the shared styles: each graphic style's identity, name, fill, stroke and opacity, and each text style's identity, name, character style, fill, stroke and opacity;
-- the links: for every solid fill, solid stroke and gradient stop, the swatch it is linked to; for every object, the graphic style and the text style it follows;
+- the shared styles: each graphic style's identity, name, fill, stroke, opacity and shadow, and each text style's identity, name, character style, fill, stroke, opacity and shadow;
+- the links: for every solid fill, solid stroke, gradient stop and shadow, the swatch it is linked to; for every object, the graphic style and the text style it follows;
 - the symbols: each symbol's identity, name, artboard size, guides and content (an object tree, as for a surface);
 - the library origin of each swatch, graphic style, text style and symbol that came from the library or was added to it;
 - each instance's symbol, placement, opacity, visibility, lock and name. An instance's content is not stored: it is rebuilt from its symbol when the file opens;
@@ -73,6 +73,14 @@ A file written before swatches had names SHALL open with each palette color as a
 #### Scenario: Library origins round trip
 - **WHEN** the user imports "Logo Ardent" and "Vert Ardent" from the library, saves the project, closes it and opens it again
 - **THEN** Import from Library… shows both as "In this project"
+
+#### Scenario: Shadow saved and reopened
+- **WHEN** a project with a text whose shadow is linked to "Night" (60%, offset 4 / 6, blur 12) is saved and opened again
+- **THEN** the text has the same shadow, still linked to "Night"
+
+#### Scenario: File without shadows
+- **WHEN** a project file saved before shadows existed is opened
+- **THEN** it opens unchanged, with no object or style having a shadow
 
 ### Requirement: Game data of older files
 When a file without game data for a vehicle is opened, the game data of that vehicle and of its textures SHALL be filled in from the installed package version the vehicle records, if that version is installed. The file SHALL then open marked as having unsaved changes, so the next save stores the data. When that version isn't installed, the project SHALL open as it is and stay fully editable. Only Export Mod reports the missing data (see mod-export).

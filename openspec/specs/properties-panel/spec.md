@@ -83,7 +83,7 @@ The Properties panel SHALL become the **inspector**, on the right of the canvas 
 1. **Header:** the selection summary (see Selection summary) and its symbol actions (see Symbol actions in the header).
 2. **Layout:** position, size, rotation, align, distribute, combine and flip (see the transform-panel capability).
 3. **Text:** the character settings, only when the selection contains texts (see Character settings section).
-4. **Appearance:** opacity, the **Fill** row, the **Stroke** row (see the color-panel and stroke-panel capabilities), the line settings for open paths (see Line settings) and the corner radius for rectangles. Fill and Stroke are left out when they don't apply (images; instances, whose look is edited in the symbol).
+4. **Appearance:** opacity, the **Fill** row, the **Stroke** row (see the color-panel and stroke-panel capabilities), the **Shadow** row or + Add a shadow (see the drop-shadow capability), the line settings for open paths (see Line settings) and the corner radius for rectangles. Fill and Stroke are left out when they don't apply (images; instances, whose look is edited in the symbol). The Shadow row is left out for groups and instances.
 5. **Polygon:** the polygon settings (Sides, Star and, for stars, Inner radius), only when every selected object is a polygon (see Polygon section).
 6. **Style:** the style the selection follows (see Style row), for shapes and texts.
 7. **Image:** the image information, for a single image (see Image information).
@@ -106,7 +106,7 @@ The polygon settings for new polygons are in the Polygon tool's options bar (see
 
 #### Scenario: Sections of an image
 - **WHEN** a single image is selected
-- **THEN** the inspector shows the header, Layout, Appearance with opacity and without Fill and Stroke rows, and Image
+- **THEN** the inspector shows the header, Layout, Appearance with opacity and + Add a shadow but without Fill and Stroke rows, and Image
 
 #### Scenario: Never empty
 - **WHEN** nothing is selected
