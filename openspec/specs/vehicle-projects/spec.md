@@ -200,7 +200,7 @@ The Workshop's **Textures** tab (see the workspace-layout capability) SHALL show
 - **under each vehicle**, its textures in project order:
   - a **Main textures** heading over its chosen main textures (a truck's cabins, a trailer's base);
   - an **Accessories** heading over its chosen accessories, when it has any;
-- **each texture** is one row with a thumbnail of its artwork, its name, its size and a warning icon when it was flagged by an update. The thumbnail SHALL show the texture's current artwork without the template, and follow its edits. The active texture is highlighted without relying on color alone, and clicking a texture makes it active.
+- **each texture** is one row with a thumbnail of its artwork, its name, its size and, at its right end, a marker of its state (see the texture-status capability): a hollow ring for Empty, a filled dot for Modified, and a warning icon in the signal color for To check, so that the states differ by shape and not only by color. Hovering the marker SHALL show the state's label, and for To check why ("Layout changed in <version>" or "Not in this version"); the row's name for assistive technologies SHALL end with the state. The thumbnail SHALL show the texture's current artwork without the template, and follow its edits. The active texture is highlighted without relying on color alone, and clicking a texture makes it active.
 
 Vehicle groups can be collapsed; the active vehicle stays open.
 
@@ -220,7 +220,11 @@ The Project space SHALL offer the same vehicle actions (Add Vehicle…, Textures
 
 #### Scenario: Thumbnail follows the artwork
 - **WHEN** the user draws a red rectangle covering the Chassis texture
-- **THEN** the Chassis row's thumbnail shows the red artwork and no template lines
+- **THEN** the Chassis row's thumbnail shows the red artwork and no template lines, and its marker changes from a hollow ring to a filled dot
+
+#### Scenario: Flagged texture in the tree
+- **WHEN** Update Template to version 1.3.0 flagged the Standard cab texture "Layout changed"
+- **THEN** its row shows the warning icon in the signal color, and hovering it says "To check" and "Layout changed in 1.3.0"
 
 ### Requirement: Template overlay as a view setting
 A surface's template SHALL be drawn on the canvas above the artwork, at the surface's size, as a locked overlay.
@@ -229,7 +233,7 @@ A surface's template SHALL be drawn on the canvas above the artwork, at the surf
 - View › Show Template (G) SHALL toggle the visibility of the active surface's template. The single key G SHALL act only when no text field has keyboard focus, no text is being edited on the canvas and no modal dialog is open.
 - The template SHALL never be exported. It is also left out of the eyedropper and of hit testing.
 
-When an update flagged the active texture, the inspector SHALL say so when nothing is selected (see the properties-panel capability): "Layout changed" with a Dismiss action, or "Not in this version". A surface marked "Not in this version" has no template: the status bar's template settings are disabled for it.
+When an update flagged the active texture, the inspector SHALL say so when nothing is selected (see the properties-panel capability): the texture is To check (see the texture-status capability), because its layout changed, with a **Mark as Checked** action, or because it is not in this version. A surface marked "Not in this version" has no template: the status bar's template settings are disabled for it.
 
 #### Scenario: Hide the template
 - **WHEN** the user presses G on a vehicle project in the Workshop
@@ -246,3 +250,7 @@ When an update flagged the active texture, the inspector SHALL say so when nothi
 #### Scenario: Template is not exported
 - **WHEN** a vehicle project with its template visible is exported to PNG
 - **THEN** the image contains only the artwork
+
+#### Scenario: Hiding the template doesn't check the texture
+- **WHEN** the active texture is To check because its layout changed, and the user hides its template with G
+- **THEN** it is still To check

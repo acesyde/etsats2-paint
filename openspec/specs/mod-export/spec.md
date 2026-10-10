@@ -19,11 +19,12 @@ The dialog SHALL be titled "Export Mod" with the project's name and game below t
 - **the images:** the shop icon and the Mod Manager image (see Mod images);
 - **a summary of the mod:** each vehicle of the project, with the main textures and accessories it paints. For a truck with several main textures, each main texture lists its cabins, and the cabins of textures that aren't painted are listed as "not painted";
 - **the problems that block the export,** if any (see Checks before export), listed just above the buttons, each with an icon and its text;
+- **the warnings about the textures,** if any (see Checks before export), after the problems, each with its own icon and its text;
 - **Cancel** and **Export…**, the primary action.
 
 The dialog SHALL fit German labels without truncation: buttons have free widths and labels sit above their fields.
 
-Export… SHALL be disabled while a problem remains. Cancel (or Escape) SHALL close the dialog and leave the project unchanged, mod settings included.
+Export… SHALL be disabled while a problem remains; warnings SHALL NOT disable it. Cancel (or Escape) SHALL close the dialog and leave the project unchanged, mod settings included.
 
 #### Scenario: Opening the dialog
 - **WHEN** a project named "ACE Logistics" holds the sample truck painting Standard cab, Chassis and Cab accessories, and the user presses Cmd/Ctrl+E
@@ -48,6 +49,10 @@ Export… SHALL be disabled while a problem remains. Cancel (or Escape) SHALL cl
 #### Scenario: Cancel keeps the settings
 - **WHEN** the user changes the Price to 9000 in the dialog and presses Escape
 - **THEN** the dialog closes, the project's price is unchanged and the undo history has no new step
+
+#### Scenario: Warnings don't block
+- **WHEN** a project with no problem has an Empty texture and a texture To check, and the user opens Export Mod…
+- **THEN** the dialog lists both warnings, and Export… is enabled
 
 ### Requirement: Mod settings
 The mod settings SHALL be part of the project and saved with it:
@@ -119,6 +124,8 @@ The dialog SHALL list every problem that blocks the export, each naming what to 
 - one of the project's Game versions isn't supported by a vehicle's package, naming the version, the vehicle and its range;
 - the vehicles have no game version in common, naming two vehicles whose ranges don't overlap and their ranges, and asking to update or remove one of them.
 
+The dialog SHALL also list the project's warnings about its textures, the textures To check and the Empty textures, as the texture-status capability describes (Before exporting warnings). They don't block the export: the Empty textures are exported transparent, and the textures not in their vehicle's version are left out of the mod, as before.
+
 #### Scenario: Empty name
 - **WHEN** the user clears the Name
 - **THEN** the dialog says the mod needs a name, and Export… is disabled
@@ -142,6 +149,14 @@ The dialog SHALL list every problem that blocks the export, each naming what to 
 #### Scenario: No common game version
 - **WHEN** the project holds the sample truck (`>=1.56`) and a custom vehicle "Old Hauler" supporting `<1.55`, and the user opens Export Mod…
 - **THEN** the dialog says that TruckPaint Sample Truck (>=1.56) and Old Hauler (<1.55) have no game version in common and that one of them must be updated or removed, and Export… is disabled
+
+#### Scenario: Empty textures warned
+- **WHEN** a project's High roof texture is Empty and every other texture is Modified, and the user opens Export Mod…
+- **THEN** the dialog warns that High roof is empty and exported with the game's color, and the exported mod still holds a transparent High roof texture
+
+#### Scenario: Texture to check warned
+- **WHEN** a project's Curtain body 13.6 m texture is To check because its layout changed, and the user opens Export Mod…
+- **THEN** the dialog warns "Curtain body 13.6 m: layout changed", and Export… stays enabled when there is no problem
 
 ### Requirement: Destination
 Export… SHALL ask for the destination with a native save dialog, proposing "<Name>.scs", with the characters that can't be used in file names replaced by `-`. The dialog SHALL open in the game's mod folder when that folder exists:
