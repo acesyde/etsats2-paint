@@ -45,7 +45,6 @@
 - Native menus on Windows/Linux.
 - Snap Layouts flyout.
 - Client-side shadows on Wayland.
-- Moving the traffic lights to center them in the 40 px bar: the native position is kept. It is a later polish if needed.
 
 ## Decisions
 
@@ -119,7 +118,7 @@ pub enum TitleBarMode { MacNative, Drawn, System }
 ### 4. macOS bar: top bar in the title strip
 
 - `top_bar::show` gets the mode:
-  - in `MacNative` it starts after a left inset reserving the traffic lights (`eframe::WindowChromeMetrics` if 0.36 exposes it, else a 78 px constant), and is 40 px high;
+  - in `MacNative` it starts after a left inset reserving the traffic lights (`eframe::WindowChromeMetrics` if 0.36 exposes it, else an 80 px constant), and is 40 px high;
   - on the home screen, `ui/home.rs` draws an empty 40 px bar (no menu row).
 - Empty parts of the bar (`ui.interact` on the remaining rect, `Sense::click_and_drag`):
   - `drag_started_by(Primary)` → `ViewportCommand::StartDrag`;
@@ -163,7 +162,7 @@ New keys in en/fr/de/es:
 
 - **Re-injected keys are only as good as the copy of egui-winit's translation.** Copy, Cut and Paste are events, other keys are `Key` events, and egui-winit also sends `Text` for printable keys without Command. Mitigation: only shortcuts with Command or Control are injected (Decision 3), a unit test compares the injected events with egui-winit's for each shortcut, and the macOS manual pass covers copy, paste and undo in text fields.
 - **A disabled item swallows its key.** If our enabled state is wrong, a shortcut silently does nothing on macOS. Mitigation: enabled state comes from `CommandUi::enabled`, the same rule the palette and the egui menus use, plus the text-editing override; and a test asserts that every command in `menus_for(true)` maps to a muda item whose enabled state follows `CommandUi::enabled`.
-- **The traffic lights sit at their native height** (about 28 px strip) in a 40 px bar, so they are slightly high. Accepted for now. Adjusting them means moving `standardWindowButton` frames through objc2 on every resize.
+- **Traffic lights centered by an empty compact toolbar** (`NSToolbar` with `NSWindowToolbarStyle::UnifiedCompact`, set once on the first frame): the title strip becomes 40 points and AppKit keeps the buttons centered after resizes and in full screen. Checked on this Mac: the buttons sit on the bar's center line, and clicks in the strip still reach the top bar. The buttons move 3 points right, so the inset is 80 px.
 - **Drawn title bar on Windows:**
   - no Snap Layouts flyout (Win+Z and dragging to edges still work);
   - the 1 px top border hack of egui-winit;

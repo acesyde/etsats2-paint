@@ -292,7 +292,7 @@ their requirements are in `openspec/specs/`. The most recent ones are:
   has a Use the system title bar option (applied live), and
   `TRUCKPAINT_SYSTEM_TITLE_BAR=1` forces it as a rescue. The Export items
   are under File, and the breadcrumb is only in the canvas. Windows' Snap
-  Layouts flyout and vertically centered traffic lights are left out;
+  Layouts flyout is left out;
 - `brand-edit-preview` (under `polishing`): the Brand space's cards say
   where each element is used (textures and objects for swatches and styles,
   instances and textures for symbols, Unused otherwise); Edit Swatch… and

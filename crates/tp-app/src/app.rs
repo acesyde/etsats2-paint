@@ -7,6 +7,10 @@ pub struct TruckPaintApp {
     /// The menus in the macOS menu bar.
     #[cfg(target_os = "macos")]
     native_menu: crate::native_menu::NativeMenu,
+    /// The traffic lights are centered in the top bar (first frame, once
+    /// the window exists).
+    #[cfg(target_os = "macos")]
+    lights_centered: bool,
 }
 
 impl TruckPaintApp {
@@ -41,12 +45,19 @@ impl TruckPaintApp {
             state,
             #[cfg(target_os = "macos")]
             native_menu,
+            #[cfg(target_os = "macos")]
+            lights_centered: false,
         }
     }
 }
 
 impl eframe::App for TruckPaintApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        #[cfg(target_os = "macos")]
+        if !self.lights_centered {
+            crate::title_bar::center_traffic_lights();
+            self.lights_centered = true;
+        }
         self.state.show(ui);
         #[cfg(target_os = "macos")]
         self.native_menu.sync(ui.ctx(), &self.state);

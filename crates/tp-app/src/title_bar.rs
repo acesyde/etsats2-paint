@@ -10,7 +10,26 @@ pub const SYSTEM_TITLE_BAR_VAR: &str = "TRUCKPAINT_SYSTEM_TITLE_BAR";
 
 /// Width kept for the traffic lights at the left of the macOS title strip,
 /// in native points.
-pub const TRAFFIC_LIGHTS_WIDTH: f32 = 78.0;
+pub const TRAFFIC_LIGHTS_WIDTH: f32 = 80.0;
+
+/// Gives the macOS window an empty compact toolbar: its title strip is
+/// then 40 points high, as the top bar, and AppKit keeps the traffic
+/// lights centered in it, after a resize and in full screen too. Clicks in
+/// the strip still reach the top bar.
+#[cfg(target_os = "macos")]
+pub fn center_traffic_lights() {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{NSApplication, NSToolbar, NSWindowToolbarStyle};
+    let Some(mtm) = MainThreadMarker::new() else {
+        return;
+    };
+    for window in NSApplication::sharedApplication(mtm).windows() {
+        if window.toolbar().is_none() {
+            window.setToolbar(Some(&NSToolbar::new(mtm)));
+            window.setToolbarStyle(NSWindowToolbarStyle::UnifiedCompact);
+        }
+    }
+}
 
 /// How the top of the window is drawn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
