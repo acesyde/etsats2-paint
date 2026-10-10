@@ -66,6 +66,7 @@ The project's styles SHALL be listed in two places: the **Styles** section of th
 - each graphic style is shown with a preview of its fill and stroke and its name;
 - each text style is shown with a preview of its fill and stroke, its name in its own font, weight and italic, and its size;
 - the styles followed by the selection are marked in the link color and with a link icon, so the mark does not rely on color alone;
+- in the Brand space, each style also shows its usage (see the brand-impact capability), as "9 textures · 24 objects" or "Unused";
 - with no style, each list shows a short explanation of what styles are for.
 
 **Creating and applying:**
@@ -76,6 +77,7 @@ The project's styles SHALL be listed in two places: the **Styles** section of th
 
 **Each style's context menu offers:**
 - **Rename**, inline;
+- **Edit Style…**, for graphic styles only: opens the style's before/after editor (see the brand-impact capability) with its name, fill, stroke and opacity. Nothing changes before Apply to Fleet, which records the new look and name as one undo step; every object following the style changes on every texture and keeps following it. Text styles have no editor;
 - **Redefine from Selection**: the style takes the look of the single selected object, and every object following it changes on every texture;
 - **Select Users on This Texture**: selects the objects of the active texture that follow the style;
 - **Delete**: every object keeps its look and stops following the style.
@@ -105,6 +107,14 @@ Every change to styles SHALL be one undo step, and Undo SHALL restore the styles
 #### Scenario: Text style needs a text
 - **WHEN** only a rectangle is selected
 - **THEN** New Style from Selection is disabled for text styles, with a tooltip saying a text must be selected
+
+#### Scenario: Edit a graphic style
+- **WHEN** rectangles on three textures follow "Stripe" and the user chooses Edit Style… on it, sets its opacity to 50% and clicks Apply to Fleet
+- **THEN** the rectangles on the three textures are at 50% opacity and still follow "Stripe", and one Undo restores their opacity
+
+#### Scenario: No editor for text styles
+- **WHEN** the user opens the context menu of the text style "Lettering"
+- **THEN** it offers no Edit Style… item, and Redefine from Selection is still offered
 
 ### Requirement: Style row and links in the inspector
 With a selection of shapes or texts, the inspector SHALL show a **Style** row:
