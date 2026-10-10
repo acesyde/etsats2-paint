@@ -22,7 +22,7 @@ fn open() -> H {
     let mut prefs = Prefs::default();
     prefs.layout.left_tab = tp_app::layout::LeftTab::Resources;
     prefs.view_aids.snapping = false;
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
         .build_ui_state(
             |ui, state: &mut AppState| state.show(ui),

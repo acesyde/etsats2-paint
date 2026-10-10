@@ -39,11 +39,16 @@ fn state(prefs: Prefs) -> AppState {
 /// 4 allows. A UI that never settles still fails, just later.
 const MAX_STEPS: u64 = 32;
 
+/// `Harness::builder()` with the frame budget above: test files that build
+/// their own harness start from this.
+pub fn builder<S>() -> egui_kittest::HarnessBuilder<S> {
+    Harness::builder().with_max_steps(MAX_STEPS)
+}
+
 /// Harness running the whole application with in-memory preferences.
 pub fn harness_with(prefs: Prefs) -> Harness<'static, AppState> {
-    Harness::builder()
+    builder()
         .with_size(SIZE)
-        .with_max_steps(MAX_STEPS)
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state(prefs))
 }
 
@@ -53,9 +58,8 @@ pub fn harness() -> Harness<'static, AppState> {
 
 /// Same, rendering with wgpu (for screenshots).
 pub fn wgpu_harness_with(prefs: Prefs, size: Vec2) -> Harness<'static, AppState> {
-    Harness::builder()
+    builder()
         .with_size(size)
-        .with_max_steps(MAX_STEPS)
         .wgpu()
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state(prefs))
 }

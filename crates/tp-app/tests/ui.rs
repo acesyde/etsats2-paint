@@ -660,7 +660,7 @@ fn plain_tool_key_does_not_fire_with_command_modifier() {
 
 #[test]
 fn typing_in_text_field_does_not_switch_tools() {
-    let mut h = Harness::builder().with_size(common::SIZE).build_ui_state(
+    let mut h = common::builder().with_size(common::SIZE).build_ui_state(
         |ui, (state, text, frames): &mut (AppState, String, u32)| {
             state.show(ui);
             // The theme's fonts are usable from the second frame on.
@@ -744,7 +744,7 @@ fn ui_scale_applies_without_restart() {
 
 #[test]
 fn macos_menus_show_symbol_shortcuts() {
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(common::SIZE)
         .with_os(egui::os::OperatingSystem::Mac)
         .build_ui_state(

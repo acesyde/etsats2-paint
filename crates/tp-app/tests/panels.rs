@@ -26,7 +26,7 @@ fn open() -> H {
 fn open_with_step(step_dt: f32) -> H {
     let mut prefs = Prefs::default();
     prefs.layout.left_tab = tp_app::layout::LeftTab::Layers;
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
         .with_step_dt(step_dt)
         .build_ui_state(
@@ -641,7 +641,7 @@ fn picker_drag_is_one_named_undo_step() {
 fn recent_colors_persist_across_sessions() {
     let dir = tempfile::tempdir().unwrap();
     let store = || Some(PrefsStore::new(dir.path()));
-    let mut h = Harness::builder()
+    let mut h = common::builder()
         .with_size(Vec2::new(1440.0, 2400.0))
         .build_ui_state(
             |ui, state: &mut AppState| state.show(ui),
