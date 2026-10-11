@@ -47,9 +47,9 @@ Each file SHALL become one **texture row**, in the order added, with:
 - **Name:** the file name without its extension, with `_` and `-` shown as spaces (`highline_8x4.dds` gives "highline 8x4"); editable;
 - **Role:** Main texture or Accessory. A row is a main texture when the vehicle has no main texture yet, an accessory otherwise; the player can change it;
 - **Game ids:** empty; editable as a list separated by commas or spaces;
-- **Size:** one of 256, 512, 1024, 2048, 4096 or 8192. It defaults to the image's width when that is one of these sizes, and otherwise to the nearest of them. The player can change it.
+- **Size:** a width and a height, each a power of two from 64 to 8192. They default to the image's width and height, each rounded to the nearest allowed side when it isn't one. The player can change either.
 
-A row SHALL show its file name and the image's dimensions. It SHALL warn when the image is not square, since templates are drawn stretched to the square texture.
+A row SHALL show its file name and the image's dimensions. It SHALL warn when the image's size differs from the texture's size, since the template is then scaled to the texture.
 
 Each row SHALL offer:
 - **Replace…**, which picks another file for that row; dropping a single file on a row does the same;
@@ -59,7 +59,7 @@ A file that can't be read SHALL not become a row. The dialog SHALL name the file
 
 #### Scenario: Drop the game's templates
 - **WHEN** the player drops `cabin.dds` (BC3, 4096×4096) and `mirrors.dds` (BC1, 1024×1024) on an empty dialog
-- **THEN** the dialog lists "cabin" as a main texture of size 4096 and "mirrors" as an accessory of size 1024
+- **THEN** the dialog lists "cabin" as a main texture of size 4096² and "mirrors" as an accessory of size 1024²
 
 #### Scenario: Unsupported DDS
 - **WHEN** the player drops `cabin.png` and `glass.dds`, a BC7 DDS file
@@ -71,7 +71,11 @@ A file that can't be read SHALL not become a row. The dialog SHALL name the file
 
 #### Scenario: Not square
 - **WHEN** the player adds a 4096×2048 PNG
-- **THEN** its row warns that the image is not square and will be stretched
+- **THEN** its row has the size 4096 × 2048 and shows no warning: the texture keeps the image's shape
+
+#### Scenario: Size that isn't a power of two
+- **WHEN** the player adds a 4000×1000 PNG
+- **THEN** its row has the size 4096 × 1024 and warns that the template will be scaled to that size
 
 ### Requirement: Describing the paint job
 The dialog SHALL check the form as the player types and show each problem next to its field. **Create** SHALL be enabled only when there is none:

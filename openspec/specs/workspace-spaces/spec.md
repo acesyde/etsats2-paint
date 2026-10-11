@@ -97,7 +97,7 @@ The top bar SHALL always show an **Export…** button, styled as the primary act
 - **THEN** Export… is disabled and its tooltip says why
 
 ### Requirement: Breadcrumb
-The Workshop SHALL tell which texture is being painted with a breadcrumb `<vehicle> › Main textures|Accessories › <texture>`, followed by the texture's size (`1024²`), grouped as in the Textures tab. It SHALL be inlaid in a corner of the canvas area, where it stays visible whatever left tab is shown and when the panels are hidden. It SHALL follow the active texture as soon as it changes. The inlaid breadcrumb SHALL NOT take pointer input from the canvas.
+The Workshop SHALL tell which texture is being painted with a breadcrumb `<vehicle> › Main textures|Accessories › <texture>`, followed by the texture's size (`1024²`, or `8192 × 1024` when its sides differ), grouped as in the Textures tab. It SHALL be inlaid in a corner of the canvas area, where it stays visible whatever left tab is shown and when the panels are hidden. It SHALL follow the active texture as soon as it changes. The inlaid breadcrumb SHALL NOT take pointer input from the canvas.
 
 While a symbol is being edited, the breadcrumb SHALL read `Symbol › <name>` instead.
 

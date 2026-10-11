@@ -9,7 +9,7 @@ Turns the vector livery into a texture file — PNG, or DDS for Euro Truck Simul
 ### Requirement: Export Texture dialog
 File › Export Texture… (Shift+Cmd/Ctrl+E), available when a project is open, SHALL open a dialog offering:
 - the format: PNG or DDS;
-- the output size: the active surface's size by default, or 1/2 or 1/4 of it;
+- the output size: the active surface's width and height by default, or 1/2 or 1/4 of both;
 - the background: an opaque color (white by default) or transparent;
 - for DDS, the encoding: BC3/DXT5 (default) or uncompressed RGBA.
 
@@ -31,6 +31,10 @@ Confirming SHALL ask for a destination with a native save dialog, then export. T
 - **WHEN** a project is open and the user presses Shift+Cmd/Ctrl+E
 - **THEN** the Export Texture dialog opens, and pressing Cmd/Ctrl+E instead opens the Export Mod dialog
 
+#### Scenario: Rectangular texture
+- **WHEN** the active surface is 8192 × 1024 and the user chooses 1/4
+- **THEN** the dialog shows 2048 × 256, and the exported image is 2048 × 256
+
 ### Requirement: Live preview
 The dialog SHALL show a preview of the image that will be written, updated when the format, size, background or encoding changes, together with the output pixel size, the format and an estimated file size. The preview SHALL be rendered by the same renderer as the export (at a reduced size) and SHALL NOT freeze the dialog.
 
@@ -39,7 +43,7 @@ The dialog SHALL show a preview of the image that will be written, updated when 
 - **THEN** the preview shows a checkerboard where nothing is drawn
 
 ### Requirement: Rendering fidelity
-The exported image SHALL be rendered from the vector document at the chosen size, covering exactly the surface (texture pixel (0,0) to (size,size)), with anti-aliased edges.
+The exported image SHALL be rendered from the vector document at the chosen size, covering exactly the surface (texture pixel (0,0) to (width,height)), with anti-aliased edges.
 
 It SHALL include every visible object in stacking order, drawn with:
 
@@ -76,11 +80,15 @@ Raster images SHALL be resampled smoothly; SVG images SHALL be rendered from the
 - **THEN** the image shows the black shadow 10 px right and below the square, under it, as on the canvas
 
 ### Requirement: DDS for the games
-DDS export SHALL write a standard DDS file of the chosen size with a full mipmap chain down to 1×1, encoded either as BC3 (DXT5, alpha kept) or as uncompressed 32-bit RGBA, loadable by Euro Truck Simulator 2 and American Truck Simulator and common DDS tools.
+DDS export SHALL write a standard DDS file of the chosen width and height with a full mipmap chain down to 1×1 (each side halved until 1), encoded either as BC3 (DXT5, alpha kept) or as uncompressed 32-bit RGBA, loadable by Euro Truck Simulator 2 and American Truck Simulator and common DDS tools.
 
 #### Scenario: DXT5 with mipmaps
 - **WHEN** a 2048×2048 project is exported as DDS with the default encoding
 - **THEN** the file declares DXT5 compression, a 2048×2048 size and 12 mipmap levels
+
+#### Scenario: Rectangular DDS
+- **WHEN** an 8192 × 1024 surface is exported as DDS with the default encoding
+- **THEN** the file declares DXT5, an 8192 × 1024 size and 14 mipmap levels, the last one 1 × 1
 
 ### Requirement: Background export with progress
 Rendering, encoding and writing SHALL run without freezing the editor; while they run, the dialog SHALL show progress and a Cancel button. Cancelling SHALL stop the export and leave no partial file at the destination. When the export finishes, the dialog SHALL close and a confirmation naming the file SHALL be shown; when it fails, a message SHALL name the file and the reason. Exporting SHALL NOT modify the project or its save state.
