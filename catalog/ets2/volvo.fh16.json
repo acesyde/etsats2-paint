@@ -154,10 +154,72 @@
       ],
       "layout_version": 1,
       "ids": [
-        "r_chs_cover.paint_4x",
-        "r_chs_cover.paint_6x",
-        "r_chs_cover.paint_dia_4x",
+        "r_chs_cover.paint_4x"
+      ]
+    },
+    {
+      "id": "chassis_cover_centurion_6x",
+      "name": "Chassis Cover - Centurion (6x)",
+      "file": "Accessories/Chassis Cover - Centurion (6x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.paint_6x"
+      ]
+    },
+    {
+      "id": "chassis_cover_diva_4x",
+      "name": "Chassis Cover - Diva (4x)",
+      "file": "Accessories/Chassis Cover - Diva (4x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.paint_dia_4x"
+      ]
+    },
+    {
+      "id": "chassis_cover_diva_6x",
+      "name": "Chassis Cover - Diva (6x)",
+      "file": "Accessories/Chassis Cover - Diva (6x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
         "r_chs_cover.paint_dia_6x"
+      ]
+    },
+    {
+      "id": "front_mirror_paint_long",
+      "name": "Front Mirror - Paint Long",
+      "file": "Accessories/Front Mirror - Paint Long.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_mirror.paintl"
+      ]
+    },
+    {
+      "id": "front_mirror_paint",
+      "name": "Front Mirror - Paint",
+      "file": "Accessories/Front Mirror - Paint.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_mirror.paint"
       ]
     },
     {
@@ -186,9 +248,7 @@
       "ids": [
         "mirror.led3",
         "mirror.led4",
-        "mirror.shape3",
-        "f_mirror.paint",
-        "f_mirror.paintl"
+        "mirror.shape3"
       ]
     },
     {

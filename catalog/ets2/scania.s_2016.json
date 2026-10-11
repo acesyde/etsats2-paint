@@ -187,9 +187,33 @@
       ],
       "layout_version": 1,
       "ids": [
-        "r_chs_cover.4x2_p",
-        "r_chs_cover.6xn_p",
+        "r_chs_cover.4x2_p"
+      ]
+    },
+    {
+      "id": "chassis_cover_diva_6x_long",
+      "name": "Chassis Cover - Diva (6x Long)",
+      "file": "Accessories/Chassis Cover - Diva (6x Long).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
         "r_chs_cover.6xnl_p"
+      ]
+    },
+    {
+      "id": "chassis_cover_diva_6x_short",
+      "name": "Chassis Cover - Diva (6x Short)",
+      "file": "Accessories/Chassis Cover - Diva (6x Short).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.6xn_p"
       ]
     },
     {
@@ -312,17 +336,41 @@
         "r_fender.4x2_p",
         "r_fender.4x2_spcgr_p",
         "r_fendr_top.4x2_p",
-        "r_fendr_top.low_4x2_p",
-        "r_fender.6x2_blk_p",
-        "r_fender.6x2_p",
-        "r_fender.6x2_spcgr_p",
+        "r_fendr_top.low_4x2_p"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_6x_long",
+      "name": "Rear Fender - Paint (6x Long)",
+      "file": "Accessories/Rear Fender - Paint (6x Long).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
         "r_fender.6x2l_blk_p",
         "r_fender.6x2l_p",
         "r_fender.6x2l_spcgr_p",
-        "r_fendr_top.6x2_p",
-        "r_fendr_top.low_6x2_p",
         "r_fendr_top.6x2l_p",
         "r_fendr_top.low_6x2l_p"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_6x_short",
+      "name": "Rear Fender - Paint (6x Short)",
+      "file": "Accessories/Rear Fender - Paint (6x Short).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.6x2_blk_p",
+        "r_fender.6x2_p",
+        "r_fender.6x2_spcgr_p",
+        "r_fendr_top.6x2_p",
+        "r_fendr_top.low_6x2_p"
       ]
     },
     {
@@ -356,6 +404,90 @@
       ]
     },
     {
+      "id": "sideskirts_paint_stock_i_4x",
+      "name": "Sideskirts - Paint & Stock I (4x)",
+      "file": "Accessories/Sideskirts - Paint & Stock I (4x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.4x2_p_1",
+        "sideskirt.4x2_p_v8_1"
+      ]
+    },
+    {
+      "id": "sideskirts_paint_stock_i_6x_long",
+      "name": "Sideskirts - Paint & Stock I (6x Long)",
+      "file": "Accessories/Sideskirts - Paint & Stock I (6x Long).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.6x2l_p_1",
+        "sideskirt.6x2l_p_v8_1"
+      ]
+    },
+    {
+      "id": "sideskirts_paint_stock_i_6x_short",
+      "name": "Sideskirts - Paint & Stock I (6x Short)",
+      "file": "Accessories/Sideskirts - Paint & Stock I (6x Short).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.6x2_p_1",
+        "sideskirt.6x2_p_v8_1"
+      ]
+    },
+    {
+      "id": "sideskirts_paint_stock_ii_4x",
+      "name": "Sideskirts - Paint & Stock II (4x)",
+      "file": "Accessories/Sideskirts - Paint & Stock II (4x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.4x2_p_2",
+        "sideskirt.4x2_p_v8_2"
+      ]
+    },
+    {
+      "id": "sideskirts_paint_stock_ii_6x_long",
+      "name": "Sideskirts - Paint & Stock II (6x Long)",
+      "file": "Accessories/Sideskirts - Paint & Stock II (6x Long).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.6x2l_p_2",
+        "sideskirt.6x2l_p_v8_2"
+      ]
+    },
+    {
+      "id": "sideskirts_paint_stock_ii_6x_short",
+      "name": "Sideskirts - Paint & Stock II (6x Short)",
+      "file": "Accessories/Sideskirts - Paint & Stock II (6x Short).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.6x2_p_2",
+        "sideskirt.6x2_p_v8_2"
+      ]
+    },
+    {
       "id": "sideskirts_paint_4x",
       "name": "Sideskirts - Paint (4x)",
       "file": "Accessories/Sideskirts - Paint (4x).png",
@@ -366,11 +498,7 @@
       "layout_version": 1,
       "ids": [
         "sideskirt.4x2_p",
-        "sideskirt.4x2_p_1",
-        "sideskirt.4x2_p_2",
-        "sideskirt.4x2_p_v8",
-        "sideskirt.4x2_p_v8_1",
-        "sideskirt.4x2_p_v8_2"
+        "sideskirt.4x2_p_v8"
       ]
     },
     {
@@ -384,11 +512,7 @@
       "layout_version": 1,
       "ids": [
         "sideskirt.6x2l_p",
-        "sideskirt.6x2l_p_1",
-        "sideskirt.6x2l_p_2",
-        "sideskirt.6x2l_p_v8",
-        "sideskirt.6x2l_p_v8_1",
-        "sideskirt.6x2l_p_v8_2"
+        "sideskirt.6x2l_p_v8"
       ]
     },
     {
@@ -402,11 +526,7 @@
       "layout_version": 1,
       "ids": [
         "sideskirt.6x2_p",
-        "sideskirt.6x2_p_1",
-        "sideskirt.6x2_p_2",
-        "sideskirt.6x2_p_v8",
-        "sideskirt.6x2_p_v8_1",
-        "sideskirt.6x2_p_v8_2"
+        "sideskirt.6x2_p_v8"
       ]
     },
     {

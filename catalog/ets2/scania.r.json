@@ -122,8 +122,32 @@
       ],
       "layout_version": 1,
       "ids": [
-        "r_chs_cover.chscmg4x203",
-        "r_chs_cover.chscmg6x203",
+        "r_chs_cover.chscmg4x203"
+      ]
+    },
+    {
+      "id": "chassis_cover_diva_6x_long",
+      "name": "Chassis Cover - Diva (6x Long)",
+      "file": "Accessories/Chassis Cover - Diva (6x Long).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.chscmg6x203"
+      ]
+    },
+    {
+      "id": "chassis_cover_diva_6x_short",
+      "name": "Chassis Cover - Diva (6x Short)",
+      "file": "Accessories/Chassis Cover - Diva (6x Short).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
         "r_chs_cover.chscmg6x2403"
       ]
     },
