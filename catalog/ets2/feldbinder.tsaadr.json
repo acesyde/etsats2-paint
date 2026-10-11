@@ -106,14 +106,10 @@
         "l_body.t_1_p_222",
         "l_body.t_2_p_22",
         "l_body.t_2_p_222",
-        "l_body.t_bp_22",
         "r_body.t_1_p_22",
         "r_body.t_1_p_222",
         "r_body.t_2_p_22",
-        "r_body.t_2_p_222",
-        "r_body.t_bp_22",
-        "l_body.t_bp_32",
-        "r_body.t_bp_32"
+        "r_body.t_2_p_222"
       ]
     },
     {
@@ -149,6 +145,34 @@
       ]
     },
     {
+      "id": "hoses_box_22_3",
+      "name": "Hoses - Box (22.3)",
+      "file": "Accessories/Hoses - Box (22.3).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "l_body.t_bp_22",
+        "r_body.t_bp_22"
+      ]
+    },
+    {
+      "id": "hoses_box_32_3",
+      "name": "Hoses - Box (32.3)",
+      "file": "Accessories/Hoses - Box (32.3).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "l_body.t_bp_32",
+        "r_body.t_bp_32"
+      ]
+    },
+    {
       "id": "rear_fenders_round",
       "name": "Rear Fenders (Round)",
       "file": "Accessories/Rear Fenders (Round).png",
@@ -163,6 +187,20 @@
       ]
     },
     {
+      "id": "rear_sideskirts_22_3",
+      "name": "Rear Sideskirts (22.3)",
+      "file": "Accessories/Rear Sideskirts (22.3).png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_r_l.bp",
+        "chs_r_r.bp"
+      ]
+    },
+    {
       "id": "sideskirts_22_3",
       "name": "Sideskirts (22.3)",
       "file": "Accessories/Sideskirts (22.3).png",
@@ -173,13 +211,9 @@
       "layout_version": 1,
       "ids": [
         "chs_f_l.cage_p_22",
-        "chs_f_l.cagep_bp_22",
         "chs_f_l.cagep_st_22",
         "chs_f_r.cage_p_22",
-        "chs_f_r.cagep_bp_22",
-        "chs_f_r.cagep_st_22",
-        "chs_r_l.bp",
-        "chs_r_r.bp"
+        "chs_f_r.cagep_st_22"
       ]
     },
     {
@@ -193,11 +227,37 @@
       "layout_version": 1,
       "ids": [
         "chs_f_l.cage_p_32",
-        "chs_f_l.cagep_bp_32",
         "chs_f_l.cagep_st_32",
         "chs_f_r.cage_p_32",
-        "chs_f_r.cagep_bp_32",
         "chs_f_r.cagep_st_32"
+      ]
+    },
+    {
+      "id": "sideskirts_box_22_3",
+      "name": "Sideskirts - Box (22.3)",
+      "file": "Accessories/Sideskirts - Box (22.3).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.cagep_bp_22",
+        "chs_f_r.cagep_bp_22"
+      ]
+    },
+    {
+      "id": "sideskirts_box_32_3",
+      "name": "Sideskirts - Box (32.3)",
+      "file": "Accessories/Sideskirts - Box (32.3).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.cagep_bp_32",
+        "chs_f_r.cagep_bp_32"
       ]
     },
     {

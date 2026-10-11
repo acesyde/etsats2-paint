@@ -186,16 +186,100 @@
       "layout_version": 1,
       "ids": [
         "chs_f_l.cage_p_35",
-        "chs_f_l.cagep_st_35",
-        "chs_f_l.cagep_bp_35",
-        "chs_f_r.cage_p_35",
-        "chs_f_r.cagep_st_35",
-        "chs_f_r.cagep_bp_35",
+        "chs_f_l.cagep_st_35"
+      ]
+    },
+    {
+      "id": "sideskirts_left_52",
+      "name": "Sideskirts (Left, 52)",
+      "file": "Accessories/Sideskirts (Left, 52).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
         "chs_f_l.cage_p_52",
-        "chs_f_l.cagep_st_52",
-        "chs_f_l.cagep_bp_52",
+        "chs_f_l.cagep_st_52"
+      ]
+    },
+    {
+      "id": "sideskirts_right_35",
+      "name": "Sideskirts (Right, 35)",
+      "file": "Accessories/Sideskirts (Right, 35).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_r.cage_p_35",
+        "chs_f_r.cagep_st_35"
+      ]
+    },
+    {
+      "id": "sideskirts_right_52",
+      "name": "Sideskirts (Right, 52)",
+      "file": "Accessories/Sideskirts (Right, 52).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
         "chs_f_r.cage_p_52",
-        "chs_f_r.cagep_st_52",
+        "chs_f_r.cagep_st_52"
+      ]
+    },
+    {
+      "id": "sideskirts_box_left_35",
+      "name": "Sideskirts - Box (Left, 35)",
+      "file": "Accessories/Sideskirts - Box (Left, 35).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.cagep_bp_35"
+      ]
+    },
+    {
+      "id": "sideskirts_box_left_52",
+      "name": "Sideskirts - Box (Left, 52)",
+      "file": "Accessories/Sideskirts - Box (Left, 52).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.cagep_bp_52"
+      ]
+    },
+    {
+      "id": "sideskirts_box_right_35",
+      "name": "Sideskirts - Box (Right, 35)",
+      "file": "Accessories/Sideskirts - Box (Right, 35).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_r.cagep_bp_35"
+      ]
+    },
+    {
+      "id": "sideskirts_box_right_52",
+      "name": "Sideskirts - Box (Right, 52)",
+      "file": "Accessories/Sideskirts - Box (Right, 52).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
         "chs_f_r.cagep_bp_52"
       ]
     },
