@@ -213,7 +213,7 @@ fn edit_from_an_instance() {
     let at = screen(&h, 600.0, 800.0);
     double_click_at(&mut h, at);
     assert_eq!(ws(&h).project.editing_symbol, Some(symbol));
-    assert!(h.query_by_label("Editing symbol Symbol 1").is_some());
+    assert!(h.query_by_label("Editing symbol “Symbol 1”").is_some());
     // Recolor the circle in the symbol, then Done.
     let first = ws(&h).project.surface().objects[0].id;
     {
@@ -346,4 +346,32 @@ fn an_instance_in_the_layers_tab() {
         (icon, name),
         (tp_ui::tokens::color::LINK, tp_ui::tokens::color::LINK)
     );
+}
+
+#[test]
+fn inspector_names_the_edited_symbol() {
+    let mut h = open();
+    let (symbol, _) = convert_a_logo(&mut h);
+    let opacity = |h: &H| h.query_by_label("60 %").is_some();
+    assert!(opacity(&h), "the texture's template opacity");
+    run_command(&mut h, CommandId::EditSymbol);
+    ws_mut(&mut h).selection.clear();
+    h.run();
+    let size = ws(&h)
+        .project
+        .symbols
+        .iter()
+        .find(|s| s.id == symbol)
+        .unwrap()
+        .surface
+        .size_label();
+    // The symbol's name, kind and size, not its texture's.
+    let kind = h.get_by_label(&format!("Symbol · {size}")).rect();
+    assert!(
+        h.query_all_by_role_and_label(Role::Label, "Symbol 1")
+            .any(|n| n.rect().left() == kind.left() && n.rect().bottom() <= kind.top())
+    );
+    assert!(h.query_by_label("Main texture · 4096²").is_none());
+    // The template's opacity keeps the texture's value.
+    assert!(opacity(&h));
 }

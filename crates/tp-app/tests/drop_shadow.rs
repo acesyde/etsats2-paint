@@ -178,7 +178,7 @@ fn add_a_shadow() {
     h.get_by_role_and_label(BUTTON, "+ Add a shadow").click();
     h.run();
     assert_eq!(shadow(&h, text), Some(Shadow::DEFAULT));
-    assert_eq!(row_value(&h), "8 / 8 · 8");
+    assert_eq!(row_value(&h), "x 8 · y 8 · blur 8");
     assert!(!has(&h, "+ Add a shadow"));
     ws_mut(&mut h).undo();
     h.run();
@@ -236,7 +236,7 @@ fn mixed_values() {
     type_into(&mut h, "Blur", "12");
     assert_eq!(shadow(&h, a).unwrap().blur, 12.0);
     assert_eq!(shadow(&h, b).unwrap().blur, 12.0);
-    assert_eq!(row_value(&h), "8 / 8 · 12");
+    assert_eq!(row_value(&h), "x 8 · y 8 · blur 12");
 }
 
 #[test]
@@ -296,7 +296,7 @@ fn sections_of_an_image() {
     h.get_by_role_and_label(BUTTON, "+ Add a shadow").click();
     h.run();
     assert_eq!(shadow(&h, image), Some(Shadow::DEFAULT));
-    assert_eq!(row_value(&h), "8 / 8 · 8");
+    assert_eq!(row_value(&h), "x 8 · y 8 · blur 8");
 }
 
 #[test]
@@ -495,4 +495,32 @@ fn same_in_the_export_on_screen() {
         }
     }
     assert!(compared > 20, "{compared} shadow pixels compared");
+}
+
+#[test]
+fn no_target_mark_while_the_shadow_popover_is_open() {
+    let mut h = open();
+    let id = add_rect(
+        &mut h,
+        Point::new(800.0, 800.0),
+        200.0,
+        Some(Shadow::DEFAULT),
+    );
+    select(&mut h, &[id]);
+    ws_mut(&mut h).panels.color_target = tp_app::workspace::ColorTarget::Fill;
+    h.run();
+    let marked = |h: &H, row: &str| {
+        use egui_kittest::kittest::NodeT;
+        h.get_by_role_and_label(BUTTON, row)
+            .accesskit_node()
+            .toggled()
+            == Some(egui::accesskit::Toggled::True)
+    };
+    assert!(marked(&h, "Fill color"));
+    open_popover(&mut h);
+    assert!(!marked(&h, "Fill color") && !marked(&h, "Stroke color"));
+    h.key_press(Key::Escape);
+    h.run();
+    assert!(!popover_open(&h));
+    assert!(marked(&h, "Fill color"));
 }

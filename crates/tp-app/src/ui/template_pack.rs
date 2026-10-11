@@ -110,10 +110,11 @@ fn show(ctx: &egui::Context, dialog: &TemplatePackDialog) -> Outcome {
             if ui.add(primary_button(&tr("pack-choose-folder"))).clicked() {
                 outcome = Outcome::ChooseFolder;
             }
+            // Under the folder it refuses, aligned with the step's text.
+            if let Some(refusal) = &dialog.refusal {
+                super::dialogs::problem(ui, refusal);
+            }
         });
-        if let Some(refusal) = &dialog.refusal {
-            super::dialogs::problem(ui, refusal);
-        }
         super::dialogs::footer(ui, |ui| {
             if ui.add(secondary_button(&tr("button-cancel"))).clicked() {
                 outcome = Outcome::Cancel;

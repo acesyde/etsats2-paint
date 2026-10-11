@@ -588,7 +588,7 @@ fn internal_name_follows_the_name_until_edited() {
 #[test]
 fn mod_settings_are_read_only_here() {
     let mut h = open(Some(&["standard"]), None);
-    for label in ["Supported by every vehicle: >=1.56", "256 × 64"] {
+    for label in ["Supported by every vehicle: 1.56 or later", "256 × 64"] {
         h.get_by_label(label).click();
         h.run();
         assert!(h.ctx.memory(|m| m.focused()).is_none(), "{label}");
@@ -779,4 +779,41 @@ fn a_chosen_picture_renders_the_previews_again() {
     ws.project.mod_settings.image = Some(asset);
     settle(&mut h);
     assert_eq!(ws_mut(&mut h).mod_previews.renders, before + 1);
+}
+
+/// Spec "German at the minimum width": at 960 × 600 in German, with an
+/// update for the vehicle, the counts end with "…" before the filter, which
+/// keeps its width, and they don't overlap.
+#[test]
+fn german_header_at_the_minimum_width() {
+    let mut h = open(Some(WHOLE_TRUCK), None);
+    h.set_size(Vec2::new(960.0, 600.0));
+    h.state_mut()
+        .prefs
+        .set_language(Some(tp_i18n::Language::German));
+    draw(&mut h, "Chassis");
+    ws_mut(&mut h).project.vehicles[0].version = "1.0.0".into();
+    h.run();
+    let counts = h
+        .get_by_label("1 Fahrzeug · 5 Texturen · 1 geändert")
+        .rect();
+    let filter = ["Alle", "Offen", "Zu prüfen"]
+        .map(|label| h.get_by_role_and_label(Role::RadioButton, label).rect())
+        .into_iter()
+        .reduce(|a, b| a.union(b))
+        .unwrap();
+    assert!(!counts.intersects(filter), "{counts:?} {filter:?}");
+    assert!(counts.right() <= filter.left(), "{counts:?} {filter:?}");
+    // The filter keeps the width of its labels.
+    let mut wide = open(Some(WHOLE_TRUCK), None);
+    wide.state_mut()
+        .prefs
+        .set_language(Some(tp_i18n::Language::German));
+    wide.run();
+    let whole = ["Alle", "Offen", "Zu prüfen"]
+        .map(|label| wide.get_by_role_and_label(Role::RadioButton, label).rect())
+        .into_iter()
+        .reduce(|a, b| a.union(b))
+        .unwrap();
+    assert!((whole.width() - filter.width()).abs() < 1.0);
 }

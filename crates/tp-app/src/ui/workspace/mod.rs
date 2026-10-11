@@ -126,6 +126,16 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         };
     }
 
+    // Renders finish in the background: pick them up in every space, not
+    // only in the one that started them, so that they are never left
+    // pending when the space changes.
+    ws.thumbnails.poll(&ctx);
+    ws.mod_previews.poll(&ctx);
+    if space != Space::Workshop {
+        // The canvas picks them up itself, once a frame.
+        ws.shadows.begin_frame(&ctx, ws.text.fonts.generation());
+    }
+
     // The before/after editor of a swatch or a graphic style: a panel of
     // the Brand space, a dialog over the other spaces.
     ws.update_brand_edit(&ctx);

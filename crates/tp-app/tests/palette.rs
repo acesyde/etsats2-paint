@@ -822,6 +822,15 @@ fn opening_from_the_textures_tab() {
     type_keys(&mut h, "ch");
     let rows = rows(&h);
     assert!(rows.iter().any(|r| r.contains("› Chassis")), "{rows:?}");
+    // The single section keeps its heading, above the results (not the
+    // left panel's tab).
+    let first = row(&h, &rows[0]).rect();
+    assert!(
+        h.get_all_by_label("Textures")
+            .map(|n| n.rect())
+            .any(|r| r.left() > first.left() - 1.0 && r.bottom() <= first.top()),
+        "no Textures heading"
+    );
     assert!(
         rows.iter()
             .all(|r| r.starts_with(TRUCK) || r.starts_with(TRAILER)),

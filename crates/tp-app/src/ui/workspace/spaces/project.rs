@@ -15,7 +15,7 @@ use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{canvas, color, radius, space, typography};
 use tp_ui::widgets::{
-    FieldEvent, NumericField, SegmentedControl, paint_focus_ring, secondary_button,
+    FieldEvent, NumericField, SegmentedControl, paint_focus_ring, secondary_button, truncated_label,
 };
 
 use super::super::panels::{PanelEnv, vehicle};
@@ -105,12 +105,15 @@ fn vehicles(
         tr("project-filter-to-do"),
         tr("project-filter-to-check"),
     );
+    // The title and the counts on the left, the filter and Add Vehicle…
+    // on the right, level with the counts. The right side is laid out
+    // first and keeps its width; the counts end with "…" in the room left.
+    let line_gap = space::XS + 2.0;
+    let height = ui.text_style_height(&tp_ui::theme::title_style())
+        + line_gap
+        + ui.text_style_height(&egui::TextStyle::Body);
     ui.horizontal(|ui| {
-        ui.vertical(|ui| {
-            ui.spacing_mut().item_spacing.y = space::XS + 2.0;
-            super::title(ui, &tr("panel-vehicle"));
-            ui.label(RichText::new(&counts).color(color::TEXT_SECONDARY));
-        });
+        ui.set_min_height(height);
         ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
             ui.spacing_mut().item_spacing.x = space::SM;
             cmds.secondary_icon_button(
@@ -128,6 +131,16 @@ fn vehicles(
             {
                 env.ws.texture_filter = filter;
             }
+            ui.add_space(space::LG - space::SM);
+            ui.with_layout(Layout::top_down(Align::Min), |ui| {
+                ui.spacing_mut().item_spacing.y = line_gap;
+                super::title(ui, &tr("panel-vehicle"));
+                truncated_label(
+                    ui,
+                    RichText::new(&counts).color(color::TEXT_SECONDARY),
+                    ui.available_width(),
+                );
+            });
         });
     });
 
@@ -285,10 +298,16 @@ fn card_header(
     });
 }
 
-/// Two lines of information, at most `max_width` wide.
+/// Two lines of information, at most `max_width` wide and never wider than
+/// the room left (their labels end with "…"); left out when less than 40
+/// px is left.
 fn block(ui: &mut Ui, max_width: f32, body: impl FnOnce(&mut Ui)) {
+    let width = max_width.min(ui.available_width());
+    if width < 40.0 {
+        return;
+    }
     ui.scope(|ui| {
-        ui.set_max_width(max_width);
+        ui.set_max_width(width);
         ui.vertical(|ui| {
             ui.spacing_mut().item_spacing.y = space::XXS + 1.0;
             body(ui);
@@ -297,11 +316,10 @@ fn block(ui: &mut Ui, max_width: f32, body: impl FnOnce(&mut Ui)) {
 }
 
 fn caption(ui: &mut Ui, text: &str) {
-    ui.label(
-        RichText::new(text)
-            .size(typography::CAPTION)
-            .color(color::TEXT_DISABLED),
-    );
+    let text = RichText::new(text)
+        .size(typography::CAPTION)
+        .color(color::TEXT_DISABLED);
+    truncated_label(ui, text, ui.available_width());
 }
 
 /// "Update 1.3.0 available": an outlined pill in the signal color, with an
@@ -968,8 +986,10 @@ fn before_exporting(ui: &mut Ui, env: &mut PanelEnv<'_>, problems: &[Problem]) {
                 }
                 if expanded {
                     for &i in surfaces {
-                        let indent = CARET_WIDTH + space::SM;
+                        // Their dots under the line's text.
+                        let indent = MARKER_SLOT + space::SM;
                         ui.horizontal_top(|ui| {
+                            ui.spacing_mut().item_spacing.x = 0.0;
                             ui.add_space(indent);
                             let row = warning_row(
                                 ui,
@@ -998,8 +1018,9 @@ fn before_exporting(ui: &mut Ui, env: &mut PanelEnv<'_>, problems: &[Problem]) {
     }
 }
 
-/// Width of the caret of an expanding warning line.
-const CARET_WIDTH: f32 = 14.0;
+/// Width of the marker of a Before exporting line (its dot, error icon or
+/// caret), so that every line's text starts at the same place.
+const MARKER_SLOT: f32 = ERROR_ICON;
 
 /// What was clicked on a warning line.
 struct RowClick {
@@ -1044,9 +1065,10 @@ impl Action<'_> {
     }
 }
 
-/// A Before exporting line: its marker and the wrapped text, with a caret
-/// when it expands (`caret`: whether it is expanded, the line is then a
-/// button), and an Open or Show button at its right.
+/// A Before exporting line: its marker and the wrapped text, and an Open
+/// or Show button at its right. A line that expands (`caret`: whether it
+/// is expanded, the line is then a button) shows a caret in place of its
+/// marker: one marker per line, every text starting at the same place.
 fn warning_row(
     ui: &mut Ui,
     marker: Marker,
@@ -1060,12 +1082,11 @@ fn warning_row(
         let row = ui.fonts_mut(|f| f.row_height(&font));
         let button = action.map_or(0.0, |a| action_width(ui, a) + space::SM);
         let width = ui.available_width() - button;
-        let caret_width = if caret.is_some() { CARET_WIDTH } else { 0.0 };
-        let (mark_width, ink) = match marker {
-            Marker::Dot(_, ink) => (vehicle::STATE_DOT, ink),
-            Marker::Error => (ERROR_ICON, color::ERROR),
+        let ink = match marker {
+            Marker::Dot(_, ink) => ink,
+            Marker::Error => color::ERROR,
         };
-        let wrap = width - mark_width - space::SM - caret_width;
+        let wrap = width - MARKER_SLOT - space::SM;
         let galley = ui.painter().layout(text.to_owned(), font, ink, wrap);
         // At least the interaction height, the first line centered in it.
         let lead = ((ui.spacing().interact_size.y - row) / 2.0).max(0.0);
@@ -1086,38 +1107,37 @@ fn warning_row(
         });
         let top = rect.top() + lead;
         let painter = ui.painter();
-        match marker {
-            Marker::Dot(dot, _) => {
-                let r = vehicle::STATE_DOT / 2.0;
-                painter.circle_filled(egui::pos2(rect.left() + r, top + row / 2.0), r, dot);
-            }
-            Marker::Error => {
+        let mark = egui::pos2(rect.left() + MARKER_SLOT / 2.0, top + row / 2.0);
+        match (caret, marker) {
+            (Some(expanded), _) => {
+                let icon = if expanded {
+                    icons::EXPANDED
+                } else {
+                    icons::COLLAPSED
+                };
                 painter.text(
-                    egui::pos2(rect.left(), top + row / 2.0),
-                    Align2::LEFT_CENTER,
+                    mark,
+                    Align2::CENTER_CENTER,
+                    icon,
+                    icons::font(12.0),
+                    color::TEXT_SECONDARY,
+                );
+                paint_focus_ring(ui, rect, &response, radius::SM);
+            }
+            (None, Marker::Dot(dot, _)) => {
+                painter.circle_filled(mark, vehicle::STATE_DOT / 2.0, dot);
+            }
+            (None, Marker::Error) => {
+                painter.text(
+                    mark,
+                    Align2::CENTER_CENTER,
                     icons::WARNING,
                     icons::font(ERROR_ICON),
                     color::ERROR,
                 );
             }
         }
-        let mut x = rect.left() + mark_width + space::SM;
-        if let Some(expanded) = caret {
-            let icon = if expanded {
-                icons::EXPANDED
-            } else {
-                icons::COLLAPSED
-            };
-            painter.text(
-                egui::pos2(x, top + row / 2.0),
-                Align2::LEFT_CENTER,
-                icon,
-                icons::font(12.0),
-                color::TEXT_SECONDARY,
-            );
-            x += caret_width;
-            paint_focus_ring(ui, rect, &response, radius::SM);
-        }
+        let x = rect.left() + MARKER_SLOT + space::SM;
         painter.galley(egui::pos2(x, top), galley, ink);
         let opened = action.is_some_and(|a| action_button(ui, a, height, lead));
         RowClick {
@@ -1186,13 +1206,25 @@ fn picture(
             ui.allocate_exact_size(Vec2::new(size.0 as f32, size.1 as f32), Sense::hover());
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Image, true, title));
         let painter = ui.painter();
+        // Files dragged over the window: every preview takes them, the one
+        // under the pointer is highlighted.
+        let (dragging, pointer) = ui
+            .ctx()
+            .input(|i| (!i.raw.hovered_files.is_empty(), i.pointer.latest_pos()));
+        let under = dragging && pointer.is_some_and(|p| rect.contains(p));
         if blank {
             let text = format!(
                 "{}\n{}",
                 tr("project-picture-generated"),
                 tr("project-picture-drop")
             );
-            painter.rect_filled(rect, radius::LG, color::CANVAS);
+            // Highlighted under its text, which keeps its contrast.
+            let fill = if under {
+                color::SURFACE_2
+            } else {
+                color::CANVAS
+            };
+            painter.rect_filled(rect, radius::LG, fill);
             dashed_rect(painter, rect, color::BORDER_STRONG);
             let mut job = egui::text::LayoutJob::simple(
                 text.clone(),
@@ -1230,14 +1262,8 @@ fn picture(
                 StrokeKind::Outside,
             );
         }
-        // Files dragged over the window: every preview takes them, the one
-        // under the pointer is highlighted.
-        let (dragging, pointer) = ui
-            .ctx()
-            .input(|i| (!i.raw.hovered_files.is_empty(), i.pointer.latest_pos()));
         if dragging {
-            let under = pointer.is_some_and(|p| rect.contains(p));
-            if under {
+            if under && !blank {
                 painter.rect_filled(rect, radius::LG, color::SURFACE_2.gamma_multiply(0.85));
             }
             let outline = if under {

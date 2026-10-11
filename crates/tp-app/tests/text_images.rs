@@ -448,6 +448,36 @@ fn search_a_font() {
     assert!(ws(&h).panels.font_picker.is_none());
 }
 
+#[test]
+fn font_picker_highlights_the_current_family() {
+    let mut h = open();
+    let id = create_text(&mut h, 800.0, 900.0, "ACE");
+    let mut o = obj(&h, id);
+    o.text.as_mut().unwrap().style.family = "Barlow Condensed".into();
+    ws_mut(&mut h).project.surface_mut().replace(&[o]);
+    settle(&mut h);
+    let selected = |h: &H, family: &str| {
+        h.get_by_label(family).accesskit_node().toggled() == Some(egui::accesskit::Toggled::True)
+    };
+    h.get_by_label_contains("Font family").click();
+    settle(&mut h);
+    assert!(selected(&h, "Barlow Condensed") && !selected(&h, "Inter"));
+    // Inside the panel: no wider than the family button, at its left edge.
+    let button = h.get_by_label_contains("Font family").rect();
+    let row = h.get_by_label("Barlow Condensed").rect();
+    assert!(row.left() >= button.left() && row.right() <= button.right());
+    // A query highlights its first match; clearing it, the current family.
+    h.get_by_role_and_label(Role::TextInput, "Search fonts")
+        .type_text("sw");
+    settle(&mut h);
+    assert!(selected(&h, "Oswald"));
+    for _ in 0..2 {
+        h.key_press(Key::Backspace);
+    }
+    settle(&mut h);
+    assert!(selected(&h, "Barlow Condensed") && !selected(&h, "Inter"));
+}
+
 /// Geist and JetBrains Mono are interface fonts only: the fonts offered to
 /// texts are unchanged and still include Inter.
 #[test]
@@ -929,4 +959,80 @@ fn pan_with_50_texts_in(
         per_frame < std::time::Duration::from_millis(16),
         "{per_frame:?}"
     );
+}
+
+/// The Resources tab's Images section with no image: "Drop a logo here or
+/// Import…" on one line with a single space between them, and Import from
+/// Library… left-aligned with the section's heading.
+#[test]
+fn images_drop_zone_and_import_from_library_are_aligned() {
+    let h = open();
+    let text = h.get_by_label("Drop a logo here or").rect();
+    let import = h.get_by_role_and_label(Role::Link, "Import…").rect();
+    assert!(
+        (text.center().y - import.center().y).abs() < 1.0,
+        "one line"
+    );
+    let gap = import.left() - text.right();
+    assert!((0.0..6.0).contains(&gap), "one space: {gap}");
+    let heading = h.get_by_label("Images · 0").rect();
+    let library = h
+        .get_by_role_and_label(Role::Button, "Import from Library…")
+        .rect();
+    assert!(
+        (library.left() - heading.left()).abs() < 1.0,
+        "{library:?} {heading:?}"
+    );
+}
+
+/// In German the drop zone's text doesn't fit on one line: it wraps
+/// centered, Importieren… centered under it.
+#[test]
+fn german_images_drop_zone_wraps_centered() {
+    let mut h = open();
+    h.state_mut()
+        .prefs
+        .set_language(Some(tp_i18n::Language::German));
+    settle(&mut h);
+    let text = h.get_by_label("Logo hier ablegen oder").rect();
+    let import = h.get_by_role_and_label(Role::Link, "Importieren…").rect();
+    assert!(import.top() >= text.bottom() - 1.0, "{text:?} {import:?}");
+    assert!(
+        (text.center().x - import.center().x).abs() < 1.0,
+        "{text:?} {import:?}"
+    );
+}
+
+/// An image's details ("80 × 40 px · 1 use") stay on one line, shortened
+/// with "…" when the room is short (here in German, in the narrowest left
+/// panel).
+#[test]
+fn image_details_stay_on_one_line() {
+    let mut prefs = Prefs::default();
+    prefs.layout.left_tab = tp_app::layout::LeftTab::Resources;
+    prefs.layout.left_width = tp_ui::tokens::size::LEFT_PANEL_MIN;
+    prefs.set_language(Some(tp_i18n::Language::German));
+    let mut h = common::builder()
+        .with_size(Vec2::new(1440.0, 2400.0))
+        .build_ui_state(
+            |ui, state: &mut AppState| state.show(ui),
+            AppState::with_prefs(prefs, None),
+        );
+    common::create_project(&mut h);
+    place_bytes(&mut h, vec![("logo.png", solid_png(80, 40, BLUE))], None);
+    settle(&mut h);
+    let details = h
+        .query_all_by_label_contains("80 × 40 px · ")
+        .map(|n| n.rect())
+        .find(|r| r.left() < 400.0)
+        .expect("details");
+    assert!(details.height() < 20.0, "one line: {details:?}");
+    let place = h
+        .query_all(egui_kittest::kittest::By::new().role(Role::Button))
+        .map(|n| n.rect())
+        .filter(|r| r.left() < 400.0 && r.center().y > details.top() - 30.0)
+        .filter(|r| r.center().y < details.bottom() + 10.0)
+        .map(|r| r.left())
+        .fold(f32::INFINITY, f32::min);
+    assert!(details.right() <= place, "{details:?} {place}");
 }

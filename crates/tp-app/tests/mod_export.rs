@@ -167,8 +167,8 @@ fn opening_the_dialog() {
             .is_some()
     );
     for line in [
-        "Standard cab: cabins standard",
-        "High roof: not painted",
+        "Standard cab (cabin: standard)",
+        "High roof (not painted)",
         "Accessories: Chassis, Cab accessories, Side skirts",
     ] {
         assert!(h.query_by_label(line).is_some(), "{line}");
@@ -182,6 +182,25 @@ fn opening_the_dialog() {
     assert!(h.query_by_label("Destination").is_some());
     assert!(h.query_by_label("Change…").is_some());
     assert!(!export_button(&h).accesskit_node().is_disabled());
+}
+
+/// A trailer's main texture is named alone in the summary: no cabin.
+#[test]
+fn trailer_summary_has_no_cabin_line() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    let trailer = tp_vehicles::Package::read(tp_app::vehicles::SAMPLES[1].bytes).unwrap();
+    ws_mut(&mut h)
+        .add_vehicle(&trailer, &["base".to_owned(), "mudflaps".to_owned()], 0.0)
+        .unwrap();
+    common::settle_renders(&mut h);
+    let before = h.query_all_by_label("Base").count();
+    open_dialog(&mut h);
+    assert!(h.query_by_label("Standard cab (cabin: standard)").is_some());
+    // The summary's line, besides the Textures tab's.
+    assert_eq!(h.query_all_by_label("Base").count(), before + 1);
+    assert!(h.query_by_label_contains("Base (").is_none());
+    assert!(h.query_by_label_contains("Base:").is_none());
 }
 
 #[test]

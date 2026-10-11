@@ -2077,7 +2077,7 @@ fn render_custom_vehicle() {
 }
 
 /// The brand kit: the palette with a linked swatch marked, the Edit Swatch
-/// popup, the Styles section with both groups, and the Copy From Cabin
+/// popup, the Styles section with both groups, and the Copy from Cabin
 /// dialog, in English and German.
 #[test]
 #[ignore = "needs a GPU; run manually for visual QA"]
@@ -2676,9 +2676,19 @@ fn render_texture_status() {
             h.run();
             save(&mut h, &format!("status_{code}_todo_{suffix}"));
             h.state_mut().workspace_mut().unwrap().texture_filter = tp_core::TextureFilter::All;
-            h.get_by_label(&tp_i18n::tr!("mod-warning-empty-many", count = 4))
-                .click();
+            // Down to the end of the Mod information column, where Before
+            // exporting is, with the empty textures' line expanded.
+            let empty = tp_i18n::tr!("mod-warning-empty-many", count = 4);
+            let scroll_down = |h: &mut egui_kittest::Harness<'static, tp_app::AppState>| {
+                for _ in 0..12 {
+                    h.get_by_label(&empty).scroll_down();
+                    h.run();
+                }
+            };
+            scroll_down(&mut h);
+            h.get_by_label(&empty).click();
             h.run();
+            scroll_down(&mut h);
             save(&mut h, &format!("status_{code}_before_exporting_{suffix}"));
             // The Workshop with nothing selected: On this texture.
             common::show_space(&mut h, Space::Workshop);
@@ -2810,8 +2820,8 @@ fn render_command_palette() {
             h.key_press(Key::Escape);
             h.run_steps(4);
 
-            // A narrow window.
-            let mut h = common::wgpu_harness_with(prefs, Vec2::new(480.0, 700.0) * scale);
+            // The narrowest window (the minimum size, 960 × 600).
+            let mut h = common::wgpu_harness_with(prefs, Vec2::new(960.0, 600.0) * scale);
             h.run();
             h.key_press_modifiers(Modifiers::COMMAND, Key::K);
             save_stepped(&mut h, &format!("palette_{code}_narrow_{suffix}"));

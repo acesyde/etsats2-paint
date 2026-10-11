@@ -6,6 +6,7 @@ use std::cmp::Ordering;
 
 use semver::{Comparator, Op, Version, VersionReq};
 use tp_core::Project;
+use tp_i18n::tr;
 
 use crate::workspace::Workspace;
 
@@ -195,6 +196,60 @@ pub fn of_range_text(text: &str) -> Interval {
     VersionReq::parse(text).map_or(Interval::ANY, |r| of_req(&r))
 }
 
+/// A comparator's version as shown: `major.minor`, with the patch only
+/// when it isn't 0.
+fn shown_version(c: &Comparator) -> String {
+    let mut text = c.major.to_string();
+    if let Some(minor) = c.minor {
+        text += &format!(".{minor}");
+    }
+    if let Some(patch) = c.patch.filter(|&p| p != 0) {
+        text += &format!(".{patch}");
+    }
+    text
+}
+
+/// A range in words in the current language ("1.56 or later" for
+/// `>=1.56`); `None` for a form without words.
+fn words(req: &VersionReq) -> Option<String> {
+    if req.comparators.iter().any(|c| !c.pre.is_empty()) {
+        return None;
+    }
+    Some(match req.comparators.as_slice() {
+        [] => tr("version-range-any"),
+        [c] => {
+            let id = match c.op {
+                Op::GreaterEq => "version-range-from",
+                Op::LessEq => "version-range-until",
+                Op::Exact => "version-range-exact",
+                _ => return None,
+            };
+            tr!(id, version = shown_version(c))
+        }
+        [from, to] if from.op == Op::GreaterEq && to.op == Op::Less => tr!(
+            "version-range-between",
+            from = shown_version(from),
+            to = shown_version(to)
+        ),
+        _ => return None,
+    })
+}
+
+/// A range for display, in words ("1.56 or later", "any version", …),
+/// or as written when it has no words.
+pub fn req_in_words(req: &VersionReq) -> String {
+    words(req).unwrap_or_else(|| req.to_string())
+}
+
+/// [`req_in_words`] for a range stored as text, shown as written when it
+/// doesn't parse or has no words.
+pub fn range_in_words(text: &str) -> String {
+    VersionReq::parse(text)
+        .ok()
+        .and_then(|req| words(&req))
+        .unwrap_or_else(|| text.to_owned())
+}
+
 /// The versions a listed game version stands for: `1.56` and `1.56.*` are
 /// every 1.56.x; `1.56.2`, `1.56.2.*` and `1.56.2.3` are 1.56.2 (the
 /// game's fourth number is a build). `None` when it isn't written like a
@@ -366,6 +421,26 @@ mod tests {
         "1.56.1", "1.56.2", "1.56.3", "1.57.0", "1.57.9", "1.58.0", "1.58.1", "1.58.2", "1.59.0",
         "2.0.0",
     ];
+
+    #[test]
+    fn ranges_in_words() {
+        tp_i18n::set_language(tp_i18n::Language::English);
+        assert_eq!(req_in_words(&req("*")), "any version");
+        assert_eq!(req_in_words(&req(">=1.56")), "1.56 or later");
+        assert_eq!(req_in_words(&req("<=1.50")), "1.50 or earlier");
+        assert_eq!(req_in_words(&req("=1.53")), "1.53");
+        assert_eq!(req_in_words(&req("=1.53.0")), "1.53");
+        assert_eq!(req_in_words(&req("=1.53.2")), "1.53.2");
+        assert_eq!(req_in_words(&req(">=1.53, <1.56")), "1.53 to before 1.56");
+        // Odd ranges as written.
+        assert_eq!(req_in_words(&req("^1.53")), "^1.53");
+        assert_eq!(range_in_words(">1.53, <=1.56"), ">1.53, <=1.56");
+        assert_eq!(range_in_words("not a range"), "not a range");
+        assert_eq!(range_in_words(">=1.56"), "1.56 or later");
+        tp_i18n::set_language(tp_i18n::Language::German);
+        assert_eq!(range_in_words(">=1.56"), "1.56 oder neuer");
+        tp_i18n::set_language(tp_i18n::Language::English);
+    }
 
     #[test]
     fn intervals_match_semver() {

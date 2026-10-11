@@ -88,14 +88,31 @@ pub fn drop_zone(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
                     .size()
                     .x
             };
-            let total = width(&text) + ui.spacing().item_spacing.x + width(&import);
-            ui.horizontal_wrapped(|ui| {
-                ui.add_space(((ui.available_width() - total) / 2.0).max(0.0));
-                ui.label(RichText::new(&text).color(color::TEXT_SECONDARY));
+            // The text and Import… are one sentence: one space between them.
+            let gap = width("a a") - width("aa");
+            let total = width(&text) + gap + width(&import);
+            let mut import_link = |ui: &mut Ui| {
                 if ui.link(&import).clicked() {
                     cmds.push(CommandId::Place);
                 }
-            });
+            };
+            if total <= ui.available_width() {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = gap;
+                    ui.add_space(((ui.available_width() - total) / 2.0).max(0.0));
+                    ui.label(RichText::new(&text).color(color::TEXT_SECONDARY));
+                    import_link(ui);
+                });
+            } else {
+                // Too long for one line (German): each part centered.
+                ui.vertical_centered(|ui| {
+                    ui.spacing_mut().item_spacing.y = space::XXS;
+                    ui.add(
+                        egui::Label::new(RichText::new(&text).color(color::TEXT_SECONDARY)).wrap(),
+                    );
+                    import_link(ui);
+                });
+            }
         })
         .response;
     // A dashed outline: a drop target, not a control.
@@ -237,10 +254,12 @@ fn row(ui: &mut Ui, env: &mut PanelEnv<'_>, asset: &Asset) {
             } else {
                 ui.add(egui::Label::new(&asset.name).truncate());
             }
-            ui.label(
+            tp_ui::widgets::truncated_label(
+                ui,
                 RichText::new(format!("{} · {}", size_text(asset), uses_text(uses)))
                     .small()
                     .color(color::TEXT_SECONDARY),
+                ui.available_width(),
             );
         });
     });

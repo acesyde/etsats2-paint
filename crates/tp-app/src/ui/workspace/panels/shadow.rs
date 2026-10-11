@@ -1,6 +1,6 @@
 //! The shadow popover of the inspector's Shadow row: the shadow's color
 //! (picker, hex and palette), opacity, offset and blur; and the row's
-//! summary ("8 / 8 · 8", with "Offset 8 / 8, blur 8" on hover).
+//! summary ("x 8 · y 8 · blur 8", with "Offset 8 / 8, blur 8" on hover).
 
 use egui::{RichText, Ui};
 use tp_core::document::{MAX_SHADOW_BLUR, MAX_SHADOW_OFFSET, Shadow};
@@ -12,17 +12,23 @@ use super::properties::common;
 use super::{PanelEnv, apply_field, colors};
 
 /// The Shadow row's summary for `shadows` (one per selected object that
-/// can have one): offset and blur, or "Mixed" when they differ.
-pub fn summary(shadows: &[Option<Shadow>]) -> String {
+/// can have one): the offset ("x 8 · y 8") and the blur ("· blur 8"), kept
+/// whole at the row's end; or "Mixed" when they differ.
+pub fn summary(shadows: &[Option<Shadow>]) -> (String, String) {
     let same = common(shadows.iter().map(|s| s.map(|s| (s.offset, s.blur))));
     match same {
-        Some(Some((offset, blur))) => tr!(
-            "inspector-shadow-summary",
-            x = format_number(offset.x, 1),
-            y = format_number(offset.y, 1),
-            blur = format_number(blur, 1)
+        Some(Some((offset, blur))) => (
+            tr!(
+                "inspector-shadow-summary",
+                x = format_number(offset.x, 1),
+                y = format_number(offset.y, 1)
+            ),
+            tr!(
+                "inspector-shadow-summary-blur",
+                blur = format_number(blur, 1)
+            ),
         ),
-        _ => tr("mixed"),
+        _ => (tr("mixed"), String::new()),
     }
 }
 

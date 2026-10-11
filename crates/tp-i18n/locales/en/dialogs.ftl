@@ -45,6 +45,7 @@ home-preferences = Preferences
 home-recent = Recent projects
 home-recent-empty = No recent projects
 home-recent-empty-hint = Projects you open will appear here. Start by creating a new project.
+home-recent-empty-create = Create Your First Project
 home-recent-missing-item = { $name } (file not found)
 home-remove-recent = Remove from list
 home-file-not-found = File not found
@@ -131,7 +132,7 @@ custom-file-io = { $file } can't be read ({ $reason }).
 custom-build-stopped = { $name } could not be built: the build stopped unexpectedly.
 custom-title = Custom Vehicle
 custom-new-version-title = New Version of { $name }
-custom-open = Custom vehicle…
+custom-open = Custom Vehicle…
 custom-open-library = Custom Vehicle…
 custom-version = Version
 custom-name = Name
@@ -143,7 +144,7 @@ custom-game-path-hint = As in the game's definitions, e.g. scania.r_2016
 custom-game-versions = Game versions
 custom-game-versions-hint = Any version, or a range such as >=1.53
 custom-alt-uv = Alternate UV set
-custom-colour-picker = Colour picker
+custom-colour-picker = Color picker
 custom-textures = Textures
 custom-drop-hint = Drop the game's template files here (PNG, DDS or SVG), or add them. Each file is one texture.
 custom-add-templates = Add Templates…
@@ -151,6 +152,9 @@ custom-row-name = Name of texture { $n }
 custom-row-role = Role of texture { $n }
 custom-row-width = Width of texture { $n }
 custom-row-height = Height of texture { $n }
+custom-row-role-short = Role
+custom-row-width-short = Width
+custom-row-height-short = Height
 custom-row-game-ids = Game ids of texture { $n }
 custom-row-replace = Replace…
 custom-row-replace-name = Replace the template of texture { $n }
@@ -196,14 +200,32 @@ vehicles-trailer = Trailer
 vehicles-installed = Installed { $name } { $version }
 vehicles-empty = No vehicle installed
 vehicles-empty-hint = Vehicle packages (.tpv) hold the templates of a truck or trailer. Install one to start a livery on it.
-vehicles-details = Game versions { $versions } · { $main } · Accessories: { $accessories }
+vehicles-details-any-version = Any game version
+vehicles-details-versions = Game versions: { $versions }
+vehicles-details-main = { $count ->
+    [one] Main texture
+   *[other] Main textures
+}: { $names }
+# A no-break space keeps the count with its noun.
+vehicles-details-accessories = { $count ->
+    [0] No accessories
+    [one] { $count } accessory
+   *[other] { $count } accessories
+}
 vehicles-version = Version { $version }
 vehicles-remove-version = Remove { $name } { $version }
 vehicles-remove-confirm = Remove { $name } from the library? Projects keep their templates.
 vehicles-remove = Remove
 vehicles-install = Install…
 vehicles-install-sample = Install the sample vehicles
-vehicles-any-version = any version
+
+# Game version ranges in words (">=1.56" reads "1.56 or later").
+version-range-any = any version
+version-range-from = { $version } or later
+version-range-until = { $version } or earlier
+version-range-exact = { $version }
+version-range-between = { $from } to before { $to }
+
 vehicles-new-version = New Version…
 vehicles-new-version-of = New version of { $name }
 vehicles-export-version = Export { $name } { $version }
@@ -307,9 +329,12 @@ mod-choose-image = Choose Image…
 mod-generated-image = Use Generated Image
 mod-picture-failed = { $file } can't be used ({ $reason }).
 mod-summary = In the mod
-mod-summary-cabins = { $texture }: cabins { $cabins }
-mod-summary-every-cabin = { $texture }: every cabin
-mod-summary-not-painted = { $texture }: not painted
+mod-summary-cabins = { $texture } ({ $count ->
+    [one] cabin
+   *[other] cabins
+}: { $cabins })
+mod-summary-every-cabin = { $texture } (every cabin)
+mod-summary-not-painted = { $texture } (not painted)
 mod-summary-accessories = Accessories: { $accessories }
 mod-problem-name-empty = The mod needs a name.
 mod-problem-name-invalid = The name can't contain ", \ or a line break.
@@ -366,7 +391,7 @@ official-unreadable = { $vehicle }: “{ $file }” can't be read ({ $reason }).
 pack-title = { $game } template pack
 pack-for-vehicle = To install { $vehicle }
 pack-moved = The { $game } template pack folder was moved or deleted. Choose it again.
-pack-explanation = Official vehicles are made from Carsmaniac's free template pack for { $game }. It is about 1.2 GB, and you download it once for every vehicle.
+pack-explanation = Official vehicles are made from Carsmaniac's free template pack for { $game }. It is about 1.2 GB, and you download it only once, for all vehicles.
 pack-step-download = Download the pack from its forum thread.
 pack-open-download = Open the download page
 pack-copy-link = Copy the link
@@ -377,8 +402,14 @@ pack-choose-folder = Choose the pack folder…
 pack-wrong-folder = This folder doesn't hold the { $game } template pack.
 prefs-template-packs = Template packs
 prefs-pack-not-set = Not set
-prefs-pack-choose = Choose…
+prefs-pack-choose = Choose Folder…
 prefs-pack-clear = Clear
+prefs-template-packs-hint = Carsmaniac's template packs, used to install the official vehicles.
+prefs-pack-missing = Folder not found
+prefs-pack-copy-path = Copy Path
+prefs-pack-show-finder = Show in Finder
+prefs-pack-show-explorer = Show in Explorer
+prefs-pack-show-files = Show in File Manager
 about-credits-title = Credits
 about-credits = Vehicle data from Paintjob Packer by Carsmaniac (MIT license). Template packs by Carsmaniac.
 about-licenses = Licenses…

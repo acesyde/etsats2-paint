@@ -199,9 +199,10 @@ fn row_ui(
     let (rect, response) =
         ui.allocate_exact_size(Vec2::new(width, ROW_HEIGHT), Sense::click_and_drag());
     let selected = env.ws.selection.contains(&row.id);
-    response.widget_info(|| {
-        WidgetInfo::selected(WidgetType::SelectableLabel, true, selected, &object.name)
-    });
+    // The name as shown (a text named after its kind reads its first line).
+    let (shown, kind_name) = crate::ui::workspace::inspector::name_and_kind(&object);
+    response
+        .widget_info(|| WidgetInfo::selected(WidgetType::SelectableLabel, true, selected, &shown));
 
     // Background: selected rows are filled (their name in ink), as on the
     // Textures tab.
@@ -284,21 +285,19 @@ fn row_ui(
     // The kind, in small type before the toggles (unless the name says it
     // already).
     let toggles_width = 2.0 * size::HIT_MIN + space::XS;
-    let kind_name = crate::workspace::object_name(object.kind);
     let kind_right = rect.right() - toggles_width - space::XS;
-    let kind = if object.name == kind_name {
-        Rect::from_min_max(
+    let kind = match kind_name {
+        None => Rect::from_min_max(
             Pos2::new(kind_right, rect.top()),
             Pos2::new(kind_right, rect.bottom()),
-        )
-    } else {
-        ui.painter().text(
+        ),
+        Some(kind_name) => ui.painter().text(
             Pos2::new(kind_right, rect.center().y),
             Align2::RIGHT_CENTER,
             kind_name,
             egui::FontId::proportional(tp_ui::tokens::typography::CAPTION),
             color::TEXT_DISABLED,
-        )
+        ),
     };
 
     // Name, or the inline rename editor.
@@ -310,22 +309,40 @@ fn row_ui(
     if renaming {
         rename_editor(ui, env, row.id, name_rect);
     } else {
-        let painter = ui.painter().with_clip_rect(name_rect);
-        let text = painter.text(
-            Pos2::new(name_rect.left(), rect.center().y),
-            Align2::LEFT_CENTER,
-            &object.name,
+        // On one line, ending with "…" when it doesn't fit (the style link
+        // icon kept after it), the whole name in a tooltip.
+        let link = styled.then(|| {
+            ui.painter().layout_no_wrap(
+                icons::LINKED.to_owned(),
+                icons::font(size::ICON - 4.0),
+                text_color,
+            )
+        });
+        let link_room = link.as_ref().map_or(0.0, |g| g.size().x + space::XS);
+        let mut job = egui::text::LayoutJob::simple_singleline(
+            shown.clone(),
             egui::FontId::proportional(tp_ui::tokens::typography::CONTROL),
             text_color,
         );
-        if styled {
-            painter.text(
-                Pos2::new(text.right() + space::XS, rect.center().y),
-                Align2::LEFT_CENTER,
-                icons::LINKED,
-                icons::font(size::ICON - 4.0),
-                text_color,
+        job.wrap =
+            egui::text::TextWrapping::truncate_at_width((name_rect.width() - link_room).max(0.0));
+        let galley = ui.fonts_mut(|f| f.layout_job(job));
+        let elided = galley.elided;
+        let text = Rect::from_min_size(
+            Pos2::new(name_rect.left(), rect.center().y - galley.size().y / 2.0),
+            galley.size(),
+        );
+        let painter = ui.painter();
+        painter.galley(text.min, galley, text_color);
+        if let Some(link) = link {
+            let at = Pos2::new(
+                text.right() + space::XS,
+                rect.center().y - link.size().y / 2.0,
             );
+            painter.galley(at, link, text_color);
+        }
+        if elided {
+            response.clone().on_hover_text(&shown);
         }
     }
 

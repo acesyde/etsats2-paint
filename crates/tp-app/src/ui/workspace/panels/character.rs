@@ -77,7 +77,7 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         };
     }
     if env.ws.panels.font_picker.is_some() {
-        font_picker(ui, env, &button);
+        font_picker(ui, env, &button, family.as_deref());
     }
 
     // Weight and italic.
@@ -116,6 +116,10 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         }
     });
 
+    // Size, tracking and line height, their boxes under each other.
+    let (size_label, tracking_label, line_label) =
+        (tr("char-size"), tr("char-tracking"), tr("char-line"));
+    let column = tp_ui::widgets::label_column(ui, &[&size_label, &tracking_label, &line_label]);
     // Size, and the alignment at the end of the row.
     ui.horizontal(|ui| {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -136,7 +140,8 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
             ui.add_space(space::SM);
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 let size = common(styles.iter().map(|s| s.size));
-                let e = NumericField::new(&tr("char-size"), &tr("char-font-size"), size)
+                let e = NumericField::new(&size_label, &tr("char-font-size"), size)
+                    .label_width(column)
                     .suffix("px")
                     .range(1.0..=10_000.0)
                     .decimals(1)
@@ -152,7 +157,8 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
 
     // Letter spacing and line height, one per row so long labels fit.
     let tracking = common(styles.iter().map(|s| s.letter_spacing));
-    let e = NumericField::new(&tr("char-tracking"), &tr("char-letter-spacing"), tracking)
+    let e = NumericField::new(&tracking_label, &tr("char-letter-spacing"), tracking)
+        .label_width(column)
         .suffix("‰")
         .range(-200.0..=1000.0)
         .width(36.0)
@@ -162,7 +168,8 @@ pub fn show(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         ws.set_char_style("undo-change-letter-spacing", |s| s.letter_spacing = v);
     });
     let leading = common(styles.iter().map(|s| s.line_height));
-    let e = NumericField::new(&tr("char-line"), &tr("char-line-height"), leading)
+    let e = NumericField::new(&line_label, &tr("char-line-height"), leading)
+        .label_width(column)
         .suffix("%")
         .range(50.0..=300.0)
         .width(36.0)
@@ -238,13 +245,17 @@ pub fn filter_families<'a>(families: &'a [String], query: &str) -> Vec<&'a Strin
 
 const ROW_HEIGHT: f32 = 28.0;
 
-fn font_picker(ui: &Ui, env: &mut PanelEnv<'_>, button: &egui::Response) {
+/// The font picker under the family `button`, as wide as it and kept
+/// inside the panel; `current` (the selection's family) is highlighted
+/// when it opens and when its query is cleared.
+fn font_picker(ui: &Ui, env: &mut PanelEnv<'_>, button: &egui::Response, current: Option<&str>) {
     let ctx = ui.ctx().clone();
     let families: Vec<String> = env.ws.text.fonts.families().to_vec();
-    let width = button.rect.width().max(220.0);
+    let width = button.rect.width() - ui.style().spacing.menu_margin.sum().x;
     let area = Area::new(Id::new("font_picker"))
         .order(Order::Foreground)
         .fixed_pos(button.rect.left_bottom() + Vec2::new(0.0, space::XS))
+        .constrain_to(ui.clip_rect())
         .show(&ctx, |ui| {
             Frame::popup(ui.style())
                 .show(ui, |ui| {
@@ -258,13 +269,20 @@ fn font_picker(ui: &Ui, env: &mut PanelEnv<'_>, button: &egui::Response) {
                     search.widget_info(|| {
                         WidgetInfo::labeled(WidgetType::TextEdit, true, tr("char-search-fonts"))
                     });
-                    if std::mem::take(&mut picker.focus_requested) {
+                    let opened = std::mem::take(&mut picker.focus_requested);
+                    if opened {
                         search.request_focus();
                     }
-                    if search.changed() {
+                    let matches = filter_families(&families, &picker.query);
+                    // The current family with no query, else the first match.
+                    let to_current = opened || (search.changed() && picker.query.trim().is_empty());
+                    if to_current {
+                        picker.highlighted = current
+                            .and_then(|c| matches.iter().position(|f| f.as_str() == c))
+                            .unwrap_or(0);
+                    } else if search.changed() {
                         picker.highlighted = 0;
                     }
-                    let matches = filter_families(&families, &picker.query);
                     let (up, down, enter, escape) = ui.input(|i| {
                         (
                             i.key_pressed(Key::ArrowUp),
@@ -295,37 +313,41 @@ fn font_picker(ui: &Ui, env: &mut PanelEnv<'_>, button: &egui::Response) {
                     }
                     let highlighted = picker.highlighted;
                     let mut rows = Vec::new();
-                    ScrollArea::vertical()
-                        .max_height(ROW_HEIGHT * 10.0)
-                        .show_rows(ui, ROW_HEIGHT, matches.len(), |ui, range| {
-                            for i in range {
-                                let family = matches[i];
-                                let (rect, response) = ui.allocate_exact_size(
-                                    Vec2::new(ui.available_width(), ROW_HEIGHT),
-                                    Sense::click(),
-                                );
-                                response.widget_info(|| {
-                                    WidgetInfo::selected(
-                                        WidgetType::SelectableLabel,
-                                        true,
-                                        i == highlighted,
-                                        family.as_str(),
-                                    )
-                                });
-                                if i == highlighted {
-                                    if down || up {
-                                        response.scroll_to_me(None);
-                                    }
-                                    ui.painter().rect_filled(rect, radius::SM, color::SELECTED);
-                                } else if response.hovered() {
-                                    ui.painter().rect_filled(rect, radius::SM, color::SURFACE_3);
+                    let mut scroll = ScrollArea::vertical().max_height(ROW_HEIGHT * 10.0);
+                    if to_current {
+                        // The highlighted row in view, a few rows above it.
+                        let above = highlighted.saturating_sub(3) as f32;
+                        scroll = scroll.vertical_scroll_offset(above * ROW_HEIGHT);
+                    }
+                    scroll.show_rows(ui, ROW_HEIGHT, matches.len(), |ui, range| {
+                        for i in range {
+                            let family = matches[i];
+                            let (rect, response) = ui.allocate_exact_size(
+                                Vec2::new(ui.available_width(), ROW_HEIGHT),
+                                Sense::click(),
+                            );
+                            response.widget_info(|| {
+                                WidgetInfo::selected(
+                                    WidgetType::SelectableLabel,
+                                    true,
+                                    i == highlighted,
+                                    family.as_str(),
+                                )
+                            });
+                            if i == highlighted {
+                                if down || up {
+                                    response.scroll_to_me(None);
                                 }
-                                rows.push((family.clone(), rect));
-                                if response.clicked() {
-                                    chosen = Some(family.clone());
-                                }
+                                ui.painter().rect_filled(rect, radius::SM, color::SELECTED);
+                            } else if response.hovered() {
+                                ui.painter().rect_filled(rect, radius::SM, color::SURFACE_3);
                             }
-                        });
+                            rows.push((family.clone(), rect));
+                            if response.clicked() {
+                                chosen = Some(family.clone());
+                            }
+                        }
+                    });
                     for (family, rect) in rows {
                         draw_preview(ui, env.ws, &family, rect);
                     }

@@ -954,3 +954,140 @@ fn layers_tab_header_counts_the_layers_and_adds_one() {
     assert_eq!(top.name, "Layer 1");
     assert!(h.query_by_label("Side skirts · 6 layers").is_some());
 }
+
+#[test]
+fn text_layers_are_named_by_their_text() {
+    let mut h = open();
+    for (i, content) in ["ACE LOGISTICS", "Since 1984"].into_iter().enumerate() {
+        let at = Point::new(400.0, 400.0 + 300.0 * i as f64);
+        let text = Object::text(
+            ObjectId(0),
+            tp_core::document::TextBlock::new(content, tp_core::document::CharStyle::default()),
+            at,
+        );
+        assert_eq!(text.name, "Text");
+        ws_mut(&mut h).project.add(text);
+    }
+    h.run();
+    assert!(
+        h.query_by_role_and_label(Role::Button, "ACE LOGISTICS")
+            .is_some()
+    );
+    assert!(
+        h.query_by_role_and_label(Role::Button, "Since 1984")
+            .is_some()
+    );
+}
+
+/// How many nodes read `label` (a row, and its tooltip when shown).
+fn count(h: &H, label: &str) -> usize {
+    h.query_all_by_label(label).count()
+}
+
+#[test]
+fn long_layer_name_ends_with_an_ellipsis_and_shows_in_full_on_hover() {
+    let mut h = open();
+    let long = "Grey stripe along the lower edge of the cabin";
+    rect(&mut h, long, (400.0, 400.0), (200.0, 40.0));
+    rect(&mut h, "Band", (400.0, 800.0), (200.0, 40.0));
+    for name in [long, "Band"] {
+        assert_eq!(count(&h, name), 1);
+        h.get_by_role_and_label(Role::Button, name).hover();
+        for _ in 0..8 {
+            h.step();
+        }
+        h.run();
+        // Only the shortened name has a tooltip.
+        let tooltip = name == long;
+        assert_eq!(count(&h, name), 1 + usize::from(tooltip), "{name}");
+    }
+}
+
+/// Spec "Long vehicle name in the left panel": in the 40% longer text
+/// mode, the vehicle's name and its version note stay on one line in the
+/// Textures tab; a name too long ends with "…" and shows in full on hover.
+#[test]
+fn long_vehicle_name_stays_on_one_line_and_shows_in_full_on_hover() {
+    tp_i18n::set_lengthening(40);
+    let mut prefs = Prefs::default();
+    prefs.layout.left_tab = tp_app::layout::LeftTab::Textures;
+    let mut h = common::harness_with(prefs);
+    common::create_project(&mut h);
+    // A name longer than the panel, whatever its width.
+    const NAME: &str = "TruckPaint Sample Truck, long-haul edition with a high roof";
+    h.state_mut().workspace_mut().unwrap().project.vehicles[0].name = NAME.to_owned();
+    h.run();
+    let in_panel = |h: &H| {
+        h.query_all_by_label(NAME)
+            .map(|n| n.rect())
+            .filter(|r| r.left() < 320.0)
+            .collect::<Vec<_>>()
+    };
+    let name = in_panel(&h);
+    assert_eq!(name.len(), 1, "{name:?}");
+    let name = name[0];
+    // One line of text, not two.
+    assert!(name.height() < 24.0, "one line: {name:?}");
+    let note = h
+        .query_all_by_label_contains(" · 1.1.0")
+        .map(|n| n.rect())
+        .find(|r| r.left() < 320.0)
+        .expect("version note");
+    assert!(
+        (note.center().y - name.center().y).abs() < 2.0,
+        "{note:?} {name:?}"
+    );
+    assert!(name.right() <= note.left(), "{note:?} {name:?}");
+    // Shortened with "…", never wrapped.
+    let elided = h.output().shapes.iter().any(|c| match &c.shape {
+        egui::Shape::Text(t) => {
+            t.galley.text() == NAME && t.galley.elided && t.galley.rows.len() == 1
+        }
+        _ => false,
+    });
+    assert!(elided, "the name ends with an ellipsis");
+    let before = h.query_all_by_label(NAME).count();
+    h.query_all_by_label(NAME)
+        .find(|n| n.rect().left() < 320.0)
+        .unwrap()
+        .hover();
+    for _ in 0..60 {
+        h.step();
+    }
+    h.run();
+    // The tooltip with the whole name.
+    assert_eq!(h.query_all_by_label(NAME).count(), before + 1);
+    tp_i18n::set_lengthening(0);
+}
+
+/// Spec "Text that doesn't fit": a texture name longer than its row in the
+/// Textures tab ends with "…" on one line and shows in full on hover.
+#[test]
+fn long_texture_name_ends_with_an_ellipsis_and_shows_in_full_on_hover() {
+    let mut prefs = Prefs::default();
+    prefs.layout.left_tab = tp_app::layout::LeftTab::Textures;
+    let mut h = common::harness_with(prefs);
+    common::create_project(&mut h);
+    const NAME: &str = "Main texture of the cabin, with the long-haul side skirts and roof";
+    h.state_mut().workspace_mut().unwrap().project.surfaces[0].name = NAME.to_owned();
+    h.run();
+    let elided = h.output().shapes.iter().any(|c| match &c.shape {
+        egui::Shape::Text(t) => {
+            t.galley.text() == NAME && t.galley.elided && t.galley.rows.len() == 1
+        }
+        _ => false,
+    });
+    assert!(elided, "the name ends with an ellipsis");
+    // Elsewhere (the inspector's header) the name may be shown whole.
+    let before = h.query_all_by_label(NAME).count();
+    h.query_all_by_label_contains(NAME)
+        .find(|n| n.rect().left() < 320.0)
+        .expect("texture row")
+        .hover();
+    for _ in 0..60 {
+        h.step();
+    }
+    h.run();
+    // The tooltip with the whole name.
+    assert_eq!(h.query_all_by_label(NAME).count(), before + 1);
+}

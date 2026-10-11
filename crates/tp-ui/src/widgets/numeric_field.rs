@@ -6,6 +6,22 @@ use tp_i18n::tr;
 
 use crate::tokens::{color, radius, space, stroke, typography};
 
+/// The width of the widest of `labels` as [`NumericField`] draws them: the
+/// label column of fields stacked under each other (see
+/// [`NumericField::label_width`]).
+pub fn label_column(ui: &Ui, labels: &[&str]) -> f32 {
+    let font = egui::TextStyle::Small.resolve(ui.style());
+    labels
+        .iter()
+        .map(|l| {
+            ui.painter()
+                .layout_no_wrap((*l).to_owned(), font.clone(), color::TEXT_SECONDARY)
+                .size()
+                .x
+        })
+        .fold(0.0, f32::max)
+}
+
 /// What happened to a [`NumericField`] this frame.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FieldEvent {
@@ -40,6 +56,9 @@ pub struct NumericField<'a> {
     fill: bool,
     /// Height of the inset box; `None`: label and suffix outside the box.
     inset: Option<f32>,
+    /// Least width of the label, so fields stacked under each other start
+    /// at the same left edge.
+    label_width: f32,
 }
 
 #[derive(Clone, Default)]
@@ -63,6 +82,7 @@ impl<'a> NumericField<'a> {
             width: 64.0,
             fill: false,
             inset: None,
+            label_width: 0.0,
         }
     }
 
@@ -95,6 +115,13 @@ impl<'a> NumericField<'a> {
     /// the suffix (at least the set width), so a field fills a column.
     pub fn fill(mut self) -> Self {
         self.fill = true;
+        self
+    }
+
+    /// Gives the label at least `width` (see [`label_column`]), so the text
+    /// boxes of fields stacked under each other line up.
+    pub fn label_width(mut self, width: f32) -> Self {
+        self.label_width = width;
         self
     }
 
@@ -135,6 +162,10 @@ impl<'a> NumericField<'a> {
                     )
                     .on_hover_cursor(CursorIcon::ResizeHorizontal)
                     .on_hover_text(self.name);
+                let pad = self.label_width - label.rect.width();
+                if pad > 0.0 {
+                    ui.add_space(pad);
+                }
                 event = self.scrub(ui, &label, id);
             }
 

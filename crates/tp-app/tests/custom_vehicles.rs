@@ -204,10 +204,10 @@ fn no_vehicle_installed_offers_custom_vehicle() {
             .is_disabled(),
         "Create Project is disabled"
     );
-    for label in ["Install…", "Install the sample vehicles", "Custom vehicle…"] {
+    for label in ["Install…", "Install the sample vehicles", "Custom Vehicle…"] {
         assert!(h.query_by_label(label).is_some(), "{label} is offered");
     }
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     assert!(h.query_by_label("Custom Vehicle").is_some(), "dialog title");
     let d = dialog(&h);
@@ -226,7 +226,7 @@ fn escape_returns_to_the_wizard_unchanged() {
     settle(&mut h);
     let before = wizard_choice(&h);
     assert!(before.is_some());
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     form(&mut h).name = "Half done".into();
     h.key_press(Key::Escape);
@@ -240,7 +240,7 @@ fn dropping_the_games_templates() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = app(dir.path());
     open_wizard(&mut h);
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     drop_files(
         &mut h,
@@ -311,7 +311,7 @@ fn replace_keeps_the_rows_choices() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = app(dir.path());
     open_wizard(&mut h);
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     drop_files(
         &mut h,
@@ -363,7 +363,7 @@ fn dropped_templates_do_not_reach_the_canvas() {
         .queue
         .push(tp_app::commands::CommandId::AddVehicle);
     settle(&mut h);
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     let center = h.get_by_label("Custom Vehicle").rect().center();
     drop_at(&mut h, center, vec![("cabin.png", png(64))]);
@@ -376,7 +376,7 @@ fn checks_are_shown_next_to_their_field() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = app(dir.path());
     open_wizard(&mut h);
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     fill_truck(&mut h);
     drop_files(&mut h, vec![("mirrors.png", png(16))]);
@@ -446,7 +446,7 @@ fn same_id_points_to_new_version() {
     let mut h = app(dir.path());
     install_custom_truck(&mut h, Game::Ets2);
     open_wizard(&mut h);
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     fill_truck(&mut h);
     assert!(!create_enabled(&h));
@@ -462,7 +462,7 @@ fn project_from_a_custom_vehicle() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = app(dir.path());
     open_wizard(&mut h);
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     fill_truck(&mut h);
     build(&mut h);
@@ -489,7 +489,7 @@ fn dds_is_installed_as_a_png_of_the_same_pixels() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = app(dir.path());
     open_wizard(&mut h);
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     {
         let f = form(&mut h);
@@ -521,7 +521,7 @@ fn custom_trailer_added_to_a_fleet() {
         .queue
         .push(tp_app::commands::CommandId::AddVehicle);
     settle(&mut h);
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     {
         let d = dialog(&h);
@@ -562,7 +562,7 @@ fn custom_vehicle_added_to_the_fleet() {
     h.get_by_role_and_label(Role::CheckBox, common::SAMPLE)
         .click();
     settle(&mut h);
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     {
         let f = form(&mut h);
@@ -620,7 +620,7 @@ fn custom_vehicle_from_an_ats_project_is_ats() {
         .queue
         .push(tp_app::commands::CommandId::AddVehicle);
     settle(&mut h);
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     let d = dialog(&h);
     assert_eq!(d.form.game, Game::Ats);
@@ -675,7 +675,7 @@ fn created_vehicle_hidden_by_a_filter() {
         draft.filter.game = Some(Game::Ats);
     }
     settle(&mut h);
-    h.get_by_label("Custom vehicle…").click();
+    h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);
     // The dialog's game is proposed; the player picks ETS2.
     assert_eq!(dialog(&h).form.game, Game::Ats);
@@ -713,7 +713,7 @@ fn library_custom_vehicle_new_version_and_export() {
         "listed"
     );
     assert!(
-        h.query_by_label_contains("Game versions any version")
+        h.query_by_label_contains("Any game version · Main texture: cabin · No accessories")
             .is_some()
     );
     h.state_mut().vehicles.install_samples().unwrap();
@@ -864,4 +864,41 @@ fn update_template_on_a_custom_vehicle() {
     };
     assert_eq!(status("cabin"), Some(TemplateStatus::LayoutChanged));
     assert_eq!(status("Mirrors"), Some(TemplateStatus::Current));
+}
+
+/// With a main and an accessory texture, the rows' fixed grid keeps the
+/// whole dialog, its title and its Create button inside a 1440 × 1000
+/// window; the rows show short labels above their combos.
+#[test]
+fn custom_vehicle_dialog_stays_in_the_window() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    h.set_size(Vec2::new(1440.0, 1000.0));
+    open_wizard(&mut h);
+    h.get_by_label("Custom Vehicle…").click();
+    settle(&mut h);
+    drop_files(
+        &mut h,
+        vec![
+            ("cabin.png", png(64)),
+            ("side_skirts_and_mirrors.png", png(32)),
+        ],
+    );
+    assert_eq!(dialog(&h).form.rows[1].role, PartRole::Accessory);
+    settle(&mut h);
+    let window = egui::Rect::from_min_size(Pos2::ZERO, Vec2::new(1440.0, 1000.0));
+    let modal = h
+        .ctx
+        .memory(|m| m.area_rect(egui::Id::new("custom_vehicle_modal")))
+        .expect("the dialog is shown");
+    assert!(
+        window.contains_rect(modal),
+        "{modal:?} is outside the window"
+    );
+    for name in ["Custom Vehicle", "Create", "Role of texture 2"] {
+        let rect = h.get_by_label(name).rect();
+        assert!(window.contains_rect(rect), "{name} at {rect:?}");
+    }
+    assert!(h.query_all_by_label("Role").next().is_some());
+    assert!(h.query_all_by_label("Height").next().is_some());
 }

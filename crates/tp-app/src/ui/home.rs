@@ -103,6 +103,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
                             }
                             action = recent_list(
                                 ui,
+                                &mut cmds,
                                 &state.prefs.recent,
                                 &state.recent_available,
                                 &state.recent_thumbnails,
@@ -244,19 +245,24 @@ fn recovered_list(ui: &mut Ui, recovered: &[Recovered]) -> Option<(String, bool)
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.spacing_mut().item_spacing.y = space::XXS;
-                        let (title, detail) = match &r.meta {
+                        // The detail: the path (in the mono face, as in
+                        // Recent projects) and when it was saved.
+                        let (title, path, detail) = match &r.meta {
                             Some(meta) => (
                                 meta.name.clone(),
-                                format!(
-                                    "{} · {}",
-                                    meta.original.as_ref().map_or(tr("home-never-saved"), |p| p
-                                        .display()
-                                        .to_string()),
-                                    relative_time(now, meta.saved_at)
-                                ),
+                                meta.original.as_ref().map(|p| p.display().to_string()),
+                                match meta.original {
+                                    Some(_) => format!(" · {}", relative_time(now, meta.saved_at)),
+                                    None => format!(
+                                        "{} · {}",
+                                        tr("home-never-saved"),
+                                        relative_time(now, meta.saved_at)
+                                    ),
+                                },
                             ),
                             None => (
                                 tr("home-recovery-damaged"),
+                                None,
                                 tr("home-recovery-damaged-hint"),
                             ),
                         };
@@ -272,7 +278,18 @@ fn recovered_list(ui: &mut Ui, recovered: &[Recovered]) -> Option<(String, bool)
                                 tr!("home-recovered-item", name = title.as_str()),
                             )
                         });
-                        ui.label(RichText::new(detail).small().color(color::TEXT_SECONDARY));
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 0.0;
+                            if let Some(path) = &path {
+                                let size = egui::TextStyle::Small.resolve(ui.style()).size;
+                                ui.label(
+                                    RichText::new(path)
+                                        .font(egui::FontId::monospace(size))
+                                        .color(color::TEXT_SECONDARY),
+                                );
+                            }
+                            ui.label(RichText::new(&detail).small().color(color::TEXT_SECONDARY));
+                        });
                     });
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         if r.meta.is_some() && ui.add(primary_button(&tr("home-restore"))).clicked()
@@ -290,6 +307,38 @@ fn recovered_list(ui: &mut Ui, recovered: &[Recovered]) -> Option<(String, bool)
     chosen
 }
 
+/// The empty Recent projects area: the empty state centered on the whole
+/// list's width, in a frame where the cards will be, with a button that
+/// creates a project.
+fn empty_recent(ui: &mut Ui, cmds: &mut CommandUi<'_>) {
+    Frame::new()
+        .stroke(Stroke::new(1.0, color::BORDER))
+        .corner_radius(CornerRadius::same(radius::LG))
+        .inner_margin(Margin::same(space::XL as i8))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                EmptyState::new(
+                    icons::RECENT,
+                    &tr("home-recent-empty"),
+                    &tr("home-recent-empty-hint"),
+                )
+                .show(ui);
+                let response = ui.add(secondary_button(&format!(
+                    "{}  {}",
+                    icons::NEW_PROJECT,
+                    tr("home-recent-empty-create")
+                )));
+                response.widget_info(|| {
+                    WidgetInfo::labeled(WidgetType::Button, true, tr("home-recent-empty-create"))
+                });
+                if response.clicked() {
+                    cmds.push(CommandId::NewProject);
+                }
+            });
+        });
+}
+
 pub fn bar_frame() -> Frame {
     Frame::new()
         .fill(color::SURFACE_1)
@@ -300,6 +349,7 @@ pub fn bar_frame() -> Frame {
 /// for.
 fn recent_list(
     ui: &mut Ui,
+    cmds: &mut CommandUi<'_>,
     recent: &[RecentProject],
     available: &[bool],
     thumbnails: &RecentThumbnails,
@@ -312,14 +362,7 @@ fn recent_list(
     ui.add_space(space::LG);
 
     if recent.is_empty() {
-        ui.allocate_ui(Vec2::new(ui.available_width().min(520.0), 200.0), |ui| {
-            EmptyState::new(
-                icons::RECENT,
-                &tr("home-recent-empty"),
-                &tr("home-recent-empty-hint"),
-            )
-            .show(ui);
-        });
+        empty_recent(ui, cmds);
         return None;
     }
 

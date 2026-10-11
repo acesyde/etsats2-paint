@@ -44,6 +44,7 @@ home-preferences = Preferencias
 home-recent = Proyectos recientes
 home-recent-empty = No hay proyectos recientes
 home-recent-empty-hint = Los proyectos que abra aparecerán aquí. Empiece creando un nuevo proyecto.
+home-recent-empty-create = Crear su primer proyecto
 home-recent-missing-item = { $name } (archivo no encontrado)
 home-remove-recent = Quitar de la lista
 home-file-not-found = Archivo no encontrado
@@ -150,6 +151,9 @@ custom-row-name = Nombre de la textura { $n }
 custom-row-role = Función de la textura { $n }
 custom-row-width = Ancho de la textura { $n }
 custom-row-height = Alto de la textura { $n }
+custom-row-role-short = Función
+custom-row-width-short = Ancho
+custom-row-height-short = Alto
 custom-row-game-ids = Identificadores de juego de la textura { $n }
 custom-row-replace = Reemplazar…
 custom-row-replace-name = Reemplazar la plantilla de la textura { $n }
@@ -195,14 +199,31 @@ vehicles-trailer = Remolque
 vehicles-installed = { $name } { $version } instalado
 vehicles-empty = Ningún vehículo instalado
 vehicles-empty-hint = Los paquetes de vehículos (.tpv) contienen las plantillas de un camión o remolque. Instale uno para pintar una librea.
-vehicles-details = Versiones del juego { $versions } · { $main } · Accesorios: { $accessories }
+vehicles-details-any-version = Cualquier versión del juego
+vehicles-details-versions = Versiones del juego: { $versions }
+vehicles-details-main = { $count ->
+    [one] Textura principal
+   *[other] Texturas principales
+}: { $names }
+vehicles-details-accessories = { $count ->
+    [0] Sin accesorios
+    [one] { $count } accesorio
+   *[other] { $count } accesorios
+}
 vehicles-version = Versión { $version }
 vehicles-remove-version = Eliminar { $name } { $version }
 vehicles-remove-confirm = ¿Eliminar { $name } de la biblioteca? Los proyectos conservan sus plantillas.
 vehicles-remove = Eliminar
 vehicles-install = Instalar…
 vehicles-install-sample = Instalar los vehículos de ejemplo
-vehicles-any-version = cualquier versión
+
+# Rangos de versiones del juego en palabras («>=1.56» se lee «1.56 o posterior»).
+version-range-any = cualquier versión
+version-range-from = { $version } o posterior
+version-range-until = { $version } o anterior
+version-range-exact = { $version }
+version-range-between = desde { $from } hasta antes de { $to }
+
 vehicles-new-version = Nueva versión…
 vehicles-new-version-of = Nueva versión de { $name }
 vehicles-export-version = Exportar { $name } { $version }
@@ -315,9 +336,12 @@ mod-choose-image = Elegir imagen…
 mod-generated-image = Usar la imagen generada
 mod-picture-failed = No se puede usar { $file } ({ $reason }).
 mod-summary = En el mod
-mod-summary-cabins = { $texture }: cabinas { $cabins }
-mod-summary-every-cabin = { $texture }: todas las cabinas
-mod-summary-not-painted = { $texture }: sin pintar
+mod-summary-cabins = { $texture } ({ $count ->
+    [one] cabina
+   *[other] cabinas
+}: { $cabins })
+mod-summary-every-cabin = { $texture } (todas las cabinas)
+mod-summary-not-painted = { $texture } (sin pintar)
 mod-summary-accessories = Accesorios: { $accessories }
 mod-problem-name-empty = El mod necesita un nombre.
 mod-problem-name-invalid = El nombre no puede contener ", \ ni saltos de línea.
@@ -374,7 +398,7 @@ official-unreadable = { $vehicle }: no se puede leer «{ $file }» ({ $reason })
 pack-title = Paquete de plantillas de { $game }
 pack-for-vehicle = Para instalar { $vehicle }
 pack-moved = La carpeta del paquete de plantillas de { $game } se ha movido o eliminado. Vuelve a elegirla.
-pack-explanation = Los vehículos oficiales se crean a partir del paquete de plantillas gratuito de Carsmaniac para { $game }. Ocupa unos 1,2 GB y se descarga una sola vez para todos los vehículos.
+pack-explanation = Los vehículos oficiales se crean a partir del paquete de plantillas gratuito de Carsmaniac para { $game }. Ocupa unos 1,2 GB y se descarga una sola vez, para todos los vehículos.
 pack-step-download = Descarga el paquete desde su hilo del foro.
 pack-open-download = Abrir la página de descarga
 pack-copy-link = Copiar el enlace
@@ -385,8 +409,14 @@ pack-choose-folder = Elegir la carpeta del paquete…
 pack-wrong-folder = Esta carpeta no contiene el paquete de plantillas de { $game }.
 prefs-template-packs = Paquetes de plantillas
 prefs-pack-not-set = Sin definir
-prefs-pack-choose = Elegir…
+prefs-pack-choose = Elegir carpeta…
 prefs-pack-clear = Borrar
+prefs-template-packs-hint = Los paquetes de plantillas de Carsmaniac, usados para instalar los vehículos oficiales.
+prefs-pack-missing = Carpeta no encontrada
+prefs-pack-copy-path = Copiar ruta
+prefs-pack-show-finder = Mostrar en el Finder
+prefs-pack-show-explorer = Mostrar en el Explorador
+prefs-pack-show-files = Mostrar en el gestor de archivos
 about-credits-title = Créditos
 about-credits = Datos de vehículos de Paintjob Packer por Carsmaniac (licencia MIT). Paquetes de plantillas por Carsmaniac.
 about-licenses = Licencias…

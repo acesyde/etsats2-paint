@@ -21,7 +21,7 @@ Illustrator or Inkscape is not a goal.
 The blank-texture project goes away. New Project starts by choosing a vehicle.
 
 When no package exists for a vehicle (a truck just released, or a community
-mod nobody has packaged), the player uses **Custom vehicle…** (shipped in
+mod nobody has packaged), the player uses **Custom Vehicle…** (shipped in
 `custom-vehicle`):
 1. drop the template files (DDS, PNG or SVG);
 2. pick the game and the kind (truck or trailer), and describe the paint job
@@ -262,6 +262,20 @@ brand).
   and no "enable in the mod manager" option; Custom vehicle keeps DDS, PNG
   and SVG templates and typed game data.
 
+### Wording (set in `polishing`)
+- **English casing:** commands, menu items, buttons and dialog titles are in
+  Title Case, with the small words (a, an, the, and, or, of, to, from, in,
+  on, for, by, with, as, at) in lowercase unless they come first: "Custom
+  Vehicle…", "Copy from Cabin…", "New Style from Selection", "Import from
+  Library…". Labels, hints, messages, tooltips and summaries are in
+  sentence case: "Color picker", "Supported by every vehicle". The undo
+  history names an action like its command, without the "…".
+- **Spelling:** American English ("color", not "colour"), in the interface
+  as in these documents.
+- **Other languages** follow their own usage (sentence case in French,
+  Spanish and German, except German nouns), use the game's own terms when
+  it has them, and keep two commands' names clearly apart.
+
 ## Open questions
 
 None at the moment.
@@ -270,7 +284,7 @@ None at the moment.
 
 | # | Change | What it does | Why now |
 |---|---|---|---|
-| 2 | `polishing` | Fixes, ergonomics, wording and performance across the app, with no new feature. | Smooths what the first players will meet, on the new design. |
+| 2 | `polishing` (later passes) | Fixes, ergonomics, wording and performance across the app, with no new feature; the first pass is shipped. | Smooths what the first players will meet, on the new design. |
 | 3 | `official-vehicles` batches | `tpv catalog match`, which proposes a vehicle's mapping from the pack's file names and marks the doubtful cases to validate; then the other official vehicles of ETS2 and ATS, in batches. | The first brick (shipped) proved the path from the catalog to a mod loaded in the game, on the DAF NGD and the Krone Cool Liner. |
 | 4 | `distribution` | Release builds and installers. Includes a macOS `.app` bundle (so the app menu's bold name reads "TruckPaint", not the binary's name), and the manual checks of the drawn title bar on Windows, Linux X11 and Wayland (moving, double-click, resize grips, window controls, menus, the system title bar option and `TRUCKPAINT_SYSTEM_TITLE_BAR=1`). | A player can go from vehicle to mod without building the app. |
 | 5 | `template-update-impact` | A template update says what it changes and which projects it touches; affected textures become "to check" and affected objects are flagged. Nothing moves automatically. Works with local packages too; builds on the To check state of `texture-status` (shipped). | Each game update brings a new template pack: `tpv catalog check` tells which official vehicles changed, and the player's projects get the To check flow. |
@@ -285,6 +299,22 @@ moderation and a release first, and the official vehicles come from
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `polishing` (first pass, after a screenshot audit in every language and
+  in the long-text mode): fixes, ergonomics and wording, with no new
+  feature. Layouts fit every language at the minimum window size (960 ×
+  600): the Custom Vehicle dialog, the vehicle cards, the Project header,
+  the Workshop's left panel, Resources, Preferences and About; text that
+  doesn't fit ends with "…" and shows the full text in a tooltip. A name
+  that is a kind's default name in any language is a default name, text
+  layers show their first line, and the header names a symbol while it is
+  edited; game version ranges read "1.56 or later"; the Vehicle Library,
+  Export Mod summary, template pack and shadow wording is clearer. The
+  color target mark, font picker, drop zones, template opacity and Empty
+  dot show the right state; one square checkbox everywhere, aligned
+  submenus, value fields and status dots, section headers kept for a single
+  section, light rings on very dark swatches. The English casing rule and
+  American spelling are written above (Wording); German names Create
+  Outlines "Konturen erstellen". Performance is left to a later pass;
 - `official-vehicles` (first brick): the DAF NGD and the Krone Cool Liner
   are listed under Official in New Project and Add Vehicle…. Picking one
   builds and installs its package from Carsmaniac's template pack, which
@@ -392,9 +422,9 @@ their requirements are in `openspec/specs/`. The most recent ones are:
   every edit of their symbol on every texture;
 - `brand-kit`: named palette swatches that fills, strokes and gradient stops
   link to (Edit Swatch… recolors the fleet); linked graphic and text styles
-  in a new Styles panel; Copy From Cabin… between the main textures of a
+  in a new Styles panel; Copy from Cabin… between the main textures of a
   truck;
-- `custom-vehicle`: Custom vehicle… in New Project, Add Vehicle… and the
+- `custom-vehicle`: Custom Vehicle… in New Project, Add Vehicle… and the
   Vehicle Library builds and installs a package from template files (DDS,
   PNG or SVG) and the paint job described by the player; New Version… for
   custom vehicles; Export… of any installed version as a `.tpv`;

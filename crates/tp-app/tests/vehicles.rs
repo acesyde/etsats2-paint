@@ -649,7 +649,10 @@ fn install_the_sample_vehicles_from_the_library() {
     assert!(h.query_by_label("Install the sample vehicles").is_none());
     // The detail pane summarizes the chosen vehicle's paint job, the
     // first listed at first.
-    assert!(h.query_by_label_contains("Base · Accessories: 3").is_some());
+    assert!(
+        h.query_by_label_contains("Main texture: Base · 3\u{a0}accessories")
+            .is_some()
+    );
     assert!(
         h.query_by_label("Template of TruckPaint Sample Trailer")
             .is_some()
@@ -658,7 +661,7 @@ fn install_the_sample_vehicles_from_the_library() {
         .click();
     settle(&mut h);
     assert!(
-        h.query_by_label_contains("Standard cab, High roof · Accessories: 3")
+        h.query_by_label_contains("Main textures: Standard cab, High roof · 3\u{a0}accessories")
             .is_some()
     );
 }
@@ -1406,5 +1409,29 @@ fn an_update_flags_the_texture_rows() {
     assert!(
         h.query_by_label_contains("Sample Truck › Standard cab, To check")
             .is_some()
+    );
+}
+
+/// The search field is as tall as the filter combos beside it, in the
+/// Vehicle Library and in Add Vehicle.
+#[test]
+fn search_fields_as_tall_as_the_filters() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    let height = |h: &H, label: &str| h.get_by_label(label).rect().height();
+    h.state_mut().vehicles.install_samples().unwrap();
+    h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+    settle(&mut h);
+    let search = height(&h, "Search vehicles");
+    assert_eq!(search, height(&h, "Kind"), "library");
+    assert_eq!(search, height(&h, "Game"), "library");
+    h.state_mut().modal = None;
+    create_sample_project(&mut h, &["Standard cab"], &[]);
+    h.get_by_label("Add Vehicle…").click();
+    settle(&mut h);
+    assert_eq!(
+        height(&h, "Search vehicles"),
+        height(&h, "Kind"),
+        "Add Vehicle"
     );
 }

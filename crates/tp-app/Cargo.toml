@@ -26,6 +26,7 @@ tp-render.workspace = true
 zip.workspace = true
 image.workspace = true
 resvg.workspace = true
+opener.workspace = true
 rfd.workspace = true
 eframe.workspace = true
 egui.workspace = true

@@ -232,3 +232,36 @@ fn size_labels_read_width_by_height() {
     let crumb = format!("{LINER} › Accessories › Mudflaps 1024²");
     assert_eq!(h.query_all_by_label(&crumb).count(), 1, "{crumb}");
 }
+
+/// Texture rows: the sizes are right-aligned in one slot, so the state
+/// markers before them line up, whatever the size's width ("8192 × 1024"
+/// and "1024²").
+#[test]
+fn textures_tab_state_markers_line_up() {
+    let h = open();
+    let markers: Vec<Rect> = h
+        .query_all_by_label("Empty")
+        .map(|n| n.rect())
+        .filter(|r| r.left() < 400.0)
+        .collect();
+    assert_eq!(markers.len(), 2, "{markers:?}");
+    assert!(
+        (markers[0].center().x - markers[1].center().x).abs() < 0.5,
+        "{markers:?}"
+    );
+    let right_edges: Vec<f32> = shapes(&h)
+        .filter_map(|s| match s {
+            Shape::Text(t) if ["8192 × 1024", "1024²"].contains(&t.galley.text()) => {
+                Some(t.pos.x + t.galley.rect.right())
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(right_edges.len(), 2, "{right_edges:?}");
+    assert!(
+        (right_edges[0] - right_edges[1]).abs() < 0.5,
+        "{right_edges:?}"
+    );
+    // The marker keeps clear of the widest size.
+    assert!(markers[0].right() < right_edges[0] - 60.0, "{markers:?}");
+}

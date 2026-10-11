@@ -63,7 +63,7 @@ fn from_align_menu(h: &mut H, label: &str) {
     h.get_by_label("Object").click();
     h.run();
     // egui labels submenu buttons with an arrow.
-    h.get_by_label("Align ⏵").click();
+    h.get_by_label("Align").click();
     h.run();
     common::last(h, label).click();
     h.run();

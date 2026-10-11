@@ -244,7 +244,7 @@ Templates of the base games belong to SCS Software. Pack them for your own use, 
 
 ## Custom vehicles
 
-When no package exists for a vehicle, a painter can make one in TruckPaint, without writing a manifest: **Custom vehicle…** in New Project or in Add Vehicle…, or **Custom Vehicle…** in the Vehicle Library.
+When no package exists for a vehicle, a painter can make one in TruckPaint, without writing a manifest: **Custom Vehicle…** in New Project, in Add Vehicle… or in the Vehicle Library.
 
 1. Fill in the vehicle: name, brand, kind (truck or trailer), game, game path and, optionally, the supported game versions (empty: any version), the alternate UV set and the colour picker.
 2. Drop the template files on the dialog, or use Add Templates…: PNG, SVG, or DDS in the formats `tpv` converts. Each file becomes one texture. Its name comes from the file name and its size from the image's width and height. A side that isn't a power of two from 64 to 8192 is rounded to the nearest one, and the template will be scaled to that size. The first one is a main texture, the others are accessories. Change any of them as needed.

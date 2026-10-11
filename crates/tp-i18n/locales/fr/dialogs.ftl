@@ -44,6 +44,7 @@ home-preferences = Préférences
 home-recent = Projets récents
 home-recent-empty = Aucun projet récent
 home-recent-empty-hint = Les projets que vous ouvrez apparaîtront ici. Commencez par créer un nouveau projet.
+home-recent-empty-create = Créer votre premier projet
 home-recent-missing-item = { $name } (fichier introuvable)
 home-remove-recent = Retirer de la liste
 home-file-not-found = Fichier introuvable
@@ -150,6 +151,9 @@ custom-row-name = Nom de la texture { $n }
 custom-row-role = Rôle de la texture { $n }
 custom-row-width = Largeur de la texture { $n }
 custom-row-height = Hauteur de la texture { $n }
+custom-row-role-short = Rôle
+custom-row-width-short = Largeur
+custom-row-height-short = Hauteur
 custom-row-game-ids = Identifiants de jeu de la texture { $n }
 custom-row-replace = Remplacer…
 custom-row-replace-name = Remplacer le gabarit de la texture { $n }
@@ -195,14 +199,31 @@ vehicles-trailer = Remorque
 vehicles-installed = { $name } { $version } installé
 vehicles-empty = Aucun véhicule installé
 vehicles-empty-hint = Les paquets de véhicules (.tpv) contiennent les gabarits d’un camion ou d’une remorque. Installez-en un pour y peindre une livrée.
-vehicles-details = Versions du jeu { $versions } · { $main } · Accessoires : { $accessories }
+vehicles-details-any-version = Toutes les versions du jeu
+vehicles-details-versions = Versions du jeu : { $versions }
+vehicles-details-main = { $count ->
+    [one] Texture principale
+   *[other] Textures principales
+} : { $names }
+vehicles-details-accessories = { $count ->
+    [0] Aucun accessoire
+    [one] { $count } accessoire
+   *[other] { $count } accessoires
+}
 vehicles-version = Version { $version }
 vehicles-remove-version = Supprimer { $name } { $version }
 vehicles-remove-confirm = Supprimer { $name } de la bibliothèque ? Les projets conservent leurs gabarits.
 vehicles-remove = Supprimer
 vehicles-install = Installer…
 vehicles-install-sample = Installer les véhicules d’exemple
-vehicles-any-version = toutes les versions
+
+# Plages de versions du jeu en mots (« >=1.56 » se lit « 1.56 ou ultérieure »).
+version-range-any = toutes les versions
+version-range-from = { $version } ou ultérieure
+version-range-until = { $version } ou antérieure
+version-range-exact = { $version }
+version-range-between = de { $from } à { $to } exclue
+
 vehicles-new-version = Nouvelle version…
 vehicles-new-version-of = Nouvelle version de { $name }
 vehicles-export-version = Exporter { $name } { $version }
@@ -315,9 +336,12 @@ mod-choose-image = Choisir l’image…
 mod-generated-image = Utiliser l’image générée
 mod-picture-failed = { $file } ne peut pas être utilisé ({ $reason }).
 mod-summary = Dans le mod
-mod-summary-cabins = { $texture } : cabines { $cabins }
-mod-summary-every-cabin = { $texture } : toutes les cabines
-mod-summary-not-painted = { $texture } : non peinte
+mod-summary-cabins = { $texture } ({ $count ->
+    [one] cabine
+   *[other] cabines
+} : { $cabins })
+mod-summary-every-cabin = { $texture } (toutes les cabines)
+mod-summary-not-painted = { $texture } (non peinte)
 mod-summary-accessories = Accessoires : { $accessories }
 mod-problem-name-empty = Le mod doit avoir un nom.
 mod-problem-name-invalid = Le nom ne peut pas contenir ", \ ni de retour à la ligne.
@@ -374,7 +398,7 @@ official-unreadable = { $vehicle } : « { $file } » est illisible ({ $reason })
 pack-title = Pack de gabarits { $game }
 pack-for-vehicle = Pour installer { $vehicle }
 pack-moved = Le dossier du pack de gabarits { $game } a été déplacé ou supprimé. Choisissez-le à nouveau.
-pack-explanation = Les véhicules officiels sont créés à partir du pack de gabarits gratuit de Carsmaniac pour { $game }. Il pèse environ 1,2 Go et se télécharge une seule fois pour tous les véhicules.
+pack-explanation = Les véhicules officiels sont créés à partir du pack de gabarits gratuit de Carsmaniac pour { $game }. Il pèse environ 1,2 Go et se télécharge une seule fois, pour tous les véhicules.
 pack-step-download = Téléchargez le pack depuis son sujet sur le forum.
 pack-open-download = Ouvrir la page de téléchargement
 pack-copy-link = Copier le lien
@@ -385,8 +409,14 @@ pack-choose-folder = Choisir le dossier du pack…
 pack-wrong-folder = Ce dossier ne contient pas le pack de gabarits { $game }.
 prefs-template-packs = Packs de gabarits
 prefs-pack-not-set = Non défini
-prefs-pack-choose = Choisir…
+prefs-pack-choose = Choisir le dossier…
 prefs-pack-clear = Effacer
+prefs-template-packs-hint = Les packs de templates de Carsmaniac, utilisés pour installer les véhicules officiels.
+prefs-pack-missing = Dossier introuvable
+prefs-pack-copy-path = Copier le chemin
+prefs-pack-show-finder = Afficher dans le Finder
+prefs-pack-show-explorer = Afficher dans l'Explorateur
+prefs-pack-show-files = Afficher dans le gestionnaire de fichiers
 about-credits-title = Crédits
 about-credits = Données des véhicules issues de Paintjob Packer par Carsmaniac (licence MIT). Packs de gabarits par Carsmaniac.
 about-licenses = Licences…

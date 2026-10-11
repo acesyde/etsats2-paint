@@ -1,6 +1,6 @@
 //! The New Project dialog, on one page: the project's name and game on
 //! top; the official and installed vehicles of that game on the left, with
-//! Custom vehicle… and Install…, each vehicle with a checkbox; "Your fleet"
+//! Custom Vehicle… and Install…, each vehicle with a checkbox; "Your fleet"
 //! on the right, one card per checked vehicle (the open one with its
 //! textures to tick), and the textures that will be created.
 
@@ -477,7 +477,7 @@ fn list(
         .auto_shrink([false, false])
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
-            if rows.sections() {
+            if !rows.official.is_empty() {
                 section_header(ui, &tr("vehicles-section-official"));
             }
             for row in &rows.official {
@@ -499,7 +499,7 @@ fn list(
                     }
                 }
             }
-            if rows.sections() {
+            if !rows.installed.is_empty() {
                 section_header(ui, &tr("vehicles-section-installed"));
             }
             for vehicle in rows.installed {
@@ -596,26 +596,12 @@ pub(super) fn vehicle_row(ui: &mut Ui, m: &Row<'_>, selected: bool) -> bool {
         Stroke::new(1.0, color::BORDER),
     );
     let columns = Columns::of(rect);
-    // The checkbox: a 16 px square, filled with a check when checked,
-    // outlined otherwise (the check tells them apart, not only the color).
-    let mark = Rect::from_center_size(egui::pos2(columns.mark, rect.center().y), Vec2::splat(16.0));
-    if selected {
-        painter.rect_filled(mark, radius::SM, color::ACCENT_PRIMARY);
-        painter.text(
-            mark.center(),
-            Align2::CENTER_CENTER,
-            icons::CHECK,
-            icons::font(11.0),
-            color::TEXT_ON_PRIMARY,
-        );
-    } else {
-        painter.rect_stroke(
-            mark.shrink(0.5),
-            radius::SM,
-            Stroke::new(1.0, color::BORDER_STRONG),
-            StrokeKind::Inside,
-        );
-    }
+    // The checkbox: the app's square box (the row's fill shows the hover).
+    let mark = Rect::from_center_size(
+        egui::pos2(columns.mark, rect.center().y),
+        Vec2::splat(tp_ui::widgets::CHECK_BOX_SIZE),
+    );
+    tp_ui::widgets::paint_check_box(painter, mark, selected, false);
     let y = rect.center().y;
     let cell = |from: f32, to: f32| {
         painter.with_clip_rect(
@@ -651,7 +637,7 @@ pub(super) fn vehicle_row(ui: &mut Ui, m: &Row<'_>, selected: bool) -> bool {
     response.on_hover_text(&m.tip).clicked()
 }
 
-/// "Vehicle without a package": what Custom vehicle… does, and the button.
+/// "Vehicle without a package": what Custom Vehicle… does, and the button.
 fn custom_entry(ui: &mut Ui, wanted: &mut Wanted) {
     let frame = Frame::new()
         .inner_margin(Margin::symmetric(space::LG as i8, space::MD as i8))
@@ -895,9 +881,10 @@ fn card(ui: &mut Ui, m: &Manifest, choice: &mut VehicleChoice, open: bool) -> Ca
                             &main_heading,
                             Some(&mode_text(m)),
                         );
+                        // In the face of the folded card's summary.
                         let label = ui.label(
                             RichText::new(format!("→ {counts}"))
-                                .monospace()
+                                .small()
                                 .color(color::TEXT_SECONDARY),
                         );
                         label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &counts));

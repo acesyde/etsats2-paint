@@ -242,7 +242,8 @@ fn no_network_needed() {
             "{name}"
         );
     }
-    // A single section: no headers. The sample vehicles stay offered.
+    // A single section keeps its header. The sample vehicles stay offered.
+    assert!(h.query_by_label("Official").is_some());
     assert!(h.query_by_label("Installed").is_none());
     assert!(h.query_by_label("Install the sample vehicles").is_some());
     // No crate that lists or builds official vehicles depends on a network
@@ -263,7 +264,7 @@ fn no_vehicle_installed_for_ats() {
     new_project(&mut h);
     h.get_by_label("American Truck Simulator").click();
     settle(&mut h);
-    for label in ["Install…", "Install the sample vehicles", "Custom vehicle…"] {
+    for label in ["Install…", "Install the sample vehicles", "Custom Vehicle…"] {
         assert!(h.query_by_label(label).is_some(), "{label}");
     }
     assert!(h.query_by_label("DAF NGD").is_none());
@@ -289,7 +290,8 @@ fn an_installed_official_vehicle_is_listed_once() {
             .count(),
         1
     );
-    // Only the Official section: no headers.
+    // Only the Official section, under its header.
+    assert!(h.query_by_label("Official").is_some());
     assert!(h.query_by_label("Installed").is_none());
     let rows = tp_app::ui::vehicle_dialogs::vehicle_rows(
         &h.state().vehicles,
@@ -405,10 +407,16 @@ fn wrong_folder() {
     h.get_by_label("Choose the pack folder…").click();
     settle(&mut h);
     assert!(pack_dialog_open(&h));
-    assert!(
-        h.query_by_label("This folder doesn't hold the ETS2 template pack.")
-            .is_some()
-    );
+    // Under step 3, its icon lined up with the step's text.
+    let refusal = h
+        .get_by_label("This folder doesn't hold the ETS2 template pack.")
+        .rect();
+    let step = h
+        .get_by_label("Choose the unzipped folder, or drop it on this window.")
+        .rect();
+    let button = h.get_by_label("Choose the pack folder…").rect();
+    assert!(refusal.left() > step.left() + 10.0, "{refusal:?} {step:?}");
+    assert!(refusal.top() > button.bottom());
     assert!(h.state().prefs.template_packs.is_empty());
 }
 
@@ -839,7 +847,7 @@ fn change_the_pack_folder() {
     open_preferences(&mut h);
     assert!(h.query_by_label("Template packs").is_some());
     script_folders(&mut h, &[&newer]);
-    h.get_by_label("Choose…").click();
+    h.get_by_label("Choose Folder…").click();
     settle(&mut h);
     let remembered = newer.join("ETS2 templates");
     assert_eq!(
@@ -868,7 +876,7 @@ fn refused_pack_folder() {
     let mut h = app_with(dir.path(), Some(&old));
     open_preferences(&mut h);
     script_folders(&mut h, &[&empty]);
-    h.get_by_label("Choose…").click();
+    h.get_by_label("Choose Folder…").click();
     settle(&mut h);
     assert!(
         h.query_by_label("This folder doesn't hold the ETS2 template pack.")
@@ -894,10 +902,39 @@ fn template_packs_list_only_games_with_official_vehicles() {
     let mut h = app(dir.path());
     open_preferences(&mut h);
     assert!(h.query_by_label("Template packs").is_some());
-    assert!(h.query_by_label("ETS2").is_some());
+    assert!(h.query_by_label("Euro Truck Simulator 2").is_some());
     assert!(h.query_by_label("Not set").is_some());
-    assert!(h.query_by_label("ATS").is_none());
-    assert_eq!(h.query_all_by_label("Choose…").count(), 1);
+    assert!(h.query_by_label("American Truck Simulator").is_none());
+    assert_eq!(h.query_all_by_label("Choose Folder…").count(), 1);
+}
+
+#[test]
+fn clicking_the_pack_folder_shows_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let pack = dir.path().join("pack");
+    write_pack(&pack);
+    let mut h = app_with(dir.path(), Some(&pack));
+    open_preferences(&mut h);
+    script_folders(&mut h, &[]);
+    h.get_by_label(&pack.display().to_string()).click();
+    settle(&mut h);
+    assert_eq!(h.state().dialogs.shown_folders(), [pack]);
+    assert!(h.query_by_label("Folder not found").is_none());
+}
+
+#[test]
+fn missing_pack_folder_is_not_shown() {
+    let dir = tempfile::tempdir().unwrap();
+    let pack = dir.path().join("pack");
+    write_pack(&pack);
+    let mut h = app_with(dir.path(), Some(&pack));
+    std::fs::remove_dir_all(&pack).unwrap();
+    open_preferences(&mut h);
+    script_folders(&mut h, &[]);
+    assert!(h.query_by_label("Folder not found").is_some());
+    h.get_by_label(&pack.display().to_string()).click();
+    settle(&mut h);
+    assert!(h.state().dialogs.shown_folders().is_empty());
 }
 
 // --- About --------------------------------------------------------------------

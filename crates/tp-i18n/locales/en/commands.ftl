@@ -173,7 +173,7 @@ reason-check-vehicle-to-add = Check at least one vehicle to add.
 cmd-next-texture = Next Texture
 cmd-previous-texture = Previous Texture
 reason-one-texture = The project has a single texture.
-cmd-copy-from-cabin = Copy From Cabin…
+cmd-copy-from-cabin = Copy from Cabin…
 reason-no-other-cabin = Copies between main textures of one truck: the active texture is an accessory, a trailer's, or the only cabin painted.
 
 ## Command palette

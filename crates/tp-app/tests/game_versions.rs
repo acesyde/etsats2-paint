@@ -166,7 +166,9 @@ fn badly_written_version_marked() {
 #[test]
 fn the_fleet_supported_versions_are_shown_under_the_field() {
     let mut h = open();
-    let hint = h.get_by_label("Supported by every vehicle: >=1.56").rect();
+    let hint = h
+        .get_by_label("Supported by every vehicle: 1.56 or later")
+        .rect();
     assert!(hint.top() > h.get_by_role_and_label(Role::Button, "Add").rect().bottom());
     add_old_vehicle(&mut h);
     assert!(
@@ -206,7 +208,7 @@ fn versions_supported_by_the_fleet() {
     ws.project.vehicles.push(other);
     h.run();
     assert!(
-        h.query_by_label("Supported by every vehicle: >=1.56, <1.58")
+        h.query_by_label("Supported by every vehicle: 1.56 to before 1.58")
             .is_some()
     );
 }

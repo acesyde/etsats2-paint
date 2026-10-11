@@ -15,7 +15,7 @@ use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, radius, space};
-use tp_ui::widgets::{IconButton, MenuRow, more_menu};
+use tp_ui::widgets::{IconButton, MenuRow, more_menu, truncated_label};
 
 use super::PanelEnv;
 use crate::commands::CommandId;
@@ -250,7 +250,10 @@ pub fn game_versions_field(ui: &mut Ui, env: &mut PanelEnv<'_>, focus_add: bool)
         FleetVersions::NoData => None,
         FleetVersions::Common(common) => Some(tr!(
             "project-game-versions-supported",
-            versions = common.text().unwrap_or_else(|| tr("vehicles-any-version"))
+            versions = common.text().map_or_else(
+                || tr("version-range-any"),
+                |text| crate::game_versions::range_in_words(&text)
+            )
         )),
         FleetVersions::Conflict { .. } => Some(tr("project-no-common-version")),
     };
@@ -358,15 +361,36 @@ fn vehicles_section(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_
     });
     let vehicles = env.ws.project.vehicles.clone();
     let last = vehicles.len() <= 1;
+    // One slot for the sizes, as wide as the widest: the state markers line
+    // up whatever the size's width.
+    let font = size_font(ui);
+    let size_slot = env
+        .ws
+        .project
+        .surfaces
+        .iter()
+        .map(|s| {
+            ui.painter()
+                .layout_no_wrap(s.size_label(), font.clone(), color::TEXT_DISABLED)
+                .size()
+                .x
+        })
+        .fold(0.0, f32::max);
     for vehicle in &vehicles {
-        vehicle_group(ui, env, vehicle, last);
+        vehicle_group(ui, env, vehicle, last, size_slot);
     }
 }
 
 /// A vehicle: its name groups its textures under Main textures and
 /// Accessories; actions in its ⋯ menu, and an update button when a newer
 /// version is installed.
-fn vehicle_group(ui: &mut Ui, env: &mut PanelEnv<'_>, vehicle: &ProjectVehicle, last: bool) {
+fn vehicle_group(
+    ui: &mut Ui,
+    env: &mut PanelEnv<'_>,
+    vehicle: &ProjectVehicle,
+    last: bool,
+    size_slot: f32,
+) {
     let id = ui.make_persistent_id(("fleet_vehicle", &vehicle.package_id));
     let active = env
         .ws
@@ -409,22 +433,27 @@ fn vehicle_group(ui: &mut Ui, env: &mut PanelEnv<'_>, vehicle: &ProjectVehicle, 
                         request = Some(VehicleRequest::Update(vehicle.package_id.clone()));
                     }
                 }
-                // Kind and package version, on the name's line.
+                // Kind and package version, on the name's line, at most
+                // half the room left so that the name keeps the rest; both
+                // on one line, ending with "…" when they don't fit.
                 ui.add_space(space::XS);
-                ui.label(
-                    RichText::new(format!("{} · {}", kind_text(vehicle), vehicle.version))
-                        .size(tp_ui::tokens::typography::CAPTION)
-                        .color(color::TEXT_DISABLED),
-                )
-                .on_hover_text(package_text(env, vehicle));
-                // The name takes the room left, on two lines if needed.
-                ui.with_layout(Layout::top_down(Align::Min), |ui| {
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new(&vehicle.name).text_style(label_strong_style()),
-                        )
-                        .wrap(),
-                    );
+                let note = RichText::new(format!("{} · {}", kind_text(vehicle), vehicle.version))
+                    .size(tp_ui::tokens::typography::CAPTION)
+                    .color(color::TEXT_DISABLED);
+                let note_width = ui
+                    .painter()
+                    .layout_no_wrap(
+                        note.text().to_owned(),
+                        egui::FontId::proportional(tp_ui::tokens::typography::CAPTION),
+                        color::TEXT_DISABLED,
+                    )
+                    .size()
+                    .x
+                    .min(ui.available_width() / 2.0);
+                truncated_label(ui, note, note_width).on_hover_text(package_text(env, vehicle));
+                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                    let name = RichText::new(&vehicle.name).text_style(label_strong_style());
+                    truncated_label(ui, name, ui.available_width());
                 });
             });
         })
@@ -444,7 +473,7 @@ fn vehicle_group(ui: &mut Ui, env: &mut PanelEnv<'_>, vehicle: &ProjectVehicle, 
                     ui.add_space(space::XS);
                     ui.label(RichText::new(title).small().color(color::TEXT_SECONDARY));
                 }
-                texture_row(ui, env, i);
+                texture_row(ui, env, i, size_slot);
             }
         });
     ui.add_space(space::SM);
@@ -570,7 +599,7 @@ pub fn texture_name(project: &Project, i: usize) -> String {
 /// where muted text lacks contrast.
 pub fn state_colors(state: TextureState, hover_fill: bool) -> (egui::Color32, egui::Color32) {
     match state {
-        TextureState::Empty if hover_fill => (color::BORDER_STRONG, color::TEXT_SECONDARY),
+        TextureState::Empty if hover_fill => (color::TEXT_DISABLED, color::TEXT_SECONDARY),
         TextureState::Empty => (color::BORDER_STRONG, color::TEXT_MUTED),
         TextureState::Modified => (color::TEXT_SECONDARY, color::TEXT_PRIMARY),
         TextureState::ToCheck(_) => (color::SIGNAL, color::SIGNAL),
@@ -618,10 +647,18 @@ const THUMB: f32 = 26.0;
 /// Height of a texture row.
 const ROW_HEIGHT: f32 = THUMB + 10.0;
 
+/// The font of a texture's size in a row.
+fn size_font(ui: &Ui) -> egui::FontId {
+    let mono = egui::TextStyle::Monospace.resolve(ui.style());
+    egui::FontId::new(mono.size - 1.0, mono.family)
+}
+
 /// A texture: thumbnail of its artwork, name, size and its state's marker;
-/// clicking makes it active. The active texture's row is filled and its
-/// name drawn in ink, as in the mockup.
-fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
+/// clicking makes it active. The size is right-aligned in a slot
+/// `size_slot` wide, so that the marker before it keeps its place. The
+/// active texture's row is filled and its name drawn in ink, as in the
+/// mockup.
+fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize, size_slot: f32) {
     // No texture is highlighted while a symbol is edited.
     let active = env.ws.project.active_surface == i && !env.ws.is_editing_symbol();
     let surface = &env.ws.project.surfaces[i];
@@ -666,15 +703,15 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     );
 
     // Size and state at the right end, the name in between.
-    let mono = egui::TextStyle::Monospace.resolve(ui.style());
-    let size_rect = painter.text(
-        egui::pos2(rect.right() - space::SM, rect.center().y),
+    let size_right = rect.right() - space::SM;
+    painter.text(
+        egui::pos2(size_right, rect.center().y),
         Align2::RIGHT_CENTER,
         &size,
-        egui::FontId::new(mono.size - 1.0, mono.family),
+        size_font(ui),
         color::TEXT_DISABLED,
     );
-    let right = size_rect.left() - space::SM;
+    let right = size_right - size_slot - space::SM;
     let marker =
         Rect::from_center_size(egui::pos2(right - 8.0, rect.center().y), Vec2::splat(16.0));
     state_marker(ui, marker, row.id.with("state"), state, &hover);
@@ -683,17 +720,31 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
         egui::pos2(thumb.right() + space::SM, rect.top()),
         egui::pos2(right, rect.bottom()),
     );
-    painter.with_clip_rect(name_rect).text(
-        egui::pos2(name_rect.left(), rect.center().y),
-        Align2::LEFT_CENTER,
-        &name,
+    // On one line, ending with "…" when it doesn't fit, the whole name in
+    // a tooltip (the row is the accessible node, so the name is painted).
+    let text_color = if active {
+        color::TEXT_PRIMARY
+    } else {
+        color::TEXT_SECONDARY
+    };
+    let mut job = egui::text::LayoutJob::simple_singleline(
+        name.clone(),
         egui::FontId::proportional(tp_ui::tokens::typography::CONTROL),
-        if active {
-            color::TEXT_PRIMARY
-        } else {
-            color::TEXT_SECONDARY
-        },
+        text_color,
     );
+    job.wrap = egui::text::TextWrapping::truncate_at_width(name_rect.width().max(0.0));
+    let galley = ui.fonts_mut(|f| f.layout_job(job));
+    let elided = galley.elided;
+    painter.galley(
+        egui::pos2(name_rect.left(), rect.center().y - galley.size().y / 2.0),
+        galley,
+        text_color,
+    );
+    let row = if elided {
+        row.on_hover_text(&name)
+    } else {
+        row
+    };
     if row.clicked() {
         env.ws.set_active_surface(i);
     }

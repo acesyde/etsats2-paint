@@ -6,11 +6,13 @@ use egui::{
     Align, CornerRadius, Frame, Key, Layout, Margin, RichText, Stroke, TextEdit, Ui, WidgetInfo,
     WidgetType,
 };
+use std::path::{Path, PathBuf};
+
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::{TEXT_SCALE_RANGE, UI_SCALE_RANGE, label_strong_style, title_style};
-use tp_ui::tokens::{color, radius, space};
-use tp_ui::widgets::{primary_button, secondary_button};
+use tp_ui::tokens::{color, radius, size, space};
+use tp_ui::widgets::{IconButton, primary_button, secondary_button};
 
 use crate::commands::{CommandId, ShortcutFormatter};
 use crate::state::{AppState, Modal};
@@ -180,9 +182,15 @@ pub(crate) fn problem(ui: &mut Ui, text: &str) {
 /// A warning that doesn't block the action, with its own icon color so it
 /// can't be mistaken for a [`problem`].
 pub(crate) fn warning(ui: &mut Ui, text: &str) {
+    warning_in(ui, text, color::WARNING);
+}
+
+/// A [`warning`] whose icon is in `tint` (the signal color for a texture
+/// To check).
+pub(crate) fn warning_in(ui: &mut Ui, text: &str, tint: egui::Color32) {
     ui.horizontal_top(|ui| {
         ui.spacing_mut().item_spacing.x = space::SM;
-        ui.label(icons::rich(icons::WARNING).color(color::WARNING));
+        ui.label(icons::rich(icons::WARNING).color(tint));
         let label =
             ui.add(egui::Label::new(RichText::new(text).color(color::TEXT_SECONDARY)).wrap());
         label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
@@ -209,13 +217,19 @@ pub(crate) fn messages(ui: &mut Ui, messages: &[Result<String, String>]) {
 /// The dialog's buttons, right-aligned under a hairline, the primary
 /// action last (rightmost): `body` adds them from the right.
 pub(crate) fn footer<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
+    footer_rule(ui);
+    ui.with_layout(Layout::right_to_left(Align::Center), body)
+        .inner
+}
+
+/// The hairline above a dialog's buttons, with its spacing: for a footer
+/// that also has a button on the left.
+pub(crate) fn footer_rule(ui: &mut Ui) {
     ui.add_space(space::LG);
     let rect = ui.available_rect_before_wrap();
     ui.painter()
         .hline(rect.x_range(), rect.top(), Stroke::new(1.0, color::BORDER));
     ui.add_space(space::LG);
-    ui.with_layout(Layout::right_to_left(Align::Center), body)
-        .inner
 }
 
 /// Shows the active modal, if any.
@@ -276,6 +290,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
                 state.preferences_refusal = None;
                 state.modal = None;
             }
+            PrefsOutcome::ShowPack(folder) => state.dialogs.show_folder(&folder),
             PrefsOutcome::ChoosePack(game) => {
                 let title = tr!(
                     "pack-title",
@@ -433,7 +448,8 @@ fn unsaved_changes(ctx: &egui::Context, name: &str) -> PromptAnswer {
         });
         ui.add_space(space::XS);
         ui.label(RichText::new(tr("unsaved-hint")).color(color::TEXT_SECONDARY));
-        ui.add_space(space::XL);
+        // The message dialog's footer, Don't Save on the left.
+        footer_rule(ui);
         ui.horizontal(|ui| {
             if ui.add(secondary_button(&tr("button-dont-save"))).clicked() {
                 answer = PromptAnswer::DontSave;
@@ -497,19 +513,23 @@ fn scale_slider(
     name: &str,
     width: f32,
 ) -> (egui::Response, bool) {
-    let r = ui.add(
-        tp_ui::widgets::ThinSlider::new(pct, range.clone(), name)
-            .width(width)
-            .step(5.0),
-    );
-    let value = ui.add(
-        egui::DragValue::new(pct)
-            .range(range)
-            .speed(1.0)
-            .suffix("%")
-            .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
-    );
-    (r, value.changed())
+    // The value beside its slider.
+    ui.horizontal(|ui| {
+        let r = ui.add(
+            tp_ui::widgets::ThinSlider::new(pct, range.clone(), name)
+                .width(width)
+                .step(5.0),
+        );
+        let value = ui.add(
+            egui::DragValue::new(pct)
+                .range(range)
+                .speed(1.0)
+                .suffix("%")
+                .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
+        );
+        (r, value.changed())
+    })
+    .inner
 }
 
 /// What the Preferences dialog asks for this frame.
@@ -519,6 +539,14 @@ enum PrefsOutcome {
     Done,
     /// Choose the template pack folder of a game.
     ChoosePack(tp_vehicles::Game),
+    /// Show a template pack folder in the file manager.
+    ShowPack(PathBuf),
+}
+
+/// What the Template packs section asks for this frame.
+enum PackAction {
+    Choose(tp_vehicles::Game),
+    Show(PathBuf),
 }
 
 /// The window height (points) under which the settings of Preferences
@@ -564,25 +592,29 @@ fn preferences(
     });
     if response.inner || response.should_close() {
         PrefsOutcome::Done
-    } else if let Some(game) = choose {
-        PrefsOutcome::ChoosePack(game)
+    } else if let Some(action) = choose {
+        match action {
+            PackAction::Choose(game) => PrefsOutcome::ChoosePack(game),
+            PackAction::Show(folder) => PrefsOutcome::ShowPack(folder),
+        }
     } else {
         PrefsOutcome::Pending
     }
 }
 
-/// The settings of the Preferences dialog; returns the game whose
-/// template pack Choose… was clicked.
+/// The settings of the Preferences dialog; returns what the Template packs
+/// section asks for.
 fn preferences_body(
     ctx: &egui::Context,
     ui: &mut Ui,
     prefs: &mut crate::prefs::Prefs,
     title_bar: bool,
     refusal: Option<&str>,
-) -> Option<tp_vehicles::Game> {
+) -> Option<PackAction> {
     ui.spacing_mut().item_spacing.y = space::MD;
     section(ui, &tr("prefs-interface"));
-    let slider_width = ui.available_width() - 60.0;
+    // The room left beside the slider fits its value ("100%").
+    let slider_width = ui.available_width() - 72.0;
     labelled(ui, &tr("prefs-ui-scale"), |ui| {
         let mut ui_pct = (prefs.ui_scale * 100.0).round();
         let range = (UI_SCALE_RANGE.start() * 100.0)..=(UI_SCALE_RANGE.end() * 100.0);
@@ -636,8 +668,11 @@ fn preferences_body(
     if title_bar {
         // Its hint on hover keeps the dialog within the smallest window
         // at large UI scales.
-        ui.checkbox(&mut prefs.system_title_bar, tr("prefs-system-title-bar"))
-            .on_hover_text(tr("prefs-system-title-bar-hint"));
+        ui.add(tp_ui::widgets::SquareCheckbox::new(
+            &mut prefs.system_title_bar,
+            tr("prefs-system-title-bar"),
+        ))
+        .on_hover_text(tr("prefs-system-title-bar-hint"));
     }
     ui.add_space(space::SM);
     section(ui, &tr("prefs-canvas"));
@@ -658,13 +693,15 @@ fn preferences_body(
 }
 
 /// The Template packs section of Preferences: for each game with official
-/// vehicles, its pack folder or "Not set", Choose… and Clear. Returns the
-/// game whose Choose… was clicked.
+/// vehicles, its name above a read-only field with its pack folder (shown
+/// in the file manager on click, its path copied from its context menu)
+/// or "Not set", then Choose Folder… and Clear as icons. Returns what was
+/// asked.
 fn template_packs(
     ui: &mut Ui,
     prefs: &mut crate::prefs::Prefs,
     refusal: Option<&str>,
-) -> Option<tp_vehicles::Game> {
+) -> Option<PackAction> {
     let games: Vec<tp_vehicles::Game> = tp_vehicles::Game::ALL
         .into_iter()
         .filter(|g| !tp_vehicles::catalog::entries(*g).is_empty())
@@ -672,58 +709,153 @@ fn template_packs(
     if games.is_empty() {
         return None;
     }
-    let mut choose = None;
+    let mut action = None;
     ui.add_space(space::SM);
     section(ui, &tr("prefs-template-packs"));
+    ui.add(
+        egui::Label::new(
+            RichText::new(tr("prefs-template-packs-hint"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        )
+        .wrap(),
+    );
     for game in games {
-        // One row per game: its name, the folder, Choose… and Clear.
-        ui.horizontal(|ui| {
-            let label = super::vehicle_dialogs::game_label(game);
-            let shown = ui.label(RichText::new(label).color(color::TEXT_SECONDARY));
-            ui.add_space((44.0 - shown.rect.width()).max(0.0));
-            let folder = prefs.template_pack(game).map(|p| p.display().to_string());
-            let mut clear = false;
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                clear = ui
-                    .add_enabled(folder.is_some(), secondary_button(&tr("prefs-pack-clear")))
-                    .clicked();
-                if ui.add(secondary_button(&tr("prefs-pack-choose"))).clicked() {
-                    choose = Some(game);
+        ui.vertical(|ui| {
+            ui.spacing_mut().item_spacing.y = space::XS;
+            ui.label(
+                RichText::new(super::vehicle_dialogs::game_name(game))
+                    .small()
+                    .color(color::TEXT_SECONDARY),
+            );
+            let folder = prefs.template_pack(game).map(Path::to_path_buf);
+            let missing = folder.as_ref().is_some_and(|f| !f.is_dir());
+            let row = egui::vec2(ui.available_width(), size::HIT_MIN);
+            ui.allocate_ui_with_layout(row, Layout::right_to_left(Align::Center), |ui| {
+                ui.spacing_mut().item_spacing.x = space::XS;
+                if ui
+                    .add_enabled(
+                        folder.is_some(),
+                        IconButton::new(icons::CLOSE, &tr("prefs-pack-clear")),
+                    )
+                    .clicked()
+                {
+                    prefs.set_template_pack(game, None);
                 }
-                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    let text = match &folder {
-                        Some(path) => fit_middle(ui, path, ui.available_width()),
-                        None => tr("prefs-pack-not-set"),
-                    };
-                    let tint = if folder.is_some() {
-                        color::TEXT_PRIMARY
-                    } else {
-                        color::TEXT_SECONDARY
-                    };
-                    let shown =
-                        ui.add(egui::Label::new(RichText::new(&text).color(tint)).truncate());
-                    let full = folder.clone().unwrap_or_else(|| text.clone());
-                    shown.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &full));
-                    if let Some(path) = &folder {
-                        shown.on_hover_text(path);
-                    }
-                });
+                if ui
+                    .add(IconButton::new(
+                        icons::OPEN_PROJECT,
+                        &tr("prefs-pack-choose"),
+                    ))
+                    .clicked()
+                {
+                    action = Some(PackAction::Choose(game));
+                }
+                ui.add_space(space::XS);
+                if let Some(shown) = pack_field(ui, folder.as_deref(), missing) {
+                    action = Some(PackAction::Show(shown));
+                }
             });
-            if clear {
-                prefs.set_template_pack(game, None);
+            if missing {
+                ui.label(
+                    RichText::new(tr("prefs-pack-missing"))
+                        .small()
+                        .color(color::ERROR),
+                );
             }
         });
+        ui.add_space(space::XS);
     }
     if let Some(refusal) = refusal {
         problem(ui, refusal);
     }
-    choose
+    action
 }
 
-/// `text` cut in the middle to fit `width` in the body font
+/// The read-only field of a template pack folder, filling the room left:
+/// the path cut in the middle, or "Not set". An existing folder looks like
+/// a link on hover and is returned when clicked; its context menu copies
+/// the path.
+fn pack_field(ui: &mut Ui, folder: Option<&Path>, missing: bool) -> Option<PathBuf> {
+    let clickable = folder.is_some() && !missing;
+    let sense = if clickable {
+        egui::Sense::click()
+    } else {
+        egui::Sense::hover()
+    };
+    let size = egui::vec2(ui.available_width(), size::HIT_MIN);
+    let (rect, response) = ui.allocate_exact_size(size, sense);
+    let full = folder.map(|f| f.display().to_string());
+    let label = full.clone().unwrap_or_else(|| tr("prefs-pack-not-set"));
+    response.widget_info(|| {
+        let kind = if clickable {
+            WidgetType::Button
+        } else {
+            WidgetType::Label
+        };
+        WidgetInfo::labeled(kind, true, &label)
+    });
+    let painter = ui.painter();
+    painter.rect(
+        rect,
+        CornerRadius::same(radius::MD),
+        color::FIELD,
+        Stroke::new(1.0, color::BORDER),
+        egui::StrokeKind::Inside,
+    );
+    let inner = rect.shrink2(egui::vec2(space::SM, 0.0));
+    let font = egui::TextStyle::Monospace.resolve(ui.style());
+    let (text, tint) = match &full {
+        Some(path) => (
+            fit_middle(ui, path, inner.width(), &font),
+            if missing {
+                color::ERROR
+            } else {
+                color::TEXT_PRIMARY
+            },
+        ),
+        None => (label.clone(), color::TEXT_SECONDARY),
+    };
+    let hovered = clickable && response.hovered();
+    let galley = painter.layout_no_wrap(text, font, tint);
+    let at = egui::pos2(inner.left(), rect.center().y - galley.size().y / 2.0);
+    let width = galley.size().x;
+    painter.galley(at, galley, tint);
+    if hovered {
+        let y = at.y + ui.text_style_height(&egui::TextStyle::Monospace) - 1.0;
+        painter.hline(at.x..=at.x + width, y, Stroke::new(1.0, tint));
+    }
+    let path = full?;
+    let response = if clickable {
+        response
+            .on_hover_cursor(egui::CursorIcon::PointingHand)
+            .on_hover_text(format!("{}\n{path}", tr(show_folder_key())))
+    } else {
+        response.on_hover_text(&path)
+    };
+    response.context_menu(|ui| {
+        if ui.button(tr("prefs-pack-copy-path")).clicked() {
+            ui.ctx().copy_text(path.clone());
+            ui.close();
+        }
+    });
+    (clickable && response.clicked()).then(|| PathBuf::from(&path))
+}
+
+/// "Show in Finder", "Show in Explorer" or "Show in file manager".
+fn show_folder_key() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "prefs-pack-show-finder"
+    } else if cfg!(target_os = "windows") {
+        "prefs-pack-show-explorer"
+    } else {
+        "prefs-pack-show-files"
+    }
+}
+
+/// `text` cut in the middle to fit `width` in `font`
 /// ("/Users/…/ETS2 templates").
-fn fit_middle(ui: &Ui, text: &str, width: f32) -> String {
-    let font = egui::TextStyle::Body.resolve(ui.style());
+fn fit_middle(ui: &Ui, text: &str, width: f32, font: &egui::FontId) -> String {
     let fits = |t: &str| {
         ui.painter()
             .layout_no_wrap(t.to_owned(), font.clone(), color::TEXT_PRIMARY)
@@ -853,15 +985,28 @@ fn about(ctx: &egui::Context) -> bool {
                         .split("\n\n")
                         .map(|p| p.split_whitespace().collect::<Vec<_>>().join(" "))
                         .collect();
-                    let label = ui.add(
-                        egui::Label::new(
-                            RichText::new(paragraphs.join("\n\n"))
-                                .small()
-                                .color(color::TEXT_SECONDARY),
-                        )
-                        .wrap(),
-                    );
-                    label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, notice));
+                    // Kept clear of the scroll bar floating over the right.
+                    let gutter = ui.spacing().scroll.bar_width
+                        + ui.spacing().scroll.bar_outer_margin
+                        + space::SM;
+                    Frame::new()
+                        .inner_margin(Margin {
+                            right: gutter as i8,
+                            ..Margin::ZERO
+                        })
+                        .show(ui, |ui| {
+                            let label = ui.add(
+                                egui::Label::new(
+                                    RichText::new(paragraphs.join("\n\n"))
+                                        .small()
+                                        .color(color::TEXT_SECONDARY),
+                                )
+                                .wrap(),
+                            );
+                            label.widget_info(|| {
+                                WidgetInfo::labeled(WidgetType::Label, true, notice)
+                            });
+                        });
                 });
         }
         footer(ui, |ui| {

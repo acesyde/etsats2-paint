@@ -2,11 +2,11 @@
 //! stroke, its width and alignment, and the dashes, caps and joins of
 //! outlines; and the row's summary ("6 px · Outside").
 
-use egui::{Checkbox, Ui, WidgetInfo, WidgetType};
+use egui::{Ui, WidgetInfo, WidgetType};
 use tp_core::document::{LineStyle, Object, StrokeAlign, StrokeStyle};
 use tp_i18n::tr;
 use tp_ui::icons;
-use tp_ui::widgets::{NumericField, SegmentedControl};
+use tp_ui::widgets::{NumericField, SegmentedControl, SquareCheckbox};
 
 use super::line_style::{self, Change, LineEdit};
 use super::properties::common;
@@ -86,7 +86,8 @@ pub fn popover(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         }
     };
     let mut checked = enabled;
-    let response = ui.add(Checkbox::new(&mut checked, tr("panel-stroke")).indeterminate(mixed));
+    let response =
+        ui.add(SquareCheckbox::new(&mut checked, tr("panel-stroke")).indeterminate(mixed));
     response.widget_info(|| {
         WidgetInfo::selected(WidgetType::Checkbox, true, enabled, tr("stroke-enabled"))
     });

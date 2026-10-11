@@ -73,15 +73,20 @@ fn summary_ui(ui: &mut Ui, summary: &[VehicleSummary]) {
                 };
                 ui.indent(("mod_summary", &vehicle.name), |ui| {
                     for main in &vehicle.mains {
+                        // A trailer's main texture is named alone: it has
+                        // no cabins.
                         let text = if !main.painted {
                             tr!("mod-summary-not-painted", texture = main.name.as_str())
+                        } else if vehicle.trailer {
+                            main.name.clone()
                         } else if main.cabins.is_empty() {
                             tr!("mod-summary-every-cabin", texture = main.name.as_str())
                         } else {
                             tr!(
                                 "mod-summary-cabins",
                                 texture = main.name.as_str(),
-                                cabins = main.cabins.join(", ")
+                                cabins = main.cabins.join(", "),
+                                count = main.cabins.len()
                             )
                         };
                         line(ui, &text);
@@ -170,22 +175,34 @@ fn button_width(ui: &Ui, text: &str) -> f32 {
 }
 
 /// A problem that blocks the export with its Show button, named after what
-/// it shows (`name`); whether Show was clicked.
+/// it shows (`name`); whether Show was clicked. Show is as tall as a line
+/// of the dialog, its text's first line centered on it.
 fn problem_with_show(ui: &mut Ui, text: &str, name: &str) -> bool {
     ui.horizontal_top(|ui| {
         ui.spacing_mut().item_spacing.x = space::SM;
+        let height = ui.spacing().interact_size.y;
+        let row = ui.text_style_height(&egui::TextStyle::Body);
+        let lead = ((height - row) / 2.0).max(0.0);
         let show = tr("project-show");
         let button_width = button_width(ui, &show);
-        ui.label(icons::rich(icons::WARNING).color(color::ERROR));
+        // The icon and the text lowered to the button's middle.
+        let lowered = egui::Layout::top_down(egui::Align::Min);
+        ui.allocate_ui_with_layout(Vec2::ZERO, lowered, |ui| {
+            ui.add_space(lead);
+            ui.label(icons::rich(icons::WARNING).color(color::ERROR));
+        });
         let width = ui.available_width() - button_width - space::SM;
         let label = ui
-            .allocate_ui(Vec2::new(width, 0.0), |ui| {
+            .allocate_ui_with_layout(Vec2::new(width, 0.0), lowered, |ui| {
                 ui.set_width(width);
+                ui.add_space(lead);
                 ui.add(egui::Label::new(RichText::new(text).color(color::ERROR)).wrap())
             })
             .inner;
         label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
-        let button = ui.add(secondary_button(&show));
+        // No slack in the button: its text stays centered on it.
+        ui.spacing_mut().button_padding.y = lead;
+        let button = ui.add(secondary_button(&show).min_size(Vec2::new(button_width, height)));
         button.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, name));
         button.clicked()
     })
@@ -248,9 +265,16 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ModExportDia
         .iter()
         .map(|p| (p.message(), show_name(&ws.project, p)))
         .collect();
-    let warnings: Vec<String> = crate::mod_export::warnings(&ws.project)
+    // Each warning, and whether it is a To check one (in the signal color,
+    // as everywhere else).
+    let warnings: Vec<(String, bool)> = crate::mod_export::warnings(&ws.project)
         .iter()
-        .map(|w| w.message(&ws.project))
+        .map(|w| {
+            (
+                w.message(&ws.project),
+                matches!(w, crate::mod_export::Warning::ToCheck { .. }),
+            )
+        })
         .collect();
     let exporting = dialog.job.as_ref().map(|j| (j.progress(), j.path.clone()));
     let mut clicked = Clicked::default();
@@ -302,8 +326,12 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ModExportDia
             } else {
                 space::XS
             });
-            for warning in &warnings {
-                super::dialogs::warning(ui, warning);
+            for (warning, to_check) in &warnings {
+                if *to_check {
+                    super::dialogs::warning_in(ui, warning, color::SIGNAL);
+                } else {
+                    super::dialogs::warning(ui, warning);
+                }
             }
         }
         match &exporting {

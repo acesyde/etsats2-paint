@@ -7,15 +7,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use egui::{
-    Align, Checkbox, Frame, Layout, Margin, Rect, RichText, ScrollArea, TextEdit, Ui, WidgetInfo,
-    WidgetType,
+    Align, Frame, Layout, Margin, Rect, RichText, ScrollArea, TextEdit, Ui, WidgetInfo, WidgetType,
 };
 use tp_i18n::tr;
-use tp_pack::custom::{CustomVehicle, Problem, TemplateFile, probe};
+use tp_pack::custom::{CustomPart, CustomVehicle, Problem, TemplateFile, probe};
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, radius, space};
-use tp_ui::widgets::{IconButton, primary_button, secondary_button};
+use tp_ui::widgets::{IconButton, SquareCheckbox, primary_button, secondary_button};
 use tp_vehicles::{Game, Kind, Package, Role, TextureSize};
 
 pub use super::origin::Origin;
@@ -204,7 +203,7 @@ fn text_field(ui: &mut Ui, label: &str, text: &mut String, hint: &str, enabled: 
     })
 }
 
-/// A labelled combo box over `choices`.
+/// A labelled combo box over `choices`, as wide as the space left.
 fn combo<T: Copy + PartialEq>(
     ui: &mut Ui,
     id: impl std::hash::Hash + std::fmt::Debug,
@@ -213,21 +212,33 @@ fn combo<T: Copy + PartialEq>(
     choices: &[(T, String)],
     enabled: bool,
 ) {
+    super::dialogs::field_label(ui, label);
+    let width =
+        ui.available_width() - ui.spacing().icon_width - 2.0 * ui.spacing().button_padding.x;
+    combo_box(ui, id, label, value, choices, enabled, width);
+}
+
+/// A combo box over `choices`, `width` wide, named `name` for assistive
+/// technologies.
+fn combo_box<T: Copy + PartialEq>(
+    ui: &mut Ui,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    name: &str,
+    value: &mut T,
+    choices: &[(T, String)],
+    enabled: bool,
+    width: f32,
+) {
     let selected = choices
         .iter()
         .find(|(c, _)| c == value)
         .map(|(_, t)| t.clone())
         .unwrap_or_default();
-    super::dialogs::field_label(ui, label);
     let response = ui
         .add_enabled_ui(enabled, |ui| {
             egui::ComboBox::from_id_salt(id)
                 .icon(tp_ui::widgets::dropdown_icon)
-                .width(
-                    ui.available_width()
-                        - ui.spacing().icon_width
-                        - 2.0 * ui.spacing().button_padding.x,
-                )
+                .width(width)
                 .selected_text(selected)
                 .show_ui(ui, |ui| {
                     for (choice, text) in choices {
@@ -237,7 +248,121 @@ fn combo<T: Copy + PartialEq>(
                 .response
         })
         .inner;
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, enabled, label));
+    response.widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, enabled, name));
+}
+
+/// Width of a texture row's role combo.
+const ROLE_WIDTH: f32 = 150.0;
+/// Width of a texture row's width and height combos.
+const SIDE_WIDTH: f32 = 84.0;
+
+/// A texture row's field: its short `label` above it (the long name stays
+/// the field's accessible name), `width` wide.
+fn row_field<R>(ui: &mut Ui, label: &str, width: f32, body: impl FnOnce(&mut Ui) -> R) -> R {
+    ui.allocate_ui_with_layout(egui::vec2(width, 0.0), Layout::top_down(Align::Min), |ui| {
+        ui.set_width(width);
+        ui.spacing_mut().item_spacing.y = space::XS;
+        tp_ui::widgets::truncated_label(
+            ui,
+            RichText::new(label).small().color(color::TEXT_SECONDARY),
+            width,
+        );
+        body(ui)
+    })
+    .inner
+}
+
+/// The fields of texture row `i` as a fixed grid: name, role, width and
+/// height (short labels above them), then Replace… and remove, so that a
+/// long choice never widens the dialog.
+fn texture_row_fields(
+    ui: &mut Ui,
+    i: usize,
+    row: &mut CustomPart,
+    replace: &mut Option<usize>,
+    remove: &mut Option<usize>,
+) {
+    let n = i + 1;
+    let gap = ui.spacing().item_spacing.x;
+    let replace_text = tr("custom-row-replace");
+    let replace_width = {
+        let font = egui::TextStyle::Button.resolve(ui.style());
+        let text = ui
+            .painter()
+            .layout_no_wrap(replace_text.clone(), font, color::TEXT_PRIMARY)
+            .size()
+            .x;
+        (text + 2.0 * ui.spacing().button_padding.x).max(88.0)
+    };
+    let fixed = ROLE_WIDTH + 2.0 * SIDE_WIDTH + replace_width + tp_ui::tokens::size::HIT_MIN;
+    let name_width = (ui.available_width() - fixed - 5.0 * gap).max(80.0);
+    ui.horizontal_top(|ui| {
+        let label = tr!("custom-row-name", n = n);
+        row_field(ui, &tr("custom-name"), name_width, |ui| {
+            ui.add(TextEdit::singleline(&mut row.name).desired_width(name_width))
+                .widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
+        });
+        row_field(ui, &tr("custom-row-role-short"), ROLE_WIDTH, |ui| {
+            combo_box(
+                ui,
+                ("custom_role", i),
+                &tr!("custom-row-role", n = n),
+                &mut row.role,
+                &[
+                    (Role::Main, tr("custom-role-main")),
+                    (Role::Accessory, tr("custom-role-accessory")),
+                ],
+                true,
+                ROLE_WIDTH,
+            );
+        });
+        let sides: Vec<(u32, String)> = TextureSize::allowed_sides()
+            .map(|s| (s, s.to_string()))
+            .collect();
+        row_field(ui, &tr("custom-row-width-short"), SIDE_WIDTH, |ui| {
+            combo_box(
+                ui,
+                ("custom_width", i),
+                &tr!("custom-row-width", n = n),
+                &mut row.size.width,
+                &sides,
+                true,
+                SIDE_WIDTH,
+            );
+        });
+        row_field(ui, &tr("custom-row-height-short"), SIDE_WIDTH, |ui| {
+            combo_box(
+                ui,
+                ("custom_height", i),
+                &tr!("custom-row-height", n = n),
+                &mut row.size.height,
+                &sides,
+                true,
+                SIDE_WIDTH,
+            );
+        });
+        // The buttons line up with the fields, under the labels' height.
+        ui.vertical(|ui| {
+            ui.add_space(ui.text_style_height(&egui::TextStyle::Small) + space::XS);
+            ui.horizontal(|ui| {
+                let name = tr!("custom-row-replace-name", n = n);
+                let button = ui.add(secondary_button(&replace_text));
+                button.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, &name));
+                if button.clicked() {
+                    *replace = Some(i);
+                }
+                if ui
+                    .add(IconButton::new(
+                        icons::REMOVE,
+                        &tr!("custom-row-remove", n = n),
+                    ))
+                    .clicked()
+                {
+                    *remove = Some(i);
+                }
+            });
+        });
+    });
 }
 
 /// Shows the dialog; returns false once it is closed (the origin is then
@@ -378,11 +503,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
                     (&mut form.alt_uv, "custom-alt-uv"),
                     (&mut form.colour_picker, "custom-colour-picker"),
                 ] {
-                    let text = tr(key);
-                    let on = *value;
-                    ui.add(Checkbox::new(value, &text)).widget_info(|| {
-                        WidgetInfo::selected(WidgetType::Checkbox, true, on, &text)
-                    });
+                    ui.add(SquareCheckbox::new(value, tr(key)));
                 }
             });
 
@@ -423,65 +544,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
                             .inner_margin(Margin::same(space::SM as i8))
                             .show(ui, |ui| {
                                 ui.set_width(ui.available_width());
-                                ui.horizontal(|ui| {
-                                    let label = tr!("custom-row-name", n = n);
-                                    ui.add(
-                                        TextEdit::singleline(&mut row.name).desired_width(200.0),
-                                    )
-                                    .widget_info(|| {
-                                        WidgetInfo::labeled(WidgetType::TextEdit, true, &label)
-                                    });
-                                    combo(
-                                        ui,
-                                        ("custom_role", i),
-                                        &tr!("custom-row-role", n = n),
-                                        &mut row.role,
-                                        &[
-                                            (Role::Main, tr("custom-role-main")),
-                                            (Role::Accessory, tr("custom-role-accessory")),
-                                        ],
-                                        true,
-                                    );
-                                    let sides: Vec<(u32, String)> = TextureSize::allowed_sides()
-                                        .map(|s| (s, s.to_string()))
-                                        .collect();
-                                    combo(
-                                        ui,
-                                        ("custom_width", i),
-                                        &tr!("custom-row-width", n = n),
-                                        &mut row.size.width,
-                                        &sides,
-                                        true,
-                                    );
-                                    combo(
-                                        ui,
-                                        ("custom_height", i),
-                                        &tr!("custom-row-height", n = n),
-                                        &mut row.size.height,
-                                        &sides,
-                                        true,
-                                    );
-                                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                        if ui
-                                            .add(IconButton::new(
-                                                icons::REMOVE,
-                                                &tr!("custom-row-remove", n = n),
-                                            ))
-                                            .clicked()
-                                        {
-                                            remove = Some(i);
-                                        }
-                                        let name = tr!("custom-row-replace-name", n = n);
-                                        let button =
-                                            ui.add(secondary_button(&tr("custom-row-replace")));
-                                        button.widget_info(|| {
-                                            WidgetInfo::labeled(WidgetType::Button, true, &name)
-                                        });
-                                        if button.clicked() {
-                                            replace = Some(i);
-                                        }
-                                    });
-                                });
+                                texture_row_fields(ui, i, row, &mut replace, &mut remove);
                                 let t = &row.template;
                                 ui.horizontal(|ui| {
                                     let file = tr!(

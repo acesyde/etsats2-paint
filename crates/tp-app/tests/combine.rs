@@ -61,7 +61,7 @@ fn only_object(h: &H) -> Object {
 fn from_combine_menu(h: &mut H, label: &str) {
     h.get_by_label("Object").click();
     h.run();
-    h.get_by_label("Combine ⏵").click();
+    h.get_by_label("Combine").click();
     h.run();
     common::last(h, label).click();
     h.run();
@@ -271,4 +271,27 @@ fn unite_from_the_inspector() {
     let r = only_object(&h);
     assert_eq!(r.kind, ShapeKind::Path);
     assert_eq!(ws(&h).history.undo_label(), Some("op-unite"));
+}
+
+/// The Combine and Align submenu titles are rows like the other menu
+/// items: same inset, width and height as Flip Horizontal, with the label
+/// at the same place; hovering Combine opens its submenu.
+#[test]
+fn submenu_titles_match_the_menu_items() {
+    let mut h = harness(false);
+    h.get_by_label("Object").click();
+    h.run();
+    let item = h.get_by_label("Flip Horizontal").rect();
+    for title in ["Combine", "Align"] {
+        let row = h.get_by_label(title).rect();
+        assert_eq!(row.left(), item.left(), "{title}");
+        assert_eq!(row.width(), item.width(), "{title}");
+        assert_eq!(row.height(), item.height(), "{title}");
+    }
+    h.get_by_label("Combine").hover();
+    h.run();
+    assert!(
+        h.query_by_label("Unite").is_some(),
+        "the submenu opens on hover"
+    );
 }

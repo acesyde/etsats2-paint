@@ -190,3 +190,48 @@ fn lengthening_makes_messages_longer() {
         short.chars().count() + (short.chars().count() * 40).div_ceil(100)
     );
 }
+
+#[test]
+fn a_message_in_every_language() {
+    set_language(Language::German);
+    assert_eq!(
+        tr_all("language-system"),
+        [
+            "System default",
+            "Langue du système",
+            "Idioma del sistema",
+            "Systemsprache"
+        ]
+    );
+    // Each text once; the current one as shown in the long-text mode.
+    set_lengthening(40);
+    let all = tr_all("test-english-only");
+    set_lengthening(0);
+    set_language(Language::English);
+    assert_eq!(all.len(), 2, "{all:?}");
+    assert_eq!(all[0], "Only in English");
+    assert!(all[1].starts_with("Only in English") && all[1].len() > all[0].len());
+}
+
+#[test]
+fn wording_rules() {
+    use Language::*;
+    // English: Title Case commands with lowercase small words; American spelling.
+    assert_eq!(plain_in(English, "custom-open"), "Custom Vehicle…");
+    assert_eq!(plain_in(English, "custom-open-library"), "Custom Vehicle…");
+    assert_eq!(plain_in(English, "cmd-copy-from-cabin"), "Copy from Cabin…");
+    assert_eq!(plain_in(English, "undo-copy-from-cabin"), "Copy from Cabin");
+    assert_eq!(plain_in(English, "custom-colour-picker"), "Color picker");
+    // German: Create Outlines is not mistaken for Convert to Path.
+    assert_eq!(
+        plain_in(German, "cmd-create-outlines"),
+        "Konturen erstellen"
+    );
+    assert_ne!(
+        plain_in(German, "cmd-create-outlines"),
+        plain_in(German, "cmd-convert-to-path")
+    );
+    assert!(plain_in(German, "reason-combine-text").contains("„Konturen erstellen“"));
+    assert_eq!(plain_in(German, "project-texture-main"), "Haupttextur");
+    assert!(!plain_in(German, "colors-palette-empty").ends_with("+."));
+}

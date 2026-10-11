@@ -1,4 +1,4 @@
-//! The dialog another dialog was opened from (Custom vehicle…, the template
+//! The dialog another dialog was opened from (Custom Vehicle…, the template
 //! pack dialog), put back as it was when that one closes.
 
 use tp_vehicles::{Game, Manifest};

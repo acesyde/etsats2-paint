@@ -116,12 +116,27 @@ fn caption(ui: &mut Ui, text: &str) {
 
 // --- Nothing selected -----------------------------------------------------------
 
-/// The active texture (name, kind, size, its To check notice), On this
-/// texture, the look of new objects, the Text section for new texts with
-/// the Text tool, and a hint.
+/// The active texture (name, kind, size, its To check notice) or the
+/// edited symbol (name, kind, size), On this texture, the look of new
+/// objects, the Text section for new texts with the Text tool, and a hint.
 fn nothing_selected(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     section(ui, None, |ui| {
         ui.spacing_mut().item_spacing.y = space::XS;
+        // While a symbol is edited, the symbol, not the texture holding it.
+        if let Some(symbol) = env.ws.project.edited_symbol() {
+            let size = symbol.surface.size_label();
+            let kind = tr("inspector-symbol");
+            title(ui, &symbol.name);
+            caption(
+                ui,
+                &tr!(
+                    "inspector-texture-kind",
+                    kind = kind.as_str(),
+                    size = size.as_str()
+                ),
+            );
+            return;
+        }
         let index = env.ws.project.active_surface;
         let surface = env.ws.project.surface();
         let name = env
@@ -368,17 +383,23 @@ fn selection(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     }
 }
 
-/// The name of `object` in the inspector's header: its own, or for a text
-/// still named after its kind ("Text"), its first line, so that the header
-/// doesn't read the kind twice.
-pub fn display_name(object: &Object) -> String {
-    if let Some(text) = &object.text
-        && object.name == crate::workspace::object_name(object.kind)
-        && let Some(line) = text.content.lines().map(str::trim).find(|l| !l.is_empty())
-    {
-        return line.to_owned();
+/// The name and kind shown for `object` in the inspector's header and its
+/// Layers row. A name that is the kind's default in any language is the
+/// kind's: a text named so shows its first line, with its kind; another
+/// object says its name once, without the kind.
+pub fn name_and_kind(object: &Object) -> (String, Option<String>) {
+    let kind = crate::workspace::object_name(object.kind);
+    if !crate::workspace::is_default_name(object.kind, &object.name) {
+        return (object.name.clone(), Some(kind));
     }
-    object.name.clone()
+    match object
+        .text
+        .as_ref()
+        .and_then(|t| t.content.lines().map(str::trim).find(|l| !l.is_empty()))
+    {
+        Some(line) => (line.to_owned(), Some(kind)),
+        None => (object.name.clone(), None),
+    }
 }
 
 /// What is selected (name and kind, or "N objects") and its symbol
@@ -393,13 +414,8 @@ fn header(
 ) {
     let (name, kind) = match objects {
         [single] => {
-            let (name, kind) = (
-                display_name(single),
-                crate::workspace::object_name(single.kind),
-            );
-            // A shape still named after its kind says it once.
-            let kind = if name == kind { String::new() } else { kind };
-            (name, kind)
+            let (name, kind) = name_and_kind(single);
+            (name, kind.unwrap_or_default())
         }
         many => (tr!("props-objects", count = many.len()), String::new()),
     };
@@ -510,13 +526,18 @@ fn paint_value(ws: &Workspace, target: ColorTarget) -> (String, bool) {
 /// objects, with their popovers.
 fn paint_rows(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     let ctx = ui.ctx().clone();
-    let target = env.ws.panels.color_target;
+    // No row is marked while another popover of the inspector is open: it
+    // would look selected. The target itself stays.
+    let other_open = [stroke_popover(), line_popover(), shadow_popover()]
+        .into_iter()
+        .any(|id| Popover::is_open(&ctx, id));
+    let target = (!other_open).then_some(env.ws.panels.color_target);
     let (fill, stroke) = properties::selection_swatches(env.ws);
 
     let (value, linked) = paint_value(env.ws, ColorTarget::Fill);
     let fill_row = PaintRow::new(fill, &tr("props-fill"), &tr("props-fill-color"))
         .value(&value, linked)
-        .target(target == ColorTarget::Fill)
+        .target(target == Some(ColorTarget::Fill))
         .show(ui);
     if fill_row.swatch.clicked() {
         open_color(&ctx, env, ColorTarget::Fill);
@@ -527,7 +548,7 @@ fn paint_rows(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     let summary = panels::stroke::summary(env.ws);
     let stroke_row = PaintRow::new(stroke, &tr("panel-stroke"), &tr("props-stroke-color"))
         .value(&value, linked)
-        .target(target == ColorTarget::Stroke)
+        .target(target == Some(ColorTarget::Stroke))
         .summary(&summary, &tr("stroke-options"))
         .show(ui);
     if stroke_row.swatch.clicked() {
@@ -574,10 +595,10 @@ fn open_color(ctx: &egui::Context, env: &mut PanelEnv<'_>, target: ColorTarget) 
 
 // --- Shadow row ---------------------------------------------------------------------
 
-/// The Shadow row: the color and the summary ("8 / 8 · 8", or "Mixed",
-/// the full values on hover) opening the shadow popover, and the remove
-/// button at the row's right end; or "+ Add a shadow" when no selected
-/// object has a shadow. Left out when no selected object can have a
+/// The Shadow row: the color and the summary ("x 8 · y 8 · blur 8", or
+/// "Mixed", the full values on hover) opening the shadow popover, and the
+/// remove button at the row's right end; or "+ Add a shadow" when no
+/// selected object has a shadow. Left out when no selected object can have a
 /// shadow (groups, instances).
 fn shadow_row(ui: &mut Ui, env: &mut PanelEnv<'_>) {
     let shadows = env.ws.selected_shadows();
@@ -608,13 +629,15 @@ fn shadow_row(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         }
         _ => SwatchColor::Mixed,
     };
-    let summary = panels::shadow::summary(&shadows);
+    let (summary, blur) = panels::shadow::summary(&shadows);
     let full = panels::shadow::summary_full(&shadows);
     let name = tr("inspector-shadow");
     let remove_name = tr("inspector-shadow-remove");
     let open = Popover::is_open(ui.ctx(), shadow_popover());
     let row = PaintRow::new(swatch, &name, &name)
         .value(&summary, false)
+        .value_tail(&blur)
+        .text_face()
         .hover_text(full.as_deref().unwrap_or(&name))
         .target(open)
         .action(icons::CLOSE, &remove_name)
