@@ -400,6 +400,9 @@ pub fn read_catalog(dir: &Path) -> Result<Vec<(PathBuf, Entry)>, String> {
 struct PpkVehicle {
     name: String,
     path: String,
+    /// `truck` or `trailer_owned`.
+    #[serde(rename = "type")]
+    kind: String,
     #[serde(rename = "mod")]
     is_mod: bool,
     #[serde(default)]
@@ -617,6 +620,8 @@ pub fn sync(ppk: &Path, commit: &str, catalog_dir: &Path) -> Result<SyncReport, 
     }
     Ok(report)
 }
+
+pub mod matching;
 
 #[cfg(test)]
 mod tests;

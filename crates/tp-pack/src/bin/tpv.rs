@@ -18,6 +18,12 @@ Usage:
   tpv catalog sync <paintjob-packer folder> --commit <commit> [--catalog <dir>]
                                       Replace each catalog entry's game data with that
                                       of a local copy of Paintjob Packer.
+  tpv catalog match <pack> <paintjob-packer folder> --commit <commit>
+                    [--game ets2|ats] [--vehicle <path>]... [--catalog <dir>]
+                                      Propose an entry for each official vehicle the
+                                      catalog doesn't have, from the pack's file names,
+                                      and print what to check by hand. Existing entries
+                                      are never changed.
                                       Default catalog: ./catalog.
   tpv --help                          Show this help.
 
@@ -95,7 +101,8 @@ fn catalog(args: &[String]) -> Result<(), String> {
     match args.first().map(String::as_str) {
         Some("check") => catalog_check(&args[1..]),
         Some("sync") => catalog_sync(&args[1..]),
-        _ => Err(format!("catalog needs check or sync\n\n{USAGE}")),
+        Some("match") => catalog_match(&args[1..]),
+        _ => Err(format!("catalog needs check, sync or match\n\n{USAGE}")),
     }
 }
 
@@ -156,6 +163,67 @@ fn catalog_sync(args: &[String]) -> Result<(), String> {
     let commit = options[0].ok_or("catalog sync needs --commit <commit>")?;
     let dir = options[1].unwrap_or("catalog");
     let report = tp_pack::catalog::sync(Path::new(ppk), commit, Path::new(dir))?;
+    print!("{}", report.text());
+    Ok(())
+}
+
+fn catalog_match(args: &[String]) -> Result<(), String> {
+    let mut positional = Vec::new();
+    let mut commit = None;
+    let mut game = tp_vehicles::Game::Ets2;
+    let mut only = Vec::new();
+    let mut dir = "catalog".to_owned();
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        let mut value = || {
+            rest.next()
+                .cloned()
+                .ok_or_else(|| format!("{arg} needs a value"))
+        };
+        match arg.as_str() {
+            "--commit" => commit = Some(value()?),
+            "--game" => {
+                let code = value()?;
+                game = tp_vehicles::Game::from_code(&code)
+                    .ok_or_else(|| format!("unknown game \"{code}\": use ets2 or ats"))?;
+            }
+            "--vehicle" => only.push(value()?),
+            "--catalog" => dir = value()?,
+            other if !other.starts_with('-') && positional.len() < 2 => {
+                positional.push(other.to_owned());
+            }
+            other => return Err(format!("unexpected argument \"{other}\"\n\n{USAGE}")),
+        }
+    }
+    let [pack, ppk] = &positional[..] else {
+        return Err(format!(
+            "catalog match needs a pack folder and a Paintjob Packer folder\n\n{USAGE}"
+        ));
+    };
+    let commit = commit.ok_or("catalog match needs --commit <commit>")?;
+    let dir = Path::new(&dir);
+    let existing: Vec<tp_vehicles::catalog::Entry> = tp_pack::catalog::read_catalog(dir)?
+        .into_iter()
+        .map(|(_, e)| e)
+        .collect();
+    let report = tp_pack::catalog::matching::match_vehicles(
+        Path::new(pack),
+        Path::new(ppk),
+        game,
+        &commit,
+        &only,
+        &existing,
+    )?;
+    for m in &report.vehicles {
+        let path = dir.join(m.entry.catalog_path());
+        if path.exists() {
+            continue;
+        }
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+        }
+        std::fs::write(&path, m.entry.to_json()).map_err(|e| format!("{}: {e}", path.display()))?;
+    }
     print!("{}", report.text());
     Ok(())
 }

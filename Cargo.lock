@@ -4090,6 +4090,7 @@ dependencies = [
  "tempfile",
  "texpresso",
  "tp-vehicles",
+ "unicode-normalization",
  "zip",
 ]
 

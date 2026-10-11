@@ -43,7 +43,7 @@
 
 ### 1. Trailers with several bodies: first body group as main, the others as accessories
 
-- **The main texture** is the file matched to Paintjob Packer's first group whose name starts with "Body", in the JSON's order, which `game_data.accessories` keeps. It has no `cabins` and `also_paints` that group's ids, exactly like the Krone. Its id is `body` and its name is the file's name ("Body", "Curtainsider B-Double").
+- **The main texture** is the file matched to Paintjob Packer's first group whose name starts with "Body", in the order of `game_data.accessories` (by name: "Body" before "Body (Long)"). It has no `cabins` and `also_paints` that group's ids, exactly like the Krone. Its id is `body` and its name is the file's name ("Body", "Curtainsider B-Double").
 - **Every other body file** is an accessory texture covering its group's ids.
 - **A one-body trailer** whose file is named after it, like the Krone, gives the same shape.
 
@@ -96,10 +96,12 @@ All comparisons use `fold(name)`: NFC, lowercase, accents removed (Decision 5). 
 - **Trailer bodies:** each root file is compared with each body group, ignoring the word "body". Equal word sets are certain. Otherwise the group sharing the most words wins, if any, and that's a doubt (`835 mm` ↔ `825 mm`). Root files left after this go to the accessory matching (`Trailer Rear - Flap Door.png`).
 - **Accessories:** each file goes to the non-body group sharing the most words with it, as a doubt unless the group's words are all in the file's name. A tie is a doubt, decided for the first group in game data order.
 - **Splitting a group** between several files:
-  - variant words are the words of a file that aren't in the group's name ("4x", "6x", "long", "camera");
-  - an id goes to the file whose variant words all appear in the id, or its digits for axle counts ("4x" ↔ `_4x2`);
-  - an id matching no file, or several, stays uncovered;
+  - variant words are the words of a file that aren't in the group's name nor in every file's name ("4x", "camera", "front", "left");
+  - an id goes to the file whose variant words all appear in the id (a word may start an id word, `4x` ↔ `_4x2`, or begin with it, `camera` ↔ `cam_semi`), the most specific one;
+  - otherwise to the file naming most of it alone, a place word counting when its initial is the id's first one-letter word (`front` ↔ `chs_f_l`), or the last one for left and right;
+  - otherwise to the group's plainest file (fewest variant words, then "stock", "standard", "paint" or "main"), because Paintjob Packer paints a whole group with one texture: the group's ids share one layout (decided with the user while building the matcher; most ids, such as `sunshld.triangle`, name no file);
   - every split is a doubt.
+- **Accessory group choice** also counts the file's words found in the group's ids (`Pallet Box` ↔ `chs_r_l.pallet01p`), and words of place count less than words of part.
 - **Left out:** every group with no file is left out with "no template in the pack" (certain). Files with no group are listed as unused.
 
 The rules are deterministic, so running the tool twice on the same pack gives the same drafts.
@@ -140,6 +142,7 @@ A failure corrects that vehicle's entry and the matching rule behind it. When th
 
 ## Risks / Trade-offs
 
+- **[A group's file chosen for ids it doesn't show]** The plainest file's guides may not draw the exact accessory a player has. → The layout is shared, so the paint lands right; the doubt names the other files, and a reviewer may pick a better template. The in-game sample checks a group texture.
 - **[A wrong but plausible match passes review]** → Each doubt is listed, the completeness check refuses uncovered ids, `check` lists unused files, and the in-game sample covers each rule. A mistake found later is fixed by raising that entry's version, and installed players get the new package on their next pick, as the first brick allows.
 - **[The first body as the trailer's main mask looks wrong on a trailer other than the Krone]** → The in-game sample includes two trailers with several bodies. If one fails, stop and come back to the user before choosing another model (for example the blank `Base` of Decision 1's alternatives).
 - **[Large vehicles create many textures by default]** The SCS Box Trailer has 26 accessories, and all accessories are checked when a vehicle is checked. → The player can uncheck them in the fleet card. A task measures New Project → Create Project with the SCS Box Trailer and the Volvo FH6. If it's noticeably slow or heavy, it's reported to the user as a follow-up, and this change doesn't alter the default.

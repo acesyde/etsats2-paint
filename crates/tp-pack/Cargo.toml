@@ -19,6 +19,7 @@ semver.workspace = true
 zip.workspace = true
 image.workspace = true
 texpresso.workspace = true
+unicode-normalization.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

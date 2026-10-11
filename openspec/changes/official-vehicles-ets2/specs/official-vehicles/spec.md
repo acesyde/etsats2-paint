@@ -11,7 +11,7 @@ TruckPaint SHALL embed a catalog of official vehicles. It is data only and needs
 
 An entry SHALL be listed only when it is complete: every cabin is covered by exactly one main texture, and every accessory id of its game data is covered by exactly one texture or left out on purpose.
 
-A trailer SHALL have one main texture. When the pack has several body templates for a trailer (`Body.png` and `Body (Long).png`), the main texture SHALL be the body of Paintjob Packer's first body group, and it SHALL also be applied to that group's accessory ids. Each other body SHALL be an accessory texture covering its own group's accessory ids.
+A trailer SHALL have one main texture. When the pack has several body templates for a trailer (`Body.png` and `Body (Long).png`), the main texture SHALL be the body of Paintjob Packer's first body group (by name), and it SHALL also be applied to that group's accessory ids. Each other body SHALL be an accessory texture covering its own group's accessory ids.
 
 The catalog SHALL hold, for ETS2, every official vehicle of Paintjob Packer that the ETS2 template pack has templates for. That's the 26 trucks and the 40 trailers of Paintjob Packer at commit `a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d`, validated with the pack for game 1.59 (2026-05-28). Among them:
 - the **DAF NGD** (`daf.2021`, truck): main textures XG+, XG and XF, one per cabin layout; accessories Sun Visor, Sideskirts, Mirrors (standard) and Mirrors (camera);
@@ -141,13 +141,13 @@ The `tpv` tool SHALL offer `tpv catalog match <pack folder> <paintjob-packer fol
 - **the vehicle's folder:** the pack folder named as the vehicle; otherwise a folder shared with other vehicles (`Brand A & B`) or whose name starts with the vehicle's name, or matches its game path (`Scania S 2024e` for `scania.s_2024e`);
 - **the main textures of a truck:** each cabin file (`Cabin A (XG+).png`, `Cabin A Aero (Aero Globetrotter XXL).png`, `R Cabin A (High Roof).png` in a shared folder) matched to the cabin of that name, `Cabin 8x4 (…)` matched to the cabin with code `8`; a single file named after the vehicle covers every cabin;
 - **the main texture of a trailer and its other bodies:** following the rule of the Official vehicle catalog requirement;
-- **the accessory textures:** each file of the `Accessories` folder matched to the Paintjob Packer group whose name shares its words, a group's ids split between several files when their names differ by a variant ("(4x)", "(6x Long)", "Standard", "Camera") that also appears in the ids;
+- **the accessory textures:** each file of the `Accessories` folder matched to the Paintjob Packer group whose name (or ids) shares its words, a group's ids split between several files when their names differ by a variant ("(4x)", "Camera", "Front", "Left") that also appears in the ids. The ids that no single file names SHALL go to the group's plainest file (the fewest variant words, "Stock", "Standard", "Paint" or "Main" first): Paintjob Packer paints a whole group with one texture, so a group's ids share one layout;
 - **the ids left out:** the groups no file matches, with the reason "no template in the pack".
 
 Texture sizes SHALL be read from the files. The command SHALL print, for each vehicle:
 - the folder and every proposed texture;
-- each **doubtful match**, with its reason: a folder found other than by its exact name, a group split between files, a file matched by only some of its words;
-- the ids it could not place, which are left uncovered so the entry stays incomplete;
+- each **doubtful match**, with its reason: a folder found other than by its exact name, a group split between files, a file matched by only some of its words, ids given to the group's plainest file;
+- the cabins it could not place, which are left uncovered so the entry stays incomplete;
 - the pack's PNG files no texture uses.
 
 It SHALL NOT change an existing entry, and SHALL write nothing for a vehicle whose folder it can't find, listing it instead. It SHALL also list the pack's folders that match no official vehicle of Paintjob Packer.
@@ -168,9 +168,13 @@ It SHALL NOT change an existing entry, and SHALL write nothing for a vehicle who
 - **WHEN** a vehicle's group Rear Bumper matches no file of its folder
 - **THEN** its ids are left out with the reason "no template in the pack", and the report says so
 
-#### Scenario: Id that can't be placed
-- **WHEN** a group is split between two files and one of its ids names neither variant
-- **THEN** that id is left uncovered, the report names it, and the entry is not listed in the app until it is placed by hand
+#### Scenario: Id that no file names
+- **WHEN** the Volvo FH6's group Sun Visor has the files Luxury, Painted, Samurai and Stock, and ids (`sunshld.dual`, `sunshld.triangle`…) that name none of them
+- **THEN** those ids go to one texture from the group's plainest file, and the report lists them as a doubt
+
+#### Scenario: Cabin that can't be placed
+- **WHEN** a truck's cabin matches no cabin file by name or code
+- **THEN** that cabin is left uncovered, the report names it, and the entry is not listed in the app until it is placed by hand
 
 #### Scenario: Existing entry kept
 - **WHEN** `tpv catalog match` runs and `catalog/ets2/daf.2021.json` exists
