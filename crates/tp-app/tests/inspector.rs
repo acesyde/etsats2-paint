@@ -5,6 +5,8 @@
 
 mod common;
 
+use common::ClickIntoView;
+
 use egui::accesskit::Role;
 use egui::{Event, Key, Modifiers, PointerButton, Pos2, Vec2};
 use egui_kittest::Harness;
@@ -274,7 +276,7 @@ fn star_from_the_polygon_section() {
     assert_eq!(ws(&h).tool, Tool::Select);
     let steps = ws(&h).history.len();
     type_into(&mut h, "Sides", "5");
-    h.get_by_role_and_label(Role::CheckBox, "Star").click();
+    h.click_into_view(Role::CheckBox, "Star");
     h.run();
     for id in [a, b] {
         assert_eq!(

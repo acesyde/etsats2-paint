@@ -6,6 +6,8 @@
 
 mod common;
 
+use common::ClickIntoView;
+
 use std::path::PathBuf;
 
 use egui::Vec2;
@@ -76,8 +78,7 @@ fn render_screens() {
 
             h.get_by_label(&tp_i18n::tr("home-new-project")).click();
             h.run();
-            h.get_by_role_and_label(egui::accesskit::Role::CheckBox, common::SAMPLE)
-                .click();
+            h.click_into_view(egui::accesskit::Role::CheckBox, common::SAMPLE);
             h.run();
             save(&mut h, &name("new_project"));
 
@@ -1800,8 +1801,7 @@ fn render_languages() {
             // A project with a selected stroked text (the inspector).
             h.get_by_label(&tp_i18n::tr("home-new-project")).click();
             h.run();
-            h.get_by_role_and_label(egui::accesskit::Role::CheckBox, common::SAMPLE)
-                .click();
+            h.click_into_view(egui::accesskit::Role::CheckBox, common::SAMPLE);
             h.run();
             h.get_by_label(&tp_i18n::tr("new-project-create")).click();
             h.run();
@@ -2553,14 +2553,12 @@ fn render_import_from_library() {
     }
     common::create_project(&mut h);
     run(&mut h, tp_app::commands::CommandId::ImportFromLibrary);
-    h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Vert Ardent")
-        .click();
+    h.click_into_view(egui::accesskit::Role::CheckBox, "Vert Ardent");
     h.run();
     h.get_by_label("Import").click();
     h.run();
     run(&mut h, tp_app::commands::CommandId::ImportFromLibrary);
-    h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Logo Ardent")
-        .click();
+    h.click_into_view(egui::accesskit::Role::CheckBox, "Logo Ardent");
     for _ in 0..30 {
         h.step();
     }
@@ -3178,12 +3176,11 @@ fn render_official_vehicles() {
         h.run();
         h.get_by_label(&tp_i18n::tr("home-new-project")).click();
         h.run();
-        h.get_by_role_and_label(Role::CheckBox, common::SAMPLE)
-            .click();
+        h.click_into_view(Role::CheckBox, common::SAMPLE);
         settle_dialog(&mut h);
         save(&mut h, &name("new_project"));
 
-        h.get_by_role_and_label(Role::CheckBox, "DAF NGD").click();
+        h.click_into_view(Role::CheckBox, "DAF NGD");
         settle_dialog(&mut h);
         save(&mut h, &name("pack_dialog"));
         let downloads = dir.path().join("Downloads");
@@ -3203,8 +3200,7 @@ fn render_official_vehicles() {
             .prefs
             .set_template_pack(Game::Ets2, Some(pack.clone()));
         tp_app::official::hold_builds_from(&pack, true);
-        h.get_by_role_and_label(Role::CheckBox, "Krone Cool Liner")
-            .click();
+        h.click_into_view(Role::CheckBox, "Krone Cool Liner");
         settle_dialog(&mut h);
         let image = h.render().expect("render");
         image
@@ -3265,7 +3261,7 @@ fn render_multi_vehicle_choice() {
             "Volvo FH16 2012",
             "TruckPaint Sample Trailer",
         ] {
-            h.get_by_role_and_label(Role::CheckBox, vehicle).click();
+            h.click_into_view(Role::CheckBox, vehicle);
             settle_dialog(&mut h);
         }
         // The first card open, as in the mockup.
@@ -3281,7 +3277,7 @@ fn render_multi_vehicle_choice() {
             .push(tp_app::commands::CommandId::AddVehicle);
         settle_dialog(&mut h);
         for vehicle in ["TruckPaint Sample Trailer", "Volvo FH16 2012"] {
-            h.get_by_role_and_label(Role::CheckBox, vehicle).click();
+            h.click_into_view(Role::CheckBox, vehicle);
             settle_dialog(&mut h);
         }
         assert!(matches!(h.state().modal, Some(Modal::AddVehicle(_))));

@@ -4,6 +4,8 @@
 
 mod common;
 
+use common::ClickIntoView;
+
 use std::path::{Path, PathBuf};
 
 use egui::accesskit::Role;
@@ -90,8 +92,7 @@ fn ws_mut(h: &mut H) -> &mut Workspace {
 fn create_vehicle_project(h: &mut H) {
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::CheckBox, "Sample Truck")
-        .click();
+    h.click_into_view(Role::CheckBox, "Sample Truck");
     settle(h);
     h.get_by_label("Create Project").click();
     h.run();
@@ -225,8 +226,7 @@ fn creating_a_project_for_a_vehicle() {
     install_v120(&mut h, dir.path());
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::CheckBox, "Sample Truck")
-        .click();
+    h.click_into_view(Role::CheckBox, "Sample Truck");
     settle(&mut h);
     // Your fleet: the textures that will be created, on the same page.
     assert!(h.query_by_label("Cabin (4096²)").is_some());
@@ -331,7 +331,7 @@ fn hide_the_template_with_g() {
     h.run();
     assert!(visible(&h));
     // The same setting in the status bar.
-    h.get_by_role_and_label(Role::CheckBox, "Template").click();
+    h.click_into_view(Role::CheckBox, "Template");
     h.run();
     assert!(!visible(&h));
     assert!(!ws(&h).history.can_undo(), "not an undo step");
@@ -714,7 +714,7 @@ fn toggled(h: &H, role: Role, label: &str) -> bool {
 /// Sets checkbox `label` to `on`.
 fn set_checkbox(h: &mut H, label: &str, on: bool) {
     if toggled(h, Role::CheckBox, label) != on {
-        h.get_by_role_and_label(Role::CheckBox, label).click();
+        h.click_into_view(Role::CheckBox, label);
         h.run();
     }
 }
@@ -725,8 +725,7 @@ fn create_sample_project(h: &mut H, main: &[&str], left_out: &[&str]) {
     h.state_mut().vehicles.install_samples().unwrap();
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::CheckBox, "TruckPaint Sample Truck")
-        .click();
+    h.click_into_view(Role::CheckBox, "TruckPaint Sample Truck");
     settle(h);
     assert!(
         toggled(h, Role::CheckBox, "Standard cab"),
@@ -832,8 +831,7 @@ fn textures_that_will_be_created() {
     h.state_mut().vehicles.install_samples().unwrap();
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::CheckBox, "TruckPaint Sample Truck")
-        .click();
+    h.click_into_view(Role::CheckBox, "TruckPaint Sample Truck");
     settle(&mut h);
     assert!(h.query_by_label("1 main + 3 accessories").is_some());
     for texture in [
@@ -855,8 +853,7 @@ fn a_trailer_needs_no_choice_of_main_texture() {
     h.state_mut().vehicles.install_samples().unwrap();
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::CheckBox, "TruckPaint Sample Trailer")
-        .click();
+    h.click_into_view(Role::CheckBox, "TruckPaint Sample Trailer");
     settle(&mut h);
     let base = h.get_by_role_and_label(Role::CheckBox, "Base");
     assert!(base.accesskit_node().is_disabled());
@@ -897,7 +894,7 @@ fn wizard_with(h: &mut H, names: &[&str]) {
     h.get_by_label("New Project").click();
     h.run();
     for name in names {
-        h.get_by_role_and_label(Role::CheckBox, name).click();
+        h.click_into_view(Role::CheckBox, name);
         settle(h);
     }
 }
@@ -1018,7 +1015,7 @@ fn unchecking_in_the_list() {
     let mut h = app(dir.path());
     wizard_with(&mut h, &[TRUCK]);
     assert!(!create_disabled(&h));
-    h.get_by_role_and_label(Role::CheckBox, TRUCK).click();
+    h.click_into_view(Role::CheckBox, TRUCK);
     settle(&mut h);
     assert!(!toggled(&h, Role::CheckBox, TRUCK));
     assert!(h.query_by_label("Check vehicles in the list.").is_some());
@@ -1049,7 +1046,7 @@ fn add_vehicle_lists_only_the_project_game() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = app(dir.path());
     for (id, name, game, kind) in [
-        ("scs.krone.dry_liner", "Krone Dry Liner", "ets2", "trailer"),
+        ("scs.lamberet.sr2", "Lamberet SR2", "ets2", "trailer"),
         ("scs.peterbilt.579", "Peterbilt 579", "ats", "truck"),
     ] {
         let file = other_package_file(dir.path(), id, name, game, kind);
@@ -1059,7 +1056,7 @@ fn add_vehicle_lists_only_the_project_game() {
     h.get_by_label("Add Vehicle…").click();
     settle(&mut h);
     assert!(
-        h.query_by_role_and_label(Role::CheckBox, "Krone Dry Liner")
+        h.query_by_role_and_label(Role::CheckBox, "Lamberet SR2")
             .is_some()
     );
     assert!(
@@ -1071,8 +1068,7 @@ fn add_vehicle_lists_only_the_project_game() {
             .is_none(),
         "vehicles already in the project are hidden"
     );
-    h.get_by_role_and_label(Role::CheckBox, "Krone Dry Liner")
-        .click();
+    h.click_into_view(Role::CheckBox, "Lamberet SR2");
     settle(&mut h);
     // The Add Vehicle dialog's, over the Game versions' + Add.
     common::last(&h, "Add").click();
@@ -1085,7 +1081,7 @@ fn add_vehicle_lists_only_the_project_game() {
     assert!(h.query_by_label("2 vehicles · 5 textures").is_some());
     // The trailer can be removed (no artwork: no question); the last
     // vehicle cannot.
-    vehicle_action(&mut h, "Krone Dry Liner", "Remove from Project");
+    vehicle_action(&mut h, "Lamberet SR2", "Remove from Project");
     assert_eq!(ws(&h).project.vehicles.len(), 1);
     h.get_by_label("Actions for TruckPaint Sample Truck")
         .click();
@@ -1109,8 +1105,7 @@ fn the_tree_groups_main_textures_and_accessories() {
     create_sample_project(&mut h, &["Standard cab", "High roof"], &[]);
     h.get_by_label("Add Vehicle…").click();
     settle(&mut h);
-    h.get_by_role_and_label(Role::CheckBox, "TruckPaint Sample Trailer")
-        .click();
+    h.click_into_view(Role::CheckBox, "TruckPaint Sample Trailer");
     settle(&mut h);
     // The Add Vehicle dialog's, over the Game versions' + Add.
     common::last(&h, "Add").click();

@@ -4,6 +4,8 @@
 
 mod common;
 
+use common::ClickIntoView;
+
 use egui::accesskit::{Role, Toggled};
 use egui::{Event, Key, Modifiers, PointerButton, Pos2, Vec2, ViewportCommand};
 use egui_kittest::Harness;
@@ -116,8 +118,7 @@ fn a_new_project_opens_in_the_project_space() {
     let mut h = common::harness();
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::CheckBox, common::SAMPLE)
-        .click();
+    h.click_into_view(Role::CheckBox, common::SAMPLE);
     h.run();
     h.get_by_label("Create Project").click();
     h.run();
@@ -458,7 +459,7 @@ fn polygon_settings_for_new_polygons() {
     h.run();
     let steps = ws(&h).history.len();
     type_in_options_sides(&mut h, "5");
-    h.get_by_role_and_label(Role::CheckBox, "Star").click();
+    h.click_into_view(Role::CheckBox, "Star");
     h.run();
     assert_eq!(ws(&h).history.len(), steps, "settings are not recorded");
     let map = ws(&h).screen_map(1.0).unwrap();
@@ -693,7 +694,7 @@ fn grid_toggle_in_the_status_bar() {
     let mut h = open();
     assert!(!h.state().prefs.view_aids.grid);
     assert!(!toggled(&h, Role::CheckBox, "Grid"));
-    h.get_by_role_and_label(Role::CheckBox, "Grid").click();
+    h.click_into_view(Role::CheckBox, "Grid");
     h.run();
     assert!(h.state().prefs.view_aids.grid);
     assert!(toggled(&h, Role::CheckBox, "Grid"));

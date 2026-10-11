@@ -219,3 +219,17 @@ pub fn viewport_commands(harness: &Harness<'static, AppState>) -> Vec<egui::View
         .map(|o| o.commands.clone())
         .unwrap_or_default()
 }
+
+/// Clicking a widget once it is scrolled into view: the vehicle lists hold
+/// every official vehicle, so a row can sit below the visible part.
+pub trait ClickIntoView {
+    fn click_into_view(&mut self, role: egui::accesskit::Role, label: &str);
+}
+
+impl ClickIntoView for Harness<'static, AppState> {
+    fn click_into_view(&mut self, role: egui::accesskit::Role, label: &str) {
+        self.get_by_role_and_label(role, label).scroll_to_me();
+        self.run();
+        self.get_by_role_and_label(role, label).click();
+    }
+}

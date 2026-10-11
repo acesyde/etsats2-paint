@@ -2,6 +2,8 @@
 
 mod common;
 
+use common::ClickIntoView;
+
 use std::path::PathBuf;
 
 use egui::accesskit::{Role, Toggled};
@@ -187,7 +189,9 @@ fn new_project_defaults_to_the_vehicle_name() {
 /// Picks the sample vehicle in the New Project vehicle list.
 fn pick_sample(h: &mut Harness<'static, AppState>) {
     h.get_by_role_and_label(Role::CheckBox, common::SAMPLE)
-        .click();
+        .scroll_to_me();
+    h.run();
+    h.click_into_view(Role::CheckBox, common::SAMPLE);
     h.run();
 }
 
@@ -402,7 +406,7 @@ fn menu_and_shortcut_trigger_same_command() {
     let mut h = harness();
     create_project(&mut h);
     open_menu(&mut h, "View");
-    h.get_by_role_and_label(Role::CheckBox, "Layers").click();
+    h.click_into_view(Role::CheckBox, "Layers");
     h.run();
     assert_eq!(h.state().prefs.layout.left_tab, LeftTab::Layers);
     h.state_mut().prefs.layout.left_tab = LeftTab::Textures;

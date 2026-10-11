@@ -4,6 +4,8 @@
 
 mod common;
 
+use common::ClickIntoView;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -221,8 +223,7 @@ fn escape_returns_to_the_wizard_unchanged() {
     let mut h = app(dir.path());
     h.state_mut().vehicles.install_samples().unwrap();
     open_wizard(&mut h);
-    h.get_by_role_and_label(Role::CheckBox, common::SAMPLE)
-        .click();
+    h.click_into_view(Role::CheckBox, common::SAMPLE);
     settle(&mut h);
     let before = wizard_choice(&h);
     assert!(before.is_some());
@@ -559,8 +560,7 @@ fn custom_vehicle_added_to_the_fleet() {
     let mut h = app(dir.path());
     h.state_mut().vehicles.install_samples().unwrap();
     open_wizard(&mut h);
-    h.get_by_role_and_label(Role::CheckBox, common::SAMPLE)
-        .click();
+    h.click_into_view(Role::CheckBox, common::SAMPLE);
     settle(&mut h);
     h.get_by_label("Custom Vehicle…").click();
     settle(&mut h);

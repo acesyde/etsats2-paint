@@ -6,6 +6,8 @@
 
 mod common;
 
+use common::ClickIntoView;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -140,7 +142,7 @@ fn new_project(h: &mut H) {
 /// Clicks the vehicle `name` in the list (an installation may then
 /// spin: a few frames only).
 fn pick(h: &mut H, name: &str) {
-    h.get_by_role_and_label(Role::CheckBox, name).click();
+    h.click_into_view(Role::CheckBox, name);
     h.run_steps(2);
 }
 
@@ -197,13 +199,12 @@ fn official_vehicles_first() {
         .iter()
         .map(|r| (r.entry.name.clone(), r.entry.brand.clone(), r.package()))
         .collect();
+    assert_eq!(cells.len(), 66, "every official ETS2 vehicle");
     assert_eq!(
-        cells,
-        [
-            ("DAF NGD".into(), "DAF".into(), "Official".into()),
-            ("Krone Cool Liner".into(), "Krone".into(), "Official".into()),
-        ]
+        cells[0],
+        ("DAF NGD".into(), "DAF".into(), "Official".into())
     );
+    assert!(cells.contains(&("Krone Cool Liner".into(), "Krone".into(), "Official".into())));
     assert_eq!(
         rows.official[0].summary(),
         "DAF · Truck · ETS2 · Official",
@@ -222,6 +223,12 @@ fn official_vehicle_filtered_by_kind() {
     assert!(h.query_by_label("Krone Cool Liner").is_some());
     assert!(h.query_by_label("DAF NGD").is_none());
     assert!(h.query_by_label("TruckPaint Sample Truck").is_none());
+    let rows = tp_app::ui::vehicle_dialogs::vehicle_rows(
+        &h.state().vehicles,
+        &draft(&h).filter.clone(),
+        &[],
+    );
+    assert_eq!(rows.official.len(), 40, "every official ETS2 trailer");
     // The search applies to both sections.
     h.get_by_label("Trucks").click();
     settle(&mut h);
@@ -236,7 +243,12 @@ fn no_network_needed() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = app(dir.path());
     new_project(&mut h);
-    for name in ["DAF NGD", "Krone Cool Liner"] {
+    for name in [
+        "DAF NGD",
+        "Krone Cool Liner",
+        "Volvo FH6",
+        "SCS Box Trailer",
+    ] {
         assert!(
             h.query_by_role_and_label(Role::CheckBox, name).is_some(),
             "{name}"
@@ -299,7 +311,94 @@ fn an_installed_official_vehicle_is_listed_once() {
         &[],
     );
     assert!(rows.installed.is_empty());
-    assert_eq!(rows.official[1].package(), "Official 1.0.0");
+    let krone = rows
+        .official
+        .iter()
+        .find(|r| r.entry.name == "Krone Cool Liner")
+        .unwrap();
+    assert_eq!(krone.package(), "Official 1.0.0");
+}
+
+#[test]
+fn every_official_ets2_vehicle_sorted_by_brand_and_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    new_project(&mut h);
+    let names = |h: &H| -> Vec<String> {
+        tp_app::ui::vehicle_dialogs::vehicle_rows(
+            &h.state().vehicles,
+            &draft(h).filter.clone(),
+            &[],
+        )
+        .official
+        .iter()
+        .map(|r| r.entry.name.clone())
+        .collect()
+    };
+    let all = names(&h);
+    assert_eq!(all.len(), 66);
+    for name in [
+        "Volvo FH6",
+        "Scania S BEV",
+        "Schmitz Cargobull S.CS",
+        "SCS Box Trailer",
+    ] {
+        assert!(all.iter().any(|n| n == name), "{name}");
+        assert!(h.query_by_role_and_label(Role::CheckBox, name).is_some());
+    }
+    h.get_by_label("Trucks").click();
+    settle(&mut h);
+    let trucks = names(&h);
+    assert_eq!(trucks.len(), 26);
+    assert_eq!(
+        trucks[..5],
+        [
+            "DAF NGD",
+            "DAF XD",
+            "DAF XF",
+            "DAF XF Electric",
+            "DAF XF105"
+        ]
+    );
+    assert_eq!(
+        trucks[22..],
+        ["Volvo FH3", "Volvo FH4", "Volvo FH5", "Volvo FH6"]
+    );
+}
+
+#[test]
+fn trailer_with_several_bodies() {
+    let dir = tempfile::tempdir().unwrap();
+    let pack = dir.path().join("pack");
+    write_pack(&pack);
+    let mut h = app_with(dir.path(), Some(&pack));
+    new_project(&mut h);
+    pick(&mut h, "Schmitz Cargobull S.CS");
+    wait_install(&mut h);
+    let package = h
+        .state()
+        .vehicles
+        .get("official.ets2.schmitz.scs")
+        .expect("installed")
+        .newest();
+    let manifest = &package.manifest;
+    let main: Vec<&str> = manifest
+        .paint_job
+        .main
+        .iter()
+        .map(|p| p.name.as_str())
+        .collect();
+    assert_eq!(main, ["Body"]);
+    let accessories: Vec<&str> = manifest
+        .paint_job
+        .accessories
+        .iter()
+        .map(|p| p.name.as_str())
+        .collect();
+    for body in ["Body (Long)", "Body (Double)", "Body - EcoFIX"] {
+        assert!(accessories.contains(&body), "{body}: {accessories:?}");
+        assert!(h.query_by_label(body).is_some(), "{body} in the fleet card");
+    }
 }
 
 // --- The template pack dialog -------------------------------------------

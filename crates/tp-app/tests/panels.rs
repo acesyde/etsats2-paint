@@ -4,6 +4,8 @@
 
 mod common;
 
+use common::ClickIntoView;
+
 use egui::accesskit::Role;
 use egui::{Event, Key, Modifiers, PointerButton, Pos2, Vec2};
 use egui_kittest::Harness;
@@ -331,7 +333,7 @@ fn make_a_five_point_star() {
     let frame = obj(&h, p).frame;
     select(&mut h, &[p]);
     type_into(&mut h, "Sides", "5");
-    h.get_by_role_and_label(Role::CheckBox, "Star").click();
+    h.click_into_view(Role::CheckBox, "Star");
     h.run();
     let star = obj(&h, p);
     assert_eq!(
