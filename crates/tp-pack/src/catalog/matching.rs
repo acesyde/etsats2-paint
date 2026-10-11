@@ -279,18 +279,23 @@ fn match_groups<'a>(
         let fw = word_set(&file.name);
         let scored: Vec<(usize, &String)> = groups
             .iter()
-            .map(|(g, ids)| (score(&fw, g, ids), *g))
+            .map(|(g, ids)| (score(&file.name, g, ids), *g))
             .filter(|(n, _)| *n > 0)
             .collect();
         let Some(best) = scored.iter().map(|(n, _)| *n).max() else {
             spare.push(file.clone());
             continue;
         };
-        let top: Vec<&String> = scored
+        let mut top: Vec<&String> = scored
             .iter()
             .filter(|(n, _)| *n == best)
             .map(|(_, g)| *g)
             .collect();
+        // A tie goes first to a group named by the file's first word: the
+        // part comes first in "<part> - <variant>".
+        if let Some(first) = words(&file.name).first() {
+            top.sort_by_key(|g| !word_set(g).contains(first));
+        }
         let group = top[0];
         if top.len() > 1 {
             doubts.push(format!(
@@ -312,27 +317,43 @@ fn match_groups<'a>(
 /// Words telling where a part is rather than what it is: they count less.
 const PLACE_WORDS: &[&str] = &["front", "rear", "mid", "middle", "left", "right", "top"];
 
+/// Whether `word` qualifies a part rather than names it: an axle or a size
+/// (`6x`, `13`, `long`).
+fn is_qualifier(word: &str) -> bool {
+    word.chars().any(|c| c.is_ascii_digit())
+        || ["long", "short", "double", "single", "low", "high", "wide"].contains(&word)
+}
+
 /// Words of a variant that name the plain version of a part.
 const PLAIN_WORDS: &[&str] = &[
     "stock", "standard", "basic", "normal", "paint", "painted", "main",
 ];
 
-/// How well a file with words `fw` fits group `group` with `ids`: words in
-/// common with the group's name (2 each, 1 for a place word), and the
-/// file's other words found in the ids (2 each).
-fn score(fw: &BTreeSet<String>, group: &str, ids: &[String]) -> usize {
+/// How well file `name` fits group `group` with `ids`: words in common with
+/// the group's name (4 each, 1 for a place word or a qualifier), and the file's other
+/// words found in the ids (2 each; joined words and plain words don't
+/// count there).
+fn score(name: &str, group: &str, ids: &[String]) -> usize {
+    let fw = word_set(name);
     let gw = word_set(group);
     let weight = |w: &String| {
-        if PLACE_WORDS.contains(&w.as_str()) {
+        if PLACE_WORDS.contains(&w.as_str()) || is_qualifier(w) {
             1
         } else {
-            2
+            4
         }
     };
     let names: usize = fw.intersection(&gw).map(weight).sum();
-    let in_ids: usize = fw
+    let in_ids: usize = words(name)
         .iter()
-        .filter(|w| !gw.contains(*w) && !PLACE_WORDS.contains(&w.as_str()))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .filter(|w| {
+            !gw.contains(*w)
+                && !PLACE_WORDS.contains(&w.as_str())
+                && !PLAIN_WORDS.contains(&w.as_str())
+                && !is_qualifier(w)
+        })
         .filter(|w| ids.iter().any(|id| id_has(id, w)))
         .map(|_| 2)
         .sum();
@@ -351,10 +372,17 @@ fn quoted(names: &[&String]) -> String {
 /// words is `v`, starts with it (`4x` ↔ `pnt_4x2`), or begins it
 /// (`camera` ↔ `cam_semi`).
 fn id_has(id: &str, v: &str) -> bool {
+    let v = ABBREVIATIONS
+        .iter()
+        .find(|(word, _)| *word == v)
+        .map_or(v, |(_, short)| short);
     fold(id)
         .split(|c: char| !c.is_alphanumeric())
         .any(|w| w == v || w.starts_with(v) || (w.len() >= 3 && v.starts_with(w)))
 }
+
+/// Words the game's ids shorten (`chs_f_l` for the chassis).
+const ABBREVIATIONS: &[(&str, &str)] = &[("chassi", "chs")];
 
 /// Splits `group`'s `ids` between its `files` by the variant words of each
 /// file (its words not in the group's name nor in every file's name). An id
@@ -644,30 +672,46 @@ fn match_vehicle(
                     None => rest.push(f.clone()),
                 }
             }
-            let mut still = Vec::new();
-            for f in rest {
-                let fw = file_words(&f);
-                let best = body_groups
-                    .iter()
-                    .filter(|(g, _)| !by_group.contains_key(g))
-                    .map(|(g, _)| (bw(g).intersection(&fw).count(), *g))
-                    .filter(|(n, _)| *n > 0)
-                    .max_by_key(|(n, _)| *n);
-                match best {
-                    Some((_, g)) => {
-                        doubts.push(format!(
-                            "\"{}\" matched to the group \"{g}\" by some of its words",
-                            f.path
-                        ));
-                        by_group.entry(g).or_default().push(f);
+            // The closest pairs first: most words in common, then fewest
+            // words of the file left over.
+            let mut pairs: Vec<(usize, usize, usize, &String)> = Vec::new();
+            for (i, f) in rest.iter().enumerate() {
+                let fw = file_words(f);
+                for (g, _) in &body_groups {
+                    let common = bw(g).intersection(&fw).count();
+                    if common > 0 && !by_group.contains_key(g) {
+                        pairs.push((common, fw.len() - common, i, g));
                     }
-                    None => still.push(f),
                 }
             }
+            pairs.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+            let mut placed = vec![false; rest.len()];
+            for (_, _, i, g) in pairs {
+                if placed[i] || by_group.contains_key(g) {
+                    continue;
+                }
+                placed[i] = true;
+                doubts.push(format!(
+                    "\"{}\" matched to the group \"{g}\" by some of its words",
+                    rest[i].path
+                ));
+                by_group.insert(g, vec![rest[i].clone()]);
+            }
+            let mut still: Vec<File> = rest
+                .into_iter()
+                .zip(placed)
+                .filter(|(_, p)| !p)
+                .map(|(f, _)| f)
+                .collect();
             let free: Vec<&String> = body_groups
                 .iter()
                 .map(|(g, _)| *g)
                 .filter(|g| !by_group.contains_key(g))
+                .collect();
+            let bodies: Vec<File> = still
+                .iter()
+                .filter(|f| fold(&f.name).starts_with("body"))
+                .cloned()
                 .collect();
             if let [g] = free[..]
                 && !still.is_empty()
@@ -678,6 +722,16 @@ fn match_vehicle(
                     quoted(&names)
                 ));
                 by_group.insert(g, std::mem::take(&mut still));
+            } else if free.len() > 1 && bodies.len() == free.len() {
+                // As many body files as body groups left: paired in order.
+                for (g, f) in free.iter().zip(&bodies) {
+                    doubts.push(format!(
+                        "\"{}\" paired with the group \"{g}\" in order",
+                        f.path
+                    ));
+                    by_group.insert(g, vec![f.clone()]);
+                }
+                still.retain(|f| !bodies.iter().any(|b| b.path == f.path));
             }
             leftovers.extend(still);
             let mut textures = Vec::new();
@@ -687,11 +741,16 @@ fn match_vehicle(
                     None => bodies_without_file.push(g),
                 }
             }
-            let first = body_groups.first().and_then(|(_, ids)| ids.first());
-            let main_at = textures
-                .iter()
-                .position(|t| first.is_some_and(|id| t.ids.contains(id)))
-                .or_else(|| (!textures.is_empty()).then_some(0));
+            // The main texture: the plainest body (fewest words), then the
+            // first body group's.
+            let main_at = (0..textures.len()).min_by_key(|&i| {
+                let t = &textures[i];
+                let group = body_groups
+                    .iter()
+                    .position(|(_, ids)| ids.iter().any(|id| t.ids.contains(id)))
+                    .unwrap_or(usize::MAX);
+                (words(&t.file.name).len(), group)
+            });
             if let Some(i) = main_at {
                 body = Some(textures.remove(i));
             }

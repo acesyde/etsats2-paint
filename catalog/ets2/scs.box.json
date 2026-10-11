@@ -131,45 +131,79 @@
   "main": [
     {
       "id": "body",
-      "name": "Curtainsider B-Double",
-      "file": "Curtainsider B-Double.png",
+      "name": "Curtainsider Double",
+      "file": "Curtainsider Double.png",
       "size": [
         4096,
         2048
       ],
       "layout_version": 1,
       "also_paints": [
-        "body.curtain_78bd"
+        "body.curtain_78"
       ]
     }
   ],
   "accessories": [
     {
-      "id": "front_sideskirt_double_2_axles",
-      "name": "Front Sideskirt (Double 2 Axles)",
-      "file": "Accessories/Front Sideskirt (Double 2 Axles).png",
-      "size": [
-        2048,
-        256
-      ],
-      "layout_version": 1,
-      "ids": [
-        "chs_f_l.sideskirt_2d",
-        "chs_f_r.sideskirt_2d"
-      ]
-    },
-    {
-      "id": "front_sideskirt_painted_box",
-      "name": "Front Sideskirt - Painted Box",
-      "file": "Accessories/Front Sideskirt - Painted Box.png",
+      "id": "chassis_front_thermo_box_cooler",
+      "name": "Chassis Front - Thermo Box Cooler",
+      "file": "Accessories/Chassis Front - Thermo Box Cooler.png",
       "size": [
         2048,
         1024
       ],
       "layout_version": 1,
       "ids": [
+        "chs_f_l.palletbox",
+        "chs_f_r.palletbox"
+      ]
+    },
+    {
+      "id": "front_sideskirt",
+      "name": "Front Sideskirt",
+      "file": "Accessories/Front Sideskirt.png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.sideskirt_01",
+        "chs_f_r.sideskirt_01"
+      ]
+    },
+    {
+      "id": "mid_sideskirt_painted_box_spread_rear_axles",
+      "name": "Mid Sideskirt - Painted Box (Spread Rear Axles)",
+      "file": "Accessories/Mid Sideskirt - Painted Box (Spread Rear Axles).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_r_l.sideskirt_02",
+        "chs_r_r.sideskirt_02",
+        "chs_r_l.paint_box",
+        "chs_r_l.paint_box_d",
+        "chs_r_r.paint_box",
+        "chs_r_r.paint_box_d"
+      ]
+    },
+    {
+      "id": "mid_sideskirt_painted_box",
+      "name": "Mid Sideskirt - Painted Box",
+      "file": "Accessories/Mid Sideskirt - Painted Box.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
         "chs_f_l.sideskirt_02",
         "chs_f_r.sideskirt_02",
+        "chs_f_l.sideskirt_2d",
+        "chs_f_r.sideskirt_2d",
         "chs_f_l.sideskirt_03",
         "chs_f_r.sideskirt_03",
         "chs_f_l.sideskirt_1d",
@@ -194,41 +228,7 @@
         "chs_m_r.paint_box_bd",
         "chs_m_r.paint_box_d",
         "chs_m_r.paint_box_m",
-        "chs_r_l.sideskirt_02",
-        "chs_r_r.sideskirt_02",
-        "chs_r_l.paint_box",
-        "chs_r_l.paint_box_d",
-        "chs_r_r.paint_box",
-        "chs_r_r.paint_box_d",
         "chs_f_l.t_box"
-      ]
-    },
-    {
-      "id": "front_sideskirt_pallet_box",
-      "name": "Front Sideskirt - Pallet Box",
-      "file": "Accessories/Front Sideskirt - Pallet Box.png",
-      "size": [
-        2048,
-        256
-      ],
-      "layout_version": 1,
-      "ids": [
-        "chs_f_l.palletbox",
-        "chs_f_r.palletbox"
-      ]
-    },
-    {
-      "id": "front_sideskirt",
-      "name": "Front Sideskirt",
-      "file": "Accessories/Front Sideskirt.png",
-      "size": [
-        2048,
-        256
-      ],
-      "layout_version": 1,
-      "ids": [
-        "chs_f_l.sideskirt_01",
-        "chs_f_r.sideskirt_01"
       ]
     },
     {
@@ -275,6 +275,20 @@
       ]
     },
     {
+      "id": "trailer_front_thermo_box_cooler",
+      "name": "Trailer Front - Thermo Box Cooler",
+      "file": "Accessories/Trailer Front - Thermo Box Cooler.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_body.th_box_p_mf",
+        "f_body.th_box_paint"
+      ]
+    },
+    {
       "id": "trailer_front_toolbox",
       "name": "Trailer Front - Toolbox",
       "file": "Accessories/Trailer Front - Toolbox.png",
@@ -284,9 +298,7 @@
       ],
       "layout_version": 1,
       "ids": [
-        "f_body.f_toolbox",
-        "f_body.th_box_p_mf",
-        "f_body.th_box_paint"
+        "f_body.f_toolbox"
       ]
     },
     {
@@ -303,16 +315,16 @@
       ]
     },
     {
-      "id": "curtainsider_double",
-      "name": "Curtainsider Double",
-      "file": "Curtainsider Double.png",
+      "id": "curtainsider_b_double",
+      "name": "Curtainsider B-Double",
+      "file": "Curtainsider B-Double.png",
       "size": [
         4096,
         2048
       ],
       "layout_version": 1,
       "ids": [
-        "body.curtain_78"
+        "body.curtain_78bd"
       ]
     },
     {

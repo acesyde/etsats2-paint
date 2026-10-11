@@ -68,7 +68,10 @@
       ],
       "layout_version": 1,
       "ids": [
-        "r_bumper.paint"
+        "chs_f_l.cg_bp_3_30",
+        "chs_f_r.cg_bp_3_30",
+        "chs_r_l.bp",
+        "chs_r_r.bp"
       ]
     }
   ],
@@ -90,10 +93,7 @@
     },
     {
       "ids": [
-        "chs_f_l.cg_bp_3_30",
-        "chs_f_r.cg_bp_3_30",
-        "chs_r_l.bp",
-        "chs_r_r.bp"
+        "r_bumper.paint"
       ],
       "reason": "no template in the pack"
     }

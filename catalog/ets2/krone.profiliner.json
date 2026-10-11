@@ -70,15 +70,19 @@
   "main": [
     {
       "id": "body",
-      "name": "Body (Double)",
-      "file": "Body (Double).png",
+      "name": "Body",
+      "file": "Body.png",
       "size": [
         8192,
         1024
       ],
       "layout_version": 1,
       "also_paints": [
-        "body.curtain_78"
+        "body.curtain_136",
+        "body.curt_13ct",
+        "body.curt_13ecf",
+        "body.curt_13ecr",
+        "body.curt_13ec"
       ]
     }
   ],
@@ -144,6 +148,19 @@
       ]
     },
     {
+      "id": "body_double",
+      "name": "Body (Double)",
+      "file": "Body (Double).png",
+      "size": [
+        8192,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.curtain_78"
+      ]
+    },
+    {
       "id": "body_long",
       "name": "Body (Long)",
       "file": "Body (Long).png",
@@ -157,9 +174,9 @@
       ]
     },
     {
-      "id": "body_tir_long",
-      "name": "Body - TIR (Long)",
-      "file": "Body - TIR (Long).png",
+      "id": "body_tir",
+      "name": "Body - TIR",
+      "file": "Body - TIR.png",
       "size": [
         8192,
         1024
@@ -167,23 +184,6 @@
       "layout_version": 1,
       "ids": [
         "body.curt_13tir"
-      ]
-    },
-    {
-      "id": "body_2",
-      "name": "Body",
-      "file": "Body.png",
-      "size": [
-        8192,
-        1024
-      ],
-      "layout_version": 1,
-      "ids": [
-        "body.curtain_136",
-        "body.curt_13ct",
-        "body.curt_13ecf",
-        "body.curt_13ecr",
-        "body.curt_13ec"
       ]
     }
   ],

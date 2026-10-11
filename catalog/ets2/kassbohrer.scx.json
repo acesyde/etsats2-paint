@@ -148,19 +148,6 @@
       ]
     },
     {
-      "id": "chassis_front_side_skirt_viii_painted_box",
-      "name": "Chassis Front - Side Skirt VIII + Painted Box",
-      "file": "Accessories/Chassis Front - Side Skirt VIII + Painted Box.png",
-      "size": [
-        1024,
-        256
-      ],
-      "layout_version": 1,
-      "ids": [
-        "r_bumper.paint"
-      ]
-    },
-    {
       "id": "body_long",
       "name": "Body (Long)",
       "file": "Body (Long).png",
@@ -175,5 +162,12 @@
       ]
     }
   ],
-  "left_out": []
+  "left_out": [
+    {
+      "ids": [
+        "r_bumper.paint"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
 }

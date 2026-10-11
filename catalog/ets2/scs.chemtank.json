@@ -92,9 +92,7 @@
       "layout_version": 1,
       "ids": [
         "chs_f_l.paint_box",
-        "chs_f_r.paint_box",
-        "chs_r_l.paint_box",
-        "chs_r_r.paint_box"
+        "chs_f_r.paint_box"
       ]
     },
     {
@@ -107,7 +105,8 @@
       ],
       "layout_version": 1,
       "ids": [
-        "rear_body.paint"
+        "chs_r_l.paint_box",
+        "chs_r_r.paint_box"
       ]
     },
     {
@@ -147,6 +146,7 @@
       ],
       "layout_version": 1,
       "ids": [
+        "rear_body.paint",
         "rear_body.chrome"
       ]
     },

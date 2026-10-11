@@ -78,15 +78,16 @@
   "main": [
     {
       "id": "body",
-      "name": "Body (22.3-2)",
-      "file": "Body (22.3-2).png",
+      "name": "Body (32.3)",
+      "file": "Body (32.3).png",
       "size": [
         4096,
         2048
       ],
       "layout_version": 1,
       "also_paints": [
-        "body.22_2_1"
+        "body.32_1_1",
+        "body.32_4_1"
       ]
     }
   ],
@@ -200,6 +201,19 @@
       ]
     },
     {
+      "id": "body_22_3_2",
+      "name": "Body (22.3-2)",
+      "file": "Body (22.3-2).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.22_2_1"
+      ]
+    },
+    {
       "id": "body_22_3_3",
       "name": "Body (22.3-3)",
       "file": "Body (22.3-3).png",
@@ -210,20 +224,6 @@
       "layout_version": 1,
       "ids": [
         "body.22_3_1"
-      ]
-    },
-    {
-      "id": "body_32_3",
-      "name": "Body (32.3)",
-      "file": "Body (32.3).png",
-      "size": [
-        4096,
-        2048
-      ],
-      "layout_version": 1,
-      "ids": [
-        "body.32_1_1",
-        "body.32_4_1"
       ]
     }
   ],

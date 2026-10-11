@@ -48,7 +48,21 @@
       ]
     }
   },
-  "main": [],
+  "main": [
+    {
+      "id": "body",
+      "name": "Body (3 axles)",
+      "file": "Body (3 axles).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.dumper3"
+      ]
+    }
+  ],
   "accessories": [
     {
       "id": "rear_bumper",
@@ -102,6 +116,19 @@
       ]
     },
     {
+      "id": "body_4_axles",
+      "name": "Body (4 axles)",
+      "file": "Body (4 axles).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.dumper4"
+      ]
+    },
+    {
       "id": "trailer_rear_flap_door",
       "name": "Trailer Rear - Flap Door",
       "file": "Trailer Rear - Flap Door.png",
@@ -116,18 +143,5 @@
       ]
     }
   ],
-  "left_out": [
-    {
-      "ids": [
-        "body.dumper3"
-      ],
-      "reason": "no template in the pack"
-    },
-    {
-      "ids": [
-        "body.dumper4"
-      ],
-      "reason": "no template in the pack"
-    }
-  ]
+  "left_out": []
 }
