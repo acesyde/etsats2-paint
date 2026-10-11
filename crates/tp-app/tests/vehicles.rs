@@ -90,7 +90,7 @@ fn ws_mut(h: &mut H) -> &mut Workspace {
 fn create_vehicle_project(h: &mut H) {
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::RadioButton, "Sample Truck")
+    h.get_by_role_and_label(Role::CheckBox, "Sample Truck")
         .click();
     settle(h);
     h.get_by_label("Create Project").click();
@@ -186,7 +186,7 @@ fn library_status_and_update_template() {
         .load(ID, &"1.2.0".parse().unwrap())
         .unwrap();
     let textures = tp_app::vehicle_project::default_textures(&package.manifest);
-    let project = tp_app::vehicle_project::fleet_project("T", &package, &textures).unwrap();
+    let project = tp_app::vehicle_project::fleet_project("T", &[(&package, &textures)]).unwrap();
     h.state_mut().open_project(project);
     settle(&mut h);
     h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
@@ -225,7 +225,7 @@ fn creating_a_project_for_a_vehicle() {
     install_v120(&mut h, dir.path());
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::RadioButton, "Sample Truck")
+    h.get_by_role_and_label(Role::CheckBox, "Sample Truck")
         .click();
     settle(&mut h);
     // Your fleet: the textures that will be created, on the same page.
@@ -554,7 +554,7 @@ fn vehicle_screens_show_no_raw_message_id() {
         h.run();
         assert_no_raw_ids(&h, "new project");
         if let Some(Modal::NewProject(d)) = &mut h.state_mut().modal {
-            d.vehicle = Some(tp_app::ui::vehicle_dialogs::VehicleChoice {
+            d.check(tp_app::ui::vehicle_dialogs::VehicleChoice {
                 id: ID.into(),
                 version: "1.2.0".parse().unwrap(),
                 textures: vec!["chassis".into()],
@@ -569,7 +569,8 @@ fn vehicle_screens_show_no_raw_message_id() {
             .load(ID, &"1.2.0".parse().unwrap())
             .unwrap();
         let project =
-            tp_app::vehicle_project::fleet_project("T", &package, &["chassis".to_owned()]).unwrap();
+            tp_app::vehicle_project::fleet_project("T", &[(&package, &["chassis".to_owned()])])
+                .unwrap();
         h.state_mut().open_project(project);
         let v13 = package_file(
             dir.path(),
@@ -613,7 +614,7 @@ fn install_the_sample_vehicles_from_new_project() {
     );
     // Installed, the truck selected, and the button is gone.
     assert!(h.query_by_label("Install the sample vehicles").is_none());
-    let row = h.get_by_role_and_label(Role::RadioButton, "TruckPaint Sample Truck");
+    let row = h.get_by_role_and_label(Role::CheckBox, "TruckPaint Sample Truck");
     assert_eq!(
         row.accesskit_node().toggled(),
         Some(egui::accesskit::Toggled::True),
@@ -721,7 +722,7 @@ fn create_sample_project(h: &mut H, main: &[&str], left_out: &[&str]) {
     h.state_mut().vehicles.install_samples().unwrap();
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::RadioButton, "TruckPaint Sample Truck")
+    h.get_by_role_and_label(Role::CheckBox, "TruckPaint Sample Truck")
         .click();
     settle(h);
     assert!(
@@ -828,7 +829,7 @@ fn textures_that_will_be_created() {
     h.state_mut().vehicles.install_samples().unwrap();
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::RadioButton, "TruckPaint Sample Truck")
+    h.get_by_role_and_label(Role::CheckBox, "TruckPaint Sample Truck")
         .click();
     settle(&mut h);
     assert!(h.query_by_label("1 main + 3 accessories").is_some());
@@ -851,7 +852,7 @@ fn a_trailer_needs_no_choice_of_main_texture() {
     h.state_mut().vehicles.install_samples().unwrap();
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::RadioButton, "TruckPaint Sample Trailer")
+    h.get_by_role_and_label(Role::CheckBox, "TruckPaint Sample Trailer")
         .click();
     settle(&mut h);
     let base = h.get_by_role_and_label(Role::CheckBox, "Base");
@@ -883,6 +884,163 @@ fn a_trailer_needs_no_choice_of_main_texture() {
     );
 }
 
+const TRUCK: &str = "TruckPaint Sample Truck";
+const TRAILER: &str = "TruckPaint Sample Trailer";
+
+/// New Project with the sample vehicles installed, `names` checked in
+/// order.
+fn wizard_with(h: &mut H, names: &[&str]) {
+    h.state_mut().vehicles.install_samples().unwrap();
+    h.get_by_label("New Project").click();
+    h.run();
+    for name in names {
+        h.get_by_role_and_label(Role::CheckBox, name).click();
+        settle(h);
+    }
+}
+
+fn create_disabled(h: &H) -> bool {
+    h.get_by_label("Create Project")
+        .accesskit_node()
+        .is_disabled()
+}
+
+/// start-screen "A truck and a trailer at once".
+#[test]
+fn a_truck_and_a_trailer_at_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    wizard_with(&mut h, &[TRUCK, TRAILER]);
+    assert!(toggled(&h, Role::CheckBox, TRUCK));
+    assert!(toggled(&h, Role::CheckBox, TRAILER));
+    // Textures created: the truck's, then the trailer's.
+    assert!(h.query_by_label("Standard cab (4096²)").is_some());
+    assert!(h.query_by_label("Mudflaps (512²)").is_some());
+    assert!(h.query_by_label("8 textures in total").is_some());
+    h.get_by_label("Create Project").click();
+    h.run();
+    let p = &ws(&h).project;
+    assert_eq!(p.name, TRUCK);
+    let vehicles: Vec<&str> = p.vehicles.iter().map(|v| v.name.as_str()).collect();
+    assert_eq!(vehicles, [TRUCK, TRAILER]);
+    let names: Vec<&str> = p.surfaces.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(
+        names,
+        [
+            "Standard cab",
+            "Chassis",
+            "Cab accessories",
+            "Side skirts",
+            "Base",
+            "Curtain body 13.6 m",
+            "Curtain body 10.5 m",
+            "Mudflaps"
+        ]
+    );
+    assert_eq!(p.active_surface, 0, "the truck's Standard cab");
+}
+
+/// start-screen "One card open at a time".
+#[test]
+fn one_card_open_at_a_time() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    wizard_with(&mut h, &[TRUCK, TRAILER]);
+    assert!(h.query_by_label("2 vehicles").is_some());
+    // The trailer's card is open, the truck's folded.
+    assert!(h.query_by_role_and_label(Role::CheckBox, "Base").is_some());
+    assert!(
+        h.query_by_role_and_label(Role::CheckBox, "Mudflaps")
+            .is_some()
+    );
+    assert!(
+        h.query_by_role_and_label(Role::CheckBox, "Standard cab")
+            .is_none()
+    );
+    assert!(
+        h.query_by_label("Standard cab · 1 main + 3 accessories")
+            .is_some()
+    );
+    assert!(h.query_by_role_and_label(Role::Button, TRAILER).is_none());
+    h.get_by_role_and_label(Role::Button, TRUCK).click();
+    settle(&mut h);
+    // Now the truck's is open and the trailer's folded.
+    assert!(
+        h.query_by_role_and_label(Role::CheckBox, "Standard cab")
+            .is_some()
+    );
+    assert!(
+        h.query_by_role_and_label(Role::CheckBox, "Mudflaps")
+            .is_none()
+    );
+    assert!(h.query_by_label("Base · 1 main + 3 accessories").is_some());
+    assert!(h.query_by_role_and_label(Role::Button, TRUCK).is_none());
+    // The fleet keeps its order.
+    let Some(Modal::NewProject(d)) = &h.state().modal else {
+        panic!("wizard");
+    };
+    let order: Vec<&str> = d.vehicles.iter().map(|c| c.id.as_str()).collect();
+    assert_eq!(
+        order,
+        [
+            tp_app::vehicles::SAMPLE_ID,
+            tp_app::vehicles::SAMPLE_TRAILER_ID
+        ]
+    );
+}
+
+/// start-screen "Remove from the fleet".
+#[test]
+fn remove_from_the_fleet() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    wizard_with(&mut h, &[TRUCK, TRAILER]);
+    h.query_all_by_role_and_label(Role::Button, "Remove")
+        .next()
+        .expect("Remove on the first card")
+        .click();
+    settle(&mut h);
+    assert!(!toggled(&h, Role::CheckBox, TRUCK), "unchecked in the list");
+    assert!(toggled(&h, Role::CheckBox, TRAILER));
+    assert!(h.query_by_label("1 vehicle").is_some());
+    assert!(h.query_by_label("Standard cab (4096²)").is_none());
+    assert!(h.query_by_label("Base (2048²)").is_some());
+    assert!(h.query_by_label("4 textures in total").is_some());
+}
+
+/// start-screen "Unchecking in the list".
+#[test]
+fn unchecking_in_the_list() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    wizard_with(&mut h, &[TRUCK]);
+    assert!(!create_disabled(&h));
+    h.get_by_role_and_label(Role::CheckBox, TRUCK).click();
+    settle(&mut h);
+    assert!(!toggled(&h, Role::CheckBox, TRUCK));
+    assert!(h.query_by_label("Check vehicles in the list.").is_some());
+    assert!(create_disabled(&h));
+}
+
+/// start-screen "Changing the game".
+#[test]
+fn changing_the_game_unchecks_the_vehicles() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    wizard_with(&mut h, &[TRUCK, TRAILER]);
+    h.get_by_label("American Truck Simulator").click();
+    settle(&mut h);
+    let Some(Modal::NewProject(d)) = &h.state().modal else {
+        panic!("wizard");
+    };
+    assert!(d.vehicles.is_empty(), "no vehicle is checked");
+    assert!(create_disabled(&h));
+    h.get_by_label("Euro Truck Simulator 2").click();
+    settle(&mut h);
+    assert!(!toggled(&h, Role::CheckBox, TRUCK));
+    assert!(!toggled(&h, Role::CheckBox, TRAILER));
+}
+
 #[test]
 fn add_vehicle_lists_only_the_project_game() {
     let dir = tempfile::tempdir().unwrap();
@@ -896,21 +1054,21 @@ fn add_vehicle_lists_only_the_project_game() {
     }
     create_sample_project(&mut h, &["Standard cab"], &[]);
     h.get_by_label("Add Vehicle…").click();
-    h.run();
+    settle(&mut h);
     assert!(
-        h.query_by_role_and_label(Role::RadioButton, "Krone Dry Liner")
+        h.query_by_role_and_label(Role::CheckBox, "Krone Dry Liner")
             .is_some()
     );
     assert!(
-        h.query_by_role_and_label(Role::RadioButton, "Peterbilt 579")
+        h.query_by_role_and_label(Role::CheckBox, "Peterbilt 579")
             .is_none()
     );
     assert!(
-        h.query_by_role_and_label(Role::RadioButton, "TruckPaint Sample Truck")
+        h.query_by_role_and_label(Role::CheckBox, "TruckPaint Sample Truck")
             .is_none(),
         "vehicles already in the project are hidden"
     );
-    h.get_by_role_and_label(Role::RadioButton, "Krone Dry Liner")
+    h.get_by_role_and_label(Role::CheckBox, "Krone Dry Liner")
         .click();
     settle(&mut h);
     // The Add Vehicle dialog's, over the Game versions' + Add.
@@ -947,8 +1105,8 @@ fn the_tree_groups_main_textures_and_accessories() {
     let mut h = app(dir.path());
     create_sample_project(&mut h, &["Standard cab", "High roof"], &[]);
     h.get_by_label("Add Vehicle…").click();
-    h.run();
-    h.get_by_role_and_label(Role::RadioButton, "TruckPaint Sample Trailer")
+    settle(&mut h);
+    h.get_by_role_and_label(Role::CheckBox, "TruckPaint Sample Trailer")
         .click();
     settle(&mut h);
     // The Add Vehicle dialog's, over the Game versions' + Add.
@@ -1084,7 +1242,7 @@ fn only_the_vehicle_with_a_newer_version_offers_an_update() {
         .load(SAMPLE_ID, &"1.0.0".parse().unwrap())
         .unwrap();
     let textures = tp_app::vehicle_project::default_textures(&package.manifest);
-    let project = tp_app::vehicle_project::fleet_project("F", &package, &textures).unwrap();
+    let project = tp_app::vehicle_project::fleet_project("F", &[(&package, &textures)]).unwrap();
     h.state_mut().open_project(project);
     let krone = h
         .state()
@@ -1227,7 +1385,7 @@ fn an_update_flags_the_texture_rows() {
         .load(SAMPLE_ID, &"1.0.0".parse().unwrap())
         .unwrap();
     let textures = tp_app::vehicle_project::default_textures(&package.manifest);
-    let project = tp_app::vehicle_project::fleet_project("F", &package, &textures).unwrap();
+    let project = tp_app::vehicle_project::fleet_project("F", &[(&package, &textures)]).unwrap();
     h.state_mut().open_project(project);
     show_workshop(&mut h);
     assert!(h.query_by_label_contains("Layout changed").is_none());

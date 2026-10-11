@@ -237,7 +237,7 @@ new-project-no-match = Ningún vehículo coincide con la búsqueda.
 new-project-custom-title = Vehículo sin paquete
 new-project-custom-hint = Créelo a partir de sus archivos de plantilla (DDS, PNG o SVG) y sus datos del juego.
 new-project-fleet = Su flota
-new-project-pick-vehicle = Elija un vehículo de la lista.
+new-project-check-vehicles = Marque vehículos en la lista.
 new-project-cabins = Cabinas
 new-project-column-vehicle = Vehículo
 new-project-column-type = Tipo
@@ -262,6 +262,11 @@ new-project-total = { $count ->
     [one] { $count } textura en total
    *[other] { $count } texturas en total
 }
+new-project-vehicle-count = { $count ->
+    [one] { $count } vehículo
+   *[other] { $count } vehículos
+}
+new-project-remove = Quitar
 vehicles-kind-all = Todos
 vehicles-kind-trucks = Camiones
 vehicles-kind-trailers = Remolques

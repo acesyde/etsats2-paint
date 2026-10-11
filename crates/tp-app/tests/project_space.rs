@@ -55,7 +55,8 @@ fn open(truck: Option<&[&str]>, trailer: Option<&[&str]>) -> H {
         (None, None) => unreachable!(),
     };
     let project =
-        tp_app::vehicle_project::fleet_project("ACE Logistics", &first.0, &ids(first.1)).unwrap();
+        tp_app::vehicle_project::fleet_project("ACE Logistics", &[(&first.0, &ids(first.1))])
+            .unwrap();
     h.state_mut().open_project(project);
     if let Some((package, textures)) = then {
         ws_mut(&mut h)
@@ -355,13 +356,9 @@ fn one_vehicle_and_add_vehicle() {
     h.get_by_label("Add Vehicle…").click();
     settle(&mut h);
     assert!(matches!(h.state().modal, Some(Modal::AddVehicle(_))));
+    assert!(h.query_by_role_and_label(Role::CheckBox, TRUCK).is_some());
     assert!(
-        h.query_by_role_and_label(Role::RadioButton, TRUCK)
-            .is_some()
-    );
-    assert!(
-        h.query_by_role_and_label(Role::RadioButton, TRAILER)
-            .is_none(),
+        h.query_by_role_and_label(Role::CheckBox, TRAILER).is_none(),
         "only vehicles that aren't in the project"
     );
 }
@@ -719,7 +716,7 @@ fn problem_about_a_vehicle() {
         );
     h.state_mut().vehicles = common::sample_library();
     let project =
-        tp_app::vehicle_project::fleet_project("ACE Logistics", &sample(0), &ids(WHOLE_TRUCK))
+        tp_app::vehicle_project::fleet_project("ACE Logistics", &[(&sample(0), &ids(WHOLE_TRUCK))])
             .unwrap();
     h.state_mut().open_project(project);
     ws_mut(&mut h)

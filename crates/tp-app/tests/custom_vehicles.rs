@@ -172,7 +172,7 @@ fn open_wizard(h: &mut H) {
 
 fn wizard_choice(h: &H) -> Option<String> {
     match &h.state().modal {
-        Some(Modal::NewProject(draft)) => draft.vehicle.as_ref().map(|c| c.id.clone()),
+        Some(Modal::NewProject(draft)) => draft.vehicles.last().map(|c| c.id.clone()),
         _ => panic!("the New Project wizard should be open"),
     }
 }
@@ -221,7 +221,7 @@ fn escape_returns_to_the_wizard_unchanged() {
     let mut h = app(dir.path());
     h.state_mut().vehicles.install_samples().unwrap();
     open_wizard(&mut h);
-    h.get_by_role_and_label(Role::RadioButton, common::SAMPLE)
+    h.get_by_role_and_label(Role::CheckBox, common::SAMPLE)
         .click();
     settle(&mut h);
     let before = wizard_choice(&h);
@@ -552,6 +552,56 @@ fn custom_trailer_added_to_a_fleet() {
     assert_eq!(active.name, "base");
 }
 
+/// start-screen "Custom vehicle added to the fleet".
+#[test]
+fn custom_vehicle_added_to_the_fleet() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    h.state_mut().vehicles.install_samples().unwrap();
+    open_wizard(&mut h);
+    h.get_by_role_and_label(Role::CheckBox, common::SAMPLE)
+        .click();
+    settle(&mut h);
+    h.get_by_label("Custom vehicle…").click();
+    settle(&mut h);
+    {
+        let f = form(&mut h);
+        f.name = "Box".into();
+        f.brand = "JDoe".into();
+        f.kind = Kind::Trailer;
+        f.path = "jdoe.box".into();
+    }
+    drop_files(&mut h, vec![("base.png", png(64))]);
+    build(&mut h);
+    let Some(Modal::NewProject(draft)) = &h.state().modal else {
+        panic!("wizard");
+    };
+    let checked: Vec<&str> = draft.vehicles.iter().map(|c| c.id.as_str()).collect();
+    assert_eq!(checked.len(), 2);
+    assert_eq!(checked[0], tp_app::vehicles::SAMPLE_ID);
+    assert_eq!(
+        draft.open.as_deref(),
+        Some(checked[1]),
+        "the trailer's card"
+    );
+    for name in [common::SAMPLE, "Box"] {
+        assert_eq!(
+            h.get_by_role_and_label(Role::CheckBox, name)
+                .accesskit_node()
+                .toggled(),
+            Some(egui::accesskit::Toggled::True),
+            "{name}"
+        );
+    }
+    assert!(h.query_by_label("2 vehicles").is_some());
+    // The truck's card is folded, the trailer's open.
+    assert!(
+        h.query_by_role_and_label(Role::Button, common::SAMPLE)
+            .is_some()
+    );
+    assert!(h.query_by_role_and_label(Role::Button, "Box").is_none());
+}
+
 #[test]
 fn custom_vehicle_from_an_ats_project_is_ats() {
     let dir = tempfile::tempdir().unwrap();
@@ -563,7 +613,7 @@ fn custom_vehicle_from_an_ats_project_is_ats() {
         .load("custom.scania.r_2024", &semver::Version::new(1, 0, 0))
         .unwrap();
     let textures = tp_app::vehicle_project::default_textures(&package.manifest);
-    let project = tp_app::vehicle_project::fleet_project("ATS", &package, &textures).unwrap();
+    let project = tp_app::vehicle_project::fleet_project("ATS", &[(&package, &textures)]).unwrap();
     h.state_mut().open_project(project);
     settle(&mut h);
     h.state_mut()
@@ -592,7 +642,7 @@ fn only_the_chosen_games_vehicles_are_listed() {
             .is_some_and(|t| t == egui::accesskit::Toggled::True)
     };
     assert!(chosen(&h, "Euro Truck Simulator 2"));
-    let listed = |h: &H, name: &str| h.query_by_role_and_label(Role::RadioButton, name).is_some();
+    let listed = |h: &H, name: &str| h.query_by_role_and_label(Role::CheckBox, name).is_some();
     assert!(listed(&h, "TruckPaint Sample Truck"));
     assert!(!listed(&h, "R 2024"));
     h.get_by_role_and_label(Role::RadioButton, "American Truck Simulator")
@@ -638,7 +688,7 @@ fn created_vehicle_hidden_by_a_filter() {
     };
     assert_eq!(draft.filter.game, Some(Game::Ets2), "the game is now ETS2");
     assert!(
-        h.get_by_role_and_label(Role::RadioButton, "R 2024")
+        h.get_by_role_and_label(Role::CheckBox, "R 2024")
             .accesskit_node()
             .toggled()
             .is_some_and(|t| t == egui::accesskit::Toggled::True)
@@ -757,7 +807,8 @@ fn update_template_on_a_custom_vehicle() {
         .load("custom.scania.r_2024", &semver::Version::new(1, 0, 0))
         .unwrap();
     let textures = tp_app::vehicle_project::default_textures(&package.manifest);
-    let project = tp_app::vehicle_project::fleet_project("Fleet", &package, &textures).unwrap();
+    let project =
+        tp_app::vehicle_project::fleet_project("Fleet", &[(&package, &textures)]).unwrap();
     h.state_mut().open_project(project);
     settle(&mut h);
 

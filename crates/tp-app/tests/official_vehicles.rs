@@ -140,7 +140,7 @@ fn new_project(h: &mut H) {
 /// Clicks the vehicle `name` in the list (an installation may then
 /// spin: a few frames only).
 fn pick(h: &mut H, name: &str) {
-    h.get_by_role_and_label(Role::RadioButton, name).click();
+    h.get_by_role_and_label(Role::CheckBox, name).click();
     h.run_steps(2);
 }
 
@@ -153,7 +153,7 @@ fn row_tops(h: &H, names: &[&str]) -> Vec<f64> {
     names
         .iter()
         .map(|n| {
-            h.get_by_role_and_label(Role::RadioButton, n)
+            h.get_by_role_and_label(Role::CheckBox, n)
                 .accesskit_node()
                 .bounding_box()
                 .expect("on screen")
@@ -238,7 +238,7 @@ fn no_network_needed() {
     new_project(&mut h);
     for name in ["DAF NGD", "Krone Cool Liner"] {
         assert!(
-            h.query_by_role_and_label(Role::RadioButton, name).is_some(),
+            h.query_by_role_and_label(Role::CheckBox, name).is_some(),
             "{name}"
         );
     }
@@ -285,7 +285,7 @@ fn an_installed_official_vehicle_is_listed_once() {
     wait_install(&mut h);
     assert!(h.state().vehicles.get(KRONE).is_some());
     assert_eq!(
-        h.query_all_by_role_and_label(Role::RadioButton, "Krone Cool Liner")
+        h.query_all_by_role_and_label(Role::CheckBox, "Krone Cool Liner")
             .count(),
         1
     );
@@ -354,13 +354,14 @@ fn folder_unzipped_inside_another() {
     settle(&mut h);
     script_folders(&mut h, &[&outer]);
     h.get_by_label("Choose the pack folder…").click();
-    h.run();
+    // The DAF then installs from it: wait for the end of its spinner.
+    wait_install(&mut h);
     assert_eq!(
         h.state().prefs.template_pack(Game::Ets2),
         Some(inner.as_path())
     );
     wait_install(&mut h);
-    assert_eq!(draft(&h).vehicle.as_ref().map(|c| c.id.as_str()), Some(DAF));
+    assert_eq!(draft(&h).vehicles.last().map(|c| c.id.as_str()), Some(DAF));
 }
 
 #[test]
@@ -417,7 +418,7 @@ fn dropped_folder() {
     );
     wait_install(&mut h);
     assert_eq!(
-        draft(&h).vehicle.as_ref().map(|c| c.id.as_str()),
+        draft(&h).vehicles.last().map(|c| c.id.as_str()),
         Some(KRONE)
     );
     // Nothing was placed or opened besides.
@@ -460,7 +461,7 @@ fn cancel_returns_to_new_project_as_it_was() {
     let after = draft(&h);
     assert_eq!(after.name, before.name);
     assert_eq!(after.filter.query, before.filter.query);
-    assert_eq!(after.vehicle, before.vehicle);
+    assert_eq!(after.vehicles, before.vehicles);
     assert!(after.installing.is_none());
     assert!(h.state().prefs.template_packs.is_empty());
 }
@@ -478,11 +479,11 @@ fn pick_and_install() {
     pick(&mut h, "DAF NGD");
     h.run_steps(2);
     assert!(h.query_by_label("Installing DAF NGD…").is_some());
-    assert!(draft(&h).vehicle.is_none(), "the previous choice is kept");
+    assert!(draft(&h).vehicles.is_empty(), "the previous choice is kept");
     assert!(!pack_dialog_open(&h));
     tp_app::official::hold_builds_from(&pack, false);
     wait_install(&mut h);
-    let choice = draft(&h).vehicle.clone().expect("chosen");
+    let choice = draft(&h).vehicles.last().cloned().expect("chosen");
     assert_eq!(choice.id, DAF);
     assert_eq!(
         choice.textures,
@@ -515,11 +516,17 @@ fn installed_without_the_pack() {
     assert!(pack_dialog_open(&h));
     h.get_by_label("Cancel").click();
     settle(&mut h);
+    // The DAF stays checked; unchecked, then checked again without the
+    // pack.
+    assert_eq!(draft(&h).vehicles.last().map(|c| c.id.as_str()), Some(DAF));
+    pick(&mut h, "DAF NGD");
+    settle(&mut h);
+    assert!(draft(&h).vehicles.is_empty());
     pick(&mut h, "DAF NGD");
     settle(&mut h);
     assert!(!pack_dialog_open(&h));
     assert!(!installing(&h));
-    assert_eq!(draft(&h).vehicle.as_ref().map(|c| c.id.as_str()), Some(DAF));
+    assert_eq!(draft(&h).vehicles.last().map(|c| c.id.as_str()), Some(DAF));
 }
 
 #[test]
@@ -542,7 +549,7 @@ fn cancel_the_installation() {
     tp_app::official::hold_builds_from(&pack, false);
     std::thread::sleep(std::time::Duration::from_millis(100));
     settle(&mut h);
-    assert!(draft(&h).vehicle.is_none());
+    assert!(draft(&h).vehicles.is_empty());
     assert!(h.state().vehicles.get(KRONE).is_none());
     assert!(!dir.path().join("library").join(KRONE).exists());
 }
@@ -566,7 +573,7 @@ fn missing_file() {
     assert!(message.contains("Cabin B (XG).png"), "{message}");
     assert!(h.query_by_label(message).is_some());
     assert!(h.state().vehicles.vehicles().is_empty());
-    assert!(draft(&h).vehicle.is_none());
+    assert!(draft(&h).vehicles.is_empty());
 }
 
 #[test]
@@ -645,7 +652,7 @@ fn official_trailer_added_to_a_fleet() {
     wait_install(&mut h);
     match &h.state().modal {
         Some(Modal::AddVehicle(d)) => {
-            assert_eq!(d.choice.as_ref().map(|c| c.id.as_str()), Some(KRONE));
+            assert_eq!(d.choices.last().map(|c| c.id.as_str()), Some(KRONE));
         }
         _ => panic!("Add Vehicle should be open"),
     }
@@ -669,6 +676,88 @@ fn official_trailer_added_to_a_fleet() {
         ]
     );
     assert_eq!(ws.project.active_surface, 4);
+}
+
+/// vehicle-projects "Several vehicles in one step".
+#[test]
+fn several_vehicles_in_one_step() {
+    let dir = tempfile::tempdir().unwrap();
+    let pack = dir.path().join("pack");
+    write_pack(&pack);
+    let mut h = app_with(dir.path(), Some(&pack));
+    common::create_project(&mut h);
+    h.state_mut()
+        .queue
+        .push(tp_app::commands::CommandId::AddVehicle);
+    settle(&mut h);
+    assert!(
+        h.get_by_label("Add").accesskit_node().is_disabled(),
+        "nothing checked"
+    );
+    pick(&mut h, "TruckPaint Sample Trailer");
+    settle(&mut h);
+    // Its textures under its row.
+    assert!(
+        h.query_by_role_and_label(Role::CheckBox, "Mudflaps")
+            .is_some()
+    );
+    pick(&mut h, "Krone Cool Liner");
+    wait_install(&mut h);
+    let checked: Vec<String> = match &h.state().modal {
+        Some(Modal::AddVehicle(d)) => d.choices.iter().map(|c| c.id.clone()).collect(),
+        _ => panic!("Add Vehicle should be open"),
+    };
+    assert_eq!(checked, [tp_app::vehicles::SAMPLE_TRAILER_ID, KRONE]);
+    for name in ["TruckPaint Sample Trailer", "Krone Cool Liner"] {
+        let row = h.get_by_role_and_label(Role::CheckBox, name);
+        assert_eq!(
+            row.accesskit_node().toggled(),
+            Some(egui::accesskit::Toggled::True),
+            "{name}"
+        );
+    }
+    h.get_by_label("Add").click();
+    settle(&mut h);
+    assert!(h.state().modal.is_none());
+    let ws = h.state().workspace().expect("project open");
+    let vehicles: Vec<&str> = ws
+        .project
+        .vehicles
+        .iter()
+        .map(|v| v.package_id.as_str())
+        .collect();
+    assert_eq!(
+        vehicles,
+        [
+            tp_app::vehicles::SAMPLE_ID,
+            tp_app::vehicles::SAMPLE_TRAILER_ID,
+            KRONE
+        ]
+    );
+    let added: Vec<&str> = ws.project.surfaces[4..]
+        .iter()
+        .map(|s| s.name.as_str())
+        .collect();
+    assert_eq!(
+        added,
+        [
+            "Base",
+            "Curtain body 13.6 m",
+            "Curtain body 10.5 m",
+            "Mudflaps",
+            "Body",
+            "Chassis front pallet box",
+            "Chassis front side skirt",
+            "Chassis front simple side skirt",
+            "Chassis rear pallet box"
+        ]
+    );
+    assert_eq!(ws.project.active_surface, 4, "the sample trailer's Base");
+    h.state_mut().workspace_mut().unwrap().undo();
+    h.run();
+    let ws = h.state().workspace().unwrap();
+    assert_eq!(ws.project.vehicles.len(), 1, "one Undo removes both");
+    assert_eq!(ws.project.surfaces.len(), 4);
 }
 
 // --- Preferences ------------------------------------------------------------
@@ -706,7 +795,7 @@ fn pack_folder_survives_restart() {
     pick(&mut h, "DAF NGD");
     assert!(!pack_dialog_open(&h));
     wait_install(&mut h);
-    assert_eq!(draft(&h).vehicle.as_ref().map(|c| c.id.as_str()), Some(DAF));
+    assert_eq!(draft(&h).vehicles.last().map(|c| c.id.as_str()), Some(DAF));
 }
 
 #[test]
@@ -828,7 +917,8 @@ fn installs_and_exports_from_the_real_pack() {
     // The DAF on XG+ with every accessory, the Krone with all its textures.
     let all = |p: &tp_vehicles::Package| tp_app::vehicle_project::default_textures(&p.manifest);
     let project =
-        tp_app::vehicle_project::fleet_project("ACE", &packages[0], &all(&packages[0])).unwrap();
+        tp_app::vehicle_project::fleet_project("ACE", &[(&packages[0], &all(&packages[0]))])
+            .unwrap();
     let mut ws = tp_app::workspace::Workspace::new(project);
     ws.add_vehicle(&packages[1], &all(&packages[1]), 0.0)
         .unwrap();
@@ -921,8 +1011,7 @@ fn writes_the_in_game_check_mod() {
     };
     let project = tp_app::vehicle_project::fleet_project(
         "TruckPaint check",
-        &packages[0],
-        &all(&packages[0]),
+        &[(&packages[0], &all(&packages[0]))],
     )
     .unwrap();
     let mut ws = tp_app::workspace::Workspace::new(project);

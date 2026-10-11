@@ -38,7 +38,8 @@ fn open() -> H {
     ))
     .unwrap();
     let textures = tp_app::vehicle_project::default_textures(&package.manifest);
-    let mut project = tp_app::vehicle_project::fleet_project("Fleet", &package, &textures).unwrap();
+    let mut project =
+        tp_app::vehicle_project::fleet_project("Fleet", &[(&package, &textures)]).unwrap();
     for surface in &mut project.surfaces {
         if let Some(t) = surface.template.as_mut() {
             t.visible = false;

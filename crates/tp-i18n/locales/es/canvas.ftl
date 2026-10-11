@@ -92,5 +92,6 @@ undo-mark-checked = Marcar como revisada
 ## Fleet
 
 undo-add-vehicle = Añadir vehículo
+undo-add-vehicles = Añadir vehículos
 undo-change-textures = Cambiar texturas
 undo-remove-vehicle = Quitar vehículo
