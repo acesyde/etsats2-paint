@@ -91,9 +91,9 @@ pub struct ModPreviews {
 }
 
 impl ModPreviews {
-    /// Picks up a finished render, then starts one when the shown previews
-    /// are missing or stale. Nothing starts while a pointer button is down.
-    pub fn update(&mut self, ctx: &egui::Context, project: &Project, fonts: &FontLibrary) {
+    /// Picks up a finished render without starting any; false while one is
+    /// still running. Called every frame, whatever is shown.
+    pub fn poll(&mut self, ctx: &egui::Context) -> bool {
         if let Some((key, job)) = &self.job {
             match job.try_recv() {
                 Ok([icon, image]) => {
@@ -105,12 +105,21 @@ impl ModPreviews {
                     self.shown = Some((key.clone(), textures));
                     self.job = None;
                 }
-                Err(TryRecvError::Empty) => return,
+                Err(TryRecvError::Empty) => return false,
                 Err(TryRecvError::Disconnected) => {
                     self.job = None;
                     self.broken = true;
                 }
             }
+        }
+        true
+    }
+
+    /// Picks up a finished render, then starts one when the shown previews
+    /// are missing or stale. Nothing starts while a pointer button is down.
+    pub fn update(&mut self, ctx: &egui::Context, project: &Project, fonts: &FontLibrary) {
+        if !self.poll(ctx) {
+            return;
         }
         if self.broken || ctx.input(|i| i.pointer.any_down()) {
             return;

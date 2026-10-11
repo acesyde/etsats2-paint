@@ -148,14 +148,10 @@ impl SurfaceThumbnails {
         self.update_with(ctx, project, fonts, true, None);
     }
 
-    fn update_with(
-        &mut self,
-        ctx: &egui::Context,
-        project: &Project,
-        fonts: &FontLibrary,
-        templates: bool,
-        only: Option<&[usize]>,
-    ) {
+    /// Picks up a finished render without starting any; false while one is
+    /// still running. Called every frame, whatever is shown, so that a
+    /// render started on one screen is picked up on another.
+    pub fn poll(&mut self, ctx: &egui::Context) -> bool {
         if let Some(job) = &self.job {
             match job.try_recv() {
                 Ok((done, read)) => {
@@ -186,12 +182,26 @@ impl SurfaceThumbnails {
                     }
                     self.job = None;
                 }
-                Err(TryRecvError::Empty) => return,
+                Err(TryRecvError::Empty) => return false,
                 Err(TryRecvError::Disconnected) => {
                     self.job = None;
                     self.broken = true;
                 }
             }
+        }
+        true
+    }
+
+    fn update_with(
+        &mut self,
+        ctx: &egui::Context,
+        project: &Project,
+        fonts: &FontLibrary,
+        templates: bool,
+        only: Option<&[usize]>,
+    ) {
+        if !self.poll(ctx) {
+            return;
         }
         let count = project.surfaces.len();
         self.shown.retain(|i, _| *i < count);

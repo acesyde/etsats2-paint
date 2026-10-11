@@ -117,7 +117,14 @@ pub fn settle_renders(harness: &mut Harness<'static, AppState>) {
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    panic!("the background renders never finished");
+    let ws = harness.state().workspace().unwrap();
+    panic!(
+        "the background renders never finished: thumbnails {} previews {} mod {} shadows {}",
+        ws.thumbnails.is_rendering(),
+        ws.preview_thumbs.is_rendering(),
+        ws.mod_previews.is_rendering(),
+        ws.shadows.is_rendering()
+    );
 }
 
 /// Opens `project` and shows the Workshop.
