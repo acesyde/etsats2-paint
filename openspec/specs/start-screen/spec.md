@@ -52,27 +52,27 @@ Clicking an available card SHALL open that project. When the list is empty, it S
 ### Requirement: New Project dialog
 Choosing New Project SHALL open a modal dialog on one page:
 
-- **On top:** the **Project name** field and the **Game**, ETS2 or ATS, as a segmented control. The name defaults to the chosen vehicle's name when left empty. The game starts on the game of the installed vehicles, or ETS2 when vehicles of both games or none are installed. A note says that vehicles can be added to the project at any time.
-- **On the left, the vehicle list**, under the column headers Vehicle, Type and Package:
+- **On top:** the **Project name** field and the **Game**, ETS2 or ATS, as a segmented control. The name defaults to the first checked vehicle's name when left empty. The game starts on the game of the installed vehicles, or ETS2 when vehicles of both games or none are installed. Changing the game unchecks the vehicles of the other game. A note says that vehicles can be added to the project at any time.
+- **On the left, the vehicle list**, each row with a checkbox, under the column headers Vehicle, Type and Package:
   - first, under **Official**, the official vehicles of the chosen game from the catalog (see the official-vehicles capability), installed or not, one row each with the name, the kind and the brand, and "Official" in the Package column, followed by the newest installed version when it is installed;
   - then, under **Installed**, the other installed vehicles of the chosen game, one row each (name, kind, brand and newest version). An installed official vehicle is listed only under Official.
   - The section headers are shown only when both sections have rows.
-  - The list is searchable by name and brand, and filterable by kind with a segmented control **All / Trucks / Trailers**. Both sections follow the search and the filter.
+  - The list is searchable by name and brand, and filterable by kind with a segmented control **All / Trucks / Trailers**. Both sections follow the search and the filter. Checked vehicles stay checked when the search or the filter hides them.
   - Under the list, a **Custom vehicle…** entry explains that a vehicle without a package can be created from its template files (DDS, PNG or SVG) and its game data, and opens the Custom Vehicle dialog (see the custom-vehicles capability). An **Install…** button installs packages (see the vehicle-packages capability).
   - With no vehicle installed and no official vehicle for the chosen game, the list offers Install…, Install the sample vehicles and Custom vehicle…. With no vehicle installed but official vehicles listed, Install the sample vehicles is offered under the list.
-  - Clicking an installed vehicle chooses it; choosing another one replaces it. Clicking an official vehicle installs it first when needed, asking for the template pack when its folder isn't known (see the official-vehicles capability), then chooses it. Until it is installed, the previous choice is kept.
-- **On the right, "Your fleet":** the chosen vehicle, with:
-  - under **Cabins**, one chip per main texture, named after it, that toggles it (filled when it is checked, outlined otherwise; the cabins it covers in its tooltip). The first one is checked when the vehicle is chosen; the last checked main texture (and so a single main texture) can't be unchecked;
+  - Clicking a row, or pressing Space on it, checks or unchecks the vehicle. Several vehicles, trucks and trailers, can be checked together. Checking an official vehicle installs it first when needed, asking for the template pack when its folder isn't known (see the official-vehicles capability), then checks it; until it is installed, the checked vehicles are unchanged.
+- **On the right, "Your fleet",** with the number of checked vehicles ("3 vehicles"): one card per checked vehicle, in the order they were checked, each with the vehicle's name and **Remove**, which unchecks it. One card is open at a time: the vehicle checked last, or the card the user clicks. The open card shows:
+  - under **Cabins**, one chip per main texture, named after it, that toggles it (filled when it is checked, outlined otherwise; the cabins it covers in its tooltip). The first one is checked when the vehicle is checked; the last checked main texture (and so a single main texture) can't be unchecked;
   - the **main texture mode**, read only, from the package: "One per cabin layout" when the package has several main textures, "One for every cabin" for a truck with a single main texture, "Single main texture" for a trailer. The user can't change it;
-  - under **Accessories**, one checkbox per accessory, all checked when the vehicle is chosen;
-  - the count of the textures that will be created ("2 main + 3 accessories");
-  - **Textures created:** the list of the textures that will be created, each with its size, and their total.
-  With no vehicle chosen, it SHALL say to pick a vehicle in the list.
-- **Create Project**, the primary action, SHALL be enabled only when a vehicle is chosen and at least one main texture is checked; its tooltip says why when it is disabled. **Cancel** sits beside it.
+  - under **Accessories**, one checkbox per accessory, all checked when the vehicle is checked;
+  - the count of the textures that will be created for it ("2 main + 3 accessories").
 
-A vehicle created with Custom vehicle… SHALL be chosen when the dialog is shown again, with its textures checked as for any chosen vehicle. The game, search and kind filter SHALL be changed if needed so it is listed. Cancelling the Custom Vehicle dialog SHALL show the New Project dialog as it was.
+  A folded card shows, on one line, the names of its checked main textures and its count. Under the cards, **Textures created** lists the textures that will be created for every vehicle, each with its size, and their total. With no vehicle checked, Your fleet SHALL say to check vehicles in the list.
+- **Create Project**, the primary action, SHALL be enabled only when at least one vehicle is checked (each keeps at least one main texture); its tooltip says why when it is disabled. **Cancel** sits beside it.
 
-Confirming SHALL open the editor workspace, in the Project space, with a new project for that vehicle and its chosen textures (see the vehicle-projects capability). Cancelling SHALL return to the home screen without side effects. The dialog SHALL be fully operable by keyboard (Tab to move, Space to toggle a checkbox or a chip or choose a vehicle, Enter to create when Create Project is enabled, Escape to cancel).
+A vehicle created with Custom vehicle… SHALL be checked when the dialog is shown again, with its textures checked as for any checked vehicle; the vehicles checked before stay checked. The game, search and kind filter SHALL be changed if needed so it is listed; when the game changes, the vehicles of the other game are unchecked. Cancelling the Custom Vehicle dialog SHALL show the New Project dialog as it was.
+
+Confirming SHALL open the editor workspace, in the Project space, with a new project for the checked vehicles, in fleet order, and their chosen textures (see the vehicle-projects capability); the first texture of the first vehicle is active. Cancelling SHALL return to the home screen without side effects. The dialog SHALL be fully operable by keyboard (Tab to move, Space to toggle a checkbox or a chip or check a vehicle, Enter to create when Create Project is enabled, Escape to cancel).
 
 #### Scenario: Creating a project
 - **WHEN** the user opens New Project, picks the sample truck, keeps "Standard cab" and the accessories checked, and clicks Create Project
@@ -133,6 +133,30 @@ Confirming SHALL open the editor workspace, in the Project space, with a new pro
 #### Scenario: Project from an official vehicle
 - **WHEN** the ETS2 pack folder is known, the user picks the DAF NGD, waits for it to install, checks XF and clicks Create Project
 - **THEN** the workspace opens with a project named "DAF NGD" on its XG+ and XF main textures and its four accessories, each showing its template
+
+#### Scenario: A truck and a trailer at once
+- **WHEN** the user checks the sample truck, then the sample trailer, and clicks Create Project with an empty name
+- **THEN** the project, named "TruckPaint Sample Truck", holds both vehicles, the truck's textures then the trailer's, with the truck's Standard cab active
+
+#### Scenario: One card open at a time
+- **WHEN** the user checks the sample truck, then the sample trailer
+- **THEN** Your fleet shows "2 vehicles", the trailer's card open with Base and its accessories, and the truck's card folded to "Standard cab · 1 main + 3 accessories"; clicking the truck's card opens it and folds the trailer's
+
+#### Scenario: Remove from the fleet
+- **WHEN** two vehicles are checked and the user clicks Remove on the first card
+- **THEN** that vehicle is unchecked in the list, Your fleet shows "1 vehicle", and Textures created lists only the other vehicle's textures
+
+#### Scenario: Unchecking in the list
+- **WHEN** the sample truck is the only checked vehicle and the user clicks its row again
+- **THEN** it is unchecked, Your fleet says to check vehicles in the list, and Create Project is disabled
+
+#### Scenario: Changing the game
+- **WHEN** an ETS2 truck and an ETS2 trailer are checked and the user sets the Game to ATS
+- **THEN** no vehicle is checked
+
+#### Scenario: Custom vehicle added to the fleet
+- **WHEN** the sample truck is checked and the user creates a custom trailer with Custom vehicle…
+- **THEN** the sample truck and the custom trailer are both checked, with the trailer's card open
 
 ### Requirement: Open Project action
 The home screen's Open Project action SHALL open the same file dialog as File › Open… and open the chosen project.
