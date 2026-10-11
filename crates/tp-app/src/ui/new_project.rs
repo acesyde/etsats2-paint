@@ -45,7 +45,7 @@ impl Columns {
     fn of(rect: Rect) -> Self {
         let pad = space::MD + 2.0;
         let gap = space::MD;
-        let package = rect.right() - pad - 140.0;
+        let package = rect.right() - pad - 200.0;
         let kind = package - gap - 100.0;
         Self {
             mark: rect.left() + pad + 8.0,
@@ -603,32 +603,36 @@ pub(super) fn vehicle_row(ui: &mut Ui, m: &Row<'_>, selected: bool) -> bool {
     );
     tp_ui::widgets::paint_check_box(painter, mark, selected, false);
     let y = rect.center().y;
-    let cell = |from: f32, to: f32| {
-        painter.with_clip_rect(
-            Rect::from_x_y_ranges(from..=to - space::SM, rect.y_range()).intersect(ui.clip_rect()),
-        )
+    // Each cell's text on one line, ended with "…" when it is too long (the
+    // row's tooltip has it whole).
+    let cell = |from: f32, to: f32, text: &str, font: egui::FontId, color: egui::Color32| {
+        let mut job = egui::text::LayoutJob::simple_singleline(text.to_owned(), font, color);
+        job.wrap = egui::text::TextWrapping::truncate_at_width(to - space::SM - from);
+        let galley = painter.layout_job(job);
+        let clip = Rect::from_x_y_ranges(from..=to, rect.y_range()).intersect(ui.clip_rect());
+        painter.with_clip_rect(clip).galley(
+            egui::pos2(from, y - galley.size().y / 2.0),
+            galley,
+            color,
+        );
     };
-    cell(columns.name, columns.kind).text(
-        egui::pos2(columns.name, y),
-        Align2::LEFT_CENTER,
-        m.name,
-        egui::TextStyle::Body.resolve(ui.style()),
-        if selected {
-            color::TEXT_PRIMARY
-        } else {
-            color::TEXT_SECONDARY
-        },
-    );
-    cell(columns.kind, columns.package).text(
-        egui::pos2(columns.kind, y),
-        Align2::LEFT_CENTER,
-        kind_label(m.kind),
-        egui::TextStyle::Body.resolve(ui.style()),
+    let body = egui::TextStyle::Body.resolve(ui.style());
+    let name_color = if selected {
+        color::TEXT_PRIMARY
+    } else {
+        color::TEXT_SECONDARY
+    };
+    cell(columns.name, columns.kind, m.name, body.clone(), name_color);
+    cell(
+        columns.kind,
+        columns.package,
+        &kind_label(m.kind),
+        body,
         color::TEXT_SECONDARY,
     );
-    cell(columns.package, rect.right()).text(
-        egui::pos2(columns.package, y),
-        Align2::LEFT_CENTER,
+    cell(
+        columns.package,
+        rect.right(),
         &m.package,
         egui::FontId::monospace(typography::CAPTION),
         color::TEXT_MUTED,

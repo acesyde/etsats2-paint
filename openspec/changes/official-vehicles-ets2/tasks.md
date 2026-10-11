@@ -28,8 +28,8 @@
 - [x] 4.2 Update the CLI test for `tpv catalog sync`; verify official-vehicles "Vehicles not in the catalog": a fixture with a new ETS2 trailer and ATS vehicles lists only those.
 - [x] 4.3 Add a mod-export test for a trailer with several bodies; verify official-vehicles "A mod for a trailer with several bodies" (Kögel Cargo, from placeholder PNGs): the Body ids in the main texture's `also_paints` entry and the Body (Long) ids in its own accessory entry.
 - [x] 4.4 Extend the ignored test behind `TRUCKPAINT_ETS2_PACK` to install every ETS2 entry from the real pack and plan a mod for each; verify it passes locally on `~/Downloads/templates`.
-- [ ] 4.5 Measure New Project → Create Project with the SCS Box Trailer and the Volvo FH6, every accessory checked (time and memory, release build); verify by recording the numbers in the PR, and report to the user if it's noticeably slow or heavy (design Risks).
-- [ ] 4.6 Screenshot New Project in German at 100 % with the full Official list and a trailer with several bodies checked; verify that nothing is clipped and that the list scrolls.
+- [x] 4.5 Measure New Project → Create Project with the SCS Box Trailer and the Volvo FH6, every accessory checked (time and memory, release build); verify by recording the numbers in the PR, and report to the user if it's noticeably slow or heavy (design Risks).
+- [x] 4.6 Screenshot New Project in German at 100 % with the full Official list and a trailer with several bodies checked; verify that nothing is clipped and that the list scrolls.
 
 ## 5. In-game check, checks and docs
 

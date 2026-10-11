@@ -3228,6 +3228,53 @@ fn render_official_vehicles() {
     }
 }
 
+/// Every official ETS2 vehicle in New Project, in German at 100 %: the
+/// list from its top, then the Schmitz Cargobull S.CS (a trailer with
+/// several bodies) installed from a pack of blank templates and checked.
+/// Files are `official_ets2_de_<screen>.png`.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_official_ets2_catalog() {
+    use egui::accesskit::Role;
+    use tp_app::state::Modal;
+    use tp_i18n::Language;
+    use tp_vehicles::Game;
+    let dir = tempfile::tempdir().unwrap();
+    let pack = dir.path().join("pack");
+    let entry = tp_vehicles::catalog::by_package_id("official.ets2.schmitz.scs").unwrap();
+    for t in entry.textures() {
+        let path = t
+            .file
+            .split('/')
+            .fold(pack.join(&entry.folder), |p, part| p.join(part));
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        image::GrayImage::new(t.size.width, t.size.height)
+            .save(path)
+            .unwrap();
+    }
+    let mut prefs = Prefs::default();
+    prefs.set_language(Some(Language::German));
+    prefs.set_template_pack(Game::Ets2, Some(pack));
+    let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
+    mac_native(&mut h);
+    h.run();
+    h.get_by_label(&tp_i18n::tr("home-new-project")).click();
+    settle_dialog(&mut h);
+    save(&mut h, "official_ets2_de_list");
+    h.click_into_view(Role::CheckBox, "Schmitz Cargobull S.CS");
+    for _ in 0..2000 {
+        h.step();
+        let installing =
+            matches!(&h.state().modal, Some(Modal::NewProject(d)) if d.installing.is_some());
+        if !installing {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    settle_dialog(&mut h);
+    save(&mut h, "official_ets2_de_several_bodies");
+}
+
 /// Several vehicles at once, in English and German at 100 %: New Project
 /// with three vehicles checked (the first card open, the others folded) and
 /// Add Vehicle… with two vehicles checked. Files are named
