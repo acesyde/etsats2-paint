@@ -53,11 +53,14 @@ Clicking an available card SHALL open that project. When the list is empty, it S
 Choosing New Project SHALL open a modal dialog on one page:
 
 - **On top:** the **Project name** field and the **Game**, ETS2 or ATS, as a segmented control. The name defaults to the chosen vehicle's name when left empty. The game starts on the game of the installed vehicles, or ETS2 when vehicles of both games or none are installed. A note says that vehicles can be added to the project at any time.
-- **On the left, the vehicle list:** the installed vehicles of the chosen game, one row each under the column headers Vehicle, Type and Package (name, kind, brand and newest version).
-  - It is searchable by name and brand, and filterable by kind with a segmented control **All / Trucks / Trailers**.
+- **On the left, the vehicle list**, under the column headers Vehicle, Type and Package:
+  - first, under **Official**, the official vehicles of the chosen game from the catalog (see the official-vehicles capability), installed or not, one row each with the name, the kind and the brand, and "Official" in the Package column, followed by the newest installed version when it is installed;
+  - then, under **Installed**, the other installed vehicles of the chosen game, one row each (name, kind, brand and newest version). An installed official vehicle is listed only under Official.
+  - The section headers are shown only when both sections have rows.
+  - The list is searchable by name and brand, and filterable by kind with a segmented control **All / Trucks / Trailers**. Both sections follow the search and the filter.
   - Under the list, a **Custom vehicle…** entry explains that a vehicle without a package can be created from its template files (DDS, PNG or SVG) and its game data, and opens the Custom Vehicle dialog (see the custom-vehicles capability). An **Install…** button installs packages (see the vehicle-packages capability).
-  - With no vehicle installed, the list offers Install…, Install the sample vehicles and Custom vehicle….
-  - Clicking a vehicle chooses it; choosing another one replaces it.
+  - With no vehicle installed and no official vehicle for the chosen game, the list offers Install…, Install the sample vehicles and Custom vehicle…. With no vehicle installed but official vehicles listed, Install the sample vehicles is offered under the list.
+  - Clicking an installed vehicle chooses it; choosing another one replaces it. Clicking an official vehicle installs it first when needed, asking for the template pack when its folder isn't known (see the official-vehicles capability), then chooses it. Until it is installed, the previous choice is kept.
 - **On the right, "Your fleet":** the chosen vehicle, with:
   - under **Cabins**, one chip per main texture, named after it, that toggles it (filled when it is checked, outlined otherwise; the cabins it covers in its tooltip). The first one is checked when the vehicle is chosen; the last checked main texture (and so a single main texture) can't be unchecked;
   - the **main texture mode**, read only, from the package: "One per cabin layout" when the package has several main textures, "One for every cabin" for a truck with a single main texture, "Single main texture" for a trailer. The user can't change it;
@@ -108,7 +111,7 @@ Confirming SHALL open the editor workspace, in the Project space, with a new pro
 - **THEN** the vehicle list shows only the ATS vehicles
 
 #### Scenario: No vehicle installed
-- **WHEN** the user opens New Project with no vehicle installed
+- **WHEN** the user opens New Project with no vehicle installed and the Game set to ATS, which has no official vehicle yet
 - **THEN** Create Project is disabled, and Install…, Install the sample vehicles and Custom vehicle… are offered
 
 #### Scenario: Project from a custom vehicle
@@ -118,6 +121,18 @@ Confirming SHALL open the editor workspace, in the Project space, with a new pro
 #### Scenario: Created vehicle hidden by a filter
 - **WHEN** the New Project dialog's Game is ATS and the user creates an ETS2 custom vehicle
 - **THEN** the dialog shows the Game ETS2 and the new vehicle chosen, with its textures checked
+
+#### Scenario: Official vehicles first
+- **WHEN** the sample truck is installed and the user opens New Project with the Game ETS2
+- **THEN** the list shows, under Official, the DAF NGD (Truck, DAF, Official) and the Krone Cool Liner (Trailer, Krone, Official), then, under Installed, the TruckPaint Sample Truck
+
+#### Scenario: Official vehicle filtered by kind
+- **WHEN** the user sets the kind filter to Trailers
+- **THEN** the Official section shows only the Krone Cool Liner
+
+#### Scenario: Project from an official vehicle
+- **WHEN** the ETS2 pack folder is known, the user picks the DAF NGD, waits for it to install, checks XF and clicks Create Project
+- **THEN** the workspace opens with a project named "DAF NGD" on its XG+ and XF main textures and its four accessories, each showing its template
 
 ### Requirement: Open Project action
 The home screen's Open Project action SHALL open the same file dialog as File › Open… and open the chosen project.
