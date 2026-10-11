@@ -115,7 +115,7 @@ A project SHALL belong to exactly one game, ETS2 or ATS: the game of its first v
 The user SHALL be able to change which vehicles and textures a project covers. Each change is one undo step.
 
 - **Add vehicles:** Vehicle › Add Vehicle…, also reached from the Add Vehicle button of the Textures tab and of the Project space, opens a dialog listing the vehicles of the project's game that aren't in the project yet: first the official vehicles of the catalog, installed or not, marked "Official", then the other installed vehicles (see the official-vehicles capability). It is searchable by name and brand and filterable by kind. Each row has a checkbox: clicking a row checks or unchecks the vehicle, and several vehicles can be checked. Checking an official vehicle installs it first when needed, asking for the template pack when its folder isn't known. Each checked vehicle shows its main textures and accessories as checkboxes under its row, as in New Project, and keeps at least one main texture checked. **Add** is enabled when at least one vehicle is checked. Confirming adds every checked vehicle at its newest installed version, in the order they were checked, with one surface per chosen texture, after the existing surfaces, in one undo step. The first new surface becomes active.
-  - The dialog SHALL also offer **Custom vehicle…**, which opens the Custom Vehicle dialog with the project's game, locked (see the custom-vehicles capability). A vehicle created there SHALL be listed and checked when Add Vehicle… is shown again, with its textures checked as for any checked vehicle, and the vehicles checked before stay checked; it is not added to the project until the user confirms Add.
+  - The dialog SHALL also offer **Custom Vehicle…**, which opens the Custom Vehicle dialog with the project's game, locked (see the custom-vehicles capability). A vehicle created there SHALL be listed and checked when Add Vehicle… is shown again, with its textures checked as for any checked vehicle, and the vehicles checked before stay checked; it is not added to the project until the user confirms Add.
 - **Change the textures of a vehicle:** the vehicle's **Textures…** action (its ⋯ menu in the Textures tab, or its vehicle card in the Project space) shows checkboxes for the main textures and accessories of the project's recorded version. A single main texture is shown checked and can't be unchecked.
   - Checking a texture adds its surface, in package order among the vehicle's surfaces.
   - Unchecking one removes its surface. If any removed surface holds artwork, a confirmation names those textures first.
@@ -146,7 +146,7 @@ Template images no longer used by any surface SHALL be dropped from the project'
 - **THEN** its Remove from Project action is disabled, in the Textures tab and in the Project space
 
 #### Scenario: Custom trailer added to a fleet
-- **WHEN** in an ETS2 project, the user opens Add Vehicle…, clicks Custom vehicle…, creates a trailer from the template `base.png`, then clicks Add
+- **WHEN** in an ETS2 project, the user opens Add Vehicle…, clicks Custom Vehicle…, creates a trailer from the template `base.png`, then clicks Add
 - **THEN** the trailer is added to the project with its "base" texture active, and the Custom Vehicle dialog showed ETS2 without a way to change it
 
 #### Scenario: Official trailer added to a fleet
@@ -158,7 +158,7 @@ Template images no longer used by any surface SHALL be dropped from the project'
 - **THEN** both trailers are added, the sample trailer's textures then the Krone's, the sample trailer's Base is active, and one Undo removes both
 
 ### Requirement: Copy from cabin
-**Vehicle › Copy From Cabin…** SHALL copy the artwork of another main texture of the same truck onto the active texture. The cabin layouts of a truck share most of their texture, so the same coordinates fit.
+**Vehicle › Copy from Cabin…** SHALL copy the artwork of another main texture of the same truck onto the active texture. The cabin layouts of a truck share most of their texture, so the same coordinates fit.
 
 It SHALL be enabled only when:
 - the active texture is a main texture of a vehicle;
@@ -176,7 +176,7 @@ It SHALL open a dialog listing the vehicle's other main textures in the project,
 The chosen texture SHALL be unchanged. Guides are not copied. When the chosen texture holds no object, the dialog SHALL say so and Copy is disabled.
 
 #### Scenario: Copy the standard cab onto the high roof
-- **WHEN** the sample truck's Standard cab holds a logo and lettering, the High roof is active and empty, and the user chooses Copy From Cabin… with Standard cab
+- **WHEN** the sample truck's Standard cab holds a logo and lettering, the High roof is active and empty, and the user chooses Copy from Cabin… with Standard cab
 - **THEN** the High roof holds copies of the logo and the lettering at the same positions, selected, and one Undo removes them
 
 #### Scenario: Different sizes
@@ -185,7 +185,7 @@ The chosen texture SHALL be unchanged. Guides are not copied. When the chosen te
 
 #### Scenario: Not offered for accessories
 - **WHEN** the active texture is the sample truck's Chassis
-- **THEN** Copy From Cabin… is disabled, with a tooltip saying it copies between main textures
+- **THEN** Copy from Cabin… is disabled, with a tooltip saying it copies between main textures
 
 #### Scenario: Links kept
 - **WHEN** a text following the text style "Lettering" is copied from cabin
