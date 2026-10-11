@@ -2221,6 +2221,51 @@ mod tests {
     }
 
     #[test]
+    fn trailer_with_several_bodies() {
+        use tp_vehicles::catalog::{self, Entry};
+        let entry = catalog::by_package_id("official.ets2.kogel.cargo").unwrap();
+        let png = |w: u32, h: u32| {
+            let mut out = Vec::new();
+            image::GrayImage::new(w, h)
+                .write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
+                .unwrap();
+            out
+        };
+        let files: Vec<(String, Vec<u8>)> = entry
+            .textures()
+            .map(|t| (Entry::template_path(t.id), png(t.size.width, t.size.height)))
+            .collect();
+        let package =
+            Package::read(&tp_vehicles::sample::zip(&catalog::manifest(entry), &files)).unwrap();
+        let mut p = fleet_project("ACE", &[(&package, &ids(&["body", "body_long"]))]).unwrap();
+        p.mod_settings.internal_name = Some("ace".into());
+        let plan = plan(&p).unwrap();
+        let def = "def/vehicle/trailer_owned/kogel.cargo/paint_job";
+        let dir = "/vehicle/trailer_owned/upgrade/paintjob/ace/kogel.cargo";
+        let acc = plan.text(&format!("{def}/accessory/ace.sii")).unwrap();
+        let entry_of = |id: &str| {
+            let at = acc.find(&format!("acc_list[]: \"{id}\"")).unwrap();
+            let start = acc[..at].rfind("simple_paint_job_data").unwrap();
+            acc[start..at].to_owned()
+        };
+        // The Body ids with the Body texture, the Body (Long) ids with theirs.
+        for id in &entry.game_data.accessories["Body"] {
+            assert!(entry_of(id).contains(&format!("{dir}/body.tobj")), "{acc}");
+        }
+        for id in &entry.game_data.accessories["Body (Long)"] {
+            assert!(
+                entry_of(id).contains(&format!("{dir}/body_long.tobj")),
+                "{acc}"
+            );
+        }
+        let unit = plan.text(&format!("{def}/ace.sii")).unwrap();
+        assert!(
+            unit.contains(&format!("paint_job_mask: \"{dir}/body.tobj\"")),
+            "{unit}"
+        );
+    }
+
+    #[test]
     fn fleet_in_one_mod() {
         let mut ws = Workspace::new(truck(&["standard"]));
         let t = example("sample_trailer", "1.0.0");

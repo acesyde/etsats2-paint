@@ -1145,6 +1145,57 @@ fn installs_and_exports_from_the_real_pack() {
     ));
 }
 
+/// Every official ETS2 vehicle installs from the real pack, and a project
+/// painting all its textures plans a mod holding every game id its entry
+/// covers.
+#[test]
+#[ignore = "needs the ETS2 template pack: TRUCKPAINT_ETS2_PACK=<folder>"]
+fn every_ets2_vehicle_installs_and_exports_from_the_real_pack() {
+    let Some(folder) = std::env::var_os("TRUCKPAINT_ETS2_PACK") else {
+        panic!("set TRUCKPAINT_ETS2_PACK to the unzipped ETS2 template pack");
+    };
+    let pack = tp_pack::catalog::find_pack(Path::new(&folder), Game::Ets2).expect("an ETS2 pack");
+    let dir = tempfile::tempdir().unwrap();
+    let mut library = VehicleLibrary::open(&dir.path().join("library"));
+    let entries = tp_vehicles::catalog::entries(Game::Ets2);
+    assert_eq!(entries.len(), 66);
+    for e in entries {
+        let id = e.package_id();
+        let packed = tp_pack::catalog::build(e, &pack).unwrap_or_else(|err| panic!("{err}"));
+        library.install_bytes(&packed.bytes).unwrap();
+        let version = &library.get(&id).unwrap().newest().manifest.version;
+        let package = library.load(&id, version).unwrap();
+        let all: Vec<String> = package
+            .manifest
+            .paint_job
+            .parts()
+            .map(|(_, part)| part.id.clone())
+            .collect();
+        let mut project = tp_app::vehicle_project::fleet_project("ACE", &[(&package, &all)])
+            .unwrap_or_else(|err| panic!("{}: {err:?}", e.name));
+        project.mod_settings.internal_name = Some("ace".into());
+        let plan = tp_app::mod_export::plan(&project).unwrap();
+        let text: String = plan
+            .files
+            .keys()
+            .filter(|k| k.ends_with(".sii"))
+            .filter_map(|k| plan.text(k))
+            .collect();
+        let covered = e
+            .accessories
+            .iter()
+            .flat_map(|t| &t.ids)
+            .chain(e.main.iter().flat_map(|t| &t.also_paints));
+        for game_id in covered {
+            assert!(
+                text.contains(&format!("acc_list[]: \"{game_id}\"")),
+                "{}: {game_id}",
+                e.name
+            );
+        }
+    }
+}
+
 /// Writes the mod for the in-game check to `TRUCKPAINT_CHECK_MOD` (an
 /// `.scs` path): the DAF NGD (every cabin and accessory) and the Krone Cool
 /// Liner from the real pack, each texture filled with its own color, with a
@@ -1159,7 +1210,12 @@ fn writes_the_in_game_check_mod() {
     let out =
         PathBuf::from(std::env::var_os("TRUCKPAINT_CHECK_MOD").expect("TRUCKPAINT_CHECK_MOD"));
     let pack = tp_pack::catalog::find_pack(Path::new(&folder), Game::Ets2).expect("an ETS2 pack");
-    let packages: Vec<_> = [DAF, KRONE]
+    // `TRUCKPAINT_CHECK_VEHICLES`: package ids separated by commas.
+    let ids: Vec<String> = std::env::var("TRUCKPAINT_CHECK_VEHICLES").map_or_else(
+        |_| vec![DAF.to_owned(), KRONE.to_owned()],
+        |v| v.split(',').map(|s| s.trim().to_owned()).collect(),
+    );
+    let packages: Vec<_> = ids
         .iter()
         .map(|id| {
             let packed = tp_pack::catalog::build(entry(id), &pack).unwrap();
@@ -1179,8 +1235,9 @@ fn writes_the_in_game_check_mod() {
     )
     .unwrap();
     let mut ws = tp_app::workspace::Workspace::new(project);
-    ws.add_vehicle(&packages[1], &all(&packages[1]), 0.0)
-        .unwrap();
+    for package in &packages[1..] {
+        ws.add_vehicle(package, &all(package), 0.0).unwrap();
+    }
     let mut project = ws.project.clone();
     project.mod_settings.internal_name = Some("tpcheck".into());
     project.mod_settings.name = "TruckPaint check".into();
