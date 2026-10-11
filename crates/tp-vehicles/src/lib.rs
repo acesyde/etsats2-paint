@@ -8,6 +8,7 @@ use std::io::{Cursor, Read};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub mod catalog;
 pub mod sample;
 
 /// Highest package format this version understands.
@@ -25,14 +26,14 @@ pub const MAX_UNCOMPRESSED: u64 = 512 * 1024 * 1024;
 /// Largest side of a template image.
 pub const MAX_IMAGE_SIDE: u32 = 16_384;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Kind {
     Truck,
     Trailer,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Game {
     Ets2,
@@ -40,11 +41,19 @@ pub enum Game {
 }
 
 impl Game {
+    /// Every game.
+    pub const ALL: [Game; 2] = [Game::Ets2, Game::Ats];
+
     pub fn code(self) -> &'static str {
         match self {
             Game::Ets2 => "ets2",
             Game::Ats => "ats",
         }
+    }
+
+    /// The game of code `code` (`ets2`, `ats`).
+    pub fn from_code(code: &str) -> Option<Game> {
+        Game::ALL.into_iter().find(|g| g.code() == code)
     }
 }
 
@@ -135,6 +144,11 @@ pub struct Part {
     pub name: String,
     #[serde(default)]
     pub game_ids: Vec<String>,
+    /// A main texture's accessory ids the game paints with this same
+    /// texture (a trailer body drawn on the main template). Empty for an
+    /// accessory.
+    #[serde(default)]
+    pub also_paints: Vec<String>,
     pub texture: Texture,
 }
 
@@ -234,8 +248,11 @@ pub enum PackageError {
     MissingGameIds(String),
     BadGameId(String),
     /// A game id appears twice among the main textures or among the
-    /// accessories.
+    /// accessories, or an `also_paints` id appears twice or is also an
+    /// accessory's game id.
     DuplicateGameId(String),
+    /// An accessory has `also_paints` (the accessory's name).
+    BadAlsoPaints(String),
     /// A texture's size is not a `[width, height]` pair of allowed sides
     /// (the size as written in the manifest).
     BadSize {
@@ -459,7 +476,29 @@ fn validate(m: &Manifest) -> Result<(), PackageError> {
     // Several main textures each say which cabins they are for; an
     // accessory always says which accessories it covers.
     validate_game_ids(&job.main, job.main.len() > 1)?;
-    validate_game_ids(&job.accessories, true)
+    validate_game_ids(&job.accessories, true)?;
+    validate_also_paints(job)
+}
+
+/// Accessory ids painted with a main texture: only on main textures, well
+/// formed, listed once in the package and not also an accessory's game id
+/// (the game would paint them twice).
+fn validate_also_paints(job: &PaintJob) -> Result<(), PackageError> {
+    if let Some(part) = job.accessories.iter().find(|p| !p.also_paints.is_empty()) {
+        return Err(PackageError::BadAlsoPaints(part.name.clone()));
+    }
+    let accessory_ids: HashSet<&String> =
+        job.accessories.iter().flat_map(|p| &p.game_ids).collect();
+    let mut seen = HashSet::new();
+    for id in job.main.iter().flat_map(|p| &p.also_paints) {
+        if !is_valid_game_name(id) {
+            return Err(PackageError::BadGameId(id.clone()));
+        }
+        if !seen.insert(id) || accessory_ids.contains(id) {
+            return Err(PackageError::DuplicateGameId(id.clone()));
+        }
+    }
+    Ok(())
 }
 
 fn validate_part(part: &Part) -> Result<(), PackageError> {

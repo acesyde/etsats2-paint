@@ -3137,3 +3137,86 @@ fn render_rectangular_textures() {
         }
     }
 }
+
+/// Official vehicles, in English and German at 100 %: the New Project list
+/// with its Official and Installed sections, the template pack dialog
+/// (first time, then with a refused folder), an installation in
+/// progress, Preferences with a template pack folder, and About with the
+/// credits and Paintjob Packer's license. Files are named
+/// `official_<language>_<screen>.png`.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_official_vehicles() {
+    use egui::accesskit::Role;
+    use tp_app::state::Modal;
+    use tp_i18n::Language;
+    use tp_vehicles::Game;
+    let dir = tempfile::tempdir().unwrap();
+    // A pack holding the Krone's folder only (a small file is enough to
+    // show the installation waiting).
+    let pack = dir.path().join("Euro Truck Simulator 2 Templates");
+    std::fs::create_dir_all(pack.join("Krone Cool Liner")).unwrap();
+    for language in [Language::English, Language::German] {
+        let code = language.code();
+        let name = |screen: &str| format!("official_{code}_{screen}");
+        let mut prefs = Prefs::default();
+        prefs.set_language(Some(language));
+        let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
+        mac_native(&mut h);
+        h.run();
+        h.get_by_label(&tp_i18n::tr("home-new-project")).click();
+        h.run();
+        h.get_by_role_and_label(Role::RadioButton, common::SAMPLE)
+            .click();
+        settle_dialog(&mut h);
+        save(&mut h, &name("new_project"));
+
+        h.get_by_role_and_label(Role::RadioButton, "DAF NGD")
+            .click();
+        settle_dialog(&mut h);
+        save(&mut h, &name("pack_dialog"));
+        let downloads = dir.path().join("Downloads");
+        std::fs::create_dir_all(&downloads).unwrap();
+        h.state_mut().dialogs = Box::new(tp_app::file_dialogs::ScriptedDialogs {
+            folders: [downloads].into(),
+            ..Default::default()
+        });
+        h.get_by_label(&tp_i18n::tr("pack-choose-folder")).click();
+        settle_dialog(&mut h);
+        save(&mut h, &name("pack_dialog_refused"));
+        h.get_by_label(&tp_i18n::tr("button-cancel")).click();
+        settle_dialog(&mut h);
+
+        // Installing the Krone, held so the progress shows.
+        h.state_mut()
+            .prefs
+            .set_template_pack(Game::Ets2, Some(pack.clone()));
+        tp_app::official::hold_builds_from(&pack, true);
+        h.get_by_role_and_label(Role::RadioButton, "Krone Cool Liner")
+            .click();
+        settle_dialog(&mut h);
+        let image = h.render().expect("render");
+        image
+            .save(out_dir().join(format!("{}.png", name("installing"))))
+            .unwrap();
+        tp_app::official::hold_builds_from(&pack, false);
+        if let Some(Modal::NewProject(d)) = &mut h.state_mut().modal {
+            d.installing = None;
+        }
+        h.state_mut().modal = Some(Modal::Preferences);
+        settle_dialog(&mut h);
+        save(&mut h, &name("preferences"));
+        h.state_mut().modal = Some(Modal::About);
+        settle_dialog(&mut h);
+        h.get_by_label(&tp_i18n::tr("about-licenses")).click();
+        settle_dialog(&mut h);
+        save(&mut h, &name("about"));
+        // Nothing installed: the official vehicles, and the sample
+        // vehicles offered under the list.
+        h.state_mut().vehicles =
+            tp_app::vehicles::VehicleLibrary::open(&dir.path().join(format!("empty-{code}")));
+        h.state_mut().modal = Some(Modal::NewProject(Default::default()));
+        settle_dialog(&mut h);
+        save(&mut h, &name("new_project_empty"));
+    }
+}

@@ -283,3 +283,23 @@ fn packs_from_memory() {
     .unwrap_err();
     assert!(matches!(err, PackError::MissingFile { .. }), "{err:?}");
 }
+
+#[test]
+fn documented_also_paints_example_packs() {
+    let doc = include_str!("../../../docs/vehicle-package-format.md");
+    let block = doc
+        .split("```json\n")
+        .skip(1)
+        .map(|b| &b[..b.find("```").expect("end of example")])
+        .find(|b| b.contains("also_paints"))
+        .expect("an example with also_paints");
+    let value: Value = serde_json::from_str(block).unwrap();
+    let dir = folder(&value);
+    write(dir.path(), "templates/body.png", &sample::png(64));
+    write(dir.path(), "templates/pallet_box.png", &sample::png(64));
+    let packed = pack_folder(dir.path()).unwrap();
+    let package = Package::read(&packed.bytes).unwrap();
+    let job = &package.manifest.paint_job;
+    assert_eq!(job.main[0].also_paints, ["body.reefer", "body.reef_13ct"]);
+    assert!(job.accessories[0].also_paints.is_empty());
+}

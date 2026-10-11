@@ -888,12 +888,7 @@ fn add_vehicle_lists_only_the_project_game() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = app(dir.path());
     for (id, name, game, kind) in [
-        (
-            "scs.krone.cool_liner",
-            "Krone Cool Liner",
-            "ets2",
-            "trailer",
-        ),
+        ("scs.krone.dry_liner", "Krone Dry Liner", "ets2", "trailer"),
         ("scs.peterbilt.579", "Peterbilt 579", "ats", "truck"),
     ] {
         let file = other_package_file(dir.path(), id, name, game, kind);
@@ -903,7 +898,7 @@ fn add_vehicle_lists_only_the_project_game() {
     h.get_by_label("Add Vehicle…").click();
     h.run();
     assert!(
-        h.query_by_role_and_label(Role::RadioButton, "Krone Cool Liner")
+        h.query_by_role_and_label(Role::RadioButton, "Krone Dry Liner")
             .is_some()
     );
     assert!(
@@ -915,7 +910,7 @@ fn add_vehicle_lists_only_the_project_game() {
             .is_none(),
         "vehicles already in the project are hidden"
     );
-    h.get_by_role_and_label(Role::RadioButton, "Krone Cool Liner")
+    h.get_by_role_and_label(Role::RadioButton, "Krone Dry Liner")
         .click();
     settle(&mut h);
     // The Add Vehicle dialog's, over the Game versions' + Add.
@@ -929,7 +924,7 @@ fn add_vehicle_lists_only_the_project_game() {
     assert!(h.query_by_label("2 vehicles · 5 textures").is_some());
     // The trailer can be removed (no artwork: no question); the last
     // vehicle cannot.
-    vehicle_action(&mut h, "Krone Cool Liner", "Remove from Project");
+    vehicle_action(&mut h, "Krone Dry Liner", "Remove from Project");
     assert_eq!(ws(&h).project.vehicles.len(), 1);
     h.get_by_label("Actions for TruckPaint Sample Truck")
         .click();

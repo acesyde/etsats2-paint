@@ -16,73 +16,13 @@ use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, radius, space};
 use tp_ui::widgets::{IconButton, primary_button, secondary_button};
-use tp_vehicles::{Game, Kind, Manifest, Package, Role, TextureSize};
+use tp_vehicles::{Game, Kind, Package, Role, TextureSize};
 
-use super::vehicle_dialogs::{
-    AddVehicleDialog, LibraryDialog, VehicleChoice, VehicleFilter, game_name,
-};
+pub use super::origin::Origin;
+use super::vehicle_dialogs::{LibraryDialog, game_name};
 use crate::custom_vehicles::{PackJob, PackOutcome};
-use crate::state::{AppState, Modal, NewProjectDraft};
+use crate::state::{AppState, Modal};
 use crate::vehicles::{VehicleLibrary, pack_error_message, template_error_message};
-
-/// The dialog the Custom Vehicle dialog was opened from.
-pub enum Origin {
-    NewProject(NewProjectDraft),
-    AddVehicle(AddVehicleDialog),
-    Library(LibraryDialog),
-}
-
-impl Origin {
-    fn into_modal(self) -> Modal {
-        match self {
-            Origin::NewProject(draft) => Modal::NewProject(draft),
-            Origin::AddVehicle(dialog) => Modal::AddVehicle(dialog),
-            Origin::Library(dialog) => Modal::VehicleLibrary(dialog),
-        }
-    }
-
-    /// The game the origin shows, if any.
-    fn game(&self) -> Option<Game> {
-        match self {
-            Origin::NewProject(draft) => draft.filter.game,
-            Origin::AddVehicle(dialog) => dialog.filter.game,
-            Origin::Library(dialog) => dialog.filter.game,
-        }
-    }
-
-    /// Shows `m`, just installed: selected in New Project and Add Vehicle,
-    /// listed in the library, with a confirmation.
-    fn created(&mut self, library: &VehicleLibrary, m: &Manifest, message: String) {
-        let reveal = |filter: &mut VehicleFilter| {
-            if !filter.matches(m) {
-                filter.query.clear();
-                filter.kind = None;
-                if !filter.game_locked {
-                    filter.game = None;
-                }
-            }
-        };
-        let choice = library.get(&m.id).map(VehicleChoice::of);
-        match self {
-            Origin::NewProject(draft) => {
-                // The dialog lists one game: the vehicle's.
-                draft.filter.game = Some(m.game.id);
-                reveal(&mut draft.filter);
-                draft.messages = vec![Ok(message)];
-                draft.vehicle = choice;
-            }
-            Origin::AddVehicle(dialog) => {
-                reveal(&mut dialog.filter);
-                dialog.messages = vec![Ok(message)];
-                dialog.choice = choice;
-            }
-            Origin::Library(dialog) => {
-                reveal(&mut dialog.filter);
-                dialog.messages = vec![Ok(message)];
-            }
-        }
-    }
-}
 
 /// State of the Custom Vehicle dialog.
 pub struct CustomVehicleDialog {

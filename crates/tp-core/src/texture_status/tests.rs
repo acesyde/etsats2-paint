@@ -54,6 +54,7 @@ fn surface(objects: Vec<Object>) -> Surface {
         asset: AssetId(1),
         layout_version: 1,
         game_ids: Vec::new(),
+        also_paints: Vec::new(),
         main_index: None,
         opacity: SurfaceTemplate::DEFAULT_OPACITY,
         visible: true,

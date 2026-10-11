@@ -620,6 +620,8 @@ fn unit_name(internal: &str, count: usize, index: usize) -> String {
 struct Painted<'a> {
     part: TexturePart,
     game_ids: &'a [String],
+    /// Accessory ids a main texture also paints.
+    also_paints: &'a [String],
     main_index: Option<usize>,
     /// The texture's `.tobj`, absolute.
     tobj: String,
@@ -710,6 +712,7 @@ pub fn plan(project: &Project) -> Result<ModPlan, Vec<Problem>> {
             painted.push(Painted {
                 part: t.part,
                 game_ids: &t.game_ids,
+                also_paints: &t.also_paints,
                 main_index: t.main_index,
                 tobj: format!("/{tobj_path}"),
             });
@@ -729,21 +732,33 @@ pub fn plan(project: &Project) -> Result<ModPlan, Vec<Problem>> {
             .iter()
             .filter(|p| p.part == TexturePart::Accessory)
             .collect();
-        let accessory_file = (!accessories.is_empty()).then(|| {
+        // One `simple_paint_job_data` per painted accessory, then one for
+        // the accessories the unit's main texture also paints.
+        let accessory_file = |main: &Painted| {
+            let entries: Vec<(&str, &[String])> = accessories
+                .iter()
+                .map(|a| (a.tobj.as_str(), a.game_ids))
+                .chain(
+                    (!main.also_paints.is_empty())
+                        .then_some((main.tobj.as_str(), main.also_paints)),
+                )
+                .collect();
+            if entries.is_empty() {
+                return None;
+            }
             let mut out = String::from("SiiNunit\n{\n");
-            for (n, a) in accessories.iter().enumerate() {
+            for (n, (tobj, game_ids)) in entries.iter().enumerate() {
                 out.push_str(&format!(
-                    "\nsimple_paint_job_data : .ovr{n}\n{{\n\tpaint_job_mask: \"{}\"\n",
-                    a.tobj
+                    "\nsimple_paint_job_data : .ovr{n}\n{{\n\tpaint_job_mask: \"{tobj}\"\n"
                 ));
-                for game_id in a.game_ids {
+                for game_id in *game_ids {
                     out.push_str(&format!("\tacc_list[]: \"{game_id}\"\n"));
                 }
                 out.push_str("}\n");
             }
             out.push_str("}\n");
-            out
-        });
+            Some(out)
+        };
         for main in painted.iter().filter(|p| p.part == TexturePart::Main) {
             let unit = unit_name(&id, data.main_count, main.main_index.unwrap_or(0));
             let mut out = format!(
@@ -759,11 +774,8 @@ pub fn plan(project: &Project) -> Result<ModPlan, Vec<Problem>> {
             }
             out.push_str(&format!("\tpaint_job_mask: \"{}\"\n}}\n}}\n", main.tobj));
             files.insert(format!("{def}/{unit}.sii"), Entry::Text(out));
-            if let Some(acc) = &accessory_file {
-                files.insert(
-                    format!("{def}/accessory/{unit}.sii"),
-                    Entry::Text(acc.clone()),
-                );
+            if let Some(acc) = accessory_file(main) {
+                files.insert(format!("{def}/accessory/{unit}.sii"), Entry::Text(acc));
             }
         }
     }
@@ -2137,6 +2149,65 @@ mod tests {
         let acc = plan.text(&format!("{def}/accessory/ace.sii")).unwrap();
         assert!(acc.contains("acc_list[]: \"r_mudflap.sample\""), "{acc}");
         assert!(!acc.contains("body"), "{acc}");
+    }
+
+    /// A project "ace" holding a Krone Cool Liner-like trailer whose main
+    /// texture "Body" also paints the body accessories, painting `textures`.
+    fn krone(textures: &[&str]) -> Project {
+        use tp_vehicles::sample::{self, SampleTexture};
+        let tex = |id, name| SampleTexture {
+            id,
+            name,
+            size: tp_vehicles::TextureSize::new(256, 64),
+            layout: 1,
+        };
+        let main = [tex("body", "Body")];
+        let accessories = [tex("chassis", "Chassis")];
+        let mut m = sample::manifest_with(
+            "official.ets2.krone.coolliner",
+            "Krone Cool Liner",
+            "1.0.0",
+            "trailer",
+            &main,
+            &accessories,
+        );
+        m["game"]["path"] = "krone.coolliner".into();
+        m["paint_job"]["main"][0]["also_paints"] = vec!["body.reefer", "body.reef_13ct"].into();
+        let all = [tex("body", "Body"), tex("chassis", "Chassis")];
+        let package = Package::read(&sample::zip(&m, &sample::templates(&all))).unwrap();
+        let mut p = fleet_project("ACE", &package, &ids(textures)).unwrap();
+        p.mod_settings.internal_name = Some("ace".into());
+        p
+    }
+
+    #[test]
+    fn main_texture_applied_to_accessories() {
+        let def = "def/vehicle/trailer_owned/krone.coolliner/paint_job";
+        let body_tobj = "/vehicle/trailer_owned/upgrade/paintjob/ace/krone.coolliner/body.tobj";
+        // Only the Body painted: the accessory file is still written.
+        let only_body = plan(&krone(&["body"])).unwrap();
+        let acc = only_body.text(&format!("{def}/accessory/ace.sii")).unwrap();
+        assert_eq!(
+            acc,
+            format!(
+                "SiiNunit\n{{\n\nsimple_paint_job_data : .ovr0\n{{\n\
+                 \tpaint_job_mask: \"{body_tobj}\"\n\
+                 \tacc_list[]: \"body.reefer\"\n\tacc_list[]: \"body.reef_13ct\"\n}}\n}}\n"
+            )
+        );
+        // With the chassis: its own entry first, then the body's.
+        let with_chassis = plan(&krone(&["body", "chassis"])).unwrap();
+        let acc = with_chassis
+            .text(&format!("{def}/accessory/ace.sii"))
+            .unwrap();
+        let chassis = acc.find("acc_list[]: \"chassis.sample\"").unwrap();
+        let body = acc.find("acc_list[]: \"body.reefer\"").unwrap();
+        assert!(chassis < body, "{acc}");
+        assert!(acc.contains(".ovr1"), "{acc}");
+        assert!(
+            acc.contains(&format!("paint_job_mask: \"{body_tobj}\"")),
+            "{acc}"
+        );
     }
 
     #[test]

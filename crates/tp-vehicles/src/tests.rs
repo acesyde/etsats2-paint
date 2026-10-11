@@ -260,6 +260,78 @@ fn invalid_packages_are_refused() {
     assert!(!is_valid_game_name("") && !is_valid_game_name("a..b") && !is_valid_game_name("a-b"));
 }
 
+/// A trailer whose main texture "Body" also paints `also_paints`, with a
+/// "Chassis" accessory covering `chassis.sample`.
+fn trailer_also_painting(also_paints: serde_json::Value) -> Vec<u8> {
+    with_manifest(|m| {
+        m["kind"] = json!("trailer");
+        m["paint_job"]["main"][0]["name"] = json!("Body");
+        m["paint_job"]["main"][0]["also_paints"] = also_paints;
+    })
+}
+
+#[test]
+fn main_texture_that_also_paints_accessories() {
+    let p = Package::read(&trailer_also_painting(json!([
+        "body.reefer",
+        "body.reef_13ct"
+    ])))
+    .unwrap();
+    let job = &p.manifest.paint_job;
+    assert_eq!(job.main[0].also_paints, ["body.reefer", "body.reef_13ct"]);
+    assert!(job.accessories.iter().all(|a| a.also_paints.is_empty()));
+    // Absent: empty.
+    let p = Package::read(&ok_package()).unwrap();
+    assert!(p.manifest.paint_job.main[0].also_paints.is_empty());
+}
+
+#[test]
+fn accessory_id_painted_twice() {
+    // Also an accessory's game id.
+    assert_eq!(
+        err(&trailer_also_painting(json!(["chassis.sample"]))),
+        PackageError::DuplicateGameId("chassis.sample".into())
+    );
+    // Twice in also_paints, on one main texture or across two.
+    assert_eq!(
+        err(&trailer_also_painting(json!([
+            "body.reefer",
+            "body.reefer"
+        ]))),
+        PackageError::DuplicateGameId("body.reefer".into())
+    );
+    assert_eq!(
+        err(&with_manifest(|m| {
+            let mut second = m["paint_job"]["main"][0].clone();
+            second["id"] = json!("high_roof");
+            second["game_ids"] = json!(["high_roof"]);
+            second["also_paints"] = json!(["body.reefer"]);
+            m["paint_job"]["main"][0]["game_ids"] = json!(["standard"]);
+            m["paint_job"]["main"][0]["also_paints"] = json!(["body.reefer"]);
+            m["paint_job"]["main"].as_array_mut().unwrap().push(second);
+        })),
+        PackageError::DuplicateGameId("body.reefer".into())
+    );
+}
+
+#[test]
+fn bad_also_paints_refused() {
+    assert_eq!(
+        err(&with_manifest(
+            |m| m["paint_job"]["accessories"][0]["also_paints"] = json!(["body.reefer"])
+        )),
+        PackageError::BadAlsoPaints("Chassis".into())
+    );
+    assert_eq!(
+        err(&trailer_also_painting(json!(["Body.Reefer"]))),
+        PackageError::BadGameId("Body.Reefer".into())
+    );
+    assert!(matches!(
+        err(&trailer_also_painting(json!("body.reefer"))),
+        PackageError::BadManifest(_)
+    ));
+}
+
 #[test]
 fn rectangular_texture() {
     let bytes = with_manifest(|m| {

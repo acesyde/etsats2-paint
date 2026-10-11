@@ -228,6 +228,7 @@ fn add_vehicle(p: &mut Project) {
                 asset,
                 layout_version: layout,
                 game_ids: Vec::new(),
+                also_paints: Vec::new(),
                 main_index: None,
                 opacity,
                 visible,
@@ -478,6 +479,7 @@ fn game_data_and_mod_settings_round_trip() {
     {
         let t = p.surfaces[0].template.as_mut().unwrap();
         t.game_ids = vec!["globetrotter_xl".into()];
+        t.also_paints = vec!["body.reefer".into(), "body.reef_13ct".into()];
         t.main_index = Some(1);
         let t = p.surfaces[3].template.as_mut().unwrap();
         t.game_ids = vec!["mirror.painted".into(), "s_mirror.painted".into()];
@@ -505,6 +507,7 @@ fn game_data_and_mod_settings_round_trip() {
         (t.game_ids.as_slice(), t.main_index),
         (&["globetrotter_xl".to_owned()][..], Some(1))
     );
+    assert_eq!(t.also_paints, ["body.reefer", "body.reef_13ct"]);
     assert_eq!(back.assets[&image].bytes, p.assets[&image].bytes);
     assert_eq!(back.mod_settings.image, Some(image));
     assert_eq!(back.mod_settings.icon, None);
@@ -515,6 +518,13 @@ fn files_without_mod_settings_get_the_defaults() {
     let opened = tp_file::read(&fixture(1)).unwrap();
     let p = &opened.project;
     assert_eq!(p.mod_settings, tp_core::ModSettings::for_project(&p.name));
+    // Written before main textures recorded the accessories they paint.
+    assert!(
+        p.surfaces
+            .iter()
+            .filter_map(|s| s.template.as_ref())
+            .all(|t| t.also_paints.is_empty())
+    );
     assert!(p.vehicles.iter().all(|v| v.game_data.is_none()));
     // A new project's settings and missing game data are not written, so
     // such a file reads as before.
@@ -522,7 +532,7 @@ fn files_without_mod_settings_get_the_defaults() {
     assert!(file.mod_settings.is_none());
     let text = ron::to_string(&file).unwrap();
     assert!(
-        !text.contains("game_data") && !text.contains("game_ids"),
+        !text.contains("game_data") && !text.contains("game_ids") && !text.contains("also_paints"),
         "{text}"
     );
 }
