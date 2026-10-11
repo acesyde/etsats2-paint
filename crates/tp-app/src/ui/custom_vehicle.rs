@@ -16,7 +16,7 @@ use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, radius, space};
 use tp_ui::widgets::{IconButton, primary_button, secondary_button};
-use tp_vehicles::{Game, Kind, Manifest, Package, Role, SIZES};
+use tp_vehicles::{Game, Kind, Manifest, Package, Role, TextureSize};
 
 use super::vehicle_dialogs::{
     AddVehicleDialog, LibraryDialog, VehicleChoice, VehicleFilter, game_name,
@@ -502,14 +502,23 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
                                         ],
                                         true,
                                     );
-                                    let sizes: Vec<(u32, String)> =
-                                        SIZES.iter().map(|s| (*s, format!("{s} × {s}"))).collect();
+                                    let sides: Vec<(u32, String)> = TextureSize::allowed_sides()
+                                        .map(|s| (s, s.to_string()))
+                                        .collect();
                                     combo(
                                         ui,
-                                        ("custom_size", i),
-                                        &tr!("custom-row-size", n = n),
-                                        &mut row.size,
-                                        &sizes,
+                                        ("custom_width", i),
+                                        &tr!("custom-row-width", n = n),
+                                        &mut row.size.width,
+                                        &sides,
+                                        true,
+                                    );
+                                    combo(
+                                        ui,
+                                        ("custom_height", i),
+                                        &tr!("custom-row-height", n = n),
+                                        &mut row.size.height,
+                                        &sides,
                                         true,
                                     );
                                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -544,8 +553,9 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
                                     ui.label(
                                         RichText::new(&file).small().color(color::TEXT_SECONDARY),
                                     );
-                                    if !t.is_square() {
-                                        let text = tr("custom-not-square");
+                                    if row.is_scaled() {
+                                        let text =
+                                            tr!("custom-template-scaled", size = row.size.label());
                                         ui.label(
                                             RichText::new(format!("{} {text}", icons::WARNING))
                                                 .small()

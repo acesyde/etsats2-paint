@@ -306,7 +306,8 @@ fn grid_and_guides_are_not_exported() {
         &ws.project,
         0,
         tp_render::RenderOptions {
-            size: 1024,
+            width: 1024,
+            height: 1024,
             background: Some(tp_core::document::Rgba::rgb(255, 255, 255)),
         },
         &mut ws.text.fonts,

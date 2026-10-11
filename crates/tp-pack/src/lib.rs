@@ -102,8 +102,10 @@ pub fn describe(e: &PackageError) -> String {
         }
         PackageError::DuplicateGameId(id) => format!("the game id \"{id}\" is listed twice"),
         PackageError::BadSize { texture, size } => format!(
-            "the {texture} texture size {size} is not one of {:?}",
-            tp_vehicles::SIZES
+            "the {texture} texture size {size} is invalid: it must be a width and a height, \
+             [width, height], each a power of two from {} to {}",
+            tp_vehicles::MIN_SIDE,
+            tp_vehicles::MAX_SIDE
         ),
         PackageError::UnsafePath(path) => {
             format!("unsafe path \"{path}\": paths must be relative, without \"..\"")
@@ -174,7 +176,10 @@ fn referenced(manifest: &Manifest) -> BTreeMap<String, String> {
 }
 
 fn parse(value: &Value) -> Result<Manifest, PackError> {
-    serde_json::from_value(value.clone()).map_err(|e| PackError::BadManifest(e.to_string()))
+    tp_vehicles::manifest_from_value(value).map_err(|e| match e {
+        PackageError::BadManifest(why) => PackError::BadManifest(why),
+        other => PackError::Package(other),
+    })
 }
 
 /// Packs `folder` (a `vehicle.json` and the files it references) and
@@ -403,8 +408,13 @@ pub fn summary(m: &Manifest) -> String {
                 p.game_ids.join(", ")
             };
             out.push_str(&format!(
-                "    {} ({}): {}×{}, layout {}, {} [{}]\n",
-                p.id, p.name, t.size, t.size, t.layout_version, t.template, covers
+                "    {} ({}): {}, layout {}, {} [{}]\n",
+                p.id,
+                p.name,
+                t.size.label(),
+                t.layout_version,
+                t.template,
+                covers
             ));
         }
     }

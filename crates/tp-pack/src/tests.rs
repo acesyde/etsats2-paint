@@ -13,7 +13,7 @@ fn manifest(templates: &[(&str, u32, &str)]) -> Value {
             "id": id,
             "name": id,
             "game_ids": game_ids,
-            "texture": { "size": size, "template": path, "layout_version": 1 },
+            "texture": { "size": [size, size], "template": path, "layout_version": 1 },
             "future_part_field": {"kept": true},
         })
     };
@@ -224,14 +224,12 @@ fn check_and_summary() {
     assert!(text.contains("game path: sample.vehicle"), "{text}");
     assert!(text.contains("  main textures:\n"), "{text}");
     assert!(
-        text.contains("cabin (Cabin): 4096×4096, layout 1, templates/cabin.png [whole vehicle]"),
+        text.contains("cabin (Cabin): 4096², layout 1, templates/cabin.png [whole vehicle]"),
         "{text}"
     );
     assert!(text.contains("  accessories:\n"), "{text}");
     assert!(
-        text.contains(
-            "chassis (Chassis): 2048×2048, layout 1, templates/chassis.png [chassis.sample]"
-        ),
+        text.contains("chassis (Chassis): 2048², layout 1, templates/chassis.png [chassis.sample]"),
         "{text}"
     );
     assert!(matches!(

@@ -22,7 +22,7 @@
         "id": "base",
         "name": "Base",
         "texture": {
-          "size": 2048,
+          "size": [2048, 2048],
           "template": "templates/base.svg",
           "layout_version": 1
         }
@@ -36,7 +36,7 @@
           "body.sample_136"
         ],
         "texture": {
-          "size": 4096,
+          "size": [4096, 4096],
           "template": "templates/body_13_6.svg",
           "layout_version": 1
         }
@@ -48,7 +48,7 @@
           "body.sample_105"
         ],
         "texture": {
-          "size": 4096,
+          "size": [4096, 4096],
           "template": "templates/body_10_5.svg",
           "layout_version": 1
         }
@@ -60,7 +60,7 @@
           "r_mudflap.sample"
         ],
         "texture": {
-          "size": 512,
+          "size": [512, 512],
           "template": "templates/mudflaps.svg",
           "layout_version": 1
         }

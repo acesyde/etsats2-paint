@@ -5,7 +5,8 @@
 use std::collections::HashSet;
 use std::io::{Cursor, Read};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 pub mod sample;
 
@@ -15,8 +16,10 @@ pub const FORMAT: u32 = 1;
 pub const EXTENSION: &str = "tpv";
 /// Name of the manifest inside a package.
 pub const MANIFEST: &str = "vehicle.json";
-/// Allowed texture sizes (pixels).
-pub const SIZES: [u32; 6] = [256, 512, 1024, 2048, 4096, 8192];
+/// Smallest side of a texture (pixels).
+pub const MIN_SIDE: u32 = 64;
+/// Largest side of a texture (pixels).
+pub const MAX_SIDE: u32 = 8192;
 /// Largest total uncompressed size of a package.
 pub const MAX_UNCOMPRESSED: u64 = 512 * 1024 * 1024;
 /// Largest side of a template image.
@@ -62,11 +65,62 @@ pub struct Requirement {
     pub version: Option<String>,
 }
 
+/// A texture's width and height in pixels, written `[width, height]` in a
+/// manifest. Each side is a power of two from [`MIN_SIDE`] to [`MAX_SIDE`]
+/// once validated; a square texture has equal sides.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(from = "[u32; 2]", into = "[u32; 2]")]
+pub struct TextureSize {
+    pub width: u32,
+    pub height: u32,
+}
+
+impl TextureSize {
+    pub const fn new(width: u32, height: u32) -> Self {
+        Self { width, height }
+    }
+
+    /// Whether `side` is a power of two from [`MIN_SIDE`] to [`MAX_SIDE`].
+    pub fn is_allowed_side(side: u32) -> bool {
+        side.is_power_of_two() && (MIN_SIDE..=MAX_SIDE).contains(&side)
+    }
+
+    /// The allowed sides, smallest first.
+    pub fn allowed_sides() -> impl Iterator<Item = u32> {
+        (MIN_SIDE.trailing_zeros()..=MAX_SIDE.trailing_zeros()).map(|p| 1 << p)
+    }
+
+    /// Whether both sides are allowed.
+    pub fn is_allowed(self) -> bool {
+        Self::is_allowed_side(self.width) && Self::is_allowed_side(self.height)
+    }
+
+    /// "4096²" when the sides are equal, "8192 × 1024" otherwise.
+    pub fn label(self) -> String {
+        if self.width == self.height {
+            format!("{}²", self.width)
+        } else {
+            format!("{} × {}", self.width, self.height)
+        }
+    }
+}
+
+impl From<[u32; 2]> for TextureSize {
+    fn from([width, height]: [u32; 2]) -> Self {
+        Self { width, height }
+    }
+}
+
+impl From<TextureSize> for [u32; 2] {
+    fn from(size: TextureSize) -> Self {
+        [size.width, size.height]
+    }
+}
+
 /// What a part's template looks like on the texture.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Texture {
-    /// Square side in pixels (one of [`SIZES`]).
-    pub size: u32,
+    pub size: TextureSize,
     /// Path of the template image inside the package.
     pub template: String,
     pub layout_version: u32,
@@ -182,9 +236,11 @@ pub enum PackageError {
     /// A game id appears twice among the main textures or among the
     /// accessories.
     DuplicateGameId(String),
+    /// A texture's size is not a `[width, height]` pair of allowed sides
+    /// (the size as written in the manifest).
     BadSize {
         texture: String,
-        size: u32,
+        size: String,
     },
     UnsafePath(String),
     TooLarge,
@@ -325,7 +381,37 @@ fn parse_manifest(zip: &mut Zip<'_>) -> Result<Manifest, PackageError> {
     {
         return Err(PackageError::NewerFormat(head.format));
     }
-    serde_json::from_slice(&bytes).map_err(|e| PackageError::BadManifest(e.to_string()))
+    let value: Value =
+        serde_json::from_slice(&bytes).map_err(|e| PackageError::BadManifest(e.to_string()))?;
+    manifest_from_value(&value)
+}
+
+/// Reads a manifest from its JSON. A texture size that isn't a pair of
+/// numbers (an older single size) is reported as a bad size of that
+/// texture rather than as an unreadable manifest.
+pub fn manifest_from_value(value: &Value) -> Result<Manifest, PackageError> {
+    let parts = ["main", "accessories"]
+        .iter()
+        .filter_map(|key| value.get("paint_job")?.get(key)?.as_array())
+        .flatten();
+    for part in parts {
+        let Some(size) = part.get("texture").and_then(|t| t.get("size")) else {
+            continue;
+        };
+        let pair = size.as_array().is_some_and(|a| {
+            a.len() == 2
+                && a.iter()
+                    .all(|v| v.as_u64().is_some_and(|n| u32::try_from(n).is_ok()))
+        });
+        if !pair {
+            let name = part.get("name").and_then(Value::as_str).unwrap_or("");
+            return Err(PackageError::BadSize {
+                texture: name.to_owned(),
+                size: size.to_string(),
+            });
+        }
+    }
+    Manifest::deserialize(value).map_err(|e| PackageError::BadManifest(e.to_string()))
 }
 
 /// Lowercase words separated by dots, at least two.
@@ -377,10 +463,11 @@ fn validate(m: &Manifest) -> Result<(), PackageError> {
 }
 
 fn validate_part(part: &Part) -> Result<(), PackageError> {
-    if !SIZES.contains(&part.texture.size) {
+    let size = part.texture.size;
+    if !size.is_allowed() {
         return Err(PackageError::BadSize {
             texture: part.name.clone(),
-            size: part.texture.size,
+            size: format!("[{}, {}]", size.width, size.height),
         });
     }
     if !is_safe_path(&part.texture.template) {

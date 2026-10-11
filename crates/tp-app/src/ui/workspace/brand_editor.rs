@@ -524,15 +524,24 @@ fn texture_tile(ui: &mut Ui, env: &PanelEnv<'_>, surface: usize, side: f32) {
     let label = tr!("brand-impact-tile", name = name);
     response.widget_info(|| WidgetInfo::labeled(WidgetType::Image, true, &label));
     let painter = ui.painter();
-    painter.rect_filled(rect, radius::SM, canvas::ARTBOARD);
+    // The texture's shape, on the artboard's color.
+    let size = env
+        .ws
+        .project
+        .surfaces
+        .get(surface)
+        .map_or(Vec2::splat(1.0), |s| {
+            Vec2::new(s.size.width as f32, s.size.height as f32)
+        });
+    let (shape, uv) = tp_ui::widgets::thumbnail_place(rect, size);
+    painter.rect_filled(shape, radius::SM, canvas::ARTBOARD);
     let texture = env
         .ws
         .preview_thumbs
         .texture(surface)
         .or_else(|| env.ws.thumbnails.texture(surface));
     if let Some(texture) = texture {
-        let uv = Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
-        painter.image(texture.id(), rect, uv, Color32::WHITE);
+        painter.image(texture.id(), shape, uv, Color32::WHITE);
     }
     painter.rect_stroke(
         rect,

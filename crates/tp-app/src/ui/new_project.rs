@@ -692,20 +692,16 @@ fn created(ui: &mut Ui, m: &Manifest, choice: &VehicleChoice) {
         // Bottom-up: the last texture first.
         for part in painted.iter().rev() {
             ui.horizontal(|ui| {
-                let size = part.texture.size;
+                let size = part.texture.size.label();
                 let text = tr!(
                     "new-project-texture",
                     texture = part.name.as_str(),
-                    size = size
+                    size = size.as_str()
                 );
                 let row = ui.label(RichText::new(&part.name).color(color::TEXT_SECONDARY));
                 row.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    ui.label(
-                        RichText::new(format!("{size}²"))
-                            .monospace()
-                            .color(color::TEXT_SECONDARY),
-                    );
+                    ui.label(RichText::new(size).monospace().color(color::TEXT_SECONDARY));
                 });
             });
         }

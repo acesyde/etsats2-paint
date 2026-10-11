@@ -259,7 +259,7 @@ fn add_vehicle(p: &mut Project) {
         true,
         TemplateStatus::Current,
     );
-    add(p, "Globetrotter", 4096.0, t);
+    add(p, "Globetrotter", Size::new(4096.0, 4096.0), t);
     let t = template(
         p,
         (VOLVO, "chassis", Accessory),
@@ -268,7 +268,7 @@ fn add_vehicle(p: &mut Project) {
         false,
         TemplateStatus::Current,
     );
-    add(p, "Chassis", 2048.0, t);
+    add(p, "Chassis", Size::new(2048.0, 2048.0), t);
     let t = template(
         p,
         (VOLVO, "mirrors", Accessory),
@@ -277,7 +277,7 @@ fn add_vehicle(p: &mut Project) {
         true,
         TemplateStatus::LayoutChanged,
     );
-    add(p, "Mirrors", 1024.0, t);
+    add(p, "Mirrors", Size::new(1024.0, 1024.0), t);
     let t = template(
         p,
         (KRONE, "base", Main),
@@ -286,7 +286,8 @@ fn add_vehicle(p: &mut Project) {
         true,
         TemplateStatus::Removed,
     );
-    add(p, "Base", 4096.0, t);
+    // The trailer's base is rectangular, as in the game.
+    add(p, "Base", Size::new(8192.0, 1024.0), t);
     p.vehicles = vec![
         ProjectVehicle {
             package_id: VOLVO.into(),
@@ -764,7 +765,8 @@ fn v1_fixture_opens() {
             "Base"
         ]
     );
-    assert_eq!(p.surfaces[3].size, 1024.0);
+    assert_eq!(p.surfaces[3].size, Size::new(1024.0, 1024.0));
+    assert_eq!(p.surfaces[4].size, Size::new(8192.0, 1024.0));
     let chassis = p.surfaces[2].template.as_ref().unwrap();
     assert_eq!((chassis.opacity, chassis.visible), (0.35, false));
     let parts: Vec<tp_core::TexturePart> = p
@@ -814,7 +816,7 @@ fn gradients_round_trip() {
 #[test]
 fn gradient_with_one_stop_is_damaged() {
     let doc = r#"(format: 1, name: "x", resolution: 2048, active_surface: 0,
-        surfaces: [(name: "Main texture", size: 2048.0, objects: [
+        surfaces: [(name: "Main texture", size: (2048.0, 2048.0), objects: [
             (id: 1, name: "Box", kind: Rectangle(corner_radius: 0.0), center: (100.0, 100.0),
              size: (50.0, 50.0), rotation: 0.0,
              fill: Linear(start: (0.0, 0.5), end: (1.0, 0.5),
@@ -843,10 +845,42 @@ fn variant_files_of_development_builds_are_refused() {
     }
 }
 
+/// A file saved before textures had a width and a height: its surfaces
+/// have a single size.
+#[test]
+fn single_size_files_are_a_development_format() {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/dev-single-size.truckpaint");
+    let err = tp_file::read(&path).unwrap_err();
+    assert!(matches!(err, Error::Unsupported { found: 1 }), "{err:?}");
+    assert!(err.message("a.truckpaint").contains("development format"));
+    // The current document with one surface's size written as a single
+    // number.
+    let text = ron::ser::to_string(&tp_file::current::from_project(&plain_project())).unwrap();
+    let single = text.replacen("size:(2048.0,2048.0)", "size:2048.0", 1);
+    assert_ne!(single, text);
+    let err = tp_file::from_bytes(&zip_with(&single)).unwrap_err();
+    assert!(matches!(err, Error::Unsupported { found: 1 }), "{err:?}");
+}
+
+#[test]
+fn rectangular_surface_round_trips() {
+    let mut p = plain_project();
+    p.surfaces[0].size = Size::new(8192.0, 1024.0);
+    let file = tp_file::current::from_project(&p);
+    assert_eq!(file.surfaces[0].size, [8192.0, 1024.0]);
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap()).unwrap();
+    assert_eq!(opened.project.surfaces[0].size, Size::new(8192.0, 1024.0));
+    assert_eq!(
+        opened.project.surfaces[0].bounds(),
+        tp_core::kurbo::Rect::new(0.0, 0.0, 8192.0, 1024.0)
+    );
+}
+
 #[test]
 fn blank_texture_files_are_a_development_format() {
     let doc = r#"(format: 1, name: "x", resolution: 2048, active_surface: 0,
-        surfaces: [(name: "Main texture", size: 2048.0)])"#;
+        surfaces: [(name: "Main texture", size: (2048.0, 2048.0))])"#;
     let err = tp_file::from_bytes(&zip_with(doc)).unwrap_err();
     assert!(matches!(err, Error::Unsupported { found: 1 }), "{err:?}");
     assert!(err.message("a.truckpaint").contains("development format"));

@@ -29,7 +29,7 @@ fn tex(id: &'static str, name: &'static str, size: u32, layout: u32) -> SampleTe
     SampleTexture {
         id,
         name,
-        size,
+        size: tp_vehicles::TextureSize::new(size, size),
         layout,
     }
 }
@@ -229,7 +229,7 @@ fn creating_a_project_for_a_vehicle() {
         .click();
     settle(&mut h);
     // Your fleet: the textures that will be created, on the same page.
-    assert!(h.query_by_label("Cabin (4096)").is_some());
+    assert!(h.query_by_label("Cabin (4096²)").is_some());
     assert!(h.query_by_label("1 main + 2 accessories").is_some());
     assert!(h.query_by_label("3 textures in total").is_some());
     // The name keeps the choice: there is nothing to go back to.
@@ -815,8 +815,8 @@ fn create_needs_a_vehicle_and_the_last_main_texture_stays_checked() {
     for a in ["Chassis", "Cab accessories", "Side skirts"] {
         set_checkbox(&mut h, a, false);
     }
-    assert!(h.query_by_label("High roof (4096)").is_some());
-    assert!(h.query_by_label("Chassis (4096)").is_none());
+    assert!(h.query_by_label("High roof (4096²)").is_some());
+    assert!(h.query_by_label("Chassis (4096²)").is_none());
     assert!(h.query_by_label("1 main").is_some());
     assert!(h.query_by_label("1 texture in total").is_some());
 }
@@ -833,14 +833,14 @@ fn textures_that_will_be_created() {
     settle(&mut h);
     assert!(h.query_by_label("1 main + 3 accessories").is_some());
     for texture in [
-        "Standard cab (4096)",
-        "Chassis (4096)",
-        "Cab accessories (1024)",
-        "Side skirts (1024)",
+        "Standard cab (4096²)",
+        "Chassis (4096²)",
+        "Cab accessories (1024²)",
+        "Side skirts (1024²)",
     ] {
         assert!(h.query_by_label(texture).is_some(), "{texture}");
     }
-    assert!(h.query_by_label("High roof (4096)").is_none());
+    assert!(h.query_by_label("High roof (4096²)").is_none());
     assert!(h.query_by_label("4 textures in total").is_some());
 }
 
@@ -1138,7 +1138,11 @@ fn only_the_vehicle_with_a_newer_version_offers_an_update() {
         p.surfaces[0].template.as_ref().unwrap().status,
         TemplateStatus::LayoutChanged
     );
-    assert_eq!(p.surfaces[1].size, 4096.0, "the chassis grew");
+    assert_eq!(
+        p.surfaces[1].size,
+        Size::new(4096.0, 4096.0),
+        "the chassis grew"
+    );
 }
 
 /// Whether the row of texture `path` in the fleet tree is highlighted.
@@ -1174,7 +1178,7 @@ fn texture_rows_show_the_artwork_without_the_template() {
     assert!(h.query_by_label("Modified").is_none());
     // A red rectangle covering the whole Chassis texture.
     let red = tp_core::document::Rgba::rgb(220, 0, 0);
-    let side = ws(&h).project.surface().size;
+    let side = ws(&h).project.surface().max_side();
     ws_mut(&mut h).style.fill = tp_core::document::Paint::Solid(red);
     ws_mut(&mut h).style.stroke_enabled = false;
     ws_mut(&mut h).create_shape(

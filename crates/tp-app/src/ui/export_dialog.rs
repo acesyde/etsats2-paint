@@ -58,9 +58,14 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
     };
     // The active surface's own size, named after its vehicle, variant and
     // texture.
-    let side = ws.project.surface().size.round() as u32;
+    let texture_size = ws.project.surface().size;
     let name = crate::export::export_name(&ws.project);
-    let texture = format!("{} · {side} × {side} px", ws.project.surface().name);
+    let texture = format!(
+        "{} · {} × {} px",
+        ws.project.surface().name,
+        texture_size.width.round(),
+        texture_size.height.round()
+    );
 
     // Preview: pick up a finished render, start one when settings changed.
     if let Some(job) = &dialog.preview_job
@@ -124,9 +129,14 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
         ui.add_space(space::LG);
         ui.horizontal_top(|ui| {
             // Preview.
-            let (rect, response) = ui.allocate_exact_size(Vec2::splat(PREVIEW), Sense::hover());
+            let (area, response) = ui.allocate_exact_size(Vec2::splat(PREVIEW), Sense::hover());
             response
                 .widget_info(|| WidgetInfo::labeled(WidgetType::Image, true, tr("export-preview")));
+            // The texture's shape, never stretched.
+            let rect = tp_ui::widgets::fit_rect(
+                area,
+                Vec2::new(texture_size.width as f32, texture_size.height as f32),
+            );
             tp_ui::widgets::paint_checkerboard(&ui.painter_at(rect), rect, 10.0);
             match &dialog.preview {
                 Some(texture) => {
@@ -157,11 +167,11 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
 
             ui.vertical(|ui| {
                 ui.add_enabled_ui(exporting.is_none(), |ui| {
-                    settings_ui(ui, &mut dialog.settings, side)
+                    settings_ui(ui, &mut dialog.settings, texture_size)
                 });
                 ui.add_space(space::LG);
-                let size = dialog.settings.size(side);
-                let (bytes, exact) = dialog.settings.estimated_bytes(side);
+                let (width, height) = dialog.settings.size(texture_size);
+                let (bytes, exact) = dialog.settings.estimated_bytes(texture_size);
                 let format = match dialog.settings.format {
                     ExportFormat::Png => "PNG",
                     ExportFormat::Dds => match dialog.settings.dds {
@@ -171,7 +181,8 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
                 };
                 let info = tr!(
                     "export-info",
-                    size = size.to_string(),
+                    width = width.to_string(),
+                    height = height.to_string(),
                     format = format,
                     bytes = size_text(bytes, exact)
                 );
@@ -238,7 +249,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
     keep
 }
 
-fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
+fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, texture: tp_core::kurbo::Size) {
     super::dialogs::field_label(ui, &tr("export-format"));
     if let Some(format) = SegmentedControl::new()
         .segment(ExportFormat::Png, tp_ui::icons::IMAGE, "PNG", None)
@@ -270,8 +281,12 @@ fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, side: u32) {
     super::dialogs::field_label(ui, &tr("export-size"));
     ui.horizontal(|ui| {
         for divisor in [1, 2, 4] {
-            let size = side / divisor;
-            ui.radio_value(&mut settings.divisor, divisor, format!("{size} × {size}"));
+            let (w, h) = ExportSettings {
+                divisor,
+                ..*settings
+            }
+            .size(texture);
+            ui.radio_value(&mut settings.divisor, divisor, format!("{w} × {h}"));
         }
     });
     ui.add_space(space::MD);

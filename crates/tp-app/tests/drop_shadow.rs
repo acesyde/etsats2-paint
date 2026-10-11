@@ -393,10 +393,11 @@ fn zoom_to_100(h: &mut H, center: Point) {
 /// The export of the active texture at full size.
 fn export(h: &H) -> tp_render::Pixmap {
     let ws = ws(h);
-    let size = ws.project.surface().size as u32;
+    let size = ws.project.surface().max_side() as u32;
     let mut fonts = tp_text::FontLibrary::bundled();
     let options = tp_render::RenderOptions {
-        size,
+        width: size,
+        height: size,
         background: None,
     };
     tp_render::render(

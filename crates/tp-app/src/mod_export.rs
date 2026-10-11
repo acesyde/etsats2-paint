@@ -527,8 +527,12 @@ pub enum Entry {
     Text(String),
     /// A `.tobj`.
     Bytes(Vec<u8>),
-    /// Surface `surface` rendered at `size` pixels, as DDS.
-    Texture { surface: usize, size: u32 },
+    /// Surface `surface` rendered at `width` × `height` pixels, as DDS.
+    Texture {
+        surface: usize,
+        width: u32,
+        height: u32,
+    },
     /// The shop icon, as DDS.
     Icon,
     /// The Mod Manager image, as JPEG.
@@ -555,7 +559,7 @@ impl ModPlan {
         self.files
             .values()
             .map(|e| match e {
-                Entry::Texture { size, .. } => u64::from(*size) * u64::from(*size),
+                Entry::Texture { width, height, .. } => u64::from(*width) * u64::from(*height),
                 Entry::Icon => u64::from(ICON_SIZE.0 * ICON_SIZE.1),
                 Entry::Image => u64::from(IMAGE_SIZE.0 * IMAGE_SIZE.1),
                 Entry::Text(_) | Entry::Bytes(_) => 0,
@@ -690,10 +694,13 @@ pub fn plan(project: &Project) -> Result<ModPlan, Vec<Problem>> {
                 stem = format!("{stem}_{i}");
             }
             stems.push(stem.clone());
-            let size = surface.size.round() as u32;
             files.insert(
                 format!("{textures}/{stem}.dds"),
-                Entry::Texture { surface: i, size },
+                Entry::Texture {
+                    surface: i,
+                    width: surface.size.width.round() as u32,
+                    height: surface.size.height.round() as u32,
+                },
             );
             let tobj_path = format!("{textures}/{stem}.tobj");
             files.insert(
@@ -1043,10 +1050,15 @@ fn run_mod_export(
         let (bytes, options) = match entry {
             Entry::Text(text) => (text.clone().into_bytes(), deflated),
             Entry::Bytes(bytes) => (bytes.clone(), deflated),
-            Entry::Texture { surface, size } => {
-                let weight = u64::from(*size) * u64::from(*size);
+            Entry::Texture {
+                surface,
+                width,
+                height,
+            } => {
+                let weight = u64::from(*width) * u64::from(*height);
                 let options = RenderOptions {
-                    size: *size,
+                    width: *width,
+                    height: *height,
                     background: None,
                 };
                 let rendered =
@@ -1241,13 +1253,13 @@ mod tests {
             tp_vehicles::sample::SampleTexture {
                 id: "cabin",
                 name: "Cabin",
-                size: 256,
+                size: tp_vehicles::TextureSize::new(256, 256),
                 layout: 1,
             },
             tp_vehicles::sample::SampleTexture {
                 id: "chassis",
                 name: "Chassis",
-                size: 256,
+                size: tp_vehicles::TextureSize::new(256, 256),
                 layout: 1,
             },
         ];
@@ -1321,6 +1333,46 @@ mod tests {
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 
+    /// mod-export "Rectangular texture in the mod": an 8192 × 1024 base is
+    /// written at its own size with 14 mipmap levels.
+    #[test]
+    fn rectangular_texture_in_the_mod() {
+        let base = tp_vehicles::sample::SampleTexture {
+            id: "base",
+            name: "Base",
+            size: tp_vehicles::TextureSize::new(8192, 1024),
+            layout: 1,
+        };
+        let package = Package::read(&tp_vehicles::sample::package_with(
+            "community.jdoe.liner",
+            "Liner",
+            "1.0.0",
+            "trailer",
+            &[base],
+            &[],
+        ))
+        .unwrap();
+        let mut project = fleet_project("ACE", &package, &ids(&["base"])).unwrap();
+        project.mod_settings.internal_name = Some("ace".into());
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ACE.scs");
+        let plan = plan(&project).unwrap();
+        let (name, _) = plan
+            .files
+            .iter()
+            .find(|(_, e)| matches!(e, Entry::Texture { .. }))
+            .unwrap();
+        let name = name.clone();
+        assert_eq!(
+            export(&project, &path),
+            ExportOutcome::Written(path.clone())
+        );
+        let dds = read_entry(&mut archive(&path), &name);
+        assert_eq!(&dds[84..88], b"DXT5");
+        assert_eq!((u32_at(&dds, 16), u32_at(&dds, 12)), (8192, 1024));
+        assert_eq!(u32_at(&dds, 28), 14, "mip levels");
+    }
+
     /// drop-shadow: Export Mod's textures go through the same renderer as
     /// Export Texture, so a shadow is the same in both.
     #[test]
@@ -1352,7 +1404,8 @@ mod tests {
         project.add(text);
         let size = 256;
         let options = RenderOptions {
-            size,
+            width: size,
+            height: size,
             background: None,
         };
         let rendered = |p: &Project| {
@@ -1450,9 +1503,10 @@ mod tests {
             200.0,
         ));
         let surface = project.surface().size;
-        assert_eq!(surface, 4096.0);
+        assert_eq!(surface, Size::new(4096.0, 4096.0));
         let options = RenderOptions {
-            size: 4096,
+            width: 4096,
+            height: 4096,
             background: None,
         };
         let mut fonts = FontLibrary::bundled();
@@ -2035,7 +2089,8 @@ mod tests {
             plan.files[&format!("{TRUCK_TEX}/side_skirts.dds")],
             Entry::Texture {
                 surface: 3,
-                size: 1024
+                width: 1024,
+                height: 1024
             }
         );
         assert_eq!(

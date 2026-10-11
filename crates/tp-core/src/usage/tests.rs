@@ -13,8 +13,10 @@ const RED: Rgba = Rgba::rgb(200, 0, 0);
 fn fleet() -> (Project, SwatchId) {
     let mut p = Project::new("p", TextureResolution::R2048);
     p.surfaces[0].name = "Cab".into();
-    p.surfaces.push(Surface::new("Chassis", 2048.0));
-    p.surfaces.push(Surface::new("Trailer", 2048.0));
+    p.surfaces
+        .push(Surface::new("Chassis", Size::new(2048.0, 2048.0)));
+    p.surfaces
+        .push(Surface::new("Trailer", Size::new(2048.0, 2048.0)));
     let (red, _) = p.add_swatch(RED, "Color");
     p.rename_swatch(red, "Company red");
     (p, red)
@@ -59,7 +61,7 @@ fn logo(p: &mut Project, content: Vec<Object>) -> SymbolId {
     p.symbols.push(Symbol {
         id,
         name: "Logo".into(),
-        surface: Surface::new("Logo", 500.0),
+        surface: Surface::new("Logo", Size::new(500.0, 500.0)),
         origin: None,
     });
     p.editing_symbol = Some(id);

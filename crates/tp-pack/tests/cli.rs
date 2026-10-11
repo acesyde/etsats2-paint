@@ -61,7 +61,7 @@ fn check_describes_a_trailer() {
     let tex = |id, name, size| sample::SampleTexture {
         id,
         name,
-        size,
+        size: tp_vehicles::TextureSize::new(size, size),
         layout: 1,
     };
     let bytes = sample::package_with(
@@ -83,12 +83,96 @@ fn check_describes_a_trailer() {
         stdout.contains("Trailer (Sample trailer, ets2)"),
         "{stdout}"
     );
-    assert!(stdout.contains("base (Base): 2048×2048"), "{stdout}");
+    assert!(stdout.contains("base (Base): 2048²"), "{stdout}");
     assert!(stdout.contains("[whole vehicle]"), "{stdout}");
     assert!(
-        stdout
-            .contains("body (Body 13.6 m): 4096×4096, layout 1, templates/body.png [body.sample]"),
+        stdout.contains("body (Body 13.6 m): 4096², layout 1, templates/body.png [body.sample]"),
         "{stdout}"
+    );
+}
+
+#[test]
+fn check_prints_rectangular_sizes() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = sample::SampleTexture {
+        id: "base",
+        name: "Base",
+        size: tp_vehicles::TextureSize::new(8192, 1024),
+        layout: 1,
+    };
+    let bytes = sample::package_with(
+        "community.jdoe.liner",
+        "Liner",
+        "1.0.0",
+        "trailer",
+        &[base],
+        &[],
+    );
+    std::fs::write(dir.path().join("t.tpv"), bytes).unwrap();
+    let out = tpv(dir.path(), &["check", "t.tpv"]);
+    assert!(out.status.success(), "{}", text(&out.stderr));
+    let stdout = text(&out.stdout);
+    assert!(
+        stdout.contains("base (Base): 8192 × 1024, layout 1"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn pack_refuses_a_single_size() {
+    let dir = tempfile::tempdir().unwrap();
+    source(dir.path());
+    let path = dir.path().join("src/vehicle.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    manifest["paint_job"]["main"][0]["texture"]["size"] = 4096.into();
+    std::fs::write(&path, manifest.to_string()).unwrap();
+    let out = tpv(dir.path(), &["pack", "src", "-o", "out.tpv"]);
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = text(&out.stderr);
+    assert!(
+        stderr.contains("Cabin texture size 4096 is invalid: it must be a width and a height"),
+        "{stderr}"
+    );
+    assert!(!dir.path().join("out.tpv").exists());
+}
+
+/// Every example manifest of docs/vehicle-package-format.md packs and
+/// passes `tpv check`.
+#[test]
+fn documented_examples_pass_check() {
+    let doc = include_str!("../../../docs/vehicle-package-format.md");
+    let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"/>"#;
+    let mut count = 0;
+    for (i, block) in doc.split("```json\n").skip(1).enumerate() {
+        let json = &block[..block.find("```").expect("end of example")];
+        let manifest: serde_json::Value = serde_json::from_str(json).expect("parses");
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("src");
+        std::fs::create_dir_all(src.join("templates")).unwrap();
+        std::fs::write(src.join("vehicle.json"), json).unwrap();
+        let templates = ["main", "accessories"]
+            .iter()
+            .flat_map(|list| manifest["paint_job"][list].as_array().into_iter().flatten())
+            .map(|part| part["texture"]["template"].as_str().unwrap())
+            .chain(manifest["preview"].as_str());
+        for template in templates {
+            let bytes = if template.ends_with(".svg") {
+                svg.to_vec()
+            } else {
+                sample::png(16)
+            };
+            std::fs::write(src.join(template), bytes).unwrap();
+        }
+        let out = tpv(dir.path(), &["pack", "src", "-o", "doc.tpv"]);
+        assert!(out.status.success(), "example {i}: {}", text(&out.stderr));
+        let out = tpv(dir.path(), &["check", "doc.tpv"]);
+        assert!(out.status.success(), "example {i}: {}", text(&out.stderr));
+        count += 1;
+    }
+    assert!(
+        count >= 3,
+        "a truck with several layouts, one layout, a trailer"
     );
 }
 
@@ -119,4 +203,5 @@ fn check_refuses_a_corrupt_file_and_usage_errors_fail() {
     let help = tpv(dir.path(), &["--help"]);
     assert!(help.status.success());
     assert!(text(&help.stdout).contains("Usage:"));
+    assert!(text(&help.stdout).contains("[width, height]"));
 }

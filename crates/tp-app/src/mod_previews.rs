@@ -13,6 +13,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use egui::{ColorImage, TextureHandle, TextureOptions};
 use tp_core::Project;
 use tp_core::document::{AssetId, Object};
+use tp_core::kurbo::Size;
 use tp_text::FontLibrary;
 
 use crate::mod_export::{ICON_SIZE, IMAGE_SIZE, Picture};
@@ -42,7 +43,7 @@ pub fn render(
 struct Key {
     /// The first texture's top-level objects and size (generated pictures).
     objects: Vec<Arc<Object>>,
-    size: f64,
+    size: Size,
     fonts: u64,
     /// The chosen pictures.
     icon: Option<AssetId>,
@@ -54,7 +55,7 @@ impl Key {
         let (objects, size) = project
             .surfaces
             .first()
-            .map_or((Vec::new(), 0.0), |s| (s.objects.clone(), s.size));
+            .map_or((Vec::new(), Size::ZERO), |s| (s.objects.clone(), s.size));
         Self {
             objects,
             size,

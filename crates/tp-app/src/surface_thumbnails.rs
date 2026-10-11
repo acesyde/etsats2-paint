@@ -20,9 +20,21 @@ use tp_core::{Asset, Project};
 use tp_render::RenderOptions;
 use tp_text::FontLibrary;
 
-/// Side of a thumbnail, in pixels: sharp for the Project space's
+/// Longest side of a thumbnail, in pixels: sharp for the Project space's
 /// 120-point tiles at 1×, and for a 26-point row up to 4.9×.
 pub const SIDE: u32 = 128;
+
+/// Pixel size of a thumbnail of a texture of `size`: its shape, with its
+/// longest side at `side` (an 8192 × 1024 texture at 128 gives 128 × 16).
+pub fn thumbnail_size(size: tp_core::kurbo::Size, side: u32) -> (u32, u32) {
+    let longest = size.width.max(size.height);
+    if longest.is_nan() || longest <= 0.0 {
+        return (side, side);
+    }
+    let k = f64::from(side) / longest;
+    let px = |s: f64| ((s * k).round() as u32).clamp(1, side);
+    (px(size.width), px(size.height))
+}
 
 /// Delay before the UI picks up finished thumbnails.
 const REPAINT_DELAY: std::time::Duration = std::time::Duration::from_millis(50);
@@ -30,7 +42,7 @@ const REPAINT_DELAY: std::time::Duration = std::time::Duration::from_millis(50);
 /// What a thumbnail was rendered from.
 struct Key {
     objects: Vec<Arc<Object>>,
-    size: f64,
+    size: tp_core::kurbo::Size,
     /// Fonts generation (texts are laid out again when fonts load).
     fonts: u64,
 }
@@ -235,6 +247,11 @@ impl SurfaceThumbnails {
         self.templates.get(&asset)?.as_ref()
     }
 
+    /// Pixel size of the thumbnail of `surface`, once rendered (tests).
+    pub fn size_of(&self, surface: usize) -> Option<[usize; 2]> {
+        self.shown.get(&surface).map(|t| t.image.size)
+    }
+
     /// Color of the thumbnail of `surface` at `uv` (0..1), for tests.
     pub fn color_at(&self, surface: usize, uv: [f32; 2]) -> Option<Rgba> {
         let image = &self.shown.get(&surface)?.image;
@@ -260,18 +277,22 @@ fn start(
     let spawned = std::thread::Builder::new()
         .name("surface-thumbnails".into())
         .spawn(move || {
-            let options = RenderOptions {
-                size: SIDE,
-                background: None,
-            };
             let done: Rendered = surfaces
                 .into_iter()
                 .map(|(surface, key)| {
+                    let (width, height) = thumbnail_size(key.size, SIDE);
+                    let options = RenderOptions {
+                        width,
+                        height,
+                        background: None,
+                    };
                     let pixmap =
                         tp_render::render(&project, surface, options, &mut fonts, &mut |_, _| true)
                             .expect("never cancelled");
-                    let side = SIDE as usize;
-                    let image = ColorImage::from_rgba_premultiplied([side, side], pixmap.data());
+                    let image = ColorImage::from_rgba_premultiplied(
+                        [width as usize, height as usize],
+                        pixmap.data(),
+                    );
                     (surface, key, image)
                 })
                 .collect();
@@ -303,7 +324,7 @@ mod tests {
 
     fn project() -> Project {
         let mut p = Project::new("Test", tp_core::TextureResolution::default());
-        let side = p.surface().size;
+        let side = p.surface().max_side();
         let mut o = Object::new(
             ObjectId(0),
             ShapeKind::rectangle(),
@@ -380,5 +401,19 @@ mod tests {
         assert_eq!(cache.renders, 3);
         assert_eq!(cache.color_at(2, [0.5, 0.5]), Some(Rgba::rgb(0, 0, 255)));
         assert_eq!(cache.color_at(0, [0.5, 0.5]), Some(Rgba::rgb(255, 0, 0)));
+    }
+
+    #[test]
+    fn a_thumbnail_keeps_the_texture_shape() {
+        assert_eq!(thumbnail_size(Size::new(8192.0, 1024.0), SIDE), (128, 16));
+        assert_eq!(thumbnail_size(Size::new(4096.0, 4096.0), SIDE), (128, 128));
+        assert_eq!(thumbnail_size(Size::new(64.0, 8192.0), SIDE), (1, 128));
+        let ctx = egui::Context::default();
+        let fonts = FontLibrary::bundled();
+        let mut p = project();
+        p.surfaces[0].size = Size::new(8192.0, 1024.0);
+        let mut cache = SurfaceThumbnails::default();
+        settle(&mut cache, &ctx, &p, &fonts);
+        assert_eq!(cache.size_of(0), Some([128, 16]));
     }
 }

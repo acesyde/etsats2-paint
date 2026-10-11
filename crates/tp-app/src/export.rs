@@ -9,6 +9,7 @@ use tp_i18n::tr;
 
 use tp_core::Project;
 use tp_core::document::Rgba;
+use tp_core::kurbo::Size;
 use tp_render::{DdsEncoding, RenderOptions};
 use tp_text::FontLibrary;
 
@@ -52,18 +53,20 @@ impl Default for ExportSettings {
 }
 
 impl ExportSettings {
-    /// Output side in pixels for a texture of side `side`.
-    pub fn size(&self, side: u32) -> u32 {
-        (side / self.divisor.max(1)).max(1)
+    /// Output width and height in pixels for a texture of `texture` size:
+    /// both sides divided, never below 1 px.
+    pub fn size(&self, texture: Size) -> (u32, u32) {
+        let side = |s: f64| (s.round() as u32 / self.divisor.max(1)).max(1);
+        (side(texture.width), side(texture.height))
     }
 
     /// Estimated file size in bytes, and whether it is exact.
-    pub fn estimated_bytes(&self, side: u32) -> (u64, bool) {
-        let size = self.size(side);
+    pub fn estimated_bytes(&self, texture: Size) -> (u64, bool) {
+        let (w, h) = self.size(texture);
         match self.format {
             // PNG compresses livery artwork well; a rough average.
-            ExportFormat::Png => (u64::from(size) * u64::from(size) * 2, false),
-            ExportFormat::Dds => (tp_render::dds_size(size, self.dds), true),
+            ExportFormat::Png => (u64::from(w) * u64::from(h) * 2, false),
+            ExportFormat::Dds => (tp_render::dds_size(w, h, self.dds), true),
         }
     }
 
@@ -129,8 +132,10 @@ fn run_export(
         path: path.to_path_buf(),
         reason,
     };
+    let (width, height) = settings.size(project.surface().size);
     let options = RenderOptions {
-        size: settings.size(project.surface().size.round() as u32),
+        width,
+        height,
         background: settings.background,
     };
     let rendered = tp_render::render(
@@ -240,7 +245,7 @@ impl ExportJob {
     }
 }
 
-/// Side of preview renders.
+/// Longest side of preview renders.
 pub const PREVIEW_SIDE: u32 = 512;
 
 /// A preview render on a worker thread.
@@ -261,11 +266,12 @@ impl PreviewJob {
             .name("export-preview".into())
             .spawn(move || {
                 let mut fonts = fonts;
-                let size = settings
-                    .size(project.surface().size.round() as u32)
-                    .min(PREVIEW_SIDE);
+                // The export's shape, its longest side at most PREVIEW_SIDE.
+                let (w, h) = settings.size(project.surface().size);
+                let k = (f64::from(PREVIEW_SIDE) / f64::from(w.max(h))).min(1.0);
                 let options = RenderOptions {
-                    size,
+                    width: ((f64::from(w) * k).round() as u32).max(1),
+                    height: ((f64::from(h) * k).round() as u32).max(1),
                     background: settings.background,
                 };
                 if let Ok(pixmap) = tp_render::render(
@@ -323,7 +329,7 @@ pub fn export_name(project: &Project) -> String {
 mod tests {
     use tp_core::TextureResolution;
     use tp_core::document::{Frame, Object, ObjectId, ShapeKind};
-    use tp_core::kurbo::{Point, Size};
+    use tp_core::kurbo::Point;
 
     use super::*;
 
@@ -344,10 +350,17 @@ mod tests {
             format: ExportFormat::Dds,
             ..ExportSettings::default()
         };
-        assert_eq!(s.size(4096), 2048);
+        assert_eq!(s.size(Size::new(4096.0, 4096.0)), (2048, 2048));
         assert_eq!(s.suggested_name("ACE Logistics"), "ACE Logistics.dds");
-        let (bytes, exact) = s.estimated_bytes(4096);
+        let (bytes, exact) = s.estimated_bytes(Size::new(4096.0, 4096.0));
         assert!(exact && bytes > 2048 * 2048);
+        // Both sides are divided, never below 1 px.
+        let quarter = ExportSettings {
+            divisor: 4,
+            ..ExportSettings::default()
+        };
+        assert_eq!(quarter.size(Size::new(8192.0, 1024.0)), (2048, 256));
+        assert_eq!(quarter.size(Size::new(8.0, 2.0)), (2, 1));
         assert_eq!(size_text(5 * 1024 * 1024, true), "5.0 MB");
         assert_eq!(size_text(32 * 1024 * 1024, false), "about 32 MB");
     }

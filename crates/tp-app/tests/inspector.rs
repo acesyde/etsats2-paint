@@ -355,7 +355,7 @@ fn dashed_preset_for_a_line() {
 fn nothing_selected_describes_the_texture() {
     let mut h = open();
     assert!(has(&h, "Standard cab"));
-    assert!(has(&h, "Main texture · 4096 × 4096 px"));
+    assert!(has(&h, "Main texture · 4096²"));
     assert!(has(
         &h,
         "Select an object to set its layout, fill and stroke."
@@ -386,7 +386,35 @@ fn nothing_selected_describes_the_texture() {
         .unwrap();
     ws_mut(&mut h).set_active_surface(side_skirts);
     h.run();
-    assert!(has(&h, "Accessory texture · 1024 × 1024 px"));
+    assert!(has(&h, "Accessory texture · 1024²"));
+}
+
+#[test]
+fn a_rectangular_texture_shows_both_sides() {
+    use tp_vehicles::TextureSize;
+    use tp_vehicles::sample::{self, SampleTexture};
+    let mut h = open();
+    let base = SampleTexture {
+        id: "base",
+        name: "Base",
+        size: TextureSize::new(8192, 1024),
+        layout: 1,
+    };
+    let bytes = sample::package_with(
+        "test.trailer",
+        "Test Trailer",
+        "1.0.0",
+        "trailer",
+        &[base],
+        &[],
+    );
+    let package = tp_vehicles::Package::read(&bytes).unwrap();
+    ws_mut(&mut h)
+        .add_vehicle(&package, &["base".to_owned()], 1.0)
+        .unwrap();
+    h.run();
+    assert_eq!(ws(&h).project.surface().name, "Base");
+    assert!(has(&h, "Main texture · 8192 × 1024"));
 }
 
 /// Flags the active texture with `status`.

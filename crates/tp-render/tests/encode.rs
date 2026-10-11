@@ -20,7 +20,8 @@ fn scene(size: u32) -> Pixmap {
         &p,
         0,
         RenderOptions {
-            size,
+            width: size,
+            height: size,
             background: Some(Rgba::rgb(240, 240, 240)),
         },
         &mut tp_text::FontLibrary::bundled(),
@@ -60,7 +61,7 @@ fn dds_bc3_header_and_decoding() {
     assert_eq!((u32_at(&bytes, 12), u32_at(&bytes, 16)), (2048, 2048));
     assert_eq!(u32_at(&bytes, 28), 12, "mip levels");
     assert_eq!(&bytes[84..88], b"DXT5");
-    assert_eq!(bytes.len() as u64, dds_size(2048, DdsEncoding::Bc3));
+    assert_eq!(bytes.len() as u64, dds_size(2048, 2048, DdsEncoding::Bc3));
     let decoded = image::load_from_memory_with_format(&bytes, image::ImageFormat::Dds)
         .unwrap()
         .to_rgba8();
@@ -82,7 +83,7 @@ fn dds_uncompressed_is_exact_bgra() {
     let bytes = encode_dds(&pixmap, DdsEncoding::Rgba, &mut |_, _| true).unwrap();
     assert_eq!(u32_at(&bytes, 28), 7);
     assert_eq!(u32_at(&bytes, 88), 32, "bits per pixel");
-    assert_eq!(bytes.len() as u64, dds_size(64, DdsEncoding::Rgba));
+    assert_eq!(bytes.len() as u64, dds_size(64, 64, DdsEncoding::Rgba));
     let original = tp_render::to_rgba(&pixmap);
     let [r, g, b, a] = original.get_pixel(32, 32).0;
     let offset = 128 + (32 * 64 + 32) * 4;
@@ -152,7 +153,8 @@ fn export_timings() {
             &p,
             0,
             RenderOptions {
-                size: res.side(),
+                width: res.side(),
+                height: res.side(),
                 background: Some(Rgba::rgb(255, 255, 255)),
             },
             &mut fonts,

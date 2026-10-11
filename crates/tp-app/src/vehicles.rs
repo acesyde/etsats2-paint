@@ -106,7 +106,11 @@ pub fn package_error_reason(e: &PackageError) -> String {
         PackageError::BadGameId(id) => tr!("pkg-bad-game-id", id = id.as_str()),
         PackageError::DuplicateGameId(id) => tr!("pkg-duplicate-game-id", id = id.as_str()),
         PackageError::BadSize { texture, size } => {
-            tr!("pkg-bad-size", texture = texture.as_str(), size = *size)
+            tr!(
+                "pkg-bad-size",
+                texture = texture.as_str(),
+                size = size.as_str()
+            )
         }
         PackageError::UnsafePath(path) => tr!("pkg-unsafe-path", path = path.as_str()),
         PackageError::TooLarge => tr("pkg-too-large"),

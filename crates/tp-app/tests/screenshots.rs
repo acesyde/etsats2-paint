@@ -1012,7 +1012,8 @@ fn render_export() {
         &ws.project,
         0,
         tp_render::RenderOptions {
-            size: 4096,
+            width: 4096,
+            height: 4096,
             background: Some(tp_core::document::Rgba::rgb(255, 255, 255)),
         },
         &mut ws.text.fonts,
@@ -1288,7 +1289,8 @@ fn render_vector_tools() {
         &ws.project,
         0,
         tp_render::RenderOptions {
-            size: 1024,
+            width: 1024,
+            height: 1024,
             background: None,
         },
         &mut ws.text.fonts,
@@ -1737,7 +1739,8 @@ fn canvas_matches_export_for_gradients() {
             &ws.project,
             0,
             tp_render::RenderOptions {
-                size: side,
+                width: side,
+                height: side,
                 background: Some(Rgba::rgb(255, 255, 255)),
             },
             &mut ws.text.fonts,
@@ -1745,7 +1748,7 @@ fn canvas_matches_export_for_gradients() {
         )
         .unwrap(),
     );
-    let surface = ws.project.surface().size;
+    let surface = ws.project.surface().max_side();
     // Inside the cab fade (away from the glow, text and line) and on dashes.
     let samples = [
         Point::new(500.0, 2300.0),
@@ -1844,7 +1847,7 @@ fn render_vehicle_screens() {
         let tex = |id, name, size, layout| SampleTexture {
             id,
             name,
-            size,
+            size: tp_vehicles::TextureSize::new(size, size),
             layout,
         };
         for (version, cabin_layout) in [("1.2.0", 1), ("1.3.0", 2)] {
@@ -2195,11 +2198,11 @@ fn editor_fleet(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
         .filter(|o| o.text.is_none())
         .cloned()
         .collect();
-    let side = ws.project.surfaces[0].size;
+    let side = ws.project.surfaces[0].max_side();
     for i in 1..ws.project.surfaces.len() {
         ws.project.active_surface = i;
         // Scaled to the texture's size.
-        let k = ws.project.surface().size / side;
+        let k = ws.project.surface().max_side() / side;
         for o in &copies {
             let mut o = tp_core::document::Object::clone(o);
             o.frame.center = (o.frame.center.to_vec2() * k).to_point();
@@ -2620,7 +2623,7 @@ fn render_texture_status() {
                     .position(|s| s.name == name)
                     .unwrap();
                 ws.project.active_surface = i;
-                let side = ws.project.surface().size;
+                let side = ws.project.surface().max_side();
                 for (k, color) in colors.iter().enumerate() {
                     let mut o = Object::new(
                         ObjectId(0),
@@ -2732,7 +2735,7 @@ fn palette_fleet(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
             .position(|s| s.name == name)
             .unwrap();
         ws.project.active_surface = i;
-        let side = ws.project.surface().size;
+        let side = ws.project.surface().max_side();
         ws.project.add(Object::new(
             ObjectId(0),
             ShapeKind::rectangle(),
@@ -2969,4 +2972,168 @@ fn render_drop_shadow_long_texts() {
     h.state_mut().workspace_mut().unwrap().selection = vec![phone];
     save_shadowed(&mut h, "shadow_long_add");
     tp_i18n::set_lengthening(0);
+}
+
+/// A template-like PNG of `width` × `height` (outline and diagonals on
+/// transparency), for a rectangular texture.
+fn rect_template(width: u32, height: u32) -> Vec<u8> {
+    let mut img = image::RgbaImage::new(width, height);
+    let ink = image::Rgba([20, 20, 20, 255]);
+    for x in 0..width {
+        img.put_pixel(x, 0, ink);
+        img.put_pixel(x, height - 1, ink);
+        let y = (x as u64 * u64::from(height - 1) / u64::from(width - 1)) as u32;
+        img.put_pixel(x, y, ink);
+        img.put_pixel(x, height - 1 - y, ink);
+    }
+    for y in 0..height {
+        img.put_pixel(0, y, ink);
+        img.put_pixel(width - 1, y, ink);
+    }
+    let mut out = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
+        .unwrap();
+    out
+}
+
+/// Rectangular textures: the sample truck with a trailer whose main
+/// texture "Base" is 8192 × 1024 and accessory "Light bar" 2048 × 256,
+/// each with a circle and a square (which must stay round and square):
+/// the Workshop fitted on each, the Textures tab, the Project space's
+/// texture rows (scrolled to the trailer's) and the Export Texture dialog
+/// of each, in English and German at
+/// 100 %. Files are named `rect_<language>_<screen>.png`.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_rectangular_textures() {
+    use tp_app::layout::Space;
+    use tp_app::state::Modal;
+    use tp_core::document::{CharStyle, Frame, Object, ObjectId, Rgba, ShapeKind};
+    use tp_core::kurbo::{Point, Size};
+    use tp_vehicles::TextureSize;
+    use tp_vehicles::sample::{self, SampleTexture};
+    let base = SampleTexture {
+        id: "base",
+        name: "Base",
+        size: TextureSize::new(8192, 1024),
+        layout: 1,
+    };
+    let light_bar = SampleTexture {
+        id: "light_bar",
+        name: "Light bar",
+        size: TextureSize::new(2048, 256),
+        layout: 1,
+    };
+    let manifest = sample::manifest_with(
+        "scs.krone.cool_liner",
+        "Krone Cool Liner",
+        "1.0.0",
+        "trailer",
+        &[base],
+        &[light_bar],
+    );
+    let bytes = sample::zip(
+        &manifest,
+        &[
+            ("templates/base.png".into(), rect_template(1024, 128)),
+            ("templates/light_bar.png".into(), rect_template(512, 64)),
+        ],
+    );
+    let trailer = tp_vehicles::Package::read(&bytes).unwrap();
+    for language in [tp_i18n::Language::English, tp_i18n::Language::German] {
+        let mut prefs = Prefs::default();
+        prefs.set_language(Some(language));
+        let code = language.code();
+        let name = |screen: &str| format!("rect_{code}_{screen}");
+        let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
+        mac_native(&mut h);
+        common::create_project(&mut h);
+        let all = tp_app::vehicle_project::default_textures(&trailer.manifest);
+        let ws = h.state_mut().workspace_mut().unwrap();
+        ws.project.name = "ACE Logistics".into();
+        ws.add_vehicle(&trailer, &all, 1.0).unwrap();
+        let base_index = ws.project.active_surface;
+        // A circle and a square of the same size on each texture.
+        let shapes = |ws: &mut tp_app::workspace::Workspace, side: f64, at: (f64, f64)| {
+            for (i, kind, fill) in [
+                (0.0, ShapeKind::Ellipse, Rgba::rgb(0xF0, 0xB4, 0x4C)),
+                (1.5, ShapeKind::rectangle(), Rgba::rgb(0x7A, 0x1F, 0x2B)),
+            ] {
+                let center = Point::new(at.0 + i * side, at.1);
+                let mut o = Object::new(
+                    ObjectId(0),
+                    kind,
+                    Frame::new(center, Size::new(side, side), 0.0),
+                );
+                o.fill = fill.into();
+                ws.project.add(o);
+            }
+        };
+        shapes(ws, 800.0, (700.0, 512.0));
+        let style = CharStyle {
+            size: 420.0,
+            ..CharStyle::default()
+        };
+        add_text(
+            ws,
+            "ACE Logistics",
+            style,
+            (3000.0, 660.0),
+            Rgba::rgb(0x1B, 0x23, 0x40),
+            None,
+        );
+        ws.set_active_surface(base_index + 1);
+        shapes(ws, 200.0, (180.0, 128.0));
+        ws.set_active_surface(base_index);
+        common::settle_renders(&mut h);
+        h.state_mut().prefs.layout.left_tab = LeftTab::Layers;
+        run(&mut h, tp_app::commands::CommandId::FitToScreen);
+        save(&mut h, &name("workshop"));
+        h.state_mut().prefs.layout.left_tab = LeftTab::Textures;
+        save(&mut h, &name("textures_tab"));
+        h.state_mut()
+            .workspace_mut()
+            .unwrap()
+            .set_active_surface(base_index + 1);
+        common::settle_renders(&mut h);
+        run(&mut h, tp_app::commands::CommandId::FitToScreen);
+        save(&mut h, &name("workshop_accessory"));
+        h.state_mut().prefs.layout.left_tab = LeftTab::Layers;
+        common::show_space(&mut h, Space::Project);
+        save(&mut h, &name("project"));
+        // Scrolled down to the trailer's rows.
+        h.event(egui::Event::PointerMoved(egui::pos2(500.0, 500.0)));
+        h.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: Vec2::new(0.0, -2000.0),
+            modifiers: egui::Modifiers::NONE,
+            phase: egui::TouchPhase::Move,
+        });
+        h.run_steps(10);
+        save(&mut h, &name("project_trailer"));
+        common::show_space(&mut h, Space::Workshop);
+        for (index, screen) in [(base_index, "export"), (base_index + 1, "export_accessory")] {
+            h.state_mut()
+                .workspace_mut()
+                .unwrap()
+                .set_active_surface(index);
+            h.run();
+            h.key_press_modifiers(
+                egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+                egui::Key::E,
+            );
+            for _ in 0..400 {
+                h.step();
+                let ready = matches!(&h.state().modal, Some(Modal::Export(d)) if d.preview_ready());
+                if ready {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            settle_dialog(&mut h);
+            save(&mut h, &name(screen));
+            h.state_mut().modal = None;
+            h.run();
+        }
+    }
 }

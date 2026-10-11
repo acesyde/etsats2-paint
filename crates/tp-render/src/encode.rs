@@ -74,19 +74,20 @@ fn bc3_level_size(w: u32, h: u32) -> usize {
     texpresso::Format::Bc3.compressed_size(w as usize, h as usize)
 }
 
-/// Exact DDS file size for a square texture of `size` pixels.
-pub fn dds_size(size: u32, encoding: DdsEncoding) -> u64 {
+/// Exact DDS file size for a `width` × `height` texture with its full
+/// mipmap chain (each side halved until 1).
+pub fn dds_size(width: u32, height: u32, encoding: DdsEncoding) -> u64 {
     let mut total = 128u64;
-    let mut s = size.max(1);
+    let (mut w, mut h) = (width.max(1), height.max(1));
     loop {
         total += match encoding {
-            DdsEncoding::Bc3 => bc3_level_size(s, s) as u64,
-            DdsEncoding::Rgba => u64::from(s) * u64::from(s) * 4,
+            DdsEncoding::Bc3 => bc3_level_size(w, h) as u64,
+            DdsEncoding::Rgba => u64::from(w) * u64::from(h) * 4,
         };
-        if s == 1 {
+        if w == 1 && h == 1 {
             break;
         }
-        s = (s / 2).max(1);
+        (w, h) = ((w / 2).max(1), (h / 2).max(1));
     }
     total
 }

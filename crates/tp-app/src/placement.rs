@@ -10,23 +10,20 @@ use crate::workspace::Workspace;
 /// Offset between images placed together, in texture pixels.
 pub const PLACE_OFFSET: f64 = 40.0;
 
-/// Natural size scaled down to fit within half of the surface.
-pub fn placement_size(natural: Size, surface: f64) -> Size {
-    let limit = surface / 2.0;
-    let scale = (limit / natural.width).min(limit / natural.height).min(1.0);
+/// Natural size scaled down to fit within half of the surface's width and
+/// half of its height.
+pub fn placement_size(natural: Size, surface: Size) -> Size {
+    let scale = (surface.width / 2.0 / natural.width)
+        .min(surface.height / 2.0 / natural.height)
+        .min(1.0);
     Size::new(natural.width * scale, natural.height * scale)
 }
 
 impl Workspace {
     /// Center of the canvas view in document space (or of the surface).
     pub fn view_center(&self) -> Point {
-        self.viewport.map_or_else(
-            || {
-                let s = self.project.surface().size / 2.0;
-                Point::new(s, s)
-            },
-            |v| v.center,
-        )
+        self.viewport
+            .map_or_else(|| self.project.surface().bounds().center(), |v| v.center)
     }
 
     fn image_object(&self, asset: AssetId, center: Point) -> Option<Object> {
@@ -151,11 +148,11 @@ mod tests {
     #[test]
     fn large_images_are_scaled_to_half_the_surface() {
         assert_eq!(
-            placement_size(Size::new(6000.0, 3000.0), 4096.0),
+            placement_size(Size::new(6000.0, 3000.0), Size::new(4096.0, 4096.0)),
             Size::new(2048.0, 1024.0)
         );
         assert_eq!(
-            placement_size(Size::new(800.0, 400.0), 4096.0),
+            placement_size(Size::new(800.0, 400.0), Size::new(4096.0, 4096.0)),
             Size::new(800.0, 400.0)
         );
     }

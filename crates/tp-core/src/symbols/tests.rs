@@ -19,7 +19,7 @@ fn project_with_symbol() -> (Project, SymbolId) {
     p.symbols.push(Symbol {
         id,
         name: "Logo".into(),
-        surface: Surface::new("Logo", 500.0),
+        surface: Surface::new("Logo", Size::new(500.0, 500.0)),
         origin: None,
     });
     (p, id)
@@ -31,7 +31,7 @@ fn editing_a_symbol_redirects_the_active_surface() {
     let on_texture = p.add(rect(0.0));
     p.editing_symbol = Some(id);
     let in_symbol = p.add(rect(10.0));
-    assert_eq!(p.surface().size, 500.0);
+    assert_eq!(p.surface().size, Size::new(500.0, 500.0));
     assert!(p.surface().get(in_symbol).is_some());
     assert!(p.surface().get(on_texture).is_none());
     assert_eq!(p.symbol(id).unwrap().surface.objects.len(), 1);
@@ -58,7 +58,7 @@ fn snapshots_carry_symbols_and_the_editing_state() {
 #[test]
 fn ids_continue_after_the_symbols() {
     let mut p = Project::new("p", TextureResolution::R2048);
-    let mut content = Surface::new("Logo", 500.0);
+    let mut content = Surface::new("Logo", Size::new(500.0, 500.0));
     let mut r = rect(0.0);
     r.id = ObjectId(500);
     content.objects.push(Arc::new(r));
@@ -313,7 +313,9 @@ fn convert_to_symbol_replaces_the_selection_where_it_was() {
         .reduce(|x, y| x.union(y))
         .unwrap();
     assert!(
-        (s.surface.size - content_bounds.width().max(content_bounds.height()).ceil()).abs() < 1e-9
+        (s.surface.size.width - content_bounds.width().max(content_bounds.height()).ceil()).abs()
+            < 1e-9
+            && s.surface.size.width == s.surface.size.height
     );
     assert_eq!(p.surface().objects.len(), 1);
     assert!(p.surface().get(instance).unwrap().is_instance());
@@ -362,7 +364,8 @@ fn instances_in_the_selection_are_detached_first() {
 #[test]
 fn detach_duplicate_delete_and_rename() {
     let mut p = Project::new("p", TextureResolution::R2048);
-    p.surfaces.push(Surface::new("Chassis", 2048.0));
+    p.surfaces
+        .push(Surface::new("Chassis", Size::new(2048.0, 2048.0)));
     let a = p.add(rect(100.0));
     let (symbol, instance) = p.convert_to_symbol(&[a], "Symbol").unwrap();
     // A second instance on the other texture.

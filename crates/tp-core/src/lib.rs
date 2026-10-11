@@ -19,7 +19,7 @@ pub use mod_settings::ModSettings;
 pub use project::{
     Asset, AssetKind, Axis, DEFAULT_PROJECT_NAME, DEFAULT_SWATCH_PREFIX, GameData, Guide,
     MAIN_SURFACE_NAME, Project, ProjectVehicle, RequiredMod, Snapshot, Surface, SurfaceTemplate,
-    TemplateStatus, TextureKey, TexturePart, TextureResolution,
+    TemplateStatus, TextureKey, TexturePart, TextureResolution, size_label,
 };
 pub use symbols::Symbol;
 pub use texture_status::{

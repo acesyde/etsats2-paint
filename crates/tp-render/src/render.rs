@@ -19,8 +19,11 @@ use tp_text::{FontLibrary, GlyphCache, layout_to_doc};
 /// What to render.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RenderOptions {
-    /// Output side in pixels (the surface is square).
-    pub size: u32,
+    /// Output width in pixels.
+    pub width: u32,
+    /// Output height in pixels. The output keeps the surface's shape, so
+    /// `width / height` is the surface's `width / height`.
+    pub height: u32,
     /// Opaque or translucent background; `None` keeps it transparent.
     pub background: Option<Rgba>,
 }
@@ -498,16 +501,17 @@ pub fn render(
     fonts: &mut FontLibrary,
     progress: &mut dyn FnMut(usize, usize) -> bool,
 ) -> Result<Pixmap, Cancelled> {
-    let size = options.size.max(1);
-    let mut pixmap = Pixmap::new(size, size).expect("non-zero size");
+    let (width, height) = (options.width.max(1), options.height.max(1));
+    let mut pixmap = Pixmap::new(width, height).expect("non-zero size");
     if let Some(bg) = options.background {
         pixmap.fill(color(bg, 1.0));
     }
     let Some(surface) = project.surfaces.get(surface) else {
         return Ok(pixmap);
     };
-    let scale = f64::from(size) / surface.size;
-    let clip = Rect::new(0.0, 0.0, surface.size, surface.size);
+    // The output keeps the surface's shape, so one scale fits both sides.
+    let scale = f64::from(width) / surface.size.width;
+    let clip = surface.bounds();
     let objects = tree::draw_list(&surface.objects);
     let total = objects.len();
     let mut cache = DrawCache::default();

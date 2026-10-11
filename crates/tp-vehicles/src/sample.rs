@@ -4,35 +4,37 @@ use std::io::{Cursor, Write};
 
 use serde_json::{Value, json};
 
+use crate::TextureSize;
+
 /// A part of a sample package: id, name, texture size, layout version.
 #[derive(Clone, Debug)]
 pub struct SampleTexture {
     pub id: &'static str,
     pub name: &'static str,
-    pub size: u32,
+    pub size: TextureSize,
     pub layout: u32,
 }
 
-/// Main texture Cabin 4096, accessories Chassis 2048 and Accessories 1024,
+/// Main texture Cabin 4096², accessories Chassis 2048² and Accessories 1024²,
 /// layout 1.
 pub fn truck_textures() -> Vec<SampleTexture> {
     vec![
         SampleTexture {
             id: "cabin",
             name: "Cabin",
-            size: 4096,
+            size: TextureSize::new(4096, 4096),
             layout: 1,
         },
         SampleTexture {
             id: "chassis",
             name: "Chassis",
-            size: 2048,
+            size: TextureSize::new(2048, 2048),
             layout: 1,
         },
         SampleTexture {
             id: "accessories",
             name: "Accessories",
-            size: 1024,
+            size: TextureSize::new(1024, 1024),
             layout: 1,
         },
     ]

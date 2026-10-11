@@ -207,7 +207,8 @@ pub fn textures_to_paint(
         let response = ui.add_enabled(enabled, Checkbox::new(&mut on, &part.name));
         response
             .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, enabled, on, &part.name));
-        let response = response.on_hover_text(format!("{0} × {0}", part.texture.size));
+        let size = part.texture.size;
+        let response = response.on_hover_text(format!("{} × {}", size.width, size.height));
         if response.changed() {
             set_painted(chosen, &order, &part.id, on);
         }
@@ -218,7 +219,8 @@ pub fn textures_to_paint(
         let always = is_always_painted(m, &part.id);
         let on = always || chosen.contains(&part.id);
         let enabled = !always && !(locked && on);
-        let mut tip = format!("{0} × {0}", part.texture.size);
+        let size = part.texture.size;
+        let mut tip = format!("{} × {}", size.width, size.height);
         if !part.game_ids.is_empty() {
             let ids = tr!("project-cabin-ids", ids = part.game_ids.join(", "));
             tip = format!("{tip}\n{ids}");
@@ -1058,8 +1060,8 @@ pub fn change_text(change: &TextureChange) -> String {
             (_, Some((old, new))) => tr!(
                 "update-resized",
                 name = name.as_str(),
-                old = *old,
-                new = *new
+                old = tp_core::size_label(*old),
+                new = tp_core::size_label(*new)
             ),
             (true, None) => tr!("update-layout-changed", name = name.as_str()),
             (false, None) => tr!("update-replaced", name = name.as_str()),

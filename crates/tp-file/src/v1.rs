@@ -228,7 +228,8 @@ pub struct FileTemplate {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FileSurface {
     pub name: String,
-    pub size: f64,
+    /// Width and height in pixels.
+    pub size: [f64; 2],
     #[serde(default)]
     pub objects: Vec<FileObject>,
     #[serde(default)]
@@ -915,7 +916,7 @@ pub fn from_project(project: &Project) -> FileProject {
             .map(|s| FileSymbol {
                 id: s.id.0,
                 name: s.name.clone(),
-                size: s.surface.size,
+                size: s.surface.size.width,
                 objects: s
                     .surface
                     .objects
@@ -931,7 +932,7 @@ pub fn from_project(project: &Project) -> FileProject {
             .iter()
             .map(|s| FileSurface {
                 name: s.name.clone(),
-                size: s.size,
+                size: [s.size.width, s.size.height],
                 objects: s.objects.iter().map(|o| object_to_file(o)).collect(),
                 guides: s
                     .guides
@@ -1275,7 +1276,11 @@ pub fn into_document(
         .surfaces
         .iter()
         .map(|s| {
-            let mut surface = Surface::new(s.name.clone(), s.size);
+            let [width, height] = s.size;
+            if !(width.is_finite() && width > 0.0 && height.is_finite() && height > 0.0) {
+                return Err(format!("the surface {} has an invalid size", s.name));
+            }
+            let mut surface = Surface::new(s.name.clone(), Size::new(width, height));
             surface.guides = s
                 .guides
                 .iter()
@@ -1348,7 +1353,7 @@ pub fn into_document(
             if !(s.size.is_finite() && s.size > 0.0) {
                 return Err(format!("symbol {} has an invalid size", s.id));
             }
-            let mut surface = Surface::new(s.name.clone(), s.size);
+            let mut surface = Surface::new(s.name.clone(), Size::new(s.size, s.size));
             surface.objects = s
                 .objects
                 .iter()

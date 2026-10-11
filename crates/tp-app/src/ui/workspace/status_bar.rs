@@ -118,11 +118,11 @@ fn view(ui: &mut Ui, ws: &Workspace) {
 
     let ppp = ui.ctx().pixels_per_point();
     let pointer = ui.ctx().pointer_hover_pos();
-    let side = ws.project.surface().size;
+    let size = ws.project.surface().size;
     let position = match (ws.viewport, ws.canvas_rect, pointer) {
         (Some(view), Some(canvas), Some(pos)) if canvas.contains(pos) => {
             let p = view.map(canvas, ppp).to_doc(pos);
-            (p.x >= 0.0 && p.y >= 0.0 && p.x < side && p.y < side)
+            (p.x >= 0.0 && p.y >= 0.0 && p.x < size.width && p.y < size.height)
                 .then(|| (p.x.floor() as i64, p.y.floor() as i64))
         }
         _ => None,
