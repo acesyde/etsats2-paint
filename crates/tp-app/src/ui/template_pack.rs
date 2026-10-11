@@ -6,9 +6,10 @@ use std::path::{Path, PathBuf};
 
 use egui::{Align, Layout, RichText, Ui, WidgetInfo, WidgetType};
 use tp_i18n::tr;
+use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, space};
-use tp_ui::widgets::{primary_button, secondary_button};
+use tp_ui::widgets::{IconButton, primary_button, secondary_button};
 use tp_vehicles::catalog::Entry;
 
 use super::origin::Origin;
@@ -93,12 +94,16 @@ fn show(ctx: &egui::Context, dialog: &TemplatePackDialog) -> Outcome {
         ui.add(egui::Label::new(RichText::new(&explanation).color(color::TEXT_PRIMARY)).wrap());
         ui.add_space(space::XS);
         step(ui, 1, &tr("pack-step-download"), |ui| {
-            if ui
-                .add(secondary_button(&tr("pack-open-download")))
-                .clicked()
-            {
-                ctx.open_url(egui::OpenUrl::new_tab(official::download_page(game)));
-            }
+            ui.horizontal(|ui| {
+                let url = official::download_page(game);
+                if ui
+                    .add(secondary_button(&tr("pack-open-download")))
+                    .clicked()
+                {
+                    ctx.open_url(egui::OpenUrl::new_tab(url));
+                }
+                copy_link(ui, url);
+            });
         });
         step(ui, 2, &tr("pack-step-unzip"), |_| {});
         step(ui, 3, &tr("pack-step-choose"), |ui| {
@@ -119,6 +124,30 @@ fn show(ctx: &egui::Context, dialog: &TemplatePackDialog) -> Outcome {
         outcome = Outcome::Cancel;
     }
     outcome
+}
+
+/// How long the copy button shows that the link was copied, in seconds.
+const COPIED_FOR: f64 = 2.0;
+
+/// Copies `url`, for when no browser opens: the icon turns into a check
+/// for a moment once copied.
+fn copy_link(ui: &mut Ui, url: &str) {
+    let id = ui.id().with("copied_at");
+    let now = ui.input(|i| i.time);
+    let copied = ui
+        .data(|d| d.get_temp::<f64>(id))
+        .is_some_and(|at| now - at < COPIED_FOR);
+    let (icon, name) = if copied {
+        (icons::CHECK, tr("pack-link-copied"))
+    } else {
+        (icons::COPY, tr("pack-copy-link"))
+    };
+    if ui.add(IconButton::new(icon, &name)).clicked() {
+        ui.ctx().copy_text(url.to_owned());
+        ui.data_mut(|d| d.insert_temp(id, now));
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_secs_f64(COPIED_FOR));
+    }
 }
 
 /// A numbered step: its number, its text, and what it offers under it.
