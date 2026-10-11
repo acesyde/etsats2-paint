@@ -220,6 +220,9 @@ pub struct FileTemplate {
     /// The game ids of the texture.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub game_ids: Vec<String>,
+    /// Accessory ids a main texture also paints.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub also_paints: Vec<String>,
     /// A main texture's position among the package's main textures.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub main_index: Option<usize>,
@@ -959,6 +962,7 @@ pub fn from_project(project: &Project) -> FileProject {
                         TemplateStatus::Removed => FileTemplateStatus::Removed,
                     },
                     game_ids: t.game_ids.clone(),
+                    also_paints: t.also_paints.clone(),
                     main_index: t.main_index,
                 }),
             })
@@ -1325,6 +1329,7 @@ pub fn into_document(
                             FileTemplateStatus::Removed => TemplateStatus::Removed,
                         },
                         game_ids: t.game_ids.clone(),
+                        also_paints: t.also_paints.clone(),
                         main_index: t.main_index,
                     })
                 }

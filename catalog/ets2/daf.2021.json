@@ -1,0 +1,164 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "daf.2021",
+  "name": "DAF NGD",
+  "brand": "DAF",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "DAF NGD",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "XG+",
+        "internal_names": [
+          "xg_plus"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "XG",
+        "internal_names": [
+          "xg"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "XF",
+        "internal_names": [
+          "xf"
+        ]
+      }
+    ],
+    "accessories": {
+      "Mirrors": [
+        "mirror.semi",
+        "mirror.cam_semi"
+      ],
+      "Sideskirts (4x)": [
+        "sideskirt.pnt_4x2",
+        "sideskirt.pnt_4x2_xf",
+        "sideskirt.slv2_4x2",
+        "sideskirt.slv2_4x2_xf",
+        "sideskirt.slv_4x2",
+        "sideskirt.slv_4x2_xf"
+      ],
+      "Sun Visor": [
+        "sunshield.paint_xf",
+        "sunshield.paint_xg",
+        "sunshield.paint_xgp"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "xg_plus",
+      "name": "XG+",
+      "file": "Cabin A (XG+).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "xg_plus"
+      ]
+    },
+    {
+      "id": "xg",
+      "name": "XG",
+      "file": "Cabin B (XG).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "xg"
+      ]
+    },
+    {
+      "id": "xf",
+      "name": "XF",
+      "file": "Cabin C (XF).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "xf"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "sun_visor",
+      "name": "Sun Visor",
+      "file": "Accessories/Sun Visor.png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sunshield.paint_xf",
+        "sunshield.paint_xg",
+        "sunshield.paint_xgp"
+      ]
+    },
+    {
+      "id": "sideskirts",
+      "name": "Sideskirts",
+      "file": "Accessories/Sideskirts (4x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.pnt_4x2",
+        "sideskirt.pnt_4x2_xf",
+        "sideskirt.slv2_4x2",
+        "sideskirt.slv2_4x2_xf",
+        "sideskirt.slv_4x2",
+        "sideskirt.slv_4x2_xf"
+      ]
+    },
+    {
+      "id": "mirrors_standard",
+      "name": "Mirrors (standard)",
+      "file": "Accessories/Main Mirrors - Standard.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "mirror.semi"
+      ]
+    },
+    {
+      "id": "mirrors_camera",
+      "name": "Mirrors (camera)",
+      "file": "Accessories/Main Mirrors - Camera.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "mirror.cam_semi"
+      ]
+    }
+  ],
+  "left_out": []
+}

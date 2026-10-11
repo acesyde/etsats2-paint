@@ -210,10 +210,12 @@ impl<'a, T: Copy + PartialEq> SegmentedControl<'a, T> {
             } else if hovered {
                 painter.rect_filled(rect, corner, color::SURFACE_3);
             }
-            let fg = if !enabled {
-                color::TEXT_DISABLED
-            } else if selected && !self.tabs {
+            // The pill keeps its text color when disabled: the painter fades
+            // both, and disabled text on the pill would vanish.
+            let fg = if selected && !self.tabs {
                 color::TEXT_ON_PRIMARY
+            } else if !enabled {
+                color::TEXT_DISABLED
             } else if selected || hovered {
                 color::TEXT_PRIMARY
             } else {

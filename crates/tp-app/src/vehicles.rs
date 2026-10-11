@@ -105,6 +105,9 @@ pub fn package_error_reason(e: &PackageError) -> String {
         }
         PackageError::BadGameId(id) => tr!("pkg-bad-game-id", id = id.as_str()),
         PackageError::DuplicateGameId(id) => tr!("pkg-duplicate-game-id", id = id.as_str()),
+        PackageError::BadAlsoPaints(name) => {
+            tr!("pkg-bad-also-paints", texture = name.as_str())
+        }
         PackageError::BadSize { texture, size } => {
             tr!(
                 "pkg-bad-size",

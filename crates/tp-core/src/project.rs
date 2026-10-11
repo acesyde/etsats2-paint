@@ -131,6 +131,9 @@ pub struct SurfaceTemplate {
     /// main texture (none: every cabin) or the accessory ids of an
     /// accessory. Empty when the game data is unknown.
     pub game_ids: Vec<String>,
+    /// A main texture's accessory ids the game paints with the same texture
+    /// (a trailer body). Empty for an accessory.
+    pub also_paints: Vec<String>,
     /// A main texture's position among the package's main textures (an
     /// accessory has none).
     pub main_index: Option<usize>,
@@ -175,6 +178,7 @@ impl SurfaceTemplate {
         AssetId,
         u32,
         &[String],
+        &[String],
         Option<usize>,
         TemplateStatus,
     ) {
@@ -185,6 +189,7 @@ impl SurfaceTemplate {
             self.asset,
             self.layout_version,
             &self.game_ids,
+            &self.also_paints,
             self.main_index,
             self.status,
         )
@@ -1374,6 +1379,7 @@ mod tests {
             asset,
             layout_version: 1,
             game_ids: Vec::new(),
+            also_paints: Vec::new(),
             main_index: None,
             opacity: SurfaceTemplate::DEFAULT_OPACITY,
             visible: true,

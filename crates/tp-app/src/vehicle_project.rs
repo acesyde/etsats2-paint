@@ -73,6 +73,7 @@ pub fn fill_game_data(project: &mut Project, m: &Manifest) -> bool {
             && let Some((role, part)) = m.paint_job.part(&t.texture_id)
         {
             t.game_ids = part.game_ids.clone();
+            t.also_paints = part.also_paints.clone();
             t.main_index = main_index(m, role, &part.id);
         }
     }
@@ -150,6 +151,7 @@ fn template_for(
         asset,
         layout_version: part.texture.layout_version,
         game_ids: part.game_ids.clone(),
+        also_paints: part.also_paints.clone(),
         main_index: main_index(&package.manifest, role, &part.id),
         opacity,
         visible,
@@ -1044,6 +1046,60 @@ mod tests {
         assert_eq!(game_ids(&ws, 2), ids(&["old.sample"]));
         ws.undo();
         assert_eq!(game_ids(&ws, 1), ids(&["chassis.a"]));
+    }
+
+    /// A trailer whose main texture "Body" also paints `also_paints`.
+    fn trailer_also_painting(version: &str, also_paints: &[&str]) -> Package {
+        let main = [tex("body", "Body", 1024, 1)];
+        let accessories = [tex("chassis", "Chassis", 512, 1)];
+        let mut m = sample::manifest_with(
+            "official.ets2.krone.coolliner",
+            "Krone Cool Liner",
+            version,
+            "trailer",
+            &main,
+            &accessories,
+        );
+        m["paint_job"]["main"][0]["also_paints"] = also_paints.to_vec().into();
+        let all: Vec<SampleTexture> = main.iter().chain(&accessories).cloned().collect();
+        Package::read(&sample::zip(&m, &sample::templates(&all))).unwrap()
+    }
+
+    #[test]
+    fn accessories_painted_by_a_main_texture() {
+        let v = trailer_also_painting("1.0.0", &["body.reefer", "body.reef_13ct"]);
+        let project = fleet_project("K", &v, &ids(&["body", "chassis"])).unwrap();
+        let body = project.surfaces[0].template.as_ref().unwrap();
+        assert_eq!(body.also_paints, ids(&["body.reefer", "body.reef_13ct"]));
+        let chassis = project.surfaces[1].template.as_ref().unwrap();
+        assert!(chassis.also_paints.is_empty());
+        // Saved and reopened.
+        let reopened = tp_file::from_bytes(&tp_file::to_bytes(&project).unwrap())
+            .unwrap()
+            .project;
+        assert_eq!(
+            reopened.surfaces[0].template.as_ref().unwrap().also_paints,
+            ids(&["body.reefer", "body.reef_13ct"])
+        );
+    }
+
+    #[test]
+    fn update_template_replaces_also_paints() {
+        let v1 = trailer_also_painting("1.0.0", &["body.reefer"]);
+        let mut ws = Workspace::new(fleet_project("K", &v1, &ids(&["body"])).unwrap());
+        let v2 = trailer_also_painting("1.1.0", &["body.reefer", "body.reef_13ct"]);
+        assert!(ws.apply_update(&v2, &[], 1.0));
+        let also = |ws: &Workspace| {
+            ws.project.surfaces[0]
+                .template
+                .as_ref()
+                .unwrap()
+                .also_paints
+                .clone()
+        };
+        assert_eq!(also(&ws), ids(&["body.reefer", "body.reef_13ct"]));
+        ws.undo();
+        assert_eq!(also(&ws), ids(&["body.reefer"]));
     }
 
     #[test]

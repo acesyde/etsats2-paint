@@ -259,6 +259,45 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         super::new_project::show_modal(ctx, state);
         return;
     }
+    if matches!(state.modal, Some(Modal::TemplatePack(_))) {
+        super::template_pack::show_modal(ctx, state);
+        return;
+    }
+    if matches!(state.modal, Some(Modal::Preferences)) {
+        let outcome = preferences(
+            ctx,
+            &mut state.prefs,
+            !state.macos,
+            state.preferences_refusal.as_deref(),
+        );
+        match outcome {
+            PrefsOutcome::Pending => {}
+            PrefsOutcome::Done => {
+                state.preferences_refusal = None;
+                state.modal = None;
+            }
+            PrefsOutcome::ChoosePack(game) => {
+                let title = tr!(
+                    "pack-title",
+                    game = super::vehicle_dialogs::game_label(game)
+                );
+                if let Some(folder) = state.dialogs.pick_folder(&title) {
+                    // The folder found, or the previous one kept.
+                    match tp_pack::catalog::find_pack(&folder, game) {
+                        Some(pack) => {
+                            state.prefs.set_template_pack(game, Some(pack));
+                            state.preferences_refusal = None;
+                        }
+                        None => {
+                            state.preferences_refusal =
+                                Some(super::template_pack::wrong_folder(game));
+                        }
+                    }
+                }
+            }
+        }
+        return;
+    }
     if matches!(state.modal, Some(Modal::VehicleLibrary(_))) {
         let Some(Modal::VehicleLibrary(mut dialog)) = state.modal.take() else {
             unreachable!()
@@ -328,7 +367,6 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         return;
     };
     let close = match modal_kind {
-        Modal::Preferences => preferences(ctx, &mut state.prefs, !state.macos),
         Modal::KeyboardShortcuts => shortcuts(ctx),
         Modal::About => about(ctx),
         Modal::Message { title, text } => message(ctx, title, text),
@@ -341,6 +379,8 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         | Modal::AddVehicle(_)
         | Modal::Textures(_)
         | Modal::CustomVehicle(_)
+        | Modal::TemplatePack(_)
+        | Modal::Preferences
         | Modal::CopyFromCabin(_)
         | Modal::CommandPalette(_)
         | Modal::RemoveVehicle { .. } => {
@@ -472,87 +512,47 @@ fn scale_slider(
     (r, value.changed())
 }
 
-/// Returns true when the dialog should close. `title_bar` offers the
-/// system title bar option (Windows and Linux).
-fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs, title_bar: bool) -> bool {
+/// What the Preferences dialog asks for this frame.
+enum PrefsOutcome {
+    Pending,
+    /// Closed.
+    Done,
+    /// Choose the template pack folder of a game.
+    ChoosePack(tp_vehicles::Game),
+}
+
+/// The window height (points) under which the settings of Preferences
+/// scroll: about the dialog's own height.
+const PREFERENCES_HEIGHT: f32 = 700.0;
+
+/// The Preferences dialog. `title_bar` offers the system title bar option
+/// (Windows and Linux); `refusal` says why the last pack folder chosen was
+/// refused.
+fn preferences(
+    ctx: &egui::Context,
+    prefs: &mut crate::prefs::Prefs,
+    title_bar: bool,
+    refusal: Option<&str>,
+) -> PrefsOutcome {
+    let mut choose = None;
     let response = modal("preferences_modal").show(ctx, |ui| {
         ui.set_width(440.0);
         title(ui, &tr("home-preferences"), None);
         ui.add_space(space::LG);
-        ui.spacing_mut().item_spacing.y = space::MD;
-        section(ui, &tr("prefs-interface"));
-        let slider_width = ui.available_width() - 60.0;
-        labelled(ui, &tr("prefs-ui-scale"), |ui| {
-            let mut ui_pct = (prefs.ui_scale * 100.0).round();
-            let range = (UI_SCALE_RANGE.start() * 100.0)..=(UI_SCALE_RANGE.end() * 100.0);
-            let name = tr("prefs-ui-scale");
-            let (r, typed) = scale_slider(ui, &mut ui_pct, range, &name, slider_width);
-            // Apply on release while dragging, so the slider does not move
-            // under the pointer as the interface rescales.
-            if r.changed() && !r.dragged() || r.drag_stopped() || typed {
-                prefs.ui_scale = ui_pct / 100.0;
-            }
-        });
-        labelled(ui, &tr("prefs-text-size"), |ui| {
-            let mut text_pct = (prefs.text_scale * 100.0).round();
-            let range = (TEXT_SCALE_RANGE.start() * 100.0)..=(TEXT_SCALE_RANGE.end() * 100.0);
-            let name = tr("prefs-text-size");
-            let (r, typed) = scale_slider(ui, &mut text_pct, range, &name, slider_width);
-            if r.changed() || typed {
-                prefs.text_scale = text_pct / 100.0;
-            }
-        });
-        ui.label(
-            RichText::new(tr("prefs-scale-hint"))
-                .small()
-                .color(color::TEXT_SECONDARY),
-        );
-        labelled(ui, &tr("prefs-language"), |ui| {
-            let current = prefs.language();
-            let name = |l: Option<tp_i18n::Language>| {
-                l.map_or_else(|| tr("language-system"), |l| l.native_name().to_owned())
-            };
-            let mut picked = current;
-            let combo = egui::ComboBox::from_id_salt("prefs_language")
-                .icon(tp_ui::widgets::dropdown_icon)
-                .width(220.0)
-                .selected_text(name(current))
-                .show_ui(ui, |ui| {
-                    let choices =
-                        std::iter::once(None).chain(tp_i18n::Language::ALL.into_iter().map(Some));
-                    for choice in choices {
-                        ui.selectable_value(&mut picked, choice, name(choice));
-                    }
-                });
-            combo.response.widget_info(|| {
-                WidgetInfo::labeled(WidgetType::ComboBox, true, tr("prefs-language"))
-            });
-            if picked != current {
-                prefs.set_language(picked);
-                ctx.request_repaint();
-            }
-        });
-        if title_bar {
-            // Its hint on hover keeps the dialog within the smallest window
-            // at large UI scales.
-            ui.checkbox(&mut prefs.system_title_bar, tr("prefs-system-title-bar"))
-                .on_hover_text(tr("prefs-system-title-bar-hint"));
-        }
-        ui.add_space(space::SM);
-        section(ui, &tr("prefs-canvas"));
-        labelled(ui, &tr("prefs-grid-spacing"), |ui| {
-            let range = crate::prefs::GRID_SPACING_RANGE;
-            let r = ui.add(
-                egui::DragValue::new(&mut prefs.view_aids.grid_spacing)
-                    .range(range)
-                    .speed(1.0)
-                    .max_decimals(0)
-                    .suffix(" px"),
-            );
-            r.widget_info(|| {
-                WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-grid-spacing"))
-            });
-        });
+        // The settings scroll when the window is too short for them (large
+        // UI scales), so the buttons stay in view.
+        let height = ctx.content_rect().height();
+        choose = if height < PREFERENCES_HEIGHT {
+            egui::ScrollArea::vertical()
+                .max_height((height - 160.0).max(160.0))
+                .auto_shrink([false, true])
+                .show(ui, |ui| {
+                    preferences_body(ctx, ui, prefs, title_bar, refusal)
+                })
+                .inner
+        } else {
+            preferences_body(ctx, ui, prefs, title_bar, refusal)
+        };
         let mut close = false;
         footer(ui, |ui| {
             close |= ui.add(primary_button(&tr("button-done"))).clicked();
@@ -562,7 +562,197 @@ fn preferences(ctx: &egui::Context, prefs: &mut crate::prefs::Prefs, title_bar: 
         });
         close
     });
-    response.inner || response.should_close()
+    if response.inner || response.should_close() {
+        PrefsOutcome::Done
+    } else if let Some(game) = choose {
+        PrefsOutcome::ChoosePack(game)
+    } else {
+        PrefsOutcome::Pending
+    }
+}
+
+/// The settings of the Preferences dialog; returns the game whose
+/// template pack Choose… was clicked.
+fn preferences_body(
+    ctx: &egui::Context,
+    ui: &mut Ui,
+    prefs: &mut crate::prefs::Prefs,
+    title_bar: bool,
+    refusal: Option<&str>,
+) -> Option<tp_vehicles::Game> {
+    ui.spacing_mut().item_spacing.y = space::MD;
+    section(ui, &tr("prefs-interface"));
+    let slider_width = ui.available_width() - 60.0;
+    labelled(ui, &tr("prefs-ui-scale"), |ui| {
+        let mut ui_pct = (prefs.ui_scale * 100.0).round();
+        let range = (UI_SCALE_RANGE.start() * 100.0)..=(UI_SCALE_RANGE.end() * 100.0);
+        let name = tr("prefs-ui-scale");
+        let (r, typed) = scale_slider(ui, &mut ui_pct, range, &name, slider_width);
+        // Apply on release while dragging, so the slider does not move
+        // under the pointer as the interface rescales.
+        if r.changed() && !r.dragged() || r.drag_stopped() || typed {
+            prefs.ui_scale = ui_pct / 100.0;
+        }
+    });
+    labelled(ui, &tr("prefs-text-size"), |ui| {
+        let mut text_pct = (prefs.text_scale * 100.0).round();
+        let range = (TEXT_SCALE_RANGE.start() * 100.0)..=(TEXT_SCALE_RANGE.end() * 100.0);
+        let name = tr("prefs-text-size");
+        let (r, typed) = scale_slider(ui, &mut text_pct, range, &name, slider_width);
+        if r.changed() || typed {
+            prefs.text_scale = text_pct / 100.0;
+        }
+    });
+    ui.label(
+        RichText::new(tr("prefs-scale-hint"))
+            .small()
+            .color(color::TEXT_SECONDARY),
+    );
+    labelled(ui, &tr("prefs-language"), |ui| {
+        let current = prefs.language();
+        let name = |l: Option<tp_i18n::Language>| {
+            l.map_or_else(|| tr("language-system"), |l| l.native_name().to_owned())
+        };
+        let mut picked = current;
+        let combo = egui::ComboBox::from_id_salt("prefs_language")
+            .icon(tp_ui::widgets::dropdown_icon)
+            .width(220.0)
+            .selected_text(name(current))
+            .show_ui(ui, |ui| {
+                let choices =
+                    std::iter::once(None).chain(tp_i18n::Language::ALL.into_iter().map(Some));
+                for choice in choices {
+                    ui.selectable_value(&mut picked, choice, name(choice));
+                }
+            });
+        combo
+            .response
+            .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, true, tr("prefs-language")));
+        if picked != current {
+            prefs.set_language(picked);
+            ctx.request_repaint();
+        }
+    });
+    if title_bar {
+        // Its hint on hover keeps the dialog within the smallest window
+        // at large UI scales.
+        ui.checkbox(&mut prefs.system_title_bar, tr("prefs-system-title-bar"))
+            .on_hover_text(tr("prefs-system-title-bar-hint"));
+    }
+    ui.add_space(space::SM);
+    section(ui, &tr("prefs-canvas"));
+    labelled(ui, &tr("prefs-grid-spacing"), |ui| {
+        let range = crate::prefs::GRID_SPACING_RANGE;
+        let r = ui.add(
+            egui::DragValue::new(&mut prefs.view_aids.grid_spacing)
+                .range(range)
+                .speed(1.0)
+                .max_decimals(0)
+                .suffix(" px"),
+        );
+        r.widget_info(|| {
+            WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-grid-spacing"))
+        });
+    });
+    template_packs(ui, prefs, refusal)
+}
+
+/// The Template packs section of Preferences: for each game with official
+/// vehicles, its pack folder or "Not set", Choose… and Clear. Returns the
+/// game whose Choose… was clicked.
+fn template_packs(
+    ui: &mut Ui,
+    prefs: &mut crate::prefs::Prefs,
+    refusal: Option<&str>,
+) -> Option<tp_vehicles::Game> {
+    let games: Vec<tp_vehicles::Game> = tp_vehicles::Game::ALL
+        .into_iter()
+        .filter(|g| !tp_vehicles::catalog::entries(*g).is_empty())
+        .collect();
+    if games.is_empty() {
+        return None;
+    }
+    let mut choose = None;
+    ui.add_space(space::SM);
+    section(ui, &tr("prefs-template-packs"));
+    for game in games {
+        // One row per game: its name, the folder, Choose… and Clear.
+        ui.horizontal(|ui| {
+            let label = super::vehicle_dialogs::game_label(game);
+            let shown = ui.label(RichText::new(label).color(color::TEXT_SECONDARY));
+            ui.add_space((44.0 - shown.rect.width()).max(0.0));
+            let folder = prefs.template_pack(game).map(|p| p.display().to_string());
+            let mut clear = false;
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                clear = ui
+                    .add_enabled(folder.is_some(), secondary_button(&tr("prefs-pack-clear")))
+                    .clicked();
+                if ui.add(secondary_button(&tr("prefs-pack-choose"))).clicked() {
+                    choose = Some(game);
+                }
+                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                    let text = match &folder {
+                        Some(path) => fit_middle(ui, path, ui.available_width()),
+                        None => tr("prefs-pack-not-set"),
+                    };
+                    let tint = if folder.is_some() {
+                        color::TEXT_PRIMARY
+                    } else {
+                        color::TEXT_SECONDARY
+                    };
+                    let shown =
+                        ui.add(egui::Label::new(RichText::new(&text).color(tint)).truncate());
+                    let full = folder.clone().unwrap_or_else(|| text.clone());
+                    shown.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &full));
+                    if let Some(path) = &folder {
+                        shown.on_hover_text(path);
+                    }
+                });
+            });
+            if clear {
+                prefs.set_template_pack(game, None);
+            }
+        });
+    }
+    if let Some(refusal) = refusal {
+        problem(ui, refusal);
+    }
+    choose
+}
+
+/// `text` cut in the middle to fit `width` in the body font
+/// ("/Users/…/ETS2 templates").
+fn fit_middle(ui: &Ui, text: &str, width: f32) -> String {
+    let font = egui::TextStyle::Body.resolve(ui.style());
+    let fits = |t: &str| {
+        ui.painter()
+            .layout_no_wrap(t.to_owned(), font.clone(), color::TEXT_PRIMARY)
+            .size()
+            .x
+            <= width
+    };
+    let mut max = text.chars().count();
+    let mut shown = text.to_owned();
+    while max > 8 && !fits(&shown) {
+        max -= 1;
+        shown = shorten_middle(text, max);
+    }
+    shown
+}
+
+/// `text` cut to `max` characters in the middle.
+fn shorten_middle(text: &str, max: usize) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    if chars.len() <= max {
+        return text.to_owned();
+    }
+    let keep = max.saturating_sub(1);
+    let head = keep / 2;
+    let tail = keep - head;
+    let mut out: String = chars[..head].iter().collect();
+    out.push('…');
+    out.extend(&chars[chars.len() - tail..]);
+    out
 }
 
 /// A section's heading in a dialog ("Interface", "Canvas").
@@ -641,9 +831,46 @@ fn about(ctx: &egui::Context) -> bool {
         );
         ui.add_space(space::SM);
         ui.label(tr("about-tagline"));
+        ui.add_space(space::SM);
+        ui.label(RichText::new(tr("about-credits-title")).text_style(label_strong_style()));
+        let credits = tr("about-credits");
+        ui.add(egui::Label::new(RichText::new(&credits).color(color::TEXT_SECONDARY)).wrap());
+        // Licenses… shows Paintjob Packer's notice under the credits.
+        let id = egui::Id::new("about_licenses");
+        let mut shown = ui.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
+        if ui.add(secondary_button(&tr("about-licenses"))).clicked() {
+            shown = !shown;
+            ui.data_mut(|d| d.insert_temp(id, shown));
+        }
+        if shown {
+            egui::ScrollArea::vertical()
+                .max_height(200.0)
+                .show(ui, |ui| {
+                    let notice = tp_vehicles::catalog::PAINTJOB_PACKER_LICENSE;
+                    // Its lines are cut at 80 characters: joined back into
+                    // paragraphs, which wrap to the dialog.
+                    let paragraphs: Vec<String> = notice
+                        .split("\n\n")
+                        .map(|p| p.split_whitespace().collect::<Vec<_>>().join(" "))
+                        .collect();
+                    let label = ui.add(
+                        egui::Label::new(
+                            RichText::new(paragraphs.join("\n\n"))
+                                .small()
+                                .color(color::TEXT_SECONDARY),
+                        )
+                        .wrap(),
+                    );
+                    label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, notice));
+                });
+        }
         footer(ui, |ui| {
             ui.add(primary_button(&tr("button-close"))).clicked()
         })
     });
-    response.inner || response.should_close()
+    let close = response.inner || response.should_close();
+    if close {
+        ctx.data_mut(|d| d.remove::<bool>(egui::Id::new("about_licenses")));
+    }
+    close
 }

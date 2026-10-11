@@ -134,6 +134,38 @@ A trailer has a single main texture, and its bodies and lengths are accessories:
 }
 ```
 
+When a trailer's main template also covers its body, the game can paint the body accessories with the main texture. List them in the main texture's `also_paints`:
+
+```json
+{
+  "format": 1,
+  "id": "community.jdoe.reefer",
+  "version": "1.0.0",
+  "name": "Reefer",
+  "brand": "JDoe",
+  "kind": "trailer",
+  "game": { "id": "ets2", "versions": ">=1.59", "path": "jdoe.reefer" },
+  "paint_job": {
+    "main": [
+      {
+        "id": "body",
+        "name": "Body",
+        "also_paints": ["body.reefer", "body.reef_13ct"],
+        "texture": { "size": [8192, 1024], "template": "templates/body.png", "layout_version": 1 }
+      }
+    ],
+    "accessories": [
+      {
+        "id": "pallet_box",
+        "name": "Pallet box",
+        "game_ids": ["chs_r_l.pallet01p", "chs_r_r.pallet01p"],
+        "texture": { "size": [512, 512], "template": "templates/pallet_box.png", "layout_version": 1 }
+      }
+    ]
+  }
+}
+```
+
 ### Identity
 
 | Field | Required | Meaning |
@@ -166,6 +198,7 @@ A trailer has a single main texture, and its bodies and lengths are accessories:
 | `id` | yes | Unique within the vehicle, stable across versions (`globetrotter`, `mirrors`). Projects follow textures by this id. |
 | `name` | yes | Shown in the sidebar and the dialogs. |
 | `game_ids` | see below | What the game calls the things this part covers, as words of `a`–`z`, `0`–`9` and `_` separated by dots. |
+| `also_paints` | no (`[]`) | Main texture only: accessory ids the game paints with this same texture, for a template that covers both, like a trailer body (`["body.reefer", "body.reef_13ct"]`). |
 | `texture.size` | yes | The texture's width and height in pixels, as `[width, height]`: `[4096, 4096]` for a square texture, `[8192, 1024]` or `[2048, 256]` for a rectangular one. Each side is a power of two from 64 to 8192. A single number (`4096`) is refused. Use the size of the game's texture: the game maps it by its UV coordinates, whatever its shape. |
 | `texture.template` | yes | Path of the template image inside the package, PNG or SVG. |
 | `texture.layout_version` | yes | Positive integer. **Increase it whenever the texture's layout changes**, for example after a game update. Projects updated to your new version flag this texture so painters check their artwork. |
@@ -178,6 +211,8 @@ The rules for `game_ids`:
 | Accessory | The accessory ids it covers (`mirror.painted`, `sideskirt.4x2_p`). | Always, at least one. | `acc_list[]` of its `simple_paint_job_data` |
 
 A game id appears at most once among the main textures, and at most once among the accessories.
+
+`also_paints` is refused on an accessory. Its ids are written like accessory ids, each appears at most once among all the main textures' `also_paints`, and none can also be an accessory's game id: the game would paint it twice. In the mod, each painted main texture with `also_paints` adds one `simple_paint_job_data` to its paint job's accessory file, pointing to the main texture and listing those ids in `acc_list[]`.
 
 Unknown fields are ignored, so a package can already carry data for later TruckPaint versions.
 

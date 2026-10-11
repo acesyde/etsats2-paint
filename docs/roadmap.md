@@ -271,8 +271,7 @@ None at the moment.
 | # | Change | What it does | Why now |
 |---|---|---|---|
 | 2 | `polishing` | Fixes, ergonomics, wording and performance across the app, with no new feature. | Smooths what the first players will meet, on the new design. |
-| 3 | `official-vehicles` | The official vehicles in New Project and Add Vehicle, installed from an embedded catalog (game data from Paintjob Packer, MIT, and which template file is which texture) and Carsmaniac's template pack, which the player downloads once per game and points TruckPaint to; installing builds a local package that no longer needs the pack. `tpv catalog sync` updates the catalog's game data from Paintjob Packer, `tpv catalog check` checks it against a pack. First brick: the DAF NGD and the Krone Cool Liner. Replaces `paintjob-importer`: Custom vehicle stays manual for mods and missing vehicles. | Custom vehicle asks for game data most players don't know. `rectangular-textures` (shipped) gives the trailer's 8192 × 1024 texture and the non-square accessories their real shape. |
-| 3a | `official-vehicles` batches | `tpv catalog match`, which proposes a vehicle's mapping from the pack's file names and marks the doubtful cases to validate; then the other official vehicles of ETS2 and ATS, in batches. | Once the first brick has proven the path from the catalog to a mod loaded in the game. |
+| 3 | `official-vehicles` batches | `tpv catalog match`, which proposes a vehicle's mapping from the pack's file names and marks the doubtful cases to validate; then the other official vehicles of ETS2 and ATS, in batches. | The first brick (shipped) proved the path from the catalog to a mod loaded in the game, on the DAF NGD and the Krone Cool Liner. |
 | 4 | `distribution` | Release builds and installers. Includes a macOS `.app` bundle (so the app menu's bold name reads "TruckPaint", not the binary's name), and the manual checks of the drawn title bar on Windows, Linux X11 and Wayland (moving, double-click, resize grips, window controls, menus, the system title bar option and `TRUCKPAINT_SYSTEM_TITLE_BAR=1`). | A player can go from vehicle to mod without building the app. |
 | 5 | `template-update-impact` | A template update says what it changes and which projects it touches; affected textures become "to check" and affected objects are flagged. Nothing moves automatically. Works with local packages too; builds on the To check state of `texture-status` (shipped). | Each game update brings a new template pack: `tpv catalog check` tells which official vehicles changed, and the player's projects get the To check flow. |
 | 5a | `first-run` | A three-step first launch: language and game, vehicles to install from the official catalog, first project. | The official catalog (`official-vehicles`) gives it vehicles to offer; it no longer waits for the marketplace. |
@@ -286,6 +285,15 @@ moderation and a release first, and the official vehicles come from
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `official-vehicles` (first brick): the DAF NGD and the Krone Cool Liner
+  are listed under Official in New Project and Add Vehicle…. Picking one
+  builds and installs its package from Carsmaniac's template pack, which
+  the player downloads once per game and points TruckPaint to (a dialog
+  with the download page; the folder is kept in Preferences). The catalog
+  (`catalog/`) holds the game data from Paintjob Packer (MIT, credited in
+  About) and the hand-validated mapping; `tpv catalog sync` and
+  `tpv catalog check` keep it current. A main texture can also paint
+  accessories (`also_paints`), as the Krone's body does.
 - `rectangular-textures`: a texture has a width and a height, each a power
   of two from 64 to 8192 px (4096 × 4096, 8192 × 1024, 2048 × 256). Packages
   declare `[width, height]`; Custom vehicle keeps an image's width and

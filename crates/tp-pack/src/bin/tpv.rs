@@ -1,6 +1,6 @@
 //! `tpv`: builds and checks TruckPaint vehicle packages.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 const USAGE: &str = "\
@@ -11,6 +11,14 @@ Usage:
                                       templates (PNG, SVG or DDS, converted to PNG).
                                       Default output: <id>-<version>.tpv
   tpv check <file.tpv>                Validate a package and print its contents.
+  tpv catalog check <pack> [--game ets2|ats] [--catalog <dir>]
+                                      Check the official vehicles' catalog against an
+                                      unzipped template pack (ETS2 by default): folders,
+                                      files, sizes and coverage of the game ids.
+  tpv catalog sync <paintjob-packer folder> --commit <commit> [--catalog <dir>]
+                                      Replace each catalog entry's game data with that
+                                      of a local copy of Paintjob Packer.
+                                      Default catalog: ./catalog.
   tpv --help                          Show this help.
 
 Each texture's size is [width, height] in pixels, each side a power of two
@@ -23,6 +31,7 @@ fn main() -> ExitCode {
     let result = match args.first().map(String::as_str) {
         Some("pack") => pack(&args[1..]),
         Some("check") => check(&args[1..]),
+        Some("catalog") => catalog(&args[1..]),
         Some("-h" | "--help" | "help") => {
             println!("{USAGE}");
             return ExitCode::SUCCESS;
@@ -79,5 +88,74 @@ fn check(args: &[String]) -> Result<(), String> {
     let bytes = std::fs::read(file).map_err(|e| format!("{file}: {e}"))?;
     let manifest = tp_pack::check(&bytes).map_err(|e| format!("{file}: {e}"))?;
     print!("{}", tp_pack::summary(&manifest));
+    Ok(())
+}
+
+fn catalog(args: &[String]) -> Result<(), String> {
+    match args.first().map(String::as_str) {
+        Some("check") => catalog_check(&args[1..]),
+        Some("sync") => catalog_sync(&args[1..]),
+        _ => Err(format!("catalog needs check or sync\n\n{USAGE}")),
+    }
+}
+
+/// The positional argument and the values of `options` (`--name value`).
+fn parse_options<'a>(
+    args: &'a [String],
+    options: &[&str],
+) -> Result<(Option<&'a str>, Vec<Option<&'a str>>), String> {
+    let mut positional = None;
+    let mut values = vec![None; options.len()];
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        if let Some(i) = options.iter().position(|o| o == arg) {
+            let value = rest.next().ok_or_else(|| format!("{arg} needs a value"))?;
+            values[i] = Some(value.as_str());
+        } else if positional.is_none() && !arg.starts_with('-') {
+            positional = Some(arg.as_str());
+        } else {
+            return Err(format!("unexpected argument \"{arg}\"\n\n{USAGE}"));
+        }
+    }
+    Ok((positional, values))
+}
+
+fn catalog_check(args: &[String]) -> Result<(), String> {
+    let (pack, options) = parse_options(args, &["--game", "--catalog"])?;
+    let pack = pack.ok_or_else(|| format!("catalog check needs a pack folder\n\n{USAGE}"))?;
+    let game = match options[0] {
+        None => tp_vehicles::Game::Ets2,
+        Some(code) => tp_vehicles::Game::from_code(code)
+            .ok_or_else(|| format!("unknown game \"{code}\": use ets2 or ats"))?,
+    };
+    let entries = match options[1] {
+        Some(dir) => tp_pack::catalog::read_catalog(Path::new(dir))?
+            .into_iter()
+            .map(|(_, e)| e)
+            .collect(),
+        None => tp_vehicles::catalog::embedded().to_vec(),
+    };
+    let entries: Vec<&tp_vehicles::catalog::Entry> =
+        entries.iter().filter(|e| e.game == game).collect();
+    if !Path::new(pack).is_dir() {
+        return Err(format!("{pack}: not a folder"));
+    }
+    let report = tp_pack::catalog::check(Path::new(pack), &entries);
+    print!("{}", report.text());
+    if report.problems.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("{} problem(s) found", report.problems.len()))
+    }
+}
+
+fn catalog_sync(args: &[String]) -> Result<(), String> {
+    let (ppk, options) = parse_options(args, &["--commit", "--catalog"])?;
+    let ppk =
+        ppk.ok_or_else(|| format!("catalog sync needs a Paintjob Packer folder\n\n{USAGE}"))?;
+    let commit = options[0].ok_or("catalog sync needs --commit <commit>")?;
+    let dir = options[1].unwrap_or("catalog");
+    let report = tp_pack::catalog::sync(Path::new(ppk), commit, Path::new(dir))?;
+    print!("{}", report.text());
     Ok(())
 }

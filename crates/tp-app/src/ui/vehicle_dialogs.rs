@@ -7,8 +7,10 @@ use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, radius, space};
 use tp_ui::widgets::{EmptyState, SegmentedControl, primary_button, secondary_button};
+use tp_vehicles::catalog::Entry;
 use tp_vehicles::{Game, Kind, Manifest, Package, Part};
 
+use crate::official::Finished;
 use crate::state::AppState;
 use crate::vehicle_project::{TextureChange, UpdatePlan, default_textures, is_always_painted};
 use crate::vehicles::{InstalledVehicle, VehicleLibrary};
@@ -25,10 +27,19 @@ pub struct VehicleFilter {
 
 impl VehicleFilter {
     pub fn matches(&self, m: &Manifest) -> bool {
+        self.matches_vehicle(&m.name, &m.brand, m.game.id, m.kind)
+    }
+
+    /// Whether the official vehicle `entry` passes the filter.
+    pub fn matches_entry(&self, entry: &Entry) -> bool {
+        self.matches_vehicle(&entry.name, &entry.brand, entry.game, entry.kind)
+    }
+
+    fn matches_vehicle(&self, name: &str, brand: &str, game: Game, kind: Kind) -> bool {
         let q = self.query.trim().to_lowercase();
-        (q.is_empty() || m.name.to_lowercase().contains(&q) || m.brand.to_lowercase().contains(&q))
-            && self.game.is_none_or(|g| g == m.game.id)
-            && self.kind.is_none_or(|k| k == m.kind)
+        (q.is_empty() || name.to_lowercase().contains(&q) || brand.to_lowercase().contains(&q))
+            && self.game.is_none_or(|g| g == game)
+            && self.kind.is_none_or(|k| k == kind)
     }
 
     /// Search field and game / kind filters.
@@ -127,6 +138,104 @@ pub fn filtered<'a>(
         .iter()
         .filter(|v| filter.matches(&v.newest().manifest))
         .collect()
+}
+
+/// An official vehicle of the catalog, and the vehicle installed from it
+/// if any.
+#[derive(Clone, Copy, Debug)]
+pub struct OfficialRow<'a> {
+    pub entry: &'static Entry,
+    pub installed: Option<&'a InstalledVehicle>,
+}
+
+impl OfficialRow<'_> {
+    /// "Official", followed by the newest installed version when it is
+    /// installed.
+    pub fn package(&self) -> String {
+        match self.installed {
+            Some(v) => format!(
+                "{} {}",
+                tr("vehicles-official"),
+                v.newest().manifest.version
+            ),
+            None => tr("vehicles-official"),
+        }
+    }
+
+    /// "DAF · Truck · ETS2 · Official 1.0.0".
+    pub fn summary(&self) -> String {
+        let e = self.entry;
+        format!(
+            "{} · {} · {} · {}",
+            e.brand,
+            kind_label(e.kind),
+            game_label(e.game),
+            self.package()
+        )
+    }
+}
+
+/// The rows of a vehicle list: the official vehicles of the catalog,
+/// installed or not, then the other installed vehicles.
+#[derive(Debug, Default)]
+pub struct VehicleRows<'a> {
+    pub official: Vec<OfficialRow<'a>>,
+    pub installed: Vec<&'a InstalledVehicle>,
+}
+
+impl VehicleRows<'_> {
+    pub fn is_empty(&self) -> bool {
+        self.official.is_empty() && self.installed.is_empty()
+    }
+
+    /// The section headers are shown when both sections have rows.
+    pub fn sections(&self) -> bool {
+        !self.official.is_empty() && !self.installed.is_empty()
+    }
+}
+
+/// The vehicles passing `filter` (minus the package ids `exclude`): the
+/// official vehicles of its game, then the other installed vehicles. An
+/// installed official vehicle is listed once, as official.
+pub fn vehicle_rows<'a>(
+    library: &'a VehicleLibrary,
+    filter: &VehicleFilter,
+    exclude: &[String],
+) -> VehicleRows<'a> {
+    let entries: Vec<&'static Entry> = Game::ALL
+        .into_iter()
+        .filter(|g| filter.game.is_none_or(|f| f == *g))
+        .flat_map(tp_vehicles::catalog::entries)
+        .collect();
+    let official = entries
+        .iter()
+        .filter(|e| filter.matches_entry(e) && !exclude.contains(&e.package_id()))
+        .map(|&entry| OfficialRow {
+            entry,
+            installed: library.get(&entry.package_id()),
+        })
+        .collect();
+    let installed = filtered(library, filter)
+        .into_iter()
+        .filter(|v| !exclude.contains(&v.id) && !entries.iter().any(|e| e.package_id() == v.id))
+        .collect();
+    VehicleRows {
+        official,
+        installed,
+    }
+}
+
+/// The heading of a section of a vehicle list ("Official", "Installed").
+pub fn section_heading(ui: &mut Ui, text: &str) {
+    ui.add_space(space::XS);
+    let label = ui.label(
+        RichText::new(text.to_uppercase())
+            .small()
+            .strong()
+            .color(color::TEXT_MUTED),
+    );
+    label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
+    ui.add_space(space::XXS);
 }
 
 /// A vehicle and the textures checked for it.
@@ -288,19 +397,46 @@ fn set_painted(chosen: &mut Vec<String>, order: &[&str], id: &str, on: bool) {
     }
 }
 
-/// The installed vehicles passing `filter` (minus `exclude`), one row each;
-/// the chosen one shows its textures as checkboxes.
+/// The vehicles passing `filter` (minus `exclude`), one row each, the
+/// official ones first; the chosen one shows its textures as checkboxes.
+/// Returns the official vehicle clicked, which is chosen once installed.
 pub fn vehicle_list(
     ui: &mut Ui,
     library: &VehicleLibrary,
     filter: &VehicleFilter,
     exclude: &[String],
     choice: &mut Option<VehicleChoice>,
-) {
-    for vehicle in filtered(library, filter) {
-        if exclude.contains(&vehicle.id) {
-            continue;
+) -> Option<&'static Entry> {
+    let rows = vehicle_rows(library, filter, exclude);
+    let mut picked = None;
+    if rows.sections() {
+        section_heading(ui, &tr("vehicles-section-official"));
+    }
+    for row in &rows.official {
+        let entry = row.entry;
+        let id = entry.package_id();
+        let selected = choice.as_ref().is_some_and(|c| c.id == id);
+        let text = format!("{}   {}", entry.name, row.summary());
+        let response = ui.selectable_label(selected, text);
+        response.widget_info(|| {
+            WidgetInfo::selected(WidgetType::RadioButton, true, selected, &entry.name)
+        });
+        if response.clicked() && !selected {
+            picked = Some(entry);
         }
+        if selected
+            && let Some(c) = choice.as_mut()
+            && let Some(m) = c.manifest(library)
+        {
+            ui.indent(("textures", &id), |ui| {
+                texture_checkboxes(ui, m, &mut c.textures);
+            });
+        }
+    }
+    if rows.sections() {
+        section_heading(ui, &tr("vehicles-section-installed"));
+    }
+    for vehicle in rows.installed {
         let m = &vehicle.newest().manifest;
         let selected = choice.as_ref().is_some_and(|c| c.id == vehicle.id);
         let text = format!("{}   {}", m.name, summary(m));
@@ -315,6 +451,7 @@ pub fn vehicle_list(
             });
         }
     }
+    picked
 }
 
 /// Installs `paths`; returns one line per file (success or why it failed).
@@ -1136,6 +1273,8 @@ pub struct AddVehicleDialog {
     pub filter: VehicleFilter,
     pub choice: Option<VehicleChoice>,
     pub messages: Vec<Result<String, String>>,
+    /// The official vehicle being installed from the template pack.
+    pub installing: Option<crate::official::Installing>,
 }
 
 impl AddVehicleDialog {
@@ -1167,6 +1306,21 @@ pub fn add_vehicle(
     let mut add = false;
     let mut install_clicked = false;
     let mut custom_clicked = false;
+    let mut cancel_install = false;
+    let mut picked = None;
+    // The official vehicle installed: chosen, or why it wasn't.
+    if let Some(finished) = super::template_pack::poll(&mut dialog.installing, &mut state.vehicles)
+    {
+        match finished {
+            Finished::Installed(choice, message) => {
+                dialog.messages = vec![Ok(message)];
+                dialog.choice = Some(choice);
+            }
+            Finished::Refused(message) => dialog.messages = vec![Err(message)],
+            Finished::Cancelled => {}
+        }
+    }
+    let installing = dialog.installing.clone();
     let exclude: Vec<String> = state
         .workspace()
         .map(|ws| {
@@ -1182,32 +1336,34 @@ pub fn add_vehicle(
         super::dialogs::title(ui, tr("cmd-add-vehicle").trim_end_matches('…'), None);
         ui.add_space(space::SM);
         super::dialogs::messages(ui, &dialog.messages);
-        dialog.filter.show(ui, "add_vehicle");
-        ui.add_space(space::SM);
-        let available = filtered(&state.vehicles, &dialog.filter)
-            .iter()
-            .any(|v| !exclude.contains(&v.id));
-        if available {
-            // A fixed height, as in the New Project wizard.
-            ScrollArea::vertical()
-                .max_height(320.0)
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    vehicle_list(
-                        ui,
-                        &state.vehicles,
-                        &dialog.filter,
-                        &exclude,
-                        &mut dialog.choice,
-                    );
-                });
-        } else {
-            ui.label(
-                RichText::new(tr("add-vehicle-none"))
-                    .small()
-                    .color(color::TEXT_SECONDARY),
-            );
+        if let Some(job) = &installing {
+            cancel_install |= super::template_pack::installing_bar(ui, job);
         }
+        ui.add_enabled_ui(installing.is_none(), |ui| {
+            dialog.filter.show(ui, "add_vehicle");
+            ui.add_space(space::SM);
+            if vehicle_rows(&state.vehicles, &dialog.filter, &exclude).is_empty() {
+                ui.label(
+                    RichText::new(tr("add-vehicle-none"))
+                        .small()
+                        .color(color::TEXT_SECONDARY),
+                );
+            } else {
+                // A fixed height, as in the New Project wizard.
+                ScrollArea::vertical()
+                    .max_height(320.0)
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        picked = vehicle_list(
+                            ui,
+                            &state.vehicles,
+                            &dialog.filter,
+                            &exclude,
+                            &mut dialog.choice,
+                        );
+                    });
+            }
+        });
         super::dialogs::footer(ui, |ui| {
             let ready = dialog
                 .choice
@@ -1221,6 +1377,19 @@ pub fn add_vehicle(
             custom_clicked |= ui.add(secondary_button(&tr("custom-open"))).clicked();
         });
     });
+    if cancel_install {
+        super::template_pack::cancel(&mut dialog.installing);
+        return keep;
+    }
+    if let Some(entry) = picked {
+        super::template_pack::pick(
+            ctx,
+            state,
+            super::origin::Origin::AddVehicle(std::mem::take(dialog)),
+            entry,
+        );
+        return true;
+    }
     if custom_clicked {
         super::custom_vehicle::open(
             state,

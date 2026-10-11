@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 use tp_vehicles::{MANIFEST, Manifest, Package, PackageError};
 
+pub mod catalog;
 pub mod custom;
 pub mod dds;
 
@@ -101,6 +102,9 @@ pub fn describe(e: &PackageError) -> String {
             format!("invalid game id \"{id}\": use words of a-z, 0-9 and _ separated by dots")
         }
         PackageError::DuplicateGameId(id) => format!("the game id \"{id}\" is listed twice"),
+        PackageError::BadAlsoPaints(name) => {
+            format!("the accessory \"{name}\" has also_paints: only a main texture can")
+        }
         PackageError::BadSize { texture, size } => format!(
             "the {texture} texture size {size} is invalid: it must be a width and a height, \
              [width, height], each a power of two from {} to {}",
@@ -402,11 +406,14 @@ pub fn summary(m: &Manifest) -> String {
         out.push_str(&format!("  {title}:\n"));
         for p in parts {
             let t = &p.texture;
-            let covers = if p.game_ids.is_empty() {
+            let mut covers = if p.game_ids.is_empty() {
                 "whole vehicle".to_owned()
             } else {
                 p.game_ids.join(", ")
             };
+            if !p.also_paints.is_empty() {
+                covers.push_str(&format!("; also paints {}", p.also_paints.join(", ")));
+            }
             out.push_str(&format!(
                 "    {} ({}): {}, layout {}, {} [{}]\n",
                 p.id,
