@@ -220,7 +220,7 @@ The export SHALL write one `.scs` file: a ZIP archive holding the mod at its roo
   - otherwise it is `<id>_` followed by the main texture's letter in package order (`a` for the first, `b` for the second…);
   - the paint job lists a `suitable_for[]` entry `<cabin>.<path>.cabin` for each cabin (game id) of the main texture. A main texture without game ids has no `suitable_for`, so it is painted on every cabin;
   - main textures the project doesn't paint get no paint job.
-- when the vehicle paints accessories, `def/vehicle/<type>/<path>/paint_job/accessory/<unit>.sii` for each of its paint jobs. It holds one `simple_paint_job_data` per painted accessory, pointing to its texture and listing each of its game ids in `acc_list[]`;
+- when the vehicle paints accessories, `def/vehicle/<type>/<path>/paint_job/accessory/<unit>.sii` for each of its paint jobs. It holds one `simple_paint_job_data` per painted accessory, pointing to its texture and listing each of its game ids in `acc_list[]`. When the paint job's main texture has accessory ids it is also applied to (`also_paints`), the file holds one more `simple_paint_job_data`, pointing to the main texture and listing those ids, and it is written even when the vehicle paints no accessory;
 - for each painted texture, `vehicle/<type>/upgrade/paintjob/<id>/<path>/<texture id>.dds` and a `.tobj` beside it that points to it.
 
 **The textures:**
@@ -268,6 +268,10 @@ The export SHALL write one `.scs` file: a ZIP archive holding the mod at its roo
 #### Scenario: Rectangular texture in the mod
 - **WHEN** a project painting a trailer whose base texture is 8192 × 1024 is exported
 - **THEN** that texture's DDS declares 8192 × 1024 and 14 mipmap levels
+
+#### Scenario: Main texture applied to accessories
+- **WHEN** a project with internal name "ace" holds the Krone Cool Liner painting only its Body, whose package lists `also_paints: ["body.reefer", "body.reef_13ct"]`, and is exported
+- **THEN** the mod has `def/vehicle/trailer_owned/krone.coolliner/paint_job/accessory/ace.sii` with a `simple_paint_job_data` whose `paint_job_mask` is the Body's `.tobj` and whose `acc_list[]` lists `body.reefer` and `body.reef_13ct`
 
 ### Requirement: Background export with progress
 Rendering, encoding and writing SHALL run without freezing the editor. While they run, the dialog SHALL show the progress over all the mod's textures and a Cancel button. Cancelling SHALL stop the export and leave no file at the destination, and an existing file there SHALL be left unchanged.
