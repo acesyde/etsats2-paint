@@ -16,6 +16,7 @@ Fixes, ergonomics and wording only; no new feature. Each item names the screensh
 - Preferences: the "100%" box of the UI and text scale sliders falls under its slider instead of beside it (`lang_*_preferences`).
 - Inspector Stroke row: the swatch name is cut to "Comp…" while the row has room (`brand_palette_styles_*`).
 - About: the license text runs under the scrollbar (`official_en_about`).
+- Preferences, Template packs: each game's folder sits on one crowded row with text buttons Choose… and Clear. It becomes the game's name above a read-only field with two icon buttons; clicking the field shows the folder in Finder / Explorer / the file manager, its context menu copies the path, and a folder that no longer exists says so (`official_*_preferences`).
 - Home screen: the empty Recent projects state sits centered in a 520 px box against the left edge, neither aligned nor centered. It is centered on the list's width, in a frame where the cards will be, with a Create Your First Project button (`lang_*_home_100`).
 
 **Names and wording**
@@ -71,6 +72,7 @@ Fixes, ergonomics and wording only; no new feature. Each item names the screensh
 - `layers-panel`: text layers named after their kind show their first line; a name that is the kind's default in any language is a default name; long names end with "…" with the full name in a tooltip.
 - `properties-panel`: the same default-name rule in the header; the header names the symbol while it is edited; the color target mark is not shown while another inspector popover is open.
 - `ui-design-system`: one checkbox look everywhere; text that doesn't fit ends with "…" and shows the full text in a tooltip, never cut mid-glyph.
+- `app-preferences`: the Template packs section's layout, showing the folder in the file manager and Copy Path, and a missing folder flagged.
 - `start-screen`: the empty Recent projects state is centered on the list's width, framed, with a button that creates a project.
 - `localization`: layouts fit every language at the minimum window size (960 × 600) too; version ranges are shown in words.
 
@@ -80,4 +82,5 @@ Fixes, ergonomics and wording only; no new feature. Each item names the screensh
 - `crates/tp-ui/src/widgets/`: `paint_row.rs` (dark swatch ring), a shared checkbox and a truncated label helper if none exists.
 - `crates/tp-i18n/locales/{en,fr,de,es}/*.ftl`: the wording changes, with new keys for version ranges and counts.
 - `crates/tp-app/tests/`: screenshot fixes, and tests for the behavior changes (default names in any language, symbol header, target mark, font picker highlight, version range wording, custom vehicle dialog width).
+- New dependency: `opener` (without default features), to show a folder in the system's file manager.
 - No change to project files, packages or the exported mod.

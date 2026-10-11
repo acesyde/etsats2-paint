@@ -847,7 +847,7 @@ fn change_the_pack_folder() {
     open_preferences(&mut h);
     assert!(h.query_by_label("Template packs").is_some());
     script_folders(&mut h, &[&newer]);
-    h.get_by_label("Choose…").click();
+    h.get_by_label("Choose Folder…").click();
     settle(&mut h);
     let remembered = newer.join("ETS2 templates");
     assert_eq!(
@@ -876,7 +876,7 @@ fn refused_pack_folder() {
     let mut h = app_with(dir.path(), Some(&old));
     open_preferences(&mut h);
     script_folders(&mut h, &[&empty]);
-    h.get_by_label("Choose…").click();
+    h.get_by_label("Choose Folder…").click();
     settle(&mut h);
     assert!(
         h.query_by_label("This folder doesn't hold the ETS2 template pack.")
@@ -902,10 +902,39 @@ fn template_packs_list_only_games_with_official_vehicles() {
     let mut h = app(dir.path());
     open_preferences(&mut h);
     assert!(h.query_by_label("Template packs").is_some());
-    assert!(h.query_by_label("ETS2").is_some());
+    assert!(h.query_by_label("Euro Truck Simulator 2").is_some());
     assert!(h.query_by_label("Not set").is_some());
-    assert!(h.query_by_label("ATS").is_none());
-    assert_eq!(h.query_all_by_label("Choose…").count(), 1);
+    assert!(h.query_by_label("American Truck Simulator").is_none());
+    assert_eq!(h.query_all_by_label("Choose Folder…").count(), 1);
+}
+
+#[test]
+fn clicking_the_pack_folder_shows_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let pack = dir.path().join("pack");
+    write_pack(&pack);
+    let mut h = app_with(dir.path(), Some(&pack));
+    open_preferences(&mut h);
+    script_folders(&mut h, &[]);
+    h.get_by_label(&pack.display().to_string()).click();
+    settle(&mut h);
+    assert_eq!(h.state().dialogs.shown_folders(), [pack]);
+    assert!(h.query_by_label("Folder not found").is_none());
+}
+
+#[test]
+fn missing_pack_folder_is_not_shown() {
+    let dir = tempfile::tempdir().unwrap();
+    let pack = dir.path().join("pack");
+    write_pack(&pack);
+    let mut h = app_with(dir.path(), Some(&pack));
+    std::fs::remove_dir_all(&pack).unwrap();
+    open_preferences(&mut h);
+    script_folders(&mut h, &[]);
+    assert!(h.query_by_label("Folder not found").is_some());
+    h.get_by_label(&pack.display().to_string()).click();
+    settle(&mut h);
+    assert!(h.state().dialogs.shown_folders().is_empty());
 }
 
 // --- About --------------------------------------------------------------------

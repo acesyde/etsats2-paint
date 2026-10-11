@@ -67,3 +67,4 @@
 - [x] 7.3 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings` and `cargo test --workspace --release --locked` pass
 - [x] 7.4 Update `docs/roadmap.md`: add `polishing` (this pass) to Shipped, keep the `polishing` row for later passes
 - [x] 7.5 Home screen: the empty Recent projects state centered on the list's width, in a frame, with a Create Your First Project button (spec start-screen); test `ui::empty_recent_projects_centered_with_a_create_button`, screenshots `lang_*_home_100`
+- [x] 7.6 Preferences, Template packs: the game's name above a read-only field, Choose Folder… and Clear as icons, a click on the field shows the folder in the file manager (`opener`), Copy Path in its context menu, "Folder not found" for a missing folder (spec app-preferences); tests `official_vehicles::clicking_the_pack_folder_shows_it`, `missing_pack_folder_is_not_shown`, screenshots `official_*_preferences`

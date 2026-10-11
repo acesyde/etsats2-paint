@@ -25,8 +25,14 @@ pub trait FileDialogs {
     fn pick_mod_image(&mut self) -> Option<PathBuf>;
     /// A folder (the template pack's), with `title` in the dialog.
     fn pick_folder(&mut self, title: &str) -> Option<PathBuf>;
+    /// Shows `folder` in the system's file manager (Finder, Explorer…).
+    fn show_folder(&mut self, folder: &Path);
     /// Names proposed so far (scripted dialogs only).
     fn suggested(&self) -> Vec<String> {
+        Vec::new()
+    }
+    /// Folders shown in the file manager so far (scripted dialogs only).
+    fn shown_folders(&self) -> Vec<PathBuf> {
         Vec::new()
     }
 }
@@ -104,6 +110,12 @@ impl FileDialogs for NativeDialogs {
         rfd::FileDialog::new().set_title(title).pick_folder()
     }
 
+    fn show_folder(&mut self, folder: &Path) {
+        if let Err(err) = opener::open(folder) {
+            tracing::warn!("showing {}: {err}", folder.display());
+        }
+    }
+
     fn save_export(&mut self, suggested: &str) -> Option<PathBuf> {
         let ext = std::path::Path::new(suggested)
             .extension()
@@ -134,6 +146,8 @@ pub struct ScriptedDialogs {
     pub suggested: Vec<String>,
     /// Folders the mod save dialogs opened in, in order.
     pub mod_folders: Vec<Option<PathBuf>>,
+    /// Folders shown in the file manager, in order.
+    pub shown: Vec<PathBuf>,
 }
 
 impl FileDialogs for ScriptedDialogs {
@@ -184,6 +198,14 @@ impl FileDialogs for ScriptedDialogs {
 
     fn pick_folder(&mut self, _title: &str) -> Option<PathBuf> {
         self.folders.pop_front()
+    }
+
+    fn show_folder(&mut self, folder: &Path) {
+        self.shown.push(folder.to_path_buf());
+    }
+
+    fn shown_folders(&self) -> Vec<PathBuf> {
+        self.shown.clone()
     }
 }
 
