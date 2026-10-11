@@ -1,0 +1,133 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "wielton.strongm",
+  "name": "Wielton Strong Master",
+  "brand": "Wielton",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Wielton Strong Master",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body": [
+        "body.dumper3"
+      ],
+      "Body (Long)": [
+        "body.dumper4"
+      ],
+      "Rear Bumper": [
+        "r_bumper.exclusive"
+      ],
+      "Sideskirts": [
+        "chs_f_l.cgp_3",
+        "chs_f_l.cgp_ext_3",
+        "chs_f_l.cgp_wt_3",
+        "chs_f_r.cgp_3",
+        "chs_f_r.cgp_ext_3",
+        "chs_f_r.cgp_wt_3",
+        "chs_f_l.cgp_4",
+        "chs_f_l.cgp_ext_4",
+        "chs_f_l.cgp_bpl_4",
+        "chs_f_l.cgp_wt_4",
+        "chs_f_r.cgp_4",
+        "chs_f_r.cgp_ext_4",
+        "chs_f_r.cgp_bpl_4",
+        "chs_f_r.cgp_wt_4"
+      ],
+      "Trailer Rear": [
+        "rear_body.door_1",
+        "rear_body.door_2"
+      ]
+    }
+  },
+  "main": [],
+  "accessories": [
+    {
+      "id": "rear_bumper",
+      "name": "Rear Bumper",
+      "file": "Accessories/Rear Bumper.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.exclusive"
+      ]
+    },
+    {
+      "id": "sideskirt_3_axles",
+      "name": "Sideskirt (3 axles)",
+      "file": "Accessories/Sideskirt (3 axles).png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.cgp_3",
+        "chs_f_l.cgp_ext_3",
+        "chs_f_l.cgp_wt_3",
+        "chs_f_r.cgp_3",
+        "chs_f_r.cgp_ext_3",
+        "chs_f_r.cgp_wt_3"
+      ]
+    },
+    {
+      "id": "sideskirt_4_axles",
+      "name": "Sideskirt (4 axles)",
+      "file": "Accessories/Sideskirt (4 axles).png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.cgp_4",
+        "chs_f_l.cgp_ext_4",
+        "chs_f_l.cgp_bpl_4",
+        "chs_f_l.cgp_wt_4",
+        "chs_f_r.cgp_4",
+        "chs_f_r.cgp_ext_4",
+        "chs_f_r.cgp_bpl_4",
+        "chs_f_r.cgp_wt_4"
+      ]
+    },
+    {
+      "id": "trailer_rear_flap_door",
+      "name": "Trailer Rear - Flap Door",
+      "file": "Trailer Rear - Flap Door.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "rear_body.door_1",
+        "rear_body.door_2"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "body.dumper3"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "body.dumper4"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

@@ -1,0 +1,235 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "scs.gastank",
+  "name": "SCS Gas Tank",
+  "brand": "SCS",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "SCS Gas Tank",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body (2 Axles)": [
+        "body.tank_10"
+      ],
+      "Body (3 Axles)": [
+        "body.tank_12"
+      ],
+      "Hoses": [
+        "l_body.spipe_pnt_2a",
+        "l_body.dpipe_pnt_2a",
+        "l_body.spipe_pnt_3a",
+        "l_body.dpipe_pnt_3a",
+        "r_body.spipe_pnt_2a",
+        "r_body.dpipe_pnt_2a",
+        "r_body.spipe_pnt_3a",
+        "r_body.dpipe_pnt_3a"
+      ],
+      "Rear Bumper": [
+        "r_bumper.simple",
+        "r_bumper.standard",
+        "r_bumper.simple_led",
+        "r_bumper.exc_white",
+        "r_bumper.exc_black"
+      ],
+      "Rear Fender": [
+        "r_fender.pt_sin_3a",
+        "r_fender.pt_mul_3a",
+        "r_fender.pt_sin_2a",
+        "r_fender.pt_mul_2a"
+      ],
+      "Sideskirts": [
+        "chs_f_l.paint_box",
+        "chs_f_l.paint_box_2",
+        "chs_f_l.p_box_sidsk",
+        "chs_f_r.side_short",
+        "chs_f_r.paint_box",
+        "chs_f_r.side_long",
+        "chs_f_r.p_box_sidsk"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body (2 Axles)",
+      "file": "Body (2 Axles).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.tank_10"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "hoses_2_axles",
+      "name": "Hoses (2 Axles)",
+      "file": "Accessories/Hoses (2 Axles).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "l_body.spipe_pnt_2a",
+        "l_body.dpipe_pnt_2a",
+        "r_body.spipe_pnt_2a",
+        "r_body.dpipe_pnt_2a"
+      ]
+    },
+    {
+      "id": "hoses_3_axles",
+      "name": "Hoses (3 Axles)",
+      "file": "Accessories/Hoses (3 Axles).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "l_body.spipe_pnt_3a",
+        "l_body.dpipe_pnt_3a",
+        "r_body.spipe_pnt_3a",
+        "r_body.dpipe_pnt_3a"
+      ]
+    },
+    {
+      "id": "rear_bumper",
+      "name": "Rear Bumper",
+      "file": "Accessories/Rear Bumper.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.simple",
+        "r_bumper.standard",
+        "r_bumper.simple_led",
+        "r_bumper.exc_white",
+        "r_bumper.exc_black"
+      ]
+    },
+    {
+      "id": "rear_fender_multiple_2_axles",
+      "name": "Rear Fender (Multiple, 2 Axles)",
+      "file": "Accessories/Rear Fender (Multiple, 2 Axles).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.pt_mul_2a"
+      ]
+    },
+    {
+      "id": "rear_fender_multiple_3_axles",
+      "name": "Rear Fender (Multiple, 3 Axles)",
+      "file": "Accessories/Rear Fender (Multiple, 3 Axles).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.pt_mul_3a"
+      ]
+    },
+    {
+      "id": "rear_fender_single_2_axles",
+      "name": "Rear Fender (Single, 2 Axles)",
+      "file": "Accessories/Rear Fender (Single, 2 Axles).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.pt_sin_2a"
+      ]
+    },
+    {
+      "id": "rear_fender_single_3_axles",
+      "name": "Rear Fender (Single, 3 Axles)",
+      "file": "Accessories/Rear Fender (Single, 3 Axles).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.pt_sin_3a"
+      ]
+    },
+    {
+      "id": "sideskirts_left_painted_box",
+      "name": "Sideskirts (Left) - Painted Box",
+      "file": "Accessories/Sideskirts (Left) - Painted Box.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.paint_box",
+        "chs_f_l.paint_box_2",
+        "chs_f_l.p_box_sidsk",
+        "chs_f_r.p_box_sidsk"
+      ]
+    },
+    {
+      "id": "sideskirts_right_rear_painted_box",
+      "name": "Sideskirts (Right & Rear) - Painted Box",
+      "file": "Accessories/Sideskirts (Right & Rear) - Painted Box.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_r.paint_box"
+      ]
+    },
+    {
+      "id": "sideskirts_right_full_protection_short",
+      "name": "Sideskirts (Right) - Full Protection (Short)",
+      "file": "Accessories/Sideskirts (Right) - Full Protection (Short).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_r.side_short",
+        "chs_f_r.side_long"
+      ]
+    },
+    {
+      "id": "body_3_axles",
+      "name": "Body (3 Axles)",
+      "file": "Body (3 Axles).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.tank_12"
+      ]
+    }
+  ],
+  "left_out": []
+}

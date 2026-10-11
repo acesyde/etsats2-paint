@@ -1,0 +1,93 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "scs.silo",
+  "name": "SCS Silo",
+  "brand": "SCS",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "SCS Silo",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body (10 m)": [
+        "body.silo10",
+        "l_body.tubes_pt_10",
+        "r_body.tubes_pt_10",
+        "rear_body.paint_10"
+      ],
+      "Body (5 m)": [
+        "body.silo5",
+        "f_body.ladder_pt",
+        "l_body.tubes_pt_5",
+        "r_body.tubes_pt_5"
+      ],
+      "Body (8 m)": [
+        "body.silo8",
+        "l_body.tubes_pt_8",
+        "r_body.tubes_pt_8",
+        "rear_body.paint_8"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body (10 m)",
+      "file": "Body (10 m).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.silo10",
+        "l_body.tubes_pt_10",
+        "r_body.tubes_pt_10",
+        "rear_body.paint_10"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "body_5_m",
+      "name": "Body (5 m)",
+      "file": "Body (5 m).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.silo5",
+        "f_body.ladder_pt",
+        "l_body.tubes_pt_5",
+        "r_body.tubes_pt_5"
+      ]
+    },
+    {
+      "id": "body_8_m",
+      "name": "Body (8 m)",
+      "file": "Body (8 m).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.silo8",
+        "l_body.tubes_pt_8",
+        "r_body.tubes_pt_8",
+        "rear_body.paint_8"
+      ]
+    }
+  ],
+  "left_out": []
+}

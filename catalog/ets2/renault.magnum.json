@@ -1,0 +1,43 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "renault.magnum",
+  "name": "Renault Magnum",
+  "brand": "Renault",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Renault Magnum",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "Excellence",
+        "internal_names": [
+          "solo"
+        ]
+      }
+    ],
+    "accessories": {}
+  },
+  "main": [
+    {
+      "id": "solo",
+      "name": "Excellence",
+      "file": "Renault Magnum.png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1
+    }
+  ],
+  "accessories": [],
+  "left_out": []
+}

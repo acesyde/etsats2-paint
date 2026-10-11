@@ -1,0 +1,115 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "wielton.drym",
+  "name": "Wielton Dry Master",
+  "brand": "Wielton",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Wielton Dry Master",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body": [
+        "body.curtain",
+        "body.curtain_sb"
+      ],
+      "Rear Bumper": [
+        "r_bumper.paint"
+      ],
+      "Sideskirts": [
+        "chs_f_l.cgp_2",
+        "chs_f_l.cgp_ext_2",
+        "chs_f_l.cgp_bpl_2",
+        "chs_f_l.cgp_st_2",
+        "chs_f_l.pb_2",
+        "chs_f_r.cgp_2",
+        "chs_f_r.cgp_ext_2",
+        "chs_f_r.cgp_bpl_2",
+        "chs_f_r.cgp_st_2",
+        "chs_f_r.pb_2",
+        "chs_f_l.cgp_3",
+        "chs_f_l.cgp_ext_3",
+        "chs_f_l.cgp_bpl_3",
+        "chs_f_l.cgp_st_3",
+        "chs_f_l.pb_3",
+        "chs_f_r.cgp_3",
+        "chs_f_r.cgp_ext_3",
+        "chs_f_r.cgp_bpl_3",
+        "chs_f_r.cgp_st_3",
+        "chs_f_r.pb_3"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body",
+      "file": "Body.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.curtain",
+        "body.curtain_sb"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "rear_bumper",
+      "name": "Rear Bumper",
+      "file": "Accessories/Rear Bumper.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.paint"
+      ]
+    },
+    {
+      "id": "sideskirts_long_2_axles",
+      "name": "Sideskirts (Long, 2 axles)",
+      "file": "Accessories/Sideskirts (Long, 2 axles).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.cgp_2",
+        "chs_f_l.cgp_ext_2",
+        "chs_f_l.cgp_bpl_2",
+        "chs_f_l.cgp_st_2",
+        "chs_f_l.pb_2",
+        "chs_f_r.cgp_2",
+        "chs_f_r.cgp_ext_2",
+        "chs_f_r.cgp_bpl_2",
+        "chs_f_r.cgp_st_2",
+        "chs_f_r.pb_2",
+        "chs_f_l.cgp_3",
+        "chs_f_l.cgp_ext_3",
+        "chs_f_l.cgp_bpl_3",
+        "chs_f_l.cgp_st_3",
+        "chs_f_l.pb_3",
+        "chs_f_r.cgp_3",
+        "chs_f_r.cgp_ext_3",
+        "chs_f_r.cgp_bpl_3",
+        "chs_f_r.cgp_st_3",
+        "chs_f_r.pb_3"
+      ]
+    }
+  ],
+  "left_out": []
+}

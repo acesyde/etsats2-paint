@@ -1,0 +1,77 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "daf.xf_electric",
+  "name": "DAF XF Electric",
+  "brand": "DAF",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "DAF XF Electric",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "Sleeper High",
+        "internal_names": [
+          "slh"
+        ]
+      }
+    ],
+    "accessories": {
+      "Mirrors": [
+        "mirror.cam_semi"
+      ],
+      "Sideskirts": [
+        "sideskirt.pnt_4x2"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "slh",
+      "name": "Sleeper High",
+      "file": "DAF XF Electric.png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1
+    }
+  ],
+  "accessories": [
+    {
+      "id": "mirrors",
+      "name": "Mirrors",
+      "file": "Accessories/Mirrors.png",
+      "size": [
+        1024,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "mirror.cam_semi"
+      ]
+    },
+    {
+      "id": "sideskirts",
+      "name": "Sideskirts",
+      "file": "Accessories/Sideskirts.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.pnt_4x2"
+      ]
+    }
+  ],
+  "left_out": []
+}

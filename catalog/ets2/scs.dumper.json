@@ -1,0 +1,187 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "scs.dumper",
+  "name": "SCS Dumper",
+  "brand": "SCS",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "SCS Dumper",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body - Aluminium": [
+        "body.al9"
+      ],
+      "Body - Aluminium (Long)": [
+        "body.al10"
+      ],
+      "Body - Steel": [
+        "body.steel9"
+      ],
+      "Body - Steel (Long)": [
+        "body.steel10"
+      ],
+      "Rear Fender": [
+        "r_fender.paint_2",
+        "r_fender.paint_3"
+      ],
+      "Sideskirts": [
+        "chs_f_l.ch_box_sidsk",
+        "chs_f_l.paint_box",
+        "chs_f_l.p_box_cage",
+        "chs_f_l.p_box_sidsk",
+        "chs_f_l.pl_box_sidsk",
+        "chs_f_l.side01_sh_t",
+        "chs_f_l.sideskirt_01",
+        "chs_f_r.ch_box_sidsk",
+        "chs_f_r.paint_box",
+        "chs_f_r.p_box_cage",
+        "chs_f_r.p_box_sidsk",
+        "chs_f_r.pl_box_sidsk",
+        "chs_f_r.side01_sh_t",
+        "chs_f_r.sideskirt_01"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body - Aluminium",
+      "file": "Body - Aluminium.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.al9"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_front_painted_box",
+      "name": "Chassis Front - Painted Box",
+      "file": "Accessories/Chassis Front - Painted Box.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.paint_box",
+        "chs_f_r.paint_box"
+      ]
+    },
+    {
+      "id": "chassis_front_sideskirts_box",
+      "name": "Chassis Front - Sideskirts + Box",
+      "file": "Accessories/Chassis Front - Sideskirts + Box.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.ch_box_sidsk",
+        "chs_f_l.p_box_cage",
+        "chs_f_l.p_box_sidsk",
+        "chs_f_l.pl_box_sidsk",
+        "chs_f_r.ch_box_sidsk",
+        "chs_f_r.p_box_cage",
+        "chs_f_r.p_box_sidsk",
+        "chs_f_r.pl_box_sidsk"
+      ]
+    },
+    {
+      "id": "chassis_front_simple_side_protection_painted_box",
+      "name": "Chassis Front - Simple Side Protection + Painted Box",
+      "file": "Accessories/Chassis Front - Simple Side Protection + Painted Box.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.side01_sh_t",
+        "chs_f_l.sideskirt_01",
+        "chs_f_r.side01_sh_t",
+        "chs_f_r.sideskirt_01"
+      ]
+    },
+    {
+      "id": "rear_fender_2_axles",
+      "name": "Rear Fender (2 Axles)",
+      "file": "Accessories/Rear Fender (2 Axles).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.paint_2"
+      ]
+    },
+    {
+      "id": "rear_fender_3_axles",
+      "name": "Rear Fender (3 Axles)",
+      "file": "Accessories/Rear Fender (3 Axles).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.paint_3"
+      ]
+    },
+    {
+      "id": "body_aluminium_long",
+      "name": "Body - Aluminium (Long)",
+      "file": "Body - Aluminium (Long).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.al10"
+      ]
+    },
+    {
+      "id": "body_steel_long",
+      "name": "Body - Steel (Long)",
+      "file": "Body - Steel (Long).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.steel10"
+      ]
+    },
+    {
+      "id": "body_steel",
+      "name": "Body - Steel",
+      "file": "Body - Steel.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.steel9"
+      ]
+    }
+  ],
+  "left_out": []
+}

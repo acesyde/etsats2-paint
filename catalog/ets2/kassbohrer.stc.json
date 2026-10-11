@@ -1,0 +1,101 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "kassbohrer.stc",
+  "name": "Kässbohrer K.STC",
+  "brand": "Kässbohrer",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Kässbohrer K.STC",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body": [
+        "body.tnk_30",
+        "body.tnk_30_p"
+      ],
+      "Hoses": [
+        "l_body.t_1_p_3_30",
+        "l_body.t_2_p_3_30",
+        "r_body.t_1_p_3_30",
+        "r_body.t_2_p_3_30"
+      ],
+      "Ladder": [
+        "rear_body.cwlp_3_30"
+      ],
+      "Rear Bumper": [
+        "r_bumper.paint"
+      ],
+      "Sideskirts": [
+        "chs_f_l.cg_bp_3_30",
+        "chs_f_r.cg_bp_3_30",
+        "chs_r_l.bp",
+        "chs_r_r.bp"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body",
+      "file": "Body.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.tnk_30",
+        "body.tnk_30_p"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_front_painted_box",
+      "name": "Chassis Front - Painted Box",
+      "file": "Accessories/Chassis Front - Painted Box.png",
+      "size": [
+        512,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.paint"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "l_body.t_1_p_3_30",
+        "l_body.t_2_p_3_30",
+        "r_body.t_1_p_3_30",
+        "r_body.t_2_p_3_30"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "rear_body.cwlp_3_30"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "chs_f_l.cg_bp_3_30",
+        "chs_f_r.cg_bp_3_30",
+        "chs_r_l.bp",
+        "chs_r_r.bp"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

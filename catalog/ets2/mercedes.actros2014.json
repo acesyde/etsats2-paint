@@ -1,0 +1,286 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "mercedes.actros2014",
+  "name": "Mercedes-Benz New Actros",
+  "brand": "Mercedes-Benz",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Mercedes-Benz New Actros",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "GigaSpace",
+        "internal_names": [
+          "gigaspace"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "BigSpace",
+        "internal_names": [
+          "bigspace"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "StreamSpace",
+        "internal_names": [
+          "streamspace"
+        ]
+      },
+      {
+        "code": "8",
+        "name": "GigaSpace",
+        "internal_names": [
+          "gs_8x4"
+        ]
+      }
+    ],
+    "accessories": {
+      "Chassis Cover": [
+        "r_chs_cover.4x2p",
+        "r_chs_cover.6x24p",
+        "r_chs_cover.6x2p"
+      ],
+      "Rear Bumper": [
+        "r_bumper.4x2v1",
+        "r_bumper.4x2v2",
+        "r_bumper.4x2v3",
+        "r_bumper.6x24v1",
+        "r_bumper.6x24v2",
+        "r_bumper.6x24v3",
+        "r_bumper.6x2v1",
+        "r_bumper.6x2v2",
+        "r_bumper.6x2v3"
+      ],
+      "Rear Fender": [
+        "r_fender.4x2p",
+        "r_fender.6x24p",
+        "r_fender.6x2p",
+        "r_fender.8x4p",
+        "r_fendr_top.4x2p",
+        "r_fendr_top.6x24p",
+        "r_fendr_top.6x2p",
+        "r_fendr_top.8x4p"
+      ],
+      "Stoneguard": [
+        "s_guard.type3"
+      ],
+      "Sun Visor": [
+        "sunshld.paint01",
+        "sunshld.paint02",
+        "sunshld.paint03"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "gigaspace",
+      "name": "GigaSpace",
+      "file": "Cabin A (GigaSpace).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "gigaspace"
+      ]
+    },
+    {
+      "id": "bigspace",
+      "name": "BigSpace",
+      "file": "Cabin B (BigSpace).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "bigspace"
+      ]
+    },
+    {
+      "id": "streamspace",
+      "name": "StreamSpace",
+      "file": "Cabin C (StreamSpace).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "streamspace"
+      ]
+    },
+    {
+      "id": "gs_8x4",
+      "name": "GigaSpace 8x4",
+      "file": "Cabin 8x4 (GigaSpace).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "gs_8x4"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_cover_diva_4x",
+      "name": "Chassis Cover - Diva (4x)",
+      "file": "Accessories/Chassis Cover - Diva (4x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.4x2p",
+        "r_chs_cover.6x24p",
+        "r_chs_cover.6x2p"
+      ]
+    },
+    {
+      "id": "rear_bumper_centurion",
+      "name": "Rear Bumper - Centurion",
+      "file": "Accessories/Rear Bumper - Centurion.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.4x2v1",
+        "r_bumper.4x2v2",
+        "r_bumper.4x2v3",
+        "r_bumper.6x24v1",
+        "r_bumper.6x24v2",
+        "r_bumper.6x24v3",
+        "r_bumper.6x2v1",
+        "r_bumper.6x2v2",
+        "r_bumper.6x2v3"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_4x",
+      "name": "Rear Fender - Paint (4x)",
+      "file": "Accessories/Rear Fender - Paint (4x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.4x2p"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_6x",
+      "name": "Rear Fender - Paint (6x)",
+      "file": "Accessories/Rear Fender - Paint (6x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.6x24p",
+        "r_fender.6x2p"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_8x",
+      "name": "Rear Fender - Paint (8x)",
+      "file": "Accessories/Rear Fender - Paint (8x).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.8x4p"
+      ]
+    },
+    {
+      "id": "rear_fender_top_paint_4x",
+      "name": "Rear Fender Top - Paint (4x)",
+      "file": "Accessories/Rear Fender Top - Paint (4x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.4x2p"
+      ]
+    },
+    {
+      "id": "rear_fender_top_paint_6x",
+      "name": "Rear Fender Top - Paint (6x)",
+      "file": "Accessories/Rear Fender Top - Paint (6x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.6x24p",
+        "r_fendr_top.6x2p"
+      ]
+    },
+    {
+      "id": "rear_fender_top_paint_8x",
+      "name": "Rear Fender Top - Paint (8x)",
+      "file": "Accessories/Rear Fender Top - Paint (8x).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.8x4p"
+      ]
+    },
+    {
+      "id": "stoneguard_extra",
+      "name": "Stoneguard - Extra",
+      "file": "Accessories/Stoneguard - Extra.png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "s_guard.type3"
+      ]
+    },
+    {
+      "id": "sun_visor_samurai",
+      "name": "Sun Visor - Samurai",
+      "file": "Accessories/Sun Visor - Samurai.png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sunshld.paint01",
+        "sunshld.paint02",
+        "sunshld.paint03"
+      ]
+    }
+  ],
+  "left_out": []
+}

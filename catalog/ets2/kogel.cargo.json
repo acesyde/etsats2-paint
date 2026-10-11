@@ -1,0 +1,201 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "kogel.cargo",
+  "name": "Kögel Cargo",
+  "brand": "Kögel",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Kögel Cargo",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body": [
+        "body.curtain_13"
+      ],
+      "Body (Long)": [
+        "body.curtain_15"
+      ],
+      "Rear Bumper": [
+        "r_bumper.paint"
+      ],
+      "Sideskirts": [
+        "chs_f_l.cgp_3_13",
+        "chs_f_l.cgp_bpl_3_13",
+        "chs_f_l.skp_3_13",
+        "chs_f_l.cg_st_3_13",
+        "chs_f_l.skp_bpl_3_13",
+        "chs_f_l.cgp_st_3_13",
+        "chs_f_l.cg_bp_3_13",
+        "chs_f_l.cgp_bp_3_13",
+        "chs_f_l.skp_st_3_13",
+        "chs_f_l.sk_bp_3_13",
+        "chs_f_l.skp_bp_3_13",
+        "chs_f_l.cgp_bch_3_13",
+        "chs_f_l.skp_bch_3_13",
+        "chs_f_l.palp_3_13",
+        "chs_f_r.cgp_3_13",
+        "chs_f_r.cgp_bpl_3_13",
+        "chs_f_r.skp_3_13",
+        "chs_f_r.cg_st_3_13",
+        "chs_f_r.skp_bpl_3_13",
+        "chs_f_r.cgp_st_3_13",
+        "chs_f_r.cg_bp_3_13",
+        "chs_f_r.cgp_bp_3_13",
+        "chs_f_r.skp_st_3_13",
+        "chs_f_r.sk_bp_3_13",
+        "chs_f_r.skp_bp_3_13",
+        "chs_f_r.cgp_bch_3_13",
+        "chs_f_r.skp_bch_3_13",
+        "chs_f_r.palp_3_13",
+        "chs_f_l.cgp_2_13",
+        "chs_f_l.cgp_bpl_2_13",
+        "chs_f_l.skp_2_13",
+        "chs_f_l.cg_st_2_13",
+        "chs_f_l.skp_bpl_2_13",
+        "chs_f_l.cgp_st_2_13",
+        "chs_f_l.cg_bp_2_13",
+        "chs_f_l.cgp_bp_2_13",
+        "chs_f_l.skp_st_2_13",
+        "chs_f_l.sk_bp_2_13",
+        "chs_f_l.skp_bp_2_13",
+        "chs_f_l.cgp_bch_2_13",
+        "chs_f_l.skp_bch_2_13",
+        "chs_f_r.cgp_2_13",
+        "chs_f_r.cgp_bpl_2_13",
+        "chs_f_r.skp_2_13",
+        "chs_f_r.cg_st_2_13",
+        "chs_f_r.skp_bpl_2_13",
+        "chs_f_r.cgp_st_2_13",
+        "chs_f_r.cg_bp_2_13",
+        "chs_f_r.cgp_bp_2_13",
+        "chs_f_r.skp_st_2_13",
+        "chs_f_r.sk_bp_2_13",
+        "chs_f_r.skp_bp_2_13",
+        "chs_f_r.cgp_bch_2_13",
+        "chs_f_r.skp_bch_2_13",
+        "chs_m_l.bp",
+        "chs_m_r.bp",
+        "chs_r_l.bp",
+        "chs_r_r.bp"
+      ],
+      "Trailer Front": [
+        "f_body.box"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body",
+      "file": "Body.png",
+      "size": [
+        8192,
+        1024
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.curtain_13"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "body_long",
+      "name": "Body (Long)",
+      "file": "Body (Long).png",
+      "size": [
+        8192,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.curtain_15"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "r_bumper.paint"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "chs_f_l.cgp_3_13",
+        "chs_f_l.cgp_bpl_3_13",
+        "chs_f_l.skp_3_13",
+        "chs_f_l.cg_st_3_13",
+        "chs_f_l.skp_bpl_3_13",
+        "chs_f_l.cgp_st_3_13",
+        "chs_f_l.cg_bp_3_13",
+        "chs_f_l.cgp_bp_3_13",
+        "chs_f_l.skp_st_3_13",
+        "chs_f_l.sk_bp_3_13",
+        "chs_f_l.skp_bp_3_13",
+        "chs_f_l.cgp_bch_3_13",
+        "chs_f_l.skp_bch_3_13",
+        "chs_f_l.palp_3_13",
+        "chs_f_r.cgp_3_13",
+        "chs_f_r.cgp_bpl_3_13",
+        "chs_f_r.skp_3_13",
+        "chs_f_r.cg_st_3_13",
+        "chs_f_r.skp_bpl_3_13",
+        "chs_f_r.cgp_st_3_13",
+        "chs_f_r.cg_bp_3_13",
+        "chs_f_r.cgp_bp_3_13",
+        "chs_f_r.skp_st_3_13",
+        "chs_f_r.sk_bp_3_13",
+        "chs_f_r.skp_bp_3_13",
+        "chs_f_r.cgp_bch_3_13",
+        "chs_f_r.skp_bch_3_13",
+        "chs_f_r.palp_3_13",
+        "chs_f_l.cgp_2_13",
+        "chs_f_l.cgp_bpl_2_13",
+        "chs_f_l.skp_2_13",
+        "chs_f_l.cg_st_2_13",
+        "chs_f_l.skp_bpl_2_13",
+        "chs_f_l.cgp_st_2_13",
+        "chs_f_l.cg_bp_2_13",
+        "chs_f_l.cgp_bp_2_13",
+        "chs_f_l.skp_st_2_13",
+        "chs_f_l.sk_bp_2_13",
+        "chs_f_l.skp_bp_2_13",
+        "chs_f_l.cgp_bch_2_13",
+        "chs_f_l.skp_bch_2_13",
+        "chs_f_r.cgp_2_13",
+        "chs_f_r.cgp_bpl_2_13",
+        "chs_f_r.skp_2_13",
+        "chs_f_r.cg_st_2_13",
+        "chs_f_r.skp_bpl_2_13",
+        "chs_f_r.cgp_st_2_13",
+        "chs_f_r.cg_bp_2_13",
+        "chs_f_r.cgp_bp_2_13",
+        "chs_f_r.skp_st_2_13",
+        "chs_f_r.sk_bp_2_13",
+        "chs_f_r.skp_bp_2_13",
+        "chs_f_r.cgp_bch_2_13",
+        "chs_f_r.skp_bch_2_13",
+        "chs_m_l.bp",
+        "chs_m_r.bp",
+        "chs_r_l.bp",
+        "chs_r_r.bp"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "f_body.box"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

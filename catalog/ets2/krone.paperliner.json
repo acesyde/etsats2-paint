@@ -1,0 +1,111 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "krone.paperliner",
+  "name": "Krone Paper Liner",
+  "brand": "Krone",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Krone Profi Liner & Paper Liner",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body": [
+        "body.curtain_136"
+      ],
+      "Rear Bumper": [
+        "r_bumper.bumper02p"
+      ],
+      "Sideskirts": [
+        "chs_f_l.side02p",
+        "chs_f_l.side02sp",
+        "chs_f_l.side02tp",
+        "chs_f_l.side02tsp",
+        "chs_f_r.side02p",
+        "chs_f_r.side02sp",
+        "chs_f_r.side02tp",
+        "chs_f_r.side02tsp",
+        "chs_f_l.side01p",
+        "chs_f_r.side01p",
+        "chs_f_l.pallet01p",
+        "chs_f_r.pallet01p",
+        "chs_r_l.pallet01p",
+        "chs_r_l.pallet01sp",
+        "chs_r_r.pallet01p",
+        "chs_r_r.pallet01sp"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body",
+      "file": "Body.png",
+      "size": [
+        8192,
+        1024
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.curtain_136"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_front_pallet_box",
+      "name": "Chassis Front - Pallet Box",
+      "file": "Accessories/Chassis Front - Pallet Box.png",
+      "size": [
+        1024,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.pallet01p",
+        "chs_f_r.pallet01p",
+        "chs_f_l.side02p",
+        "chs_f_l.side02sp",
+        "chs_f_l.side02tp",
+        "chs_f_l.side02tsp",
+        "chs_f_r.side02p",
+        "chs_f_r.side02sp",
+        "chs_f_r.side02tp",
+        "chs_f_r.side02tsp",
+        "chs_f_l.side01p",
+        "chs_f_r.side01p"
+      ]
+    },
+    {
+      "id": "chassis_rear_pallet_box",
+      "name": "Chassis Rear - Pallet Box",
+      "file": "Accessories/Chassis Rear - Pallet Box.png",
+      "size": [
+        512,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_r_l.pallet01p",
+        "chs_r_l.pallet01sp",
+        "chs_r_r.pallet01p",
+        "chs_r_r.pallet01sp"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "r_bumper.bumper02p"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

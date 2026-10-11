@@ -1,0 +1,140 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "schmitz.ski",
+  "name": "Schmitz Cargobull S.KI",
+  "brand": "Schmitz Cargobull",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Schmitz Cargobull S.KI",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body - LIGHT": [
+        "body.light_24",
+        "body.light_24_sc"
+      ],
+      "Body - LIGHT (Long)": [
+        "body.light_33",
+        "body.light_33_sc"
+      ],
+      "Body - SOLID": [
+        "body.solid_24",
+        "body.solid_24_sc"
+      ],
+      "Body - SOLID (Long)": [
+        "body.solid_33",
+        "body.solid_33_sc"
+      ],
+      "Rear Bumper": [
+        "r_bumper.paint"
+      ],
+      "Sideskirts": [
+        "chs_f_l.cgp_3_24",
+        "chs_f_l.cgp_ext_3_24",
+        "chs_f_l.cgp_wt_3_24",
+        "chs_f_r.cgp_3_24",
+        "chs_f_r.cgp_ext_3_24",
+        "chs_f_r.cgp_wt_3_24",
+        "chs_f_l.cgp_3_33",
+        "chs_f_l.cgp_ext_3_33",
+        "chs_f_l.cgp_wt_3_33",
+        "chs_f_r.cgp_3_33",
+        "chs_f_r.cgp_ext_3_33",
+        "chs_f_r.cgp_wt_3_33"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body - LIGHT",
+      "file": "Body - LIGHT.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.light_24",
+        "body.light_24_sc"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "body_light_long",
+      "name": "Body - LIGHT (Long)",
+      "file": "Body - LIGHT (Long).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.light_33",
+        "body.light_33_sc"
+      ]
+    },
+    {
+      "id": "body_solid_long",
+      "name": "Body - SOLID (Long)",
+      "file": "Body - SOLID (Long).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.solid_33",
+        "body.solid_33_sc"
+      ]
+    },
+    {
+      "id": "body_solid",
+      "name": "Body - SOLID",
+      "file": "Body - SOLID.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.solid_24",
+        "body.solid_24_sc"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "r_bumper.paint"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "chs_f_l.cgp_3_24",
+        "chs_f_l.cgp_ext_3_24",
+        "chs_f_l.cgp_wt_3_24",
+        "chs_f_r.cgp_3_24",
+        "chs_f_r.cgp_ext_3_24",
+        "chs_f_r.cgp_wt_3_24",
+        "chs_f_l.cgp_3_33",
+        "chs_f_l.cgp_ext_3_33",
+        "chs_f_l.cgp_wt_3_33",
+        "chs_f_r.cgp_3_33",
+        "chs_f_r.cgp_ext_3_33",
+        "chs_f_r.cgp_wt_3_33"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

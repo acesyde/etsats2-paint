@@ -1,0 +1,86 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "man.tgx",
+  "name": "MAN TGX Euro 5",
+  "brand": "MAN",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "MAN TGX Euro 5",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "XXL",
+        "internal_names": [
+          "xxl_cab"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "XLX",
+        "internal_names": [
+          "xlx_cab"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "XL",
+        "internal_names": [
+          "xl_cab"
+        ]
+      }
+    ],
+    "accessories": {}
+  },
+  "main": [
+    {
+      "id": "xxl_cab",
+      "name": "XXL",
+      "file": "Cabin A (XXL).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "xxl_cab"
+      ]
+    },
+    {
+      "id": "xlx_cab",
+      "name": "XLX",
+      "file": "Cabin B (XLX).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "xlx_cab"
+      ]
+    },
+    {
+      "id": "xl_cab",
+      "name": "XL",
+      "file": "Cabin C (XL).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "xl_cab"
+      ]
+    }
+  ],
+  "accessories": [],
+  "left_out": []
+}

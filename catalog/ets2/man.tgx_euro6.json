@@ -1,0 +1,272 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "man.tgx_euro6",
+  "name": "MAN TGX Euro 6",
+  "brand": "MAN",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "MAN TGX Euro 6",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "XXL",
+        "internal_names": [
+          "xxl_cab"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "XLX",
+        "internal_names": [
+          "xlx_cab"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "XL",
+        "internal_names": [
+          "xl_cab"
+        ]
+      }
+    ],
+    "accessories": {
+      "Mirrors": [
+        "mirror.paint"
+      ],
+      "Rear Fender": [
+        "r_fender.paint_4x2",
+        "r_fender.paint_6x22",
+        "r_fender.paint_6x24",
+        "r_fender.paint_6x2_2",
+        "r_fender.paint_6x4",
+        "r_fender.paint_8x4",
+        "r_fendr_top.paint_4x2",
+        "r_fendr_top.paint_6x22",
+        "r_fendr_top.paint_6x24",
+        "r_fendr_top.paint_6x2_2",
+        "r_fendr_top.paint_6x4",
+        "r_fendr_top.paint_8x4"
+      ],
+      "Sideskirts (4x)": [
+        "sideskirt.paint_4x2",
+        "sideskirt.stock_4x2"
+      ],
+      "Sideskirts (6x2 Long)": [
+        "sideskirt.paint_6x2_2",
+        "sideskirt.stock_6x2_2"
+      ],
+      "Sideskirts (6x2 Short)": [
+        "sideskirt.paint_6x22",
+        "sideskirt.stock_6x22",
+        "sideskirt.paint_6x24",
+        "sideskirt.stock_6x24"
+      ],
+      "Sideskirts (6x4)": [
+        "sideskirt.paint_6x4",
+        "sideskirt.stock_6x4"
+      ],
+      "Sideskirts (8x)": [
+        "sideskirt.paint_8x4",
+        "sideskirt.stock_8x4"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "xxl_cab",
+      "name": "XXL",
+      "file": "Cabin A (XXL).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "xxl_cab"
+      ]
+    },
+    {
+      "id": "xlx_cab",
+      "name": "XLX",
+      "file": "Cabin B (XLX).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "xlx_cab"
+      ]
+    },
+    {
+      "id": "xl_cab",
+      "name": "XL",
+      "file": "Cabin C (XL).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "xl_cab"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "main_mirrors_paint",
+      "name": "Main Mirrors - Paint",
+      "file": "Accessories/Main Mirrors - Paint.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "mirror.paint"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_4x",
+      "name": "Rear Fender - Paint (4x)",
+      "file": "Accessories/Rear Fender - Paint (4x).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.paint_4x2",
+        "r_fender.paint_6x22",
+        "r_fender.paint_6x24",
+        "r_fender.paint_6x2_2",
+        "r_fender.paint_6x4",
+        "r_fendr_top.paint_6x22",
+        "r_fendr_top.paint_6x24",
+        "r_fendr_top.paint_6x2_2",
+        "r_fendr_top.paint_6x4"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_8x",
+      "name": "Rear Fender - Paint (8x)",
+      "file": "Accessories/Rear Fender - Paint (8x).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.paint_8x4"
+      ]
+    },
+    {
+      "id": "rear_fender_top_paint_4x",
+      "name": "Rear Fender Top - Paint (4x)",
+      "file": "Accessories/Rear Fender Top - Paint (4x).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.paint_4x2"
+      ]
+    },
+    {
+      "id": "rear_fender_top_paint_8x",
+      "name": "Rear Fender Top - Paint (8x)",
+      "file": "Accessories/Rear Fender Top - Paint (8x).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.paint_8x4"
+      ]
+    },
+    {
+      "id": "sideskirts_paint_4x",
+      "name": "Sideskirts - Paint (4x)",
+      "file": "Accessories/Sideskirts - Paint (4x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.paint_4x2",
+        "sideskirt.stock_4x2"
+      ]
+    },
+    {
+      "id": "sideskirts_paint_6x2_long",
+      "name": "Sideskirts - Paint (6x2 Long)",
+      "file": "Accessories/Sideskirts - Paint (6x2 Long).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.paint_6x2_2",
+        "sideskirt.stock_6x2_2"
+      ]
+    },
+    {
+      "id": "sideskirts_paint_6x2_short",
+      "name": "Sideskirts - Paint (6x2 Short)",
+      "file": "Accessories/Sideskirts - Paint (6x2 Short).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.paint_6x22",
+        "sideskirt.stock_6x22",
+        "sideskirt.paint_6x24",
+        "sideskirt.stock_6x24"
+      ]
+    },
+    {
+      "id": "sideskirts_paint_6x4",
+      "name": "Sideskirts - Paint (6x4)",
+      "file": "Accessories/Sideskirts - Paint (6x4).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.paint_6x4",
+        "sideskirt.stock_6x4"
+      ]
+    },
+    {
+      "id": "sideskirts_paint_8x",
+      "name": "Sideskirts - Paint (8x)",
+      "file": "Accessories/Sideskirts - Paint (8x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.paint_8x4",
+        "sideskirt.stock_8x4"
+      ]
+    }
+  ],
+  "left_out": []
+}

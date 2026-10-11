@@ -1,0 +1,138 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "daf.xf_euro6",
+  "name": "DAF XF",
+  "brand": "DAF",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "DAF XF",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "Super Space",
+        "internal_names": [
+          "superspace"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "Space Aero",
+        "internal_names": [
+          "spacespoiler"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "Space",
+        "internal_names": [
+          "space"
+        ]
+      }
+    ],
+    "accessories": {
+      "Chassis Cover": [
+        "r_chs_cover.ch_4x2_p",
+        "r_chs_cover.ch_6x4_p"
+      ],
+      "Rear Bumper": [
+        "r_bumper.paint",
+        "r_bumper.paint_6",
+        "r_bumper.chrome",
+        "r_bumper.chrome_6",
+        "r_bumper.steel",
+        "r_bumper.steel_6"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "superspace",
+      "name": "Super Space",
+      "file": "Cabin A (Super Space).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "superspace"
+      ]
+    },
+    {
+      "id": "spacespoiler",
+      "name": "Space Aero",
+      "file": "Cabin B (Space Aero).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "spacespoiler"
+      ]
+    },
+    {
+      "id": "space",
+      "name": "Space",
+      "file": "Cabin C (Space).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "space"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_cover_diva_4x",
+      "name": "Chassis Cover - Diva (4x)",
+      "file": "Accessories/Chassis Cover - Diva (4x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.ch_4x2_p"
+      ]
+    },
+    {
+      "id": "chassis_cover_diva_6x",
+      "name": "Chassis Cover - Diva (6x)",
+      "file": "Accessories/Chassis Cover - Diva (6x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.ch_6x4_p"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "r_bumper.paint",
+        "r_bumper.paint_6",
+        "r_bumper.chrome",
+        "r_bumper.chrome_6",
+        "r_bumper.steel",
+        "r_bumper.steel_6"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

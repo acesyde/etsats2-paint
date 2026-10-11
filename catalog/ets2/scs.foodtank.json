@@ -1,0 +1,171 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "scs.foodtank",
+  "name": "SCS Food Tank",
+  "brand": "SCS",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "SCS Food Tank",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body (2 Axles)": [
+        "body.tank_8_p",
+        "body.tank_8_ch"
+      ],
+      "Body (3 Axles)": [
+        "body.tank_10_p",
+        "body.tank_10_ch"
+      ],
+      "Front Sideskirts": [
+        "chs_f_l.side01_sh",
+        "chs_f_l.side01_sh_t",
+        "chs_f_r.side01_sh",
+        "chs_f_r.side01_sh_t"
+      ],
+      "Rear Bumper": [
+        "r_bumper.led"
+      ],
+      "Sideskirts - Painted Boxes": [
+        "chs_f_l.paint_box",
+        "chs_f_r.paint_box",
+        "chs_r_l.paint_box",
+        "chs_r_r.paint_box"
+      ],
+      "Trailer Front": [
+        "f_body.paint",
+        "f_body.chrome"
+      ],
+      "Trailer Rear": [
+        "rear_body.paint",
+        "rear_body.chrome"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "2 Axles",
+      "file": "2 Axles.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.tank_8_p",
+        "body.tank_8_ch"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "3_axles",
+      "name": "3 Axles",
+      "file": "3 Axles.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.tank_10_p",
+        "body.tank_10_ch"
+      ]
+    },
+    {
+      "id": "front_sideskirts_painted_box",
+      "name": "Front Sideskirts - Painted Box",
+      "file": "Accessories/Front Sideskirts - Painted Box.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.paint_box",
+        "chs_f_r.paint_box"
+      ]
+    },
+    {
+      "id": "front_sideskirts",
+      "name": "Front Sideskirts",
+      "file": "Accessories/Front Sideskirts.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.side01_sh",
+        "chs_f_l.side01_sh_t",
+        "chs_f_r.side01_sh",
+        "chs_f_r.side01_sh_t"
+      ]
+    },
+    {
+      "id": "rear_bumper_exclusive_led",
+      "name": "Rear Bumper - Exclusive LED",
+      "file": "Accessories/Rear Bumper - Exclusive LED.png",
+      "size": [
+        2048,
+        128
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.led"
+      ]
+    },
+    {
+      "id": "rear_sideskirts_painted_box",
+      "name": "Rear Sideskirts - Painted Box",
+      "file": "Accessories/Rear Sideskirts - Painted Box.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_r_l.paint_box",
+        "chs_r_r.paint_box"
+      ]
+    },
+    {
+      "id": "trailer_front_paint",
+      "name": "Trailer Front - Paint",
+      "file": "Accessories/Trailer Front - Paint.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_body.paint",
+        "f_body.chrome"
+      ]
+    },
+    {
+      "id": "trailer_rear_paint",
+      "name": "Trailer Rear - Paint",
+      "file": "Accessories/Trailer Rear - Paint.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "rear_body.paint",
+        "rear_body.chrome"
+      ]
+    }
+  ],
+  "left_out": []
+}

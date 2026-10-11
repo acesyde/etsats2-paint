@@ -1,0 +1,146 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "scania.r",
+  "name": "Scania R 2009",
+  "brand": "Scania",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Scania R 2009 & Streamline",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "Topline",
+        "internal_names": [
+          "topline"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "Highline",
+        "internal_names": [
+          "highline"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "Normal",
+        "internal_names": [
+          "normal"
+        ]
+      },
+      {
+        "code": "8",
+        "name": "Topline",
+        "internal_names": [
+          "tl_8x4"
+        ]
+      }
+    ],
+    "accessories": {
+      "Chassis Cover": [
+        "r_chs_cover.chscmg4x203",
+        "r_chs_cover.chscmg6x203",
+        "r_chs_cover.chscmg6x2403"
+      ],
+      "Rear Bumper": [
+        "r_bumper.arbumpermg01",
+        "r_bumper.arbumpermg03"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "topline",
+      "name": "Topline",
+      "file": "R 2009 Cabin A (Topline).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "topline"
+      ]
+    },
+    {
+      "id": "highline",
+      "name": "Highline",
+      "file": "R 2009 Cabin B (Highline).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "highline"
+      ]
+    },
+    {
+      "id": "normal",
+      "name": "Normal",
+      "file": "R 2009 Cabin C (Normal).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "normal"
+      ]
+    },
+    {
+      "id": "tl_8x4",
+      "name": "Topline 8x4",
+      "file": "R 2009 Cabin 8x4 (Topline).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "tl_8x4"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_cover_diva_4x",
+      "name": "Chassis Cover - Diva (4x)",
+      "file": "Accessories/Chassis Cover - Diva (4x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.chscmg4x203",
+        "r_chs_cover.chscmg6x203",
+        "r_chs_cover.chscmg6x2403"
+      ]
+    },
+    {
+      "id": "rear_bumper_diva",
+      "name": "Rear Bumper - Diva",
+      "file": "Accessories/Rear Bumper - Diva (R 2009).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.arbumpermg01",
+        "r_bumper.arbumpermg03"
+      ]
+    }
+  ],
+  "left_out": []
+}

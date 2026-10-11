@@ -1,0 +1,201 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "krone.profiliner",
+  "name": "Krone Profi Liner",
+  "brand": "Krone",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Krone Profi Liner & Paper Liner",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body - Load Carrier (Double)": [
+        "body.curtain_78"
+      ],
+      "Body - Profi Liner": [
+        "body.curtain_136",
+        "body.curt_13ct",
+        "body.curt_13ecf",
+        "body.curt_13ecr",
+        "body.curt_13ec"
+      ],
+      "Body - Profi Liner (Long)": [
+        "body.curt_15"
+      ],
+      "Body - Profi Liner TIR": [
+        "body.curt_13tir"
+      ],
+      "Rear Bumper": [
+        "r_bumper.bumper01p",
+        "r_bumper.bumperd01p",
+        "r_bumper.bumper02p",
+        "r_bumper.lc_bumper01p"
+      ],
+      "Sideskirts": [
+        "chs_m_l.lc_side01p",
+        "chs_m_r.lc_side01p",
+        "chs_f_l.lc_side02sp",
+        "chs_f_r.lc_side02sp",
+        "chs_f_l.side02p",
+        "chs_f_l.side02sp",
+        "chs_f_l.side02tp",
+        "chs_f_l.side02tsp",
+        "chs_f_r.side02p",
+        "chs_f_r.side02sp",
+        "chs_f_r.side02tp",
+        "chs_f_r.side02tsp",
+        "chs_f_l.lc_side01p",
+        "chs_f_r.lc_side01p",
+        "chs_f_l.side01p",
+        "chs_f_r.side01p",
+        "chs_f_l.pallet01p",
+        "chs_f_r.pallet01p",
+        "chs_r_l.lc_pallet01p",
+        "chs_r_l.pallet01p",
+        "chs_r_l.pallet01sp",
+        "chs_r_r.lc_pallet01p",
+        "chs_r_r.pallet01p",
+        "chs_r_r.pallet01sp"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body (Double)",
+      "file": "Body (Double).png",
+      "size": [
+        8192,
+        1024
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.curtain_78"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_front_pallet_box",
+      "name": "Chassis Front - Pallet Box",
+      "file": "Accessories/Chassis Front - Pallet Box.png",
+      "size": [
+        1024,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.pallet01p",
+        "chs_f_r.pallet01p",
+        "chs_f_l.lc_side02sp",
+        "chs_f_r.lc_side02sp",
+        "chs_f_l.side02p",
+        "chs_f_l.side02sp",
+        "chs_f_l.side02tp",
+        "chs_f_l.side02tsp",
+        "chs_f_r.side02p",
+        "chs_f_r.side02sp",
+        "chs_f_r.side02tp",
+        "chs_f_r.side02tsp",
+        "chs_f_l.lc_side01p",
+        "chs_f_r.lc_side01p",
+        "chs_f_l.side01p",
+        "chs_f_r.side01p"
+      ]
+    },
+    {
+      "id": "chassis_mid_simple_side_skirt",
+      "name": "Chassis Mid - Simple Side Skirt",
+      "file": "Accessories/Chassis Mid - Simple Side Skirt.png",
+      "size": [
+        256,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_m_l.lc_side01p",
+        "chs_m_r.lc_side01p"
+      ]
+    },
+    {
+      "id": "chassis_rear_pallet_box",
+      "name": "Chassis Rear - Pallet Box",
+      "file": "Accessories/Chassis Rear - Pallet Box.png",
+      "size": [
+        512,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_r_l.lc_pallet01p",
+        "chs_r_l.pallet01p",
+        "chs_r_l.pallet01sp",
+        "chs_r_r.lc_pallet01p",
+        "chs_r_r.pallet01p",
+        "chs_r_r.pallet01sp"
+      ]
+    },
+    {
+      "id": "body_long",
+      "name": "Body (Long)",
+      "file": "Body (Long).png",
+      "size": [
+        8192,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.curt_15"
+      ]
+    },
+    {
+      "id": "body_tir_long",
+      "name": "Body - TIR (Long)",
+      "file": "Body - TIR (Long).png",
+      "size": [
+        8192,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.curt_13tir"
+      ]
+    },
+    {
+      "id": "body_2",
+      "name": "Body",
+      "file": "Body.png",
+      "size": [
+        8192,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.curtain_136",
+        "body.curt_13ct",
+        "body.curt_13ecf",
+        "body.curt_13ecr",
+        "body.curt_13ec"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "r_bumper.bumper01p",
+        "r_bumper.bumperd01p",
+        "r_bumper.bumper02p",
+        "r_bumper.lc_bumper01p"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

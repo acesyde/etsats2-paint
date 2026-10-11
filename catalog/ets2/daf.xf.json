@@ -1,0 +1,124 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "daf.xf",
+  "name": "DAF XF105",
+  "brand": "DAF",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "DAF XF105",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "Super Space",
+        "internal_names": [
+          "super_s_cab"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "Space Cab Plus",
+        "internal_names": [
+          "s_cab_plus"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "Space",
+        "internal_names": [
+          "space_cab"
+        ]
+      }
+    ],
+    "accessories": {
+      "Chassis Cover": [
+        "r_chs_cover.ch_4x2_et_p",
+        "r_chs_cover.ch_4x2_p",
+        "r_chs_cover.ch_6x2_p",
+        "r_chs_cover.ch_6x4_p"
+      ],
+      "Rear Bumper": [
+        "r_bumper.paint",
+        "r_bumper.chrome",
+        "r_bumper.steel"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "super_s_cab",
+      "name": "Super Space",
+      "file": "Cabin A (Super Space).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "super_s_cab"
+      ]
+    },
+    {
+      "id": "s_cab_plus",
+      "name": "Space Cab Plus",
+      "file": "Cabin B (Space Cab Plus).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "s_cab_plus"
+      ]
+    },
+    {
+      "id": "space_cab",
+      "name": "Space",
+      "file": "Cabin C (Space).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "space_cab"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_cover_diva",
+      "name": "Chassis Cover - Diva",
+      "file": "Accessories/Chassis Cover - Diva.png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.ch_4x2_et_p",
+        "r_chs_cover.ch_4x2_p",
+        "r_chs_cover.ch_6x2_p",
+        "r_chs_cover.ch_6x4_p"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "r_bumper.paint",
+        "r_bumper.chrome",
+        "r_bumper.steel"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

@@ -1,0 +1,316 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "volvo.fh16",
+  "name": "Volvo FH3",
+  "brand": "Volvo",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Volvo FH3",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "Globetrotter XL",
+        "internal_names": [
+          "l2h3"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "Globetrotter",
+        "internal_names": [
+          "l2h2"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "Sleeper",
+        "internal_names": [
+          "l2h1"
+        ]
+      }
+    ],
+    "accessories": {
+      "Air Filter": [
+        "filter.paint_gl",
+        "filter.paint_glxl",
+        "filter.paint_slep"
+      ],
+      "Bull Bar": [
+        "f_grill.paint1"
+      ],
+      "Chassis Cover": [
+        "r_chs_cover.paint_4x",
+        "r_chs_cover.paint_6x",
+        "r_chs_cover.paint_dia_4x",
+        "r_chs_cover.paint_dia_6x"
+      ],
+      "Light Bar": [
+        "r_grill.paint1",
+        "r_grill.paint1_h1"
+      ],
+      "Mirrors": [
+        "mirror.led3",
+        "mirror.led4",
+        "mirror.shape3",
+        "f_mirror.paint",
+        "f_mirror.paintl",
+        "s_mirror.paint"
+      ],
+      "Rear Bumper": [
+        "r_bumper.shape1",
+        "r_bumper.shape2"
+      ],
+      "Rear Exhaust": [
+        "exhaust_m.exh_m_02",
+        "exhaust_m.exh_m_02b"
+      ],
+      "Rear Fender": [
+        "r_fender.paint_4x",
+        "r_fender.paint_6x",
+        "r_fendr_top.paint_4x",
+        "r_fendr_top.paint_6x",
+        "r_fendr_top.paint_chr_4x",
+        "r_fendr_top.paint_chr_6x"
+      ],
+      "Sun Visor": [
+        "sunshld.shape2",
+        "sunshld.sunshield01",
+        "sunshld.sunshield02",
+        "sunshld.sunshield03"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "l2h3",
+      "name": "Globetrotter XL",
+      "file": "Cabin A (Globetrotter XL).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "l2h3"
+      ]
+    },
+    {
+      "id": "l2h2",
+      "name": "Globetrotter",
+      "file": "Cabin B (Globetrotter).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "l2h2"
+      ]
+    },
+    {
+      "id": "l2h1",
+      "name": "Sleeper",
+      "file": "Cabin C (Sleeper).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "l2h1"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "bull_bar_quarterback",
+      "name": "Bull Bar - Quarterback",
+      "file": "Accessories/Bull Bar - Quarterback.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_grill.paint1"
+      ]
+    },
+    {
+      "id": "chassis_cover_centurion_4x",
+      "name": "Chassis Cover - Centurion (4x)",
+      "file": "Accessories/Chassis Cover - Centurion (4x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.paint_4x",
+        "r_chs_cover.paint_6x",
+        "r_chs_cover.paint_dia_4x",
+        "r_chs_cover.paint_dia_6x"
+      ]
+    },
+    {
+      "id": "light_bar_paint",
+      "name": "Light Bar - Paint",
+      "file": "Accessories/Light Bar - Paint.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_grill.paint1",
+        "r_grill.paint1_h1"
+      ]
+    },
+    {
+      "id": "main_mirrors_paint",
+      "name": "Main Mirrors - Paint",
+      "file": "Accessories/Main Mirrors - Paint.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "mirror.led3",
+        "mirror.led4",
+        "mirror.shape3",
+        "f_mirror.paint",
+        "f_mirror.paintl"
+      ]
+    },
+    {
+      "id": "rear_bumper_chariot",
+      "name": "Rear Bumper - Chariot",
+      "file": "Accessories/Rear Bumper - Chariot.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.shape1",
+        "r_bumper.shape2"
+      ]
+    },
+    {
+      "id": "rear_exhaust_diva",
+      "name": "Rear Exhaust - Diva",
+      "file": "Accessories/Rear Exhaust - Diva.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "exhaust_m.exh_m_02",
+        "exhaust_m.exh_m_02b"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_4x",
+      "name": "Rear Fender - Paint (4x)",
+      "file": "Accessories/Rear Fender - Paint (4x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.paint_4x"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_6x",
+      "name": "Rear Fender - Paint (6x)",
+      "file": "Accessories/Rear Fender - Paint (6x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.paint_6x"
+      ]
+    },
+    {
+      "id": "rear_fender_top_paint_4x",
+      "name": "Rear Fender Top - Paint (4x)",
+      "file": "Accessories/Rear Fender Top - Paint (4x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.paint_4x",
+        "r_fendr_top.paint_chr_4x"
+      ]
+    },
+    {
+      "id": "rear_fender_top_paint_6x",
+      "name": "Rear Fender Top - Paint (6x)",
+      "file": "Accessories/Rear Fender Top - Paint (6x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.paint_6x",
+        "r_fendr_top.paint_chr_6x"
+      ]
+    },
+    {
+      "id": "side_mirror_paint",
+      "name": "Side Mirror - Paint",
+      "file": "Accessories/Side Mirror - Paint.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "s_mirror.paint"
+      ]
+    },
+    {
+      "id": "sun_visor_paint",
+      "name": "Sun Visor - Paint",
+      "file": "Accessories/Sun Visor - Paint.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sunshld.shape2",
+        "sunshld.sunshield01",
+        "sunshld.sunshield02",
+        "sunshld.sunshield03"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "filter.paint_gl",
+        "filter.paint_glxl",
+        "filter.paint_slep"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

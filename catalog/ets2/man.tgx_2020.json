@@ -1,0 +1,244 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "man.tgx_2020",
+  "name": "MAN TGX",
+  "brand": "MAN",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "MAN TGX",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "GX",
+        "internal_names": [
+          "gx"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "GM",
+        "internal_names": [
+          "gm"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "GN",
+        "internal_names": [
+          "gn"
+        ]
+      }
+    ],
+    "accessories": {
+      "Cabin Deflectors (Cabin B)": [
+        "r_deflector.gm",
+        "r_deflector.gm_2024"
+      ],
+      "Cabin Deflectors (Cabin C)": [
+        "r_deflector.gn"
+      ],
+      "Front Bumper - Duty": [
+        "f_bumper.pnt_pla_duty"
+      ],
+      "Mirrors": [
+        "mirror.cam_pnt",
+        "mirror.pnt_pla",
+        "mirror.pnt_pla_bs",
+        "s_mirror.pnt"
+      ],
+      "Rear Fender": [
+        "r_fender.pnt_4x2",
+        "r_fender.pnt_6x22",
+        "r_fender.pnt_6x4",
+        "r_fender.pnt_8x4",
+        "r_fendr_top.pnt_4x2",
+        "r_fendr_top.pnt_6x22",
+        "r_fendr_top.pnt_6x4",
+        "r_fendr_top.pnt_8x4"
+      ],
+      "Sideskirts": [
+        "fender_s.sideskirt",
+        "fender_s_e.sideskirt",
+        "fender_p.sideskirt",
+        "fender_p_e.sideskirt",
+        "4x2.sideskirt",
+        "4x2_e.sideskirt",
+        "4x2_p.sideskirt",
+        "4x2_p_e.sideskirt"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "gx",
+      "name": "GX",
+      "file": "Cabin A (GX).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "gx"
+      ]
+    },
+    {
+      "id": "gm",
+      "name": "GM",
+      "file": "Cabin B (GM).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "gm"
+      ]
+    },
+    {
+      "id": "gn",
+      "name": "GN",
+      "file": "Cabin C (GN).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "gn"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "cabin_deflectors_cabin_b",
+      "name": "Cabin Deflectors (Cabin B)",
+      "file": "Accessories/Cabin Deflectors (Cabin B).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_deflector.gm",
+        "r_deflector.gm_2024"
+      ]
+    },
+    {
+      "id": "cabin_deflectors_cabin_c",
+      "name": "Cabin Deflectors (Cabin C)",
+      "file": "Accessories/Cabin Deflectors (Cabin C).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_deflector.gn"
+      ]
+    },
+    {
+      "id": "front_bumper_duty",
+      "name": "Front Bumper - Duty",
+      "file": "Accessories/Front Bumper - Duty.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_bumper.pnt_pla_duty"
+      ]
+    },
+    {
+      "id": "main_mirrors_camera",
+      "name": "Main Mirrors - Camera",
+      "file": "Accessories/Main Mirrors - Camera.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "mirror.cam_pnt"
+      ]
+    },
+    {
+      "id": "rear_fender_top",
+      "name": "Rear Fender Top",
+      "file": "Accessories/Rear Fender Top.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.pnt_4x2",
+        "r_fendr_top.pnt_6x22",
+        "r_fendr_top.pnt_6x4",
+        "r_fendr_top.pnt_8x4"
+      ]
+    },
+    {
+      "id": "rear_fenders",
+      "name": "Rear Fenders",
+      "file": "Accessories/Rear Fenders.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.pnt_4x2",
+        "r_fender.pnt_6x22",
+        "r_fender.pnt_6x4",
+        "r_fender.pnt_8x4"
+      ]
+    },
+    {
+      "id": "side_mirrors",
+      "name": "Side Mirrors",
+      "file": "Accessories/Side Mirrors.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "mirror.pnt_pla",
+        "mirror.pnt_pla_bs",
+        "s_mirror.pnt"
+      ]
+    },
+    {
+      "id": "sideskirts",
+      "name": "Sideskirts",
+      "file": "Accessories/Sideskirts.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "fender_s.sideskirt",
+        "fender_s_e.sideskirt",
+        "fender_p.sideskirt",
+        "fender_p_e.sideskirt",
+        "4x2.sideskirt",
+        "4x2_e.sideskirt",
+        "4x2_p.sideskirt",
+        "4x2_p_e.sideskirt"
+      ]
+    }
+  ],
+  "left_out": []
+}

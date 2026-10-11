@@ -1,0 +1,84 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "iveco.sway",
+  "name": "Iveco S-Way",
+  "brand": "Iveco",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Iveco S-Way",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "Active Space",
+        "internal_names": [
+          "as"
+        ]
+      }
+    ],
+    "accessories": {
+      "Rear Fender": [
+        "r_fendr_top.paint_4x2",
+        "r_fendr_top.plastic_4x2"
+      ],
+      "Sideskirts": [
+        "sideskirt.pnt_4x2",
+        "sideskirt.pnt_4x2_a"
+      ],
+      "Sun Visor": [
+        "sunshield.standard_p"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "as",
+      "name": "Active Space",
+      "file": "Iveco S-Way.png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1
+    }
+  ],
+  "accessories": [
+    {
+      "id": "sideskirts",
+      "name": "Sideskirts",
+      "file": "Accessories/Sideskirts.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.pnt_4x2",
+        "sideskirt.pnt_4x2_a"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "r_fendr_top.paint_4x2",
+        "r_fendr_top.plastic_4x2"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "sunshield.standard_p"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

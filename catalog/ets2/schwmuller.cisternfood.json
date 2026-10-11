@@ -1,0 +1,95 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "schwmuller.cisternfood",
+  "name": "Schwarzmüller Food Tank",
+  "brand": "Schwarzmüller",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Schwarzmüller Food Tank",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": true,
+    "cabins": [],
+    "accessories": {
+      "Body": [
+        "body.tank"
+      ],
+      "Rear Bumper": [
+        "r_bumper.rbumper1p",
+        "r_bumper.rbumper2p"
+      ],
+      "Sideskirts": [
+        "chs_f_l.sp2p",
+        "chs_f_l.sp2p_b1",
+        "chs_f_l.sp2p_t",
+        "chs_f_l.sp2p_b1p",
+        "chs_f_l.sp2p_b2",
+        "chs_f_r.sp2p",
+        "chs_f_r.sp2p_b1",
+        "chs_f_r.sp2p_t",
+        "chs_f_r.sp2p_b1p",
+        "chs_f_r.sp2p_b2"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Schwarzmüller Food Tank",
+      "file": "Schwarzmüller Food Tank.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.tank"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_front_painted_side_skirt_food_tank",
+      "name": "Chassis Front - Painted Side Skirt (Food Tank)",
+      "file": "Accessories/Chassis Front - Painted Side Skirt (Food Tank).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.sp2p",
+        "chs_f_l.sp2p_b1",
+        "chs_f_l.sp2p_t",
+        "chs_f_l.sp2p_b1p",
+        "chs_f_l.sp2p_b2",
+        "chs_f_r.sp2p",
+        "chs_f_r.sp2p_b1",
+        "chs_f_r.sp2p_t",
+        "chs_f_r.sp2p_b1p",
+        "chs_f_r.sp2p_b2"
+      ]
+    },
+    {
+      "id": "rear_bumper_paint",
+      "name": "Rear Bumper - Paint",
+      "file": "Accessories/Rear Bumper - Paint.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.rbumper1p",
+        "r_bumper.rbumper2p"
+      ]
+    }
+  ],
+  "left_out": []
+}

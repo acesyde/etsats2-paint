@@ -1,0 +1,139 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "scs.fueltank",
+  "name": "SCS Fuel Tank",
+  "brand": "SCS",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "SCS Fuel Tank",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body (2 Axles)": [
+        "body.tank_ch2",
+        "l_body.hose_12",
+        "l_body.hose_22",
+        "r_body.hose_12",
+        "r_body.hose_22"
+      ],
+      "Body (3 Axles)": [
+        "body.tank_ch3",
+        "l_body.hose_13",
+        "l_body.hose_23",
+        "r_body.hose_13",
+        "r_body.hose_23"
+      ],
+      "Chassis Front": [
+        "chs_f_l.paint_box",
+        "chs_f_r.paint_box"
+      ],
+      "Chassis Rear": [
+        "chs_r_l.paint_box",
+        "chs_r_r.paint_box"
+      ],
+      "Rear Bumper": [
+        "r_bumper.paint"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "2 Axles",
+      "file": "2 Axles.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.tank_ch2",
+        "l_body.hose_12",
+        "l_body.hose_22",
+        "r_body.hose_12",
+        "r_body.hose_22"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "3_axles",
+      "name": "3 Axles",
+      "file": "3 Axles.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.tank_ch3",
+        "l_body.hose_13",
+        "l_body.hose_23",
+        "r_body.hose_13",
+        "r_body.hose_23"
+      ]
+    },
+    {
+      "id": "chassis_front_left_painted_box",
+      "name": "Chassis Front (Left) - Painted Box",
+      "file": "Accessories/Chassis Front (Left) - Painted Box.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.paint_box"
+      ]
+    },
+    {
+      "id": "chassis_front_right_painted_box",
+      "name": "Chassis Front (Right) - Painted Box",
+      "file": "Accessories/Chassis Front (Right) - Painted Box.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_r.paint_box"
+      ]
+    },
+    {
+      "id": "chassis_rear_painted_box",
+      "name": "Chassis Rear - Painted Box",
+      "file": "Accessories/Chassis Rear - Painted Box.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_r_l.paint_box",
+        "chs_r_r.paint_box"
+      ]
+    },
+    {
+      "id": "rear_bumper",
+      "name": "Rear Bumper",
+      "file": "Accessories/Rear Bumper.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.paint"
+      ]
+    }
+  ],
+  "left_out": []
+}

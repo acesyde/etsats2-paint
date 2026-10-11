@@ -1,0 +1,154 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "daf.xd",
+  "name": "DAF XD",
+  "brand": "DAF",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "DAF XD",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "Sleeper High",
+        "internal_names": [
+          "slh"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "Sleeper",
+        "internal_names": [
+          "sl"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "Day Cab",
+        "internal_names": [
+          "day"
+        ]
+      }
+    ],
+    "accessories": {
+      "Mirrors": [
+        "mirror.plast",
+        "mirror.semi",
+        "mirror.cam_semi",
+        "mirror.cam_semi_h"
+      ],
+      "Sideskirts": [
+        "sideskirt.pnt_4x2s"
+      ],
+      "Sun Visor": [
+        "sunshield.paint_slh"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "slh",
+      "name": "Sleeper High",
+      "file": "Cabin A (Sleeper High).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "slh"
+      ]
+    },
+    {
+      "id": "sl",
+      "name": "Sleeper",
+      "file": "Cabin B (Sleeper).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "sl"
+      ]
+    },
+    {
+      "id": "day",
+      "name": "Day Cab",
+      "file": "Cabin C (Day Cab).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "day"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "mirrors_camera",
+      "name": "Mirrors (Camera)",
+      "file": "Accessories/Mirrors (Camera).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "mirror.cam_semi",
+        "mirror.cam_semi_h"
+      ]
+    },
+    {
+      "id": "mirrors",
+      "name": "Mirrors",
+      "file": "Accessories/Mirrors.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "mirror.plast",
+        "mirror.semi"
+      ]
+    },
+    {
+      "id": "sideskirts",
+      "name": "Sideskirts",
+      "file": "Accessories/Sideskirts.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.pnt_4x2s"
+      ]
+    },
+    {
+      "id": "sun_visor",
+      "name": "Sun Visor",
+      "file": "Accessories/Sun Visor.png",
+      "size": [
+        1024,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sunshield.paint_slh"
+      ]
+    }
+  ],
+  "left_out": []
+}

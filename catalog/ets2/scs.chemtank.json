@@ -1,0 +1,169 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "scs.chemtank",
+  "name": "SCS Chemical Tank",
+  "brand": "SCS",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "SCS Chemical Tank",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body (2 Axles)": [
+        "body.tank_8_p",
+        "body.tank_8_ch"
+      ],
+      "Body (3 Axles)": [
+        "body.tank_10_p",
+        "body.tank_10_ch"
+      ],
+      "Rear Bumper": [
+        "r_bumper.led"
+      ],
+      "Sideskirts": [
+        "chs_f_l.paint_box",
+        "chs_f_l.side01_sh",
+        "chs_f_l.side01_sh_t",
+        "chs_f_r.paint_box",
+        "chs_f_r.side01_sh",
+        "chs_f_r.side01_sh_t",
+        "chs_r_l.paint_box",
+        "chs_r_r.paint_box"
+      ],
+      "Trailer Front": [
+        "f_body.paint",
+        "f_body.chrome"
+      ],
+      "Trailer Rear": [
+        "rear_body.paint",
+        "rear_body.chrome"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body (2 Axles)",
+      "file": "Body (2 Axles).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.tank_8_p",
+        "body.tank_8_ch"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_front_full_protection_sideskirts",
+      "name": "Chassis Front - Full Protection Sideskirts",
+      "file": "Accessories/Chassis Front - Full Protection Sideskirts.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.side01_sh",
+        "chs_f_l.side01_sh_t",
+        "chs_f_r.side01_sh",
+        "chs_f_r.side01_sh_t"
+      ]
+    },
+    {
+      "id": "chassis_front_painted_box",
+      "name": "Chassis Front - Painted Box",
+      "file": "Accessories/Chassis Front - Painted Box.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.paint_box",
+        "chs_f_r.paint_box",
+        "chs_r_l.paint_box",
+        "chs_r_r.paint_box"
+      ]
+    },
+    {
+      "id": "chassis_rear_painted_box",
+      "name": "Chassis Rear - Painted Box",
+      "file": "Accessories/Chassis Rear - Painted Box.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "rear_body.paint"
+      ]
+    },
+    {
+      "id": "rear_bumper",
+      "name": "Rear Bumper",
+      "file": "Accessories/Rear Bumper.png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.led"
+      ]
+    },
+    {
+      "id": "trailer_front",
+      "name": "Trailer Front",
+      "file": "Accessories/Trailer Front.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_body.paint",
+        "f_body.chrome"
+      ]
+    },
+    {
+      "id": "trailer_rear",
+      "name": "Trailer Rear",
+      "file": "Accessories/Trailer Rear.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "rear_body.chrome"
+      ]
+    },
+    {
+      "id": "body_3_axles",
+      "name": "Body (3 Axles)",
+      "file": "Body (3 Axles).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.tank_10_p",
+        "body.tank_10_ch"
+      ]
+    }
+  ],
+  "left_out": []
+}

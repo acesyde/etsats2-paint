@@ -1,0 +1,54 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "tirsan.sks",
+  "name": "Tirsan T.SKS",
+  "brand": "Tirsan",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Tirsan T.SKS",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body": [
+        "body.dumper",
+        "body.dumper_sc"
+      ],
+      "Rear Bumper": [
+        "r_bumper.paint"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body",
+      "file": "Body.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.dumper",
+        "body.dumper_sc"
+      ]
+    }
+  ],
+  "accessories": [],
+  "left_out": [
+    {
+      "ids": [
+        "r_bumper.paint"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

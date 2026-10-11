@@ -1,0 +1,460 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "renault.t",
+  "name": "Renault T",
+  "brand": "Renault",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Renault T",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "High Sleeper",
+        "internal_names": [
+          "high_sleeper"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "Sleeper",
+        "internal_names": [
+          "sleeper"
+        ]
+      }
+    ],
+    "accessories": {
+      "Bull Bar": [
+        "f_grill.joker_paint",
+        "f_grill.racing_paint",
+        "f_grill.hawk_paint"
+      ],
+      "Chassis Cover": [
+        "r_chs_cover.4x2_diva",
+        "r_chs_cover.4x2t_diva",
+        "r_chs_cover.6x2_diva",
+        "r_chs_cover.6x24_diva",
+        "r_chs_cover.4x2_satin",
+        "r_chs_cover.4x2t_satin",
+        "r_chs_cover.6x2_satin",
+        "r_chs_cover.6x24_satin",
+        "r_chs_cover.4x2_thor_pn",
+        "r_chs_cover.4x2t_thor_pn",
+        "r_chs_cover.6x2_thor_pn",
+        "r_chs_cover.6x24_thor_pn"
+      ],
+      "Front Mudflaps": [
+        "f_mudflap.bl_pn",
+        "f_mudflap.bl_pn_lo"
+      ],
+      "Headlight Guard": [
+        "hl_guard.paint",
+        "hl_guard.paint_evo"
+      ],
+      "Light Bar": [
+        "r_grill.boss_pn",
+        "r_grill.boss_pn_led"
+      ],
+      "Lower Grille Guard": [
+        "b_grill.paint_pride",
+        "b_grill.paint_mirage"
+      ],
+      "Rear Bumper": [
+        "r_bumper.4x2_racing",
+        "r_bumper.6x2_racing",
+        "r_bumper.6x24_racing"
+      ],
+      "Rear Fender": [
+        "r_fender.4x2paintn",
+        "r_fender.4x2painto",
+        "r_fender.6x24paintn",
+        "r_fender.6x24painto",
+        "r_fender.6x2paintn",
+        "r_fender.6x2painto",
+        "r_fendr_top.4x2paintn",
+        "r_fendr_top.6x24paintn",
+        "r_fendr_top.6x2paintn"
+      ],
+      "Rear Fenders": [
+        "r_fender.4x2_pn",
+        "r_fender.4x2_pn_ch",
+        "r_fender.6x2_pn",
+        "r_fender.6x2_pn_ch",
+        "r_fender.6x24_pn",
+        "r_fender.6x24_pn_ch",
+        "r_fendr_top.4x2_pn",
+        "r_fendr_top.4x2_pn_ch",
+        "r_fendr_top.6x2_pn",
+        "r_fendr_top.6x2_pn_ch",
+        "r_fendr_top.6x24_pn",
+        "r_fendr_top.6x24_pn_ch"
+      ],
+      "Rear Mudflaps": [
+        "r_mudflap.4x2pnt",
+        "r_mudflap.4x2pntw",
+        "r_mudflap.6x2pnt",
+        "r_mudflap.6x2pntw",
+        "r_mudflap.6x24pnt",
+        "r_mudflap.6x24pntw"
+      ],
+      "Sideskirt Bars": [
+        "sideskrt_bar.4x2_paint",
+        "sideskrt_bar.6x4_paint",
+        "sideskrt_bar.6x24_paint"
+      ],
+      "Sideskirts (4x)": [
+        "sideskirt.4x2shp",
+        "sideskirt.4x2side1p",
+        "sideskirt.4x2side2pg",
+        "sideskirt.4x2side3",
+        "sideskirt.4x2plain",
+        "sideskirt.4x2satin"
+      ],
+      "Sideskirts (6x Long)": [
+        "sideskirt.6x2shp",
+        "sideskirt.6x2side1p",
+        "sideskirt.6x2side2pg",
+        "sideskirt.6x2side3",
+        "sideskirt.6x2plain",
+        "sideskirt.6x2satin"
+      ],
+      "Sideskirts (6x Short)": [
+        "sideskirt.6x24shp",
+        "sideskirt.6x24side1p",
+        "sideskirt.6x24side2pg",
+        "sideskirt.6x24side3"
+      ],
+      "Sideskirts (6x Short, Tuning Pack)": [
+        "sideskirt.6x24plain",
+        "sideskirt.6x24satin"
+      ],
+      "Stoneguard": [
+        "s_guard.logo_pa",
+        "s_guard.renault_pa",
+        "s_guard.elegance"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "high_sleeper",
+      "name": "High Sleeper",
+      "file": "Cabin A (High Sleeper).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "high_sleeper"
+      ]
+    },
+    {
+      "id": "sleeper",
+      "name": "Sleeper",
+      "file": "Cabin B (Sleeper).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "sleeper"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "bull_bar_hawk",
+      "name": "Bull Bar - Hawk",
+      "file": "Accessories/Bull Bar - Hawk.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_grill.hawk_paint"
+      ]
+    },
+    {
+      "id": "bull_bar_joker",
+      "name": "Bull Bar - Joker",
+      "file": "Accessories/Bull Bar - Joker.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_grill.joker_paint"
+      ]
+    },
+    {
+      "id": "bull_bar_racing",
+      "name": "Bull Bar - Racing",
+      "file": "Accessories/Bull Bar - Racing.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_grill.racing_paint"
+      ]
+    },
+    {
+      "id": "chassis_cover_4x",
+      "name": "Chassis Cover (4x)",
+      "file": "Accessories/Chassis Cover (4x).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.4x2_diva",
+        "r_chs_cover.4x2t_diva",
+        "r_chs_cover.4x2_satin",
+        "r_chs_cover.4x2t_satin",
+        "r_chs_cover.4x2_thor_pn",
+        "r_chs_cover.4x2t_thor_pn",
+        "r_chs_cover.6x2_diva",
+        "r_chs_cover.6x24_diva",
+        "r_chs_cover.6x2_satin",
+        "r_chs_cover.6x24_satin",
+        "r_chs_cover.6x2_thor_pn",
+        "r_chs_cover.6x24_thor_pn"
+      ]
+    },
+    {
+      "id": "headlight_guard_evolution",
+      "name": "Headlight Guard (Evolution)",
+      "file": "Accessories/Headlight Guard (Evolution).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "hl_guard.paint_evo"
+      ]
+    },
+    {
+      "id": "headlight_guard_standard",
+      "name": "Headlight Guard (Standard)",
+      "file": "Accessories/Headlight Guard (Standard).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "hl_guard.paint"
+      ]
+    },
+    {
+      "id": "lower_grille_guard_mirage",
+      "name": "Lower Grille Guard - Mirage",
+      "file": "Accessories/Lower Grille Guard - Mirage.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "b_grill.paint_mirage"
+      ]
+    },
+    {
+      "id": "lower_grille_guard_pride",
+      "name": "Lower Grille Guard - Pride",
+      "file": "Accessories/Lower Grille Guard - Pride.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "b_grill.paint_pride"
+      ]
+    },
+    {
+      "id": "rear_bumper_racing",
+      "name": "Rear Bumper - Racing",
+      "file": "Accessories/Rear Bumper - Racing.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.4x2_racing",
+        "r_bumper.6x2_racing",
+        "r_bumper.6x24_racing"
+      ]
+    },
+    {
+      "id": "rear_fender_4x",
+      "name": "Rear Fender (4x)",
+      "file": "Accessories/Rear Fender (4x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.4x2paintn",
+        "r_fender.4x2painto",
+        "r_fendr_top.4x2paintn",
+        "r_fender.6x24paintn",
+        "r_fender.6x24painto",
+        "r_fender.6x2paintn",
+        "r_fender.6x2painto",
+        "r_fendr_top.6x24paintn",
+        "r_fendr_top.6x2paintn"
+      ]
+    },
+    {
+      "id": "rear_mudflaps_standard",
+      "name": "Rear Mudflaps (Standard)",
+      "file": "Accessories/Rear Mudflaps (Standard).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_mudflap.4x2pnt",
+        "r_mudflap.4x2pntw",
+        "r_mudflap.6x2pnt",
+        "r_mudflap.6x2pntw",
+        "r_mudflap.6x24pnt",
+        "r_mudflap.6x24pntw"
+      ]
+    },
+    {
+      "id": "sideskirt_bars",
+      "name": "Sideskirt Bars",
+      "file": "Accessories/Sideskirt Bars.png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskrt_bar.4x2_paint",
+        "sideskrt_bar.6x4_paint",
+        "sideskrt_bar.6x24_paint"
+      ]
+    },
+    {
+      "id": "sideskirts_basic_4x",
+      "name": "Sideskirts - Basic (4x)",
+      "file": "Accessories/Sideskirts - Basic (4x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.4x2shp",
+        "sideskirt.4x2side1p",
+        "sideskirt.4x2side2pg",
+        "sideskirt.4x2side3",
+        "sideskirt.4x2plain",
+        "sideskirt.4x2satin"
+      ]
+    },
+    {
+      "id": "sideskirts_basic_6x_long",
+      "name": "Sideskirts - Basic (6x Long)",
+      "file": "Accessories/Sideskirts - Basic (6x Long).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.6x2shp",
+        "sideskirt.6x2side1p",
+        "sideskirt.6x2side2pg",
+        "sideskirt.6x2side3",
+        "sideskirt.6x2plain",
+        "sideskirt.6x2satin"
+      ]
+    },
+    {
+      "id": "sideskirts_basic_6x_short",
+      "name": "Sideskirts - Basic (6x Short)",
+      "file": "Accessories/Sideskirts - Basic (6x Short).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.6x24shp",
+        "sideskirt.6x24side1p",
+        "sideskirt.6x24side2pg",
+        "sideskirt.6x24side3"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "f_mudflap.bl_pn",
+        "f_mudflap.bl_pn_lo"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "r_grill.boss_pn",
+        "r_grill.boss_pn_led"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "r_fender.4x2_pn",
+        "r_fender.4x2_pn_ch",
+        "r_fender.6x2_pn",
+        "r_fender.6x2_pn_ch",
+        "r_fender.6x24_pn",
+        "r_fender.6x24_pn_ch",
+        "r_fendr_top.4x2_pn",
+        "r_fendr_top.4x2_pn_ch",
+        "r_fendr_top.6x2_pn",
+        "r_fendr_top.6x2_pn_ch",
+        "r_fendr_top.6x24_pn",
+        "r_fendr_top.6x24_pn_ch"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "sideskirt.6x24plain",
+        "sideskirt.6x24satin"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "s_guard.logo_pa",
+        "s_guard.renault_pa",
+        "s_guard.elegance"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "wielton.dropsidem",
+  "name": "Wielton Dropside Master",
+  "brand": "Wielton",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Wielton Dropside Master",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body (1035 mm)": [
+        "body.ds_1035"
+      ],
+      "Body (635 mm)": [
+        "body.ds_635"
+      ],
+      "Body (825 mm)": [
+        "body.ds_825"
+      ],
+      "Rear Bumper": [
+        "r_bumper.paint"
+      ],
+      "Sideskirts": [
+        "chs_f_l.cgp_3",
+        "chs_f_l.cgp_ext_3",
+        "chs_f_l.cgp_bpl_3",
+        "chs_f_l.cgp_st_3",
+        "chs_f_r.cgp_3",
+        "chs_f_r.cgp_ext_3",
+        "chs_f_r.cgp_bpl_3",
+        "chs_f_r.cgp_st_3"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body (1035 mm)",
+      "file": "Body (1035 mm).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.ds_1035"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "rear_bumper",
+      "name": "Rear Bumper",
+      "file": "Accessories/Rear Bumper.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.paint"
+      ]
+    },
+    {
+      "id": "sideskirts_long",
+      "name": "Sideskirts (Long)",
+      "file": "Accessories/Sideskirts (Long).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.cgp_3",
+        "chs_f_l.cgp_ext_3",
+        "chs_f_l.cgp_bpl_3",
+        "chs_f_l.cgp_st_3",
+        "chs_f_r.cgp_3",
+        "chs_f_r.cgp_ext_3",
+        "chs_f_r.cgp_bpl_3",
+        "chs_f_r.cgp_st_3"
+      ]
+    },
+    {
+      "id": "body_635_mm",
+      "name": "Body (635 mm)",
+      "file": "Body (635 mm).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.ds_635"
+      ]
+    },
+    {
+      "id": "body_835_mm",
+      "name": "Body (835 mm)",
+      "file": "Body (835 mm).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.ds_825"
+      ]
+    }
+  ],
+  "left_out": []
+}

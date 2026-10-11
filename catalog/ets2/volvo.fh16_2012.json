@@ -1,0 +1,369 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "volvo.fh16_2012",
+  "name": "Volvo FH4",
+  "brand": "Volvo",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Volvo FH4",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "Globetrotter XL",
+        "internal_names": [
+          "l2h3",
+          "l2h3_8x4"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "Globetrotter",
+        "internal_names": [
+          "l2h2"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "Sleeper",
+        "internal_names": [
+          "l2h1"
+        ]
+      }
+    ],
+    "accessories": {
+      "Air Filter": [
+        "filter.paint_gl",
+        "filter.paint_glxl",
+        "filter.paint_slep"
+      ],
+      "Bull Bar": [
+        "f_grill.net"
+      ],
+      "Chassis Cover": [
+        "r_chs_cover.mix_4x",
+        "r_chs_cover.mix_6x",
+        "r_chs_cover.painted_4x",
+        "r_chs_cover.painted_6x"
+      ],
+      "Mirrors": [
+        "f_mirror.painted",
+        "f_mirror.paintedl",
+        "s_mirror.paint",
+        "mirror.chrome_logo",
+        "mirror.chrome_led",
+        "mirror.shape3"
+      ],
+      "Rear Bumper": [
+        "r_bumper.bend",
+        "r_bumper.smoth",
+        "r_bumper.painted"
+      ],
+      "Rear Exhaust": [
+        "exhaust_m.shape1",
+        "exhaust_m.shape2"
+      ],
+      "Rear Fender": [
+        "r_fender.paint_4x",
+        "r_fendr_top.paint_4x",
+        "r_fendr_top.chrome_p_4x",
+        "r_fender.paint_6x",
+        "r_fendr_top.paint_6x",
+        "r_fendr_top.chrome_p_6x",
+        "r_fender.paint_8x",
+        "r_fendr_top.paint_8x",
+        "r_fendr_top.chrome_p_8x"
+      ],
+      "Side Deflectors (8x)": [
+        "chassis.8x4"
+      ],
+      "Sideskirts": [
+        "sideskirt.shape2",
+        "sideskirt.chrome_4x",
+        "sideskirt.chrome_s4x",
+        "sideskirt.stock_6x",
+        "sideskirt.chrome_6x",
+        "sideskirt.chrome_s6x"
+      ],
+      "Sun Visor": [
+        "sunshld.dual",
+        "sunshld.quatro",
+        "sunshld.shape1",
+        "sunshld.shape2",
+        "sunshld.triangle"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "l2h3",
+      "name": "Globetrotter XL",
+      "file": "Cabin A (Globetrotter XL).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "l2h3",
+        "l2h3_8x4"
+      ]
+    },
+    {
+      "id": "l2h2",
+      "name": "Globetrotter",
+      "file": "Cabin B (Globetrotter).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "l2h2"
+      ]
+    },
+    {
+      "id": "l2h1",
+      "name": "Sleeper",
+      "file": "Cabin C (Sleeper).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "l2h1"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_cover_4x",
+      "name": "Chassis Cover (4x)",
+      "file": "Accessories/Chassis Cover (4x).png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.mix_4x",
+        "r_chs_cover.painted_4x"
+      ]
+    },
+    {
+      "id": "chassis_cover_6x",
+      "name": "Chassis Cover (6x)",
+      "file": "Accessories/Chassis Cover (6x).png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.mix_6x",
+        "r_chs_cover.painted_6x"
+      ]
+    },
+    {
+      "id": "exhaust_diva",
+      "name": "Exhaust - Diva",
+      "file": "Accessories/Exhaust - Diva.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "exhaust_m.shape1",
+        "exhaust_m.shape2"
+      ]
+    },
+    {
+      "id": "front_mirror",
+      "name": "Front Mirror",
+      "file": "Accessories/Front Mirror.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_mirror.painted",
+        "f_mirror.paintedl"
+      ]
+    },
+    {
+      "id": "mirrors",
+      "name": "Mirrors",
+      "file": "Accessories/Mirrors.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "s_mirror.paint",
+        "mirror.chrome_logo",
+        "mirror.chrome_led",
+        "mirror.shape3"
+      ]
+    },
+    {
+      "id": "rear_bumper_chariot",
+      "name": "Rear Bumper - Chariot",
+      "file": "Accessories/Rear Bumper - Chariot.png",
+      "size": [
+        1024,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.bend",
+        "r_bumper.smoth",
+        "r_bumper.painted"
+      ]
+    },
+    {
+      "id": "rear_fender_top",
+      "name": "Rear Fender Top",
+      "file": "Accessories/Rear Fender Top.png",
+      "size": [
+        1024,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.paint_4x",
+        "r_fendr_top.chrome_p_4x",
+        "r_fendr_top.paint_6x",
+        "r_fendr_top.chrome_p_6x",
+        "r_fendr_top.paint_8x",
+        "r_fendr_top.chrome_p_8x"
+      ]
+    },
+    {
+      "id": "rear_fender",
+      "name": "Rear Fender",
+      "file": "Accessories/Rear Fender.png",
+      "size": [
+        1024,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.paint_4x",
+        "r_fender.paint_6x",
+        "r_fender.paint_8x"
+      ]
+    },
+    {
+      "id": "side_deflectors_8x",
+      "name": "Side Deflectors (8x)",
+      "file": "Accessories/Side Deflectors (8x).png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chassis.8x4"
+      ]
+    },
+    {
+      "id": "sideskirt_4x",
+      "name": "Sideskirt (4x)",
+      "file": "Accessories/Sideskirt (4x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.shape2",
+        "sideskirt.chrome_s4x",
+        "sideskirt.chrome_s6x"
+      ]
+    },
+    {
+      "id": "sideskirt_6x",
+      "name": "Sideskirt (6x)",
+      "file": "Accessories/Sideskirt (6x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.stock_6x"
+      ]
+    },
+    {
+      "id": "sideskirt_chromed_4x",
+      "name": "Sideskirt - Chromed (4x)",
+      "file": "Accessories/Sideskirt - Chromed (4x).png",
+      "size": [
+        1024,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.chrome_4x"
+      ]
+    },
+    {
+      "id": "sideskirt_chromed_6x",
+      "name": "Sideskirt - Chromed (6x)",
+      "file": "Accessories/Sideskirt - Chromed (6x).png",
+      "size": [
+        1024,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.chrome_6x"
+      ]
+    },
+    {
+      "id": "sun_visor_painted",
+      "name": "Sun Visor - Painted",
+      "file": "Accessories/Sun Visor - Painted.png",
+      "size": [
+        1024,
+        128
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sunshld.dual",
+        "sunshld.quatro",
+        "sunshld.shape1",
+        "sunshld.shape2",
+        "sunshld.triangle"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "filter.paint_gl",
+        "filter.paint_glxl",
+        "filter.paint_slep"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "f_grill.net"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "renault.premium",
+  "name": "Renault Premium",
+  "brand": "Renault",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Renault Premium",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "High Roof",
+        "internal_names": [
+          "higher"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "Normal Roof",
+        "internal_names": [
+          "normal"
+        ]
+      }
+    ],
+    "accessories": {}
+  },
+  "main": [
+    {
+      "id": "higher",
+      "name": "High Roof",
+      "file": "Cabin A (High Roof).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "higher"
+      ]
+    },
+    {
+      "id": "normal",
+      "name": "Normal Roof",
+      "file": "Cabin B (Normal Roof).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "normal"
+      ]
+    }
+  ],
+  "accessories": [],
+  "left_out": []
+}

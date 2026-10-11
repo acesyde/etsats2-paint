@@ -1,0 +1,187 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "feldbinder.kip",
+  "name": "Feldbinder KIP",
+  "brand": "Feldbinder",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Feldbinder KIP",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body (38)": [
+        "body.silo_38_3_g",
+        "body.silo_38_3_g2",
+        "body.silo_38_3_p"
+      ],
+      "Body (60)": [
+        "body.silo_60_3_g",
+        "body.silo_60_3_g2",
+        "body.silo_60_3_p"
+      ],
+      "Hoses": [
+        "l_body.t_1_p",
+        "l_body.t_1_p2",
+        "l_body.t_2_p",
+        "l_body.t_2_p2",
+        "r_body.t_1_p",
+        "r_body.t_1_p2",
+        "r_body.t_2_p",
+        "r_body.t_2_p2"
+      ],
+      "Rear Bumper": [
+        "r_bumper.excl_pnt_38",
+        "r_bumper.excl_pnt_60"
+      ],
+      "Rear Fenders": [
+        "r_fender.paint"
+      ],
+      "Sideskirts": [
+        "chs_f_l.cage_p_38",
+        "chs_f_l.bp_38",
+        "chs_f_r.cage_p_38",
+        "chs_f_r.bp_38",
+        "chs_f_l.cage_p_60",
+        "chs_f_l.cagep_st_60",
+        "chs_f_l.cagep_bp_60",
+        "chs_f_r.cage_p_60",
+        "chs_f_r.cagep_st_60",
+        "chs_f_r.cagep_bp_60",
+        "chs_r_l.bp",
+        "chs_r_r.bp"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body (38)",
+      "file": "Body (38).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.silo_38_3_g",
+        "body.silo_38_3_g2",
+        "body.silo_38_3_p"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "hoses",
+      "name": "Hoses",
+      "file": "Accessories/Hoses.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "l_body.t_1_p",
+        "l_body.t_1_p2",
+        "l_body.t_2_p",
+        "l_body.t_2_p2",
+        "r_body.t_1_p",
+        "r_body.t_1_p2",
+        "r_body.t_2_p",
+        "r_body.t_2_p2"
+      ]
+    },
+    {
+      "id": "rear_fenders",
+      "name": "Rear Fenders",
+      "file": "Accessories/Rear Fenders.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.paint"
+      ]
+    },
+    {
+      "id": "rear_sideskirts",
+      "name": "Rear Sideskirts",
+      "file": "Accessories/Rear Sideskirts.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_r_l.bp",
+        "chs_r_r.bp"
+      ]
+    },
+    {
+      "id": "sideskirts_38",
+      "name": "Sideskirts (38)",
+      "file": "Accessories/Sideskirts (38).png",
+      "size": [
+        1024,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.cage_p_38",
+        "chs_f_l.bp_38",
+        "chs_f_r.cage_p_38",
+        "chs_f_r.bp_38"
+      ]
+    },
+    {
+      "id": "sideskirts_60",
+      "name": "Sideskirts (60)",
+      "file": "Accessories/Sideskirts (60).png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.cage_p_60",
+        "chs_f_l.cagep_st_60",
+        "chs_f_l.cagep_bp_60",
+        "chs_f_r.cage_p_60",
+        "chs_f_r.cagep_st_60",
+        "chs_f_r.cagep_bp_60"
+      ]
+    },
+    {
+      "id": "body_60",
+      "name": "Body (60)",
+      "file": "Body (60).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.silo_60_3_g",
+        "body.silo_60_3_g2",
+        "body.silo_60_3_p"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "r_bumper.excl_pnt_38",
+        "r_bumper.excl_pnt_60"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

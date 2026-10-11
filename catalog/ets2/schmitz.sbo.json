@@ -1,0 +1,200 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "schmitz.sbo",
+  "name": "Schmitz Cargobull S.BO",
+  "brand": "Schmitz Cargobull",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Schmitz Cargobull S.BO",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body": [
+        "body.dryvan_13",
+        "rear_body.bmp_rub13",
+        "rear_body.bmp_stl13",
+        "rear_body.rol_rub13",
+        "rear_body.rol_stl13",
+        "rear_body.rbmp_rub13",
+        "rear_body.rbmp_stl13"
+      ],
+      "Body (Long)": [
+        "body.dryvan_15",
+        "rear_body.bmp_rub15",
+        "rear_body.bmp_stl15",
+        "rear_body.rol_rub15",
+        "rear_body.rol_stl15",
+        "rear_body.rbmp_rub15",
+        "rear_body.rbmp_stl15"
+      ],
+      "Rear Bumper": [
+        "r_bumper.paint"
+      ],
+      "Sideskirts": [
+        "chs_f_l.cgp_3_13",
+        "chs_f_l.cgp_ex_3_13",
+        "chs_f_l.cgp_bpl_3_13",
+        "chs_f_l.cgp_bs_3_13",
+        "chs_f_l.cg1_bp_3_13",
+        "chs_f_l.cgp_bp_3_13",
+        "chs_f_l.cg2_bp_3_13",
+        "chs_f_l.palp_3_13",
+        "chs_f_r.cgp_3_13",
+        "chs_f_r.cgp_ex_3_13",
+        "chs_f_r.cgp_bpl_3_13",
+        "chs_f_r.cgp_bs_3_13",
+        "chs_f_r.cg1_bp_3_13",
+        "chs_f_r.cgp_bp_3_13",
+        "chs_f_r.cg2_bp_3_13",
+        "chs_f_r.palp_3_13",
+        "chs_f_l.cgp_2_13",
+        "chs_f_l.cgp_ex_2_13",
+        "chs_f_l.cgp_bpl_2_13",
+        "chs_f_l.cgp_bs_2_13",
+        "chs_f_l.cg1_bp_2_13",
+        "chs_f_l.cgp_bp_2_13",
+        "chs_f_l.cg2_bp_2_13",
+        "chs_f_r.cgp_2_13",
+        "chs_f_r.cgp_ex_2_13",
+        "chs_f_r.cgp_bpl_2_13",
+        "chs_f_r.cgp_bs_2_13",
+        "chs_f_r.cg1_bp_2_13",
+        "chs_f_r.cgp_bp_2_13",
+        "chs_f_r.cg2_bp_2_13",
+        "chs_f_l.cgp_3_15",
+        "chs_f_l.cgp_ex_3_15",
+        "chs_f_l.cgp_bpl_3_15",
+        "chs_f_l.cgp_bs_3_15",
+        "chs_f_l.cg1_bp_3_15",
+        "chs_f_l.cgp_bp_3_15",
+        "chs_f_l.cg2_bp_3_15",
+        "chs_f_l.palp_3_15",
+        "chs_f_r.cgp_3_15",
+        "chs_f_r.cgp_ex_3_15",
+        "chs_f_r.cgp_bpl_3_15",
+        "chs_f_r.cgp_bs_3_15",
+        "chs_f_r.cg1_bp_3_15",
+        "chs_f_r.cgp_bp_3_15",
+        "chs_f_r.cg2_bp_3_15",
+        "chs_f_r.palp_3_15",
+        "chs_r_l.bp",
+        "chs_r_r.bp",
+        "chs_r_l.palp",
+        "chs_r_r.palp"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body",
+      "file": "Body.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.dryvan_13",
+        "rear_body.bmp_rub13",
+        "rear_body.bmp_stl13",
+        "rear_body.rol_rub13",
+        "rear_body.rol_stl13",
+        "rear_body.rbmp_rub13",
+        "rear_body.rbmp_stl13"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "body_long",
+      "name": "Body (Long)",
+      "file": "Body (Long).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.dryvan_15",
+        "rear_body.bmp_rub15",
+        "rear_body.bmp_stl15",
+        "rear_body.rol_rub15",
+        "rear_body.rol_stl15",
+        "rear_body.rbmp_rub15",
+        "rear_body.rbmp_stl15"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "r_bumper.paint"
+      ],
+      "reason": "no template in the pack"
+    },
+    {
+      "ids": [
+        "chs_f_l.cgp_3_13",
+        "chs_f_l.cgp_ex_3_13",
+        "chs_f_l.cgp_bpl_3_13",
+        "chs_f_l.cgp_bs_3_13",
+        "chs_f_l.cg1_bp_3_13",
+        "chs_f_l.cgp_bp_3_13",
+        "chs_f_l.cg2_bp_3_13",
+        "chs_f_l.palp_3_13",
+        "chs_f_r.cgp_3_13",
+        "chs_f_r.cgp_ex_3_13",
+        "chs_f_r.cgp_bpl_3_13",
+        "chs_f_r.cgp_bs_3_13",
+        "chs_f_r.cg1_bp_3_13",
+        "chs_f_r.cgp_bp_3_13",
+        "chs_f_r.cg2_bp_3_13",
+        "chs_f_r.palp_3_13",
+        "chs_f_l.cgp_2_13",
+        "chs_f_l.cgp_ex_2_13",
+        "chs_f_l.cgp_bpl_2_13",
+        "chs_f_l.cgp_bs_2_13",
+        "chs_f_l.cg1_bp_2_13",
+        "chs_f_l.cgp_bp_2_13",
+        "chs_f_l.cg2_bp_2_13",
+        "chs_f_r.cgp_2_13",
+        "chs_f_r.cgp_ex_2_13",
+        "chs_f_r.cgp_bpl_2_13",
+        "chs_f_r.cgp_bs_2_13",
+        "chs_f_r.cg1_bp_2_13",
+        "chs_f_r.cgp_bp_2_13",
+        "chs_f_r.cg2_bp_2_13",
+        "chs_f_l.cgp_3_15",
+        "chs_f_l.cgp_ex_3_15",
+        "chs_f_l.cgp_bpl_3_15",
+        "chs_f_l.cgp_bs_3_15",
+        "chs_f_l.cg1_bp_3_15",
+        "chs_f_l.cgp_bp_3_15",
+        "chs_f_l.cg2_bp_3_15",
+        "chs_f_l.palp_3_15",
+        "chs_f_r.cgp_3_15",
+        "chs_f_r.cgp_ex_3_15",
+        "chs_f_r.cgp_bpl_3_15",
+        "chs_f_r.cgp_bs_3_15",
+        "chs_f_r.cg1_bp_3_15",
+        "chs_f_r.cgp_bp_3_15",
+        "chs_f_r.cg2_bp_3_15",
+        "chs_f_r.palp_3_15",
+        "chs_r_l.bp",
+        "chs_r_r.bp",
+        "chs_r_l.palp",
+        "chs_r_r.palp"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

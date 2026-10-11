@@ -1,0 +1,260 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "mercedes.actros",
+  "name": "Mercedes-Benz Actros",
+  "brand": "Mercedes-Benz",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Mercedes-Benz Actros",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "MegaSpace",
+        "internal_names": [
+          "megaspace"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "High Roof Sleeper",
+        "internal_names": [
+          "cabin_l"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "Low Roof Sleeper",
+        "internal_names": [
+          "cabin_l_lw"
+        ]
+      }
+    ],
+    "accessories": {
+      "Chassis Cover": [
+        "r_chs_cover.paint4x2",
+        "r_chs_cover.paint6x24",
+        "r_chs_cover.paint6x4"
+      ],
+      "Rear Bumper": [
+        "r_bumper.4x2paint",
+        "r_bumper.4x2v1chrome",
+        "r_bumper.4x2v1paint",
+        "r_bumper.4x2v1plate",
+        "r_bumper.4x2v2paint",
+        "r_bumper.4x2v3paint",
+        "r_bumper.6x24paint",
+        "r_bumper.6x24v1chrome",
+        "r_bumper.6x24v1paint",
+        "r_bumper.6x24v1plate",
+        "r_bumper.6x24v2paint",
+        "r_bumper.6x24v3paint",
+        "r_bumper.6x2paint",
+        "r_bumper.6x2v1chrome",
+        "r_bumper.6x2v1paint",
+        "r_bumper.6x2v1plate",
+        "r_bumper.6x2v2paint",
+        "r_bumper.6x2v3paint"
+      ],
+      "Rear Exhaust": [
+        "exhaust_m.exhaust1a",
+        "exhaust_m.exhaust1b",
+        "exhaust_m.exhaust1c"
+      ],
+      "Rear Fender": [
+        "r_fender.4x2paint",
+        "r_fender.6x24paint",
+        "r_fender.6x2paint",
+        "r_fendr_top.4x2paint",
+        "r_fendr_top.6x24paint",
+        "r_fendr_top.6x2paint"
+      ],
+      "Sun Visor": [
+        "sunshld.shape14",
+        "sunshld.shape15",
+        "sunshld.shape2"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "megaspace",
+      "name": "MegaSpace",
+      "file": "Cabin A (MegaSpace).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "megaspace"
+      ]
+    },
+    {
+      "id": "cabin_l",
+      "name": "High Roof Sleeper",
+      "file": "Cabin B (High Roof Sleeper).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "cabin_l"
+      ]
+    },
+    {
+      "id": "cabin_l_lw",
+      "name": "Low Roof Sleeper",
+      "file": "Cabin C (Low Roof Sleeper).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "cabin_l_lw"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "chassis_cover_diva_4x",
+      "name": "Chassis Cover - Diva (4x)",
+      "file": "Accessories/Chassis Cover - Diva (4x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.paint4x2",
+        "r_chs_cover.paint6x24",
+        "r_chs_cover.paint6x4"
+      ]
+    },
+    {
+      "id": "rear_bumper_paint",
+      "name": "Rear Bumper - Paint",
+      "file": "Accessories/Rear Bumper - Paint.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.4x2paint",
+        "r_bumper.4x2v1chrome",
+        "r_bumper.4x2v1paint",
+        "r_bumper.4x2v1plate",
+        "r_bumper.4x2v2paint",
+        "r_bumper.4x2v3paint",
+        "r_bumper.6x24paint",
+        "r_bumper.6x24v1chrome",
+        "r_bumper.6x24v1paint",
+        "r_bumper.6x24v1plate",
+        "r_bumper.6x24v2paint",
+        "r_bumper.6x24v3paint",
+        "r_bumper.6x2paint",
+        "r_bumper.6x2v1chrome",
+        "r_bumper.6x2v1paint",
+        "r_bumper.6x2v1plate",
+        "r_bumper.6x2v2paint",
+        "r_bumper.6x2v3paint"
+      ]
+    },
+    {
+      "id": "rear_exhaust_thor",
+      "name": "Rear Exhaust - Thor",
+      "file": "Accessories/Rear Exhaust - Thor.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "exhaust_m.exhaust1a",
+        "exhaust_m.exhaust1b",
+        "exhaust_m.exhaust1c"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_4x",
+      "name": "Rear Fender - Paint (4x)",
+      "file": "Accessories/Rear Fender - Paint (4x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.4x2paint"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_6x",
+      "name": "Rear Fender - Paint (6x)",
+      "file": "Accessories/Rear Fender - Paint (6x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.6x24paint",
+        "r_fender.6x2paint"
+      ]
+    },
+    {
+      "id": "rear_fender_top_paint_4x",
+      "name": "Rear Fender Top - Paint (4x)",
+      "file": "Accessories/Rear Fender Top - Paint (4x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.4x2paint"
+      ]
+    },
+    {
+      "id": "rear_fender_top_paint_6x",
+      "name": "Rear Fender Top - Paint (6x)",
+      "file": "Accessories/Rear Fender Top - Paint (6x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.6x24paint",
+        "r_fendr_top.6x2paint"
+      ]
+    },
+    {
+      "id": "sun_visor_paint",
+      "name": "Sun Visor - Paint",
+      "file": "Accessories/Sun Visor - Paint.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sunshld.shape14",
+        "sunshld.shape15",
+        "sunshld.shape2"
+      ]
+    }
+  ],
+  "left_out": []
+}

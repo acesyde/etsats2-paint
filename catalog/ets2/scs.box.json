@@ -1,0 +1,397 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "scs.box",
+  "name": "SCS Box Trailer",
+  "brand": "SCS",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "SCS Box Trailer",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body - Curtainsider (B-Double)": [
+        "body.curtain_78bd"
+      ],
+      "Body - Curtainsider (Double)": [
+        "body.curtain_78"
+      ],
+      "Body - Curtainsider (Long)": [
+        "body.curtain_136",
+        "f_body.door_c",
+        "f_body.wall_c"
+      ],
+      "Body - Dry Freighter (B-Double)": [
+        "body.dry_van_78bd",
+        "body.ins_78bd",
+        "body.reefer_78bd",
+        "body.dry_vs_78bd",
+        "body.ins_s_78bd",
+        "body.reefers_78bd",
+        "body.m_floor_78bd"
+      ],
+      "Body - Dry Freighter (Double)": [
+        "body.dry_van_78",
+        "body.ins_78",
+        "body.reefer_78",
+        "body.dry_vans_78",
+        "body.ins_s_78",
+        "body.reefers_78",
+        "body.m_floor_78"
+      ],
+      "Body - Dry Freighter (Long)": [
+        "body.dry_van_136",
+        "body.ins_136",
+        "body.reefer_136",
+        "body.dry_vans_136",
+        "body.ins_s_136",
+        "body.reefers_136",
+        "body.m_floor_136",
+        "body.m_floor_136r",
+        "f_body.door_dv",
+        "f_body.door_dvsd",
+        "f_body.ladder",
+        "f_body.ladder_bd"
+      ],
+      "Front Sideskirts": [
+        "chs_f_l.sideskirt_01",
+        "chs_f_r.sideskirt_01"
+      ],
+      "Front Sideskirts - Pallet Box": [
+        "chs_f_l.palletbox",
+        "chs_f_r.palletbox"
+      ],
+      "Other Sideskirts and Painted Boxes": [
+        "chs_f_l.sideskirt_02",
+        "chs_f_r.sideskirt_02",
+        "chs_f_l.sideskirt_2d",
+        "chs_f_r.sideskirt_2d",
+        "chs_f_l.sideskirt_03",
+        "chs_f_r.sideskirt_03",
+        "chs_f_l.sideskirt_1d",
+        "chs_f_r.sideskirt_1d",
+        "chs_f_l.p_box_cage",
+        "chs_f_l.paint_box",
+        "chs_f_l.paint_box_d",
+        "chs_f_r.p_box_cage",
+        "chs_f_r.paint_box",
+        "chs_f_r.paint_box_d",
+        "chs_f_l.p_box_doubl",
+        "chs_f_r.p_box_doubl",
+        "chs_m_l.sideskirt_bd",
+        "chs_m_l.sideskirt_d",
+        "chs_m_r.sideskirt_bd",
+        "chs_m_r.sideskirt_d",
+        "chs_m_l.sideskirt",
+        "chs_m_r.sideskirt",
+        "chs_m_l.paint_box_bd",
+        "chs_m_l.paint_box_d",
+        "chs_m_l.paint_box_m",
+        "chs_m_r.paint_box_bd",
+        "chs_m_r.paint_box_d",
+        "chs_m_r.paint_box_m",
+        "chs_r_l.sideskirt_02",
+        "chs_r_r.sideskirt_02",
+        "chs_r_l.paint_box",
+        "chs_r_l.paint_box_d",
+        "chs_r_r.paint_box",
+        "chs_r_r.paint_box_d",
+        "chs_f_l.t_box"
+      ],
+      "Rear Bumper": [
+        "r_bumper.paint",
+        "r_bumper.paint_bd",
+        "r_bumper.paint_d"
+      ],
+      "Rear Sideskirts": [
+        "chs_r_l.sideskirt_01",
+        "chs_r_r.sideskirt_01"
+      ],
+      "Rear Sideskirts - Pallet Box": [
+        "chs_r_l.palletbox",
+        "chs_r_r.palletbox"
+      ],
+      "Trailer Front": [
+        "f_body.th_box_p_mf",
+        "f_body.th_box_paint",
+        "f_body.f_toolbox"
+      ],
+      "Trailer Rear - Wind Deflector": [
+        "rear_body.wind_def"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Curtainsider B-Double",
+      "file": "Curtainsider B-Double.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.curtain_78bd"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "front_sideskirt_double_2_axles",
+      "name": "Front Sideskirt (Double 2 Axles)",
+      "file": "Accessories/Front Sideskirt (Double 2 Axles).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.sideskirt_2d",
+        "chs_f_r.sideskirt_2d"
+      ]
+    },
+    {
+      "id": "front_sideskirt_painted_box",
+      "name": "Front Sideskirt - Painted Box",
+      "file": "Accessories/Front Sideskirt - Painted Box.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.sideskirt_02",
+        "chs_f_r.sideskirt_02",
+        "chs_f_l.sideskirt_03",
+        "chs_f_r.sideskirt_03",
+        "chs_f_l.sideskirt_1d",
+        "chs_f_r.sideskirt_1d",
+        "chs_f_l.p_box_cage",
+        "chs_f_l.paint_box",
+        "chs_f_l.paint_box_d",
+        "chs_f_r.p_box_cage",
+        "chs_f_r.paint_box",
+        "chs_f_r.paint_box_d",
+        "chs_f_l.p_box_doubl",
+        "chs_f_r.p_box_doubl",
+        "chs_m_l.sideskirt_bd",
+        "chs_m_l.sideskirt_d",
+        "chs_m_r.sideskirt_bd",
+        "chs_m_r.sideskirt_d",
+        "chs_m_l.sideskirt",
+        "chs_m_r.sideskirt",
+        "chs_m_l.paint_box_bd",
+        "chs_m_l.paint_box_d",
+        "chs_m_l.paint_box_m",
+        "chs_m_r.paint_box_bd",
+        "chs_m_r.paint_box_d",
+        "chs_m_r.paint_box_m",
+        "chs_r_l.sideskirt_02",
+        "chs_r_r.sideskirt_02",
+        "chs_r_l.paint_box",
+        "chs_r_l.paint_box_d",
+        "chs_r_r.paint_box",
+        "chs_r_r.paint_box_d",
+        "chs_f_l.t_box"
+      ]
+    },
+    {
+      "id": "front_sideskirt_pallet_box",
+      "name": "Front Sideskirt - Pallet Box",
+      "file": "Accessories/Front Sideskirt - Pallet Box.png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.palletbox",
+        "chs_f_r.palletbox"
+      ]
+    },
+    {
+      "id": "front_sideskirt",
+      "name": "Front Sideskirt",
+      "file": "Accessories/Front Sideskirt.png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.sideskirt_01",
+        "chs_f_r.sideskirt_01"
+      ]
+    },
+    {
+      "id": "rear_bumper_exclusive_b_double",
+      "name": "Rear Bumper - Exclusive (B-Double)",
+      "file": "Accessories/Rear Bumper - Exclusive (B-Double).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.paint",
+        "r_bumper.paint_bd",
+        "r_bumper.paint_d"
+      ]
+    },
+    {
+      "id": "rear_sideskirt_pallet_box",
+      "name": "Rear Sideskirt - Pallet Box",
+      "file": "Accessories/Rear Sideskirt - Pallet Box.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_r_l.palletbox",
+        "chs_r_r.palletbox"
+      ]
+    },
+    {
+      "id": "rear_sideskirt",
+      "name": "Rear Sideskirt",
+      "file": "Accessories/Rear Sideskirt.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_r_l.sideskirt_01",
+        "chs_r_r.sideskirt_01"
+      ]
+    },
+    {
+      "id": "trailer_front_toolbox",
+      "name": "Trailer Front - Toolbox",
+      "file": "Accessories/Trailer Front - Toolbox.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "f_body.f_toolbox",
+        "f_body.th_box_p_mf",
+        "f_body.th_box_paint"
+      ]
+    },
+    {
+      "id": "trailer_rear_wind_deflector",
+      "name": "Trailer Rear - Wind Deflector",
+      "file": "Accessories/Trailer Rear - Wind Deflector.png",
+      "size": [
+        512,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "rear_body.wind_def"
+      ]
+    },
+    {
+      "id": "curtainsider_double",
+      "name": "Curtainsider Double",
+      "file": "Curtainsider Double.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.curtain_78"
+      ]
+    },
+    {
+      "id": "curtainsider_long",
+      "name": "Curtainsider Long",
+      "file": "Curtainsider Long.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.curtain_136",
+        "f_body.door_c",
+        "f_body.wall_c"
+      ]
+    },
+    {
+      "id": "dry_freighter_b_double",
+      "name": "Dry Freighter B-Double",
+      "file": "Dry Freighter B-Double.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.dry_van_78bd",
+        "body.ins_78bd",
+        "body.reefer_78bd",
+        "body.dry_vs_78bd",
+        "body.ins_s_78bd",
+        "body.reefers_78bd",
+        "body.m_floor_78bd"
+      ]
+    },
+    {
+      "id": "dry_freighter_double",
+      "name": "Dry Freighter Double",
+      "file": "Dry Freighter Double.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.dry_van_78",
+        "body.ins_78",
+        "body.reefer_78",
+        "body.dry_vans_78",
+        "body.ins_s_78",
+        "body.reefers_78",
+        "body.m_floor_78"
+      ]
+    },
+    {
+      "id": "dry_freighter_long",
+      "name": "Dry Freighter Long",
+      "file": "Dry Freighter Long.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.dry_van_136",
+        "body.ins_136",
+        "body.reefer_136",
+        "body.dry_vans_136",
+        "body.ins_s_136",
+        "body.reefers_136",
+        "body.m_floor_136",
+        "body.m_floor_136r",
+        "f_body.door_dv",
+        "f_body.door_dvsd",
+        "f_body.ladder",
+        "f_body.ladder_bd"
+      ]
+    }
+  ],
+  "left_out": []
+}

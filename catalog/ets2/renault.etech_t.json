@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "renault.etech_t",
+  "name": "Renault E-Tech T",
+  "brand": "Renault",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Renault E-Tech T",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "Sleeper",
+        "internal_names": [
+          "sleeper"
+        ]
+      }
+    ],
+    "accessories": {
+      "Sideskirts": [
+        "sideskirt.4x2side"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "sleeper",
+      "name": "Sleeper",
+      "file": "Renault E-Tech T.png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1
+    }
+  ],
+  "accessories": [
+    {
+      "id": "sideskirts",
+      "name": "Sideskirts",
+      "file": "Accessories/Sideskirts.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.4x2side"
+      ]
+    }
+  ],
+  "left_out": []
+}

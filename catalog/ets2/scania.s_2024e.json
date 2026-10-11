@@ -1,0 +1,71 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "scania.s_2024e",
+  "name": "Scania S BEV",
+  "brand": "Scania",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Scania S 2024e",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "High Roof",
+        "internal_names": [
+          "highline"
+        ]
+      }
+    ],
+    "accessories": {
+      "Rear Fender": [
+        "r_fender.4x2_p"
+      ],
+      "Sun Visor": [
+        "sunshld.stock"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "highline",
+      "name": "High Roof",
+      "file": "Scania S 2024e.png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1
+    }
+  ],
+  "accessories": [
+    {
+      "id": "rear_fenders",
+      "name": "Rear Fenders",
+      "file": "Accessories/Rear Fenders.png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.4x2_p"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "sunshld.stock"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "kogel.kipper",
+  "name": "Kögel Kipper",
+  "brand": "Kögel",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Kögel Kipper",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body - Kipper 24": [
+        "body.dumper_24",
+        "body.dumper_24_sc"
+      ],
+      "Body - Kipper 27": [
+        "body.dumper_27",
+        "body.dumper_27_sc"
+      ],
+      "Rear Bumper": [
+        "r_bumper.simple",
+        "r_bumper.exclusive"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body - Kipper 24",
+      "file": "Body - Kipper 24.png",
+      "size": [
+        8192,
+        1024
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.dumper_24",
+        "body.dumper_24_sc"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "body_kipper_27",
+      "name": "Body - Kipper 27",
+      "file": "Body - Kipper 27.png",
+      "size": [
+        8192,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.dumper_27",
+        "body.dumper_27_sc"
+      ]
+    }
+  ],
+  "left_out": [
+    {
+      "ids": [
+        "r_bumper.simple",
+        "r_bumper.exclusive"
+      ],
+      "reason": "no template in the pack"
+    }
+  ]
+}

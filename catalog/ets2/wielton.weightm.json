@@ -1,0 +1,93 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "wielton.weightm",
+  "name": "Wielton Weight Master",
+  "brand": "Wielton",
+  "kind": "trailer",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Wielton Weight Master",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [],
+    "accessories": {
+      "Body": [
+        "body.dumper",
+        "rear_body.door_1",
+        "rear_body.door_2"
+      ],
+      "Rear Bumper": [
+        "r_bumper.exclusive"
+      ],
+      "Sideskirts": [
+        "chs_f_l.cgp",
+        "chs_f_l.cgp_ext",
+        "chs_f_l.cgp_bpl",
+        "chs_f_l.cgp_wt",
+        "chs_f_r.cgp",
+        "chs_f_r.cgp_ext",
+        "chs_f_r.cgp_bpl",
+        "chs_f_r.cgp_wt"
+      ]
+    }
+  },
+  "main": [
+    {
+      "id": "body",
+      "name": "Body",
+      "file": "Body.png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "also_paints": [
+        "body.dumper",
+        "rear_body.door_1",
+        "rear_body.door_2"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "id": "rear_bumper",
+      "name": "Rear Bumper",
+      "file": "Accessories/Rear Bumper.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.exclusive"
+      ]
+    },
+    {
+      "id": "sideskirts_long_2_axles",
+      "name": "Sideskirts (Long, 2 axles)",
+      "file": "Accessories/Sideskirts (Long, 2 axles).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.cgp",
+        "chs_f_l.cgp_ext",
+        "chs_f_l.cgp_bpl",
+        "chs_f_l.cgp_wt",
+        "chs_f_r.cgp",
+        "chs_f_r.cgp_ext",
+        "chs_f_r.cgp_bpl",
+        "chs_f_r.cgp_wt"
+      ]
+    }
+  ],
+  "left_out": []
+}

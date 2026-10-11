@@ -14,7 +14,7 @@
 
 ## 3. The ETS2 catalog
 
-- [ ] 3.1 Run `tpv catalog match ~/Downloads/templates <Paintjob Packer at a7a7ed3> --commit a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d` and save its report for the PR; verify that it writes 64 drafts, leaves `daf.2021.json` and `krone.coolliner.json` unchanged, and lists `SCS Livestock` as a folder without a vehicle.
+- [x] 3.1 Run `tpv catalog match ~/Downloads/templates <Paintjob Packer at a7a7ed3> --commit a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d` and save its report for the PR; verify that it writes 64 drafts, leaves `daf.2021.json` and `krone.coolliner.json` unchanged, and lists `SCS Livestock` as a folder without a vehicle.
 - [ ] 3.2 Review and complete the trucks: DAF, Iveco, MAN, Mercedes-Benz and Renault (resolve each doubt, place or leave out each uncovered id, with a reason). Verify that `tpv catalog check --catalog catalog ~/Downloads/templates` reports no problem for them, and commit them.
 - [ ] 3.3 Review and complete the trucks: Scania (both shared folders, and the S BEV) and Volvo; verify with `tpv catalog check` as in 3.2, and commit them.
 - [ ] 3.4 Review and complete the trailers: Feldbinder, Kässbohrer, Kögel, Krone (Dry Liner, Paper Liner, Profi Liner, Profi Liner Building) and Schmitz Cargobull, applying design Decision 1; verify with `tpv catalog check` as in 3.2, and commit them.

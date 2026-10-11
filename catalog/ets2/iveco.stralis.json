@@ -1,0 +1,86 @@
+{
+  "format": 1,
+  "game": "ets2",
+  "path": "iveco.stralis",
+  "name": "Iveco Stralis",
+  "brand": "Iveco",
+  "kind": "truck",
+  "version": "1.0.0",
+  "game_versions": ">=1.59",
+  "folder": "Iveco Stralis",
+  "source": {
+    "paintjob_packer": "a7a7ed3902ca3fe6f9ff3eb4afd2d92db3f5db2d",
+    "pack": "1.59 (2026-05-28)"
+  },
+  "game_data": {
+    "alt_uv": false,
+    "colour_picker": false,
+    "cabins": [
+      {
+        "code": "a",
+        "name": "Active Space Super",
+        "internal_names": [
+          "as_higher"
+        ]
+      },
+      {
+        "code": "b",
+        "name": "Active Super",
+        "internal_names": [
+          "at_higher"
+        ]
+      },
+      {
+        "code": "c",
+        "name": "Active Space",
+        "internal_names": [
+          "at"
+        ]
+      }
+    ],
+    "accessories": {}
+  },
+  "main": [
+    {
+      "id": "as_higher",
+      "name": "Active Space Super",
+      "file": "Cabin A (Active Space Super).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "as_higher"
+      ]
+    },
+    {
+      "id": "at_higher",
+      "name": "Active Super",
+      "file": "Cabin B (Active Super).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "at_higher"
+      ]
+    },
+    {
+      "id": "at",
+      "name": "Active Space",
+      "file": "Cabin C (Active Space).png",
+      "size": [
+        4096,
+        4096
+      ],
+      "layout_version": 1,
+      "cabins": [
+        "at"
+      ]
+    }
+  ],
+  "accessories": [],
+  "left_out": []
+}
