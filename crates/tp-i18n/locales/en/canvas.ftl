@@ -93,5 +93,6 @@ undo-mark-checked = Mark as Checked
 ## Fleet
 
 undo-add-vehicle = Add Vehicle
+undo-add-vehicles = Add Vehicles
 undo-change-textures = Change Textures
 undo-remove-vehicle = Remove Vehicle

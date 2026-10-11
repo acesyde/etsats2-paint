@@ -978,7 +978,8 @@ mod tests {
     fn editing_a_value_on_a_large_fleet_is_fast() {
         let package = tp_vehicles::Package::read(crate::vehicles::SAMPLES[0].bytes).unwrap();
         let textures = crate::vehicle_project::default_textures(&package.manifest);
-        let mut p = crate::vehicle_project::fleet_project("Fleet", &package, &textures).unwrap();
+        let mut p =
+            crate::vehicle_project::fleet_project("Fleet", &[(&package, &textures)]).unwrap();
         let base = p.surfaces.clone();
         while p.surfaces.len() < 40 {
             p.surfaces.push(base[p.surfaces.len() % base.len()].clone());

@@ -76,7 +76,7 @@ fn render_screens() {
 
             h.get_by_label(&tp_i18n::tr("home-new-project")).click();
             h.run();
-            h.get_by_role_and_label(egui::accesskit::Role::RadioButton, common::SAMPLE)
+            h.get_by_role_and_label(egui::accesskit::Role::CheckBox, common::SAMPLE)
                 .click();
             h.run();
             save(&mut h, &name("new_project"));
@@ -1800,7 +1800,7 @@ fn render_languages() {
             // A project with a selected stroked text (the inspector).
             h.get_by_label(&tp_i18n::tr("home-new-project")).click();
             h.run();
-            h.get_by_role_and_label(egui::accesskit::Role::RadioButton, common::SAMPLE)
+            h.get_by_role_and_label(egui::accesskit::Role::CheckBox, common::SAMPLE)
                 .click();
             h.run();
             h.get_by_label(&tp_i18n::tr("new-project-create")).click();
@@ -1866,7 +1866,7 @@ fn render_vehicle_screens() {
         let code = language.code();
         h.state_mut().modal = Some(Modal::NewProject(Default::default()));
         if let Some(Modal::NewProject(d)) = &mut h.state_mut().modal {
-            d.vehicle = Some(tp_app::ui::vehicle_dialogs::VehicleChoice {
+            d.check(tp_app::ui::vehicle_dialogs::VehicleChoice {
                 id: "scs.sample.truck".into(),
                 version: "1.3.0".parse().unwrap(),
                 textures: vec!["chassis".into(), "accessories".into()],
@@ -1882,7 +1882,8 @@ fn render_vehicle_screens() {
             .unwrap();
         let textures = tp_app::vehicle_project::default_textures(&package.manifest);
         let project =
-            tp_app::vehicle_project::fleet_project("Sample Truck", &package, &textures).unwrap();
+            tp_app::vehicle_project::fleet_project("Sample Truck", &[(&package, &textures)])
+                .unwrap();
         common::open_project(&mut h, project);
         save(&mut h, &format!("vehicle_project_{code}"));
     }
@@ -1929,7 +1930,7 @@ fn render_sample_vehicle() {
             let mut textures = tp_app::vehicle_project::default_textures(&package.manifest);
             textures[0] = main.to_owned();
             let project =
-                tp_app::vehicle_project::fleet_project("Sample", package, &textures).unwrap();
+                tp_app::vehicle_project::fleet_project("Sample", &[(package, &textures)]).unwrap();
             common::open_project(&mut h, project);
             h.run();
             save(&mut h, &format!("sample_{name}_{code}"));
@@ -1962,7 +1963,7 @@ fn render_fleet_screens() {
         ];
         h.state_mut().modal = Some(Modal::NewProject(Default::default()));
         if let Some(Modal::NewProject(d)) = &mut h.state_mut().modal {
-            d.vehicle = Some(VehicleChoice {
+            d.check(VehicleChoice {
                 id: SAMPLE_ID.into(),
                 version: "1.1.0".parse().unwrap(),
                 textures: both.clone(),
@@ -1979,7 +1980,7 @@ fn render_fleet_screens() {
             };
         let truck = load(&h, SAMPLE_ID, "1.1.0");
         let project =
-            tp_app::vehicle_project::fleet_project("ACE Logistics", &truck, &both).unwrap();
+            tp_app::vehicle_project::fleet_project("ACE Logistics", &[(&truck, &both)]).unwrap();
         h.state_mut().modal = None;
         common::open_project(&mut h, project);
         let trailer = load(&h, SAMPLE_TRAILER_ID, "1.0.0");
@@ -2268,7 +2269,7 @@ fn brand_fleet(
     let mut textures = tp_app::vehicle_project::default_textures(&package.manifest);
     textures.push("high_roof".into());
     let project =
-        tp_app::vehicle_project::fleet_project("ACE Logistics", &package, &textures).unwrap();
+        tp_app::vehicle_project::fleet_project("ACE Logistics", &[(&package, &textures)]).unwrap();
     common::open_project(h, project);
     let ws = h.state_mut().workspace_mut().unwrap();
     let p = &mut ws.project;
@@ -2607,7 +2608,8 @@ fn render_texture_status() {
             let mut textures = tp_app::vehicle_project::default_textures(&truck.manifest);
             textures.push("high_roof".into());
             let project =
-                tp_app::vehicle_project::fleet_project("ACE Logistics", &truck, &textures).unwrap();
+                tp_app::vehicle_project::fleet_project("ACE Logistics", &[(&truck, &textures)])
+                    .unwrap();
             h.state_mut().open_project(project);
             let trailer = load(&h, SAMPLE_TRAILER_ID, "1.0.0");
             let all = tp_app::vehicle_project::default_textures(&trailer.manifest);
@@ -2721,7 +2723,7 @@ fn palette_fleet(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
     let truck = load(h, SAMPLE_ID, "1.1.0");
     let textures = tp_app::vehicle_project::default_textures(&truck.manifest);
     let project =
-        tp_app::vehicle_project::fleet_project("ACE Logistics", &truck, &textures).unwrap();
+        tp_app::vehicle_project::fleet_project("ACE Logistics", &[(&truck, &textures)]).unwrap();
     common::open_project(h, project);
     let trailer = load(h, SAMPLE_TRAILER_ID, "1.0.0");
     let all = tp_app::vehicle_project::default_textures(&trailer.manifest);
@@ -3166,13 +3168,12 @@ fn render_official_vehicles() {
         h.run();
         h.get_by_label(&tp_i18n::tr("home-new-project")).click();
         h.run();
-        h.get_by_role_and_label(Role::RadioButton, common::SAMPLE)
+        h.get_by_role_and_label(Role::CheckBox, common::SAMPLE)
             .click();
         settle_dialog(&mut h);
         save(&mut h, &name("new_project"));
 
-        h.get_by_role_and_label(Role::RadioButton, "DAF NGD")
-            .click();
+        h.get_by_role_and_label(Role::CheckBox, "DAF NGD").click();
         settle_dialog(&mut h);
         save(&mut h, &name("pack_dialog"));
         let downloads = dir.path().join("Downloads");
@@ -3192,7 +3193,7 @@ fn render_official_vehicles() {
             .prefs
             .set_template_pack(Game::Ets2, Some(pack.clone()));
         tp_app::official::hold_builds_from(&pack, true);
-        h.get_by_role_and_label(Role::RadioButton, "Krone Cool Liner")
+        h.get_by_role_and_label(Role::CheckBox, "Krone Cool Liner")
             .click();
         settle_dialog(&mut h);
         let image = h.render().expect("render");
@@ -3218,5 +3219,62 @@ fn render_official_vehicles() {
         h.state_mut().modal = Some(Modal::NewProject(Default::default()));
         settle_dialog(&mut h);
         save(&mut h, &name("new_project_empty"));
+    }
+}
+
+/// Several vehicles at once, in English and German at 100 %: New Project
+/// with three vehicles checked (the first card open, the others folded) and
+/// Add Vehicle… with two vehicles checked. Files are named
+/// `fleet_choice_<language>_<screen>.png`.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_multi_vehicle_choice() {
+    use egui::accesskit::Role;
+    use tp_app::state::Modal;
+    use tp_i18n::Language;
+    // A third installed vehicle beside the sample truck and trailer.
+    let volvo = tp_vehicles::sample::package(
+        "community.jdoe.volvo_fh16",
+        "Volvo FH16 2012",
+        "1.0.0",
+        &tp_vehicles::sample::truck_textures(),
+    );
+    for language in [Language::English, Language::German] {
+        let code = language.code();
+        let name = |screen: &str| format!("fleet_choice_{code}_{screen}");
+        let mut prefs = Prefs::default();
+        prefs.set_language(Some(language));
+        let mut h = common::wgpu_harness_with(prefs, Vec2::new(1440.0, 900.0));
+        mac_native(&mut h);
+        h.state_mut().vehicles.install_bytes(&volvo).unwrap();
+        h.run();
+        h.get_by_label(&tp_i18n::tr("home-new-project")).click();
+        h.run();
+        for vehicle in [
+            common::SAMPLE,
+            "Volvo FH16 2012",
+            "TruckPaint Sample Trailer",
+        ] {
+            h.get_by_role_and_label(Role::CheckBox, vehicle).click();
+            settle_dialog(&mut h);
+        }
+        // The first card open, as in the mockup.
+        h.get_by_role_and_label(Role::Button, common::SAMPLE)
+            .click();
+        settle_dialog(&mut h);
+        save(&mut h, &name("new_project"));
+
+        h.state_mut().modal = None;
+        common::create_project(&mut h);
+        h.state_mut()
+            .queue
+            .push(tp_app::commands::CommandId::AddVehicle);
+        settle_dialog(&mut h);
+        for vehicle in ["TruckPaint Sample Trailer", "Volvo FH16 2012"] {
+            h.get_by_role_and_label(Role::CheckBox, vehicle).click();
+            settle_dialog(&mut h);
+        }
+        assert!(matches!(h.state().modal, Some(Modal::AddVehicle(_))));
+        save(&mut h, &name("add_vehicle"));
     }
 }

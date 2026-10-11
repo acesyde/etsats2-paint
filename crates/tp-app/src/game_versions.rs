@@ -472,7 +472,7 @@ mod tests {
 
     fn truck() -> Project {
         let p = example("sample_truck-1.1.0");
-        crate::vehicle_project::fleet_project("F", &p, &["standard".to_owned()]).unwrap()
+        crate::vehicle_project::fleet_project("F", &[(&p, &["standard".to_owned()])]).unwrap()
     }
 
     #[test]

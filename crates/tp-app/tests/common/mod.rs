@@ -83,7 +83,7 @@ pub fn create_project(harness: &mut Harness<'static, AppState>) {
     }
     let package = Package::read(tp_app::vehicles::SAMPLES[0].bytes).expect("sample package");
     let textures = tp_app::vehicle_project::default_textures(&package.manifest);
-    let mut project = tp_app::vehicle_project::fleet_project(SAMPLE, &package, &textures)
+    let mut project = tp_app::vehicle_project::fleet_project(SAMPLE, &[(&package, &textures)])
         .expect("sample textures");
     for surface in &mut project.surfaces {
         if let Some(t) = surface.template.as_mut() {

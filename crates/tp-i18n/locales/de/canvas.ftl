@@ -92,5 +92,6 @@ undo-mark-checked = Als geprüft markieren
 ## Fleet
 
 undo-add-vehicle = Fahrzeug hinzufügen
+undo-add-vehicles = Fahrzeuge hinzufügen
 undo-change-textures = Texturen ändern
 undo-remove-vehicle = Fahrzeug entfernen

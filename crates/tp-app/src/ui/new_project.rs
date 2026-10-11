@@ -1,11 +1,12 @@
 //! The New Project dialog, on one page: the project's name and game on
 //! top; the official and installed vehicles of that game on the left, with
-//! Custom vehicle… and Install…; "Your fleet" on the right, with the chosen
-//! vehicle's textures to tick and the textures that will be created.
+//! Custom vehicle… and Install…, each vehicle with a checkbox; "Your fleet"
+//! on the right, one card per checked vehicle (the open one with its
+//! textures to tick), and the textures that will be created.
 
 use egui::{
     Align, Align2, CornerRadius, Frame, Key, Layout, Margin, Rect, RichText, ScrollArea, Sense,
-    Stroke, StrokeKind, TextEdit, Ui, Vec2, WidgetInfo, WidgetType,
+    Stroke, StrokeKind, TextEdit, Ui, UiBuilder, Vec2, WidgetInfo, WidgetType,
 };
 use tp_i18n::tr;
 use tp_ui::icons;
@@ -17,7 +18,8 @@ use tp_vehicles::{Game, Kind, Manifest};
 
 use super::dialogs::{field_label, footer, labelled, messages, modal, title};
 use super::vehicle_dialogs::{
-    VehicleChoice, VehicleFilter, game_name, kind_label, summary, textures_to_paint, vehicle_rows,
+    VehicleChoice, VehicleFilter, all_complete, game_name, kind_label, load_choices, summary,
+    textures_to_paint, vehicle_rows,
 };
 use crate::official::Finished;
 use crate::state::{AppState, Modal, NewProjectDraft};
@@ -25,12 +27,13 @@ use crate::vehicles::{SAMPLE_ID, VehicleLibrary};
 
 /// Width of the "Your fleet" column.
 const FLEET_WIDTH: f32 = 340.0;
-/// Height of a row of the vehicle list, and of its column headers.
+/// Height of a row of the vehicle list (here and in Add Vehicle…), and of
+/// its column headers.
 const ROW_HEIGHT: f32 = 32.0;
 const HEADER_HEIGHT: f32 = 30.0;
 
 /// The x positions of the vehicle list's columns in a row `rect`: the
-/// choice mark's center, then the left edges of Vehicle, Type and Package.
+/// checkbox's center, then the left edges of Vehicle, Type and Package.
 struct Columns {
     mark: f32,
     name: f32,
@@ -57,10 +60,11 @@ impl Columns {
 enum Outcome {
     Pending,
     Cancel,
-    /// Create a project from an installed vehicle and its checked textures.
+    /// Create a project from the checked vehicles and their checked
+    /// textures, in fleet order.
     Create {
         name: String,
-        choice: VehicleChoice,
+        choices: Vec<VehicleChoice>,
     },
     /// Install packages, then come back.
     Install,
@@ -80,15 +84,15 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
     let Some(Modal::NewProject(draft)) = state.modal.as_mut() else {
         return;
     };
-    // The official vehicle installed: chosen, or why it wasn't.
+    // The official vehicle installed: checked, or why it wasn't.
     if let Some(finished) = super::template_pack::poll(&mut draft.installing, &mut state.vehicles) {
         match finished {
             Finished::Installed(choice, message) => {
                 if let Some(m) = choice.manifest(&state.vehicles) {
-                    draft.filter.game = Some(m.game.id);
+                    draft.set_game(m.game.id, &state.vehicles);
                 }
                 draft.messages = vec![Ok(message)];
-                draft.vehicle = Some(choice);
+                draft.check(choice);
             }
             Finished::Refused(message) => draft.messages = vec![Err(message)],
             Finished::Cancelled => {}
@@ -135,24 +139,23 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
             if let Some(Modal::NewProject(draft)) = &mut state.modal {
                 draft.messages = results;
                 if let Some((choice, game)) = pick {
-                    draft.filter.game = Some(game);
-                    draft.vehicle = Some(choice);
+                    draft.set_game(game, &state.vehicles);
+                    draft.check(choice);
                 }
             }
         }
-        Outcome::Create { name, choice } => {
-            let loaded = state.vehicles.load(&choice.id, &choice.version);
-            match loaded.map(|p| crate::vehicle_project::fleet_project(&name, &p, &choice.textures))
-            {
+        Outcome::Create { name, choices } => {
+            let loaded = load_choices(&state.vehicles, &choices);
+            match loaded.map(|fleet| crate::vehicle_project::fleet_project(&name, &fleet)) {
                 Ok(Ok(project)) => {
                     state.modal = None;
                     state.open_project(project);
                 }
                 Ok(Err(_)) => state.modal = None,
-                Err(err) => {
+                Err(text) => {
                     state.modal = Some(Modal::Message {
                         title: tr("home-new-project"),
-                        text: crate::vehicles::install_error_message(&err, &name),
+                        text,
                     });
                 }
             }
@@ -160,11 +163,10 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
     }
 }
 
-/// The vehicle chosen in the draft, if it is installed and ready.
-fn chosen<'a>(draft: &NewProjectDraft, library: &'a VehicleLibrary) -> Option<&'a Manifest> {
-    let choice = draft.vehicle.as_ref()?;
-    let m = choice.manifest(library)?;
-    choice.is_complete(library).then_some(m)
+/// The first checked vehicle, which names the project when the name is left
+/// empty.
+fn first<'a>(draft: &NewProjectDraft, library: &'a VehicleLibrary) -> Option<&'a Manifest> {
+    draft.vehicles.first()?.manifest(library)
 }
 
 fn show(ctx: &egui::Context, draft: &mut NewProjectDraft, library: &VehicleLibrary) -> Outcome {
@@ -205,13 +207,13 @@ fn show(ctx: &egui::Context, draft: &mut NewProjectDraft, library: &VehicleLibra
             );
         });
 
-        let ready = chosen(draft, library).is_some();
+        let ready = all_complete(&draft.vehicles, library);
         let mut cancel = false;
         let mut create = false;
         footer(ui, |ui| {
             create |= ui
                 .add_enabled(ready, primary_button(&tr("new-project-create")))
-                .on_disabled_hover_text(tr("reason-choose-vehicle"))
+                .on_disabled_hover_text(tr("reason-check-vehicle"))
                 .clicked();
             cancel |= ui.add(secondary_button(&tr("button-cancel"))).clicked();
         });
@@ -238,8 +240,8 @@ fn show(ctx: &egui::Context, draft: &mut NewProjectDraft, library: &VehicleLibra
     } else if wanted.custom {
         Outcome::CustomVehicle
     } else if create
-        && let Some(m) = chosen(draft, library)
-        && let Some(choice) = draft.vehicle.clone()
+        && all_complete(&draft.vehicles, library)
+        && let Some(m) = first(draft, library)
     {
         let typed = draft.name.trim().to_owned();
         Outcome::Create {
@@ -248,7 +250,7 @@ fn show(ctx: &egui::Context, draft: &mut NewProjectDraft, library: &VehicleLibra
             } else {
                 typed
             },
-            choice,
+            choices: draft.vehicles.clone(),
         }
     } else {
         Outcome::Pending
@@ -280,8 +282,8 @@ fn header(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary) {
         ui.allocate_ui_with_layout(Vec2::new(320.0, 0.0), Layout::top_down(Align::Min), |ui| {
             ui.set_width(320.0);
             labelled(ui, &tr("new-project-name"), |ui| {
-                let hint = chosen(draft, library)
-                    .map_or_else(|| tr("object-untitled"), |m| m.name.clone());
+                let hint =
+                    first(draft, library).map_or_else(|| tr("object-untitled"), |m| m.name.clone());
                 let name = ui.add(
                     TextEdit::singleline(&mut draft.name)
                         .hint_text(hint)
@@ -304,16 +306,8 @@ fn header(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary) {
                 .named_segment(Game::Ats, "", "ATS", &ats)
                 .show(ui, draft.game());
             if let Some(game) = picked {
-                draft.filter.game = Some(game);
-                // A vehicle of the other game is no longer listed.
-                if draft
-                    .vehicle
-                    .as_ref()
-                    .and_then(|c| c.manifest(library))
-                    .is_some_and(|m| m.game.id != game)
-                {
-                    draft.vehicle = None;
-                }
+                // The vehicles of the other game are no longer listed.
+                draft.set_game(game, library);
             }
         });
         // Level with the fields, under their labels.
@@ -476,7 +470,7 @@ fn list(
         return;
     }
     column_headers(ui);
-    let chosen_id = draft.vehicle.as_ref().map(|c| c.id.clone());
+    let checked = |draft: &NewProjectDraft, id: &str| draft.vehicles.iter().any(|c| c.id == id);
     ScrollArea::vertical()
         .id_salt("new_project_vehicles")
         .max_height(height - HEADER_HEIGHT)
@@ -488,15 +482,21 @@ fn list(
             }
             for row in &rows.official {
                 let e = row.entry;
-                let selected = chosen_id.as_deref() == Some(e.package_id().as_str());
+                let id = e.package_id();
+                let on = checked(draft, &id);
                 let cells = Row {
                     name: &e.name,
                     kind: e.kind,
                     package: format!("{} · {}", e.brand, row.package()),
                     tip: row.summary(),
                 };
-                if vehicle_row(ui, &cells, selected) && !selected {
-                    wanted.official = Some(e);
+                if vehicle_row(ui, &cells, on) {
+                    if on {
+                        draft.uncheck(&id);
+                    } else {
+                        // Checked once installed.
+                        wanted.official = Some(e);
+                    }
                 }
             }
             if rows.sections() {
@@ -504,15 +504,14 @@ fn list(
             }
             for vehicle in rows.installed {
                 let m = &vehicle.newest().manifest;
-                let selected = chosen_id.as_deref() == Some(vehicle.id.as_str());
                 let cells = Row {
                     name: &m.name,
                     kind: m.kind,
                     package: format!("{} {}", m.brand, m.version),
                     tip: summary(m),
                 };
-                if vehicle_row(ui, &cells, selected) && !selected {
-                    draft.vehicle = Some(VehicleChoice::of(vehicle));
+                if vehicle_row(ui, &cells, checked(draft, &vehicle.id)) {
+                    draft.toggle(vehicle);
                 }
             }
         });
@@ -520,7 +519,7 @@ fn list(
 
 /// A section's header in the list ("Official", "Installed"): small muted
 /// capitals.
-fn section_header(ui: &mut Ui, text: &str) {
+pub(super) fn section_header(ui: &mut Ui, text: &str) {
     let (rect, response) = ui.allocate_exact_size(
         Vec2::new(ui.available_width(), HEADER_HEIGHT - 4.0),
         Sense::hover(),
@@ -568,22 +567,23 @@ fn column_headers(ui: &mut Ui) {
 }
 
 /// The cells of a row of the vehicle list.
-struct Row<'a> {
-    name: &'a str,
-    kind: Kind,
+pub(super) struct Row<'a> {
+    pub name: &'a str,
+    pub kind: Kind,
     /// The Package column: the brand with the newest version, or
     /// "Official".
-    package: String,
+    pub package: String,
     /// The row's tooltip.
-    tip: String,
+    pub tip: String,
 }
 
-/// One vehicle: a choice mark, its name, its kind, and its package.
-/// Returns whether it was clicked.
-fn vehicle_row(ui: &mut Ui, m: &Row<'_>, selected: bool) -> bool {
+/// One vehicle: a checkbox, its name, its kind, and its package. Reported
+/// as a checkbox named after the vehicle. Returns whether it was clicked
+/// (or toggled with Space).
+pub(super) fn vehicle_row(ui: &mut Ui, m: &Row<'_>, selected: bool) -> bool {
     let (rect, response) =
         ui.allocate_exact_size(Vec2::new(ui.available_width(), ROW_HEIGHT), Sense::click());
-    response.widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, true, selected, m.name));
+    response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, true, selected, m.name));
     let painter = ui.painter();
     if selected {
         painter.rect_filled(rect, CornerRadius::ZERO, color::CONTROL);
@@ -596,20 +596,25 @@ fn vehicle_row(ui: &mut Ui, m: &Row<'_>, selected: bool) -> bool {
         Stroke::new(1.0, color::BORDER),
     );
     let columns = Columns::of(rect);
-    // The choice mark: a filled disc with a check when chosen, a ring
-    // otherwise (the shape tells them apart, not only the color).
-    let mark = egui::pos2(columns.mark, rect.center().y);
+    // The checkbox: a 16 px square, filled with a check when checked,
+    // outlined otherwise (the check tells them apart, not only the color).
+    let mark = Rect::from_center_size(egui::pos2(columns.mark, rect.center().y), Vec2::splat(16.0));
     if selected {
-        painter.circle_filled(mark, 8.0, color::ACCENT_PRIMARY);
+        painter.rect_filled(mark, radius::SM, color::ACCENT_PRIMARY);
         painter.text(
-            mark,
+            mark.center(),
             Align2::CENTER_CENTER,
             icons::CHECK,
             icons::font(11.0),
             color::TEXT_ON_PRIMARY,
         );
     } else {
-        painter.circle_stroke(mark, 7.5, Stroke::new(1.0, color::BORDER_STRONG));
+        painter.rect_stroke(
+            mark.shrink(0.5),
+            radius::SM,
+            Stroke::new(1.0, color::BORDER_STRONG),
+            StrokeKind::Inside,
+        );
     }
     let y = rect.center().y;
     let cell = |from: f32, to: f32| {
@@ -709,8 +714,16 @@ fn dashed_outline(ui: &Ui, rect: Rect) {
     }
 }
 
-/// "Your fleet": the chosen vehicle, its textures to tick, its main
-/// texture mode, and the textures that will be created.
+/// What a card of "Your fleet" asks for this frame.
+enum CardAction {
+    None,
+    Open,
+    Remove,
+}
+
+/// "Your fleet": the count of checked vehicles, one card per checked
+/// vehicle in fleet order (the open one with its textures to tick, the
+/// others folded to one line), and the textures that will be created.
 fn fleet(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary) {
     let rect = ui.max_rect();
     ui.painter().rect(
@@ -725,87 +738,197 @@ fn fleet(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary) {
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.spacing_mut().item_spacing.y = space::SM;
-            ui.label(
-                RichText::new(tr("new-project-fleet"))
-                    .text_style(egui::TextStyle::Heading)
-                    .color(color::TEXT_PRIMARY),
-            );
-            let Some(choice) = draft.vehicle.as_mut() else {
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(tr("new-project-fleet"))
+                        .text_style(egui::TextStyle::Heading)
+                        .color(color::TEXT_PRIMARY),
+                );
+                if !draft.vehicles.is_empty() {
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        let count = tr!("new-project-vehicle-count", count = draft.vehicles.len());
+                        let label = ui.label(RichText::new(&count).color(color::TEXT_SECONDARY));
+                        label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &count));
+                    });
+                }
+            });
+            if draft.vehicles.is_empty() {
                 ui.add(
                     egui::Label::new(
-                        RichText::new(tr("new-project-pick-vehicle")).color(color::TEXT_SECONDARY),
+                        RichText::new(tr("new-project-check-vehicles"))
+                            .color(color::TEXT_SECONDARY),
                     )
                     .wrap(),
                 );
                 return;
-            };
-            let Some(m) = choice.manifest(library) else {
-                return;
-            };
-            // Room for "Textures created" under the vehicle.
-            let row = ui.text_style_height(&egui::TextStyle::Body) + ui.spacing().item_spacing.y;
-            let created_height = (choice.painted(m).len() + 2) as f32 * row + space::LG;
+            }
+            // The cards, then the textures created for every vehicle,
+            // scroll; their total stays visible under them.
+            let total_height = ui.text_style_height(&label_strong_style()) + 2.0 * space::SM;
+            let mut action = None;
+            let mut count = 0;
             ScrollArea::vertical()
                 .id_salt("new_project_fleet")
-                .max_height((ui.available_height() - created_height).max(80.0))
-                .auto_shrink([false, true])
+                .max_height((ui.available_height() - total_height).max(80.0))
+                .auto_shrink([false, false])
                 .show(ui, |ui| {
                     ui.set_width(ui.available_width());
                     ui.spacing_mut().item_spacing.y = space::SM;
-                    Frame::new()
-                        .fill(color::CONTROL)
-                        .stroke(Stroke::new(1.0, color::BORDER))
-                        .corner_radius(radius::CARD)
-                        .inner_margin(Margin::same(space::MD as i8 + 2))
-                        .show(ui, |ui| {
-                            ui.set_width(ui.available_width());
-                            ui.spacing_mut().item_spacing.y = space::SM;
-                            ui.vertical(|ui| {
+                    let open = draft.open.clone();
+                    for choice in &mut draft.vehicles {
+                        let Some(m) = choice.manifest(library) else {
+                            continue;
+                        };
+                        let is_open = open.as_deref() == Some(choice.id.as_str());
+                        match card(ui, m, choice, is_open) {
+                            CardAction::None => {}
+                            CardAction::Open => action = Some((true, choice.id.clone())),
+                            CardAction::Remove => action = Some((false, choice.id.clone())),
+                        }
+                    }
+                    let fleet: Vec<(&Manifest, &VehicleChoice)> = draft
+                        .vehicles
+                        .iter()
+                        .filter_map(|c| Some((c.manifest(library)?, c)))
+                        .collect();
+                    count = created(ui, &fleet);
+                });
+            let rect = ui.available_rect_before_wrap();
+            ui.painter()
+                .hline(rect.x_range(), rect.top(), Stroke::new(1.0, color::BORDER));
+            ui.add_space(space::SM);
+            let total = tr!("new-project-total", count = count);
+            let label = ui.label(RichText::new(&total).text_style(label_strong_style()));
+            label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &total));
+            match action {
+                Some((true, id)) => draft.open = Some(id),
+                Some((false, id)) => draft.uncheck(&id),
+                None => {}
+            }
+        });
+}
+
+/// A card of "Your fleet": the vehicle's name, its brand and kind, and
+/// Remove; open, its textures to tick and their count; folded, its checked
+/// main textures and the count on one line, the whole card opening it.
+fn card(ui: &mut Ui, m: &Manifest, choice: &mut VehicleChoice, open: bool) -> CardAction {
+    let mut action = CardAction::None;
+    let scope = ui.scope_builder(
+        UiBuilder::new()
+            .id_salt(("fleet_card", &choice.id))
+            .sense(if open { Sense::hover() } else { Sense::click() }),
+        |ui| {
+            let hovered = !open && ui.response().hovered();
+            Frame::new()
+                .fill(if hovered {
+                    color::SURFACE_2
+                } else {
+                    color::CONTROL
+                })
+                .stroke(Stroke::new(1.0, color::BORDER))
+                .corner_radius(radius::CARD)
+                .inner_margin(Margin::same(space::MD as i8 + 2))
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.spacing_mut().item_spacing.y = space::SM;
+                    ui.horizontal_top(|ui| {
+                        let remove = tr("new-project-remove");
+                        let font = egui::TextStyle::Small.resolve(ui.style());
+                        let remove_width = ui
+                            .painter()
+                            .layout_no_wrap(remove.clone(), font, color::TEXT_SECONDARY)
+                            .size()
+                            .x
+                            + 2.0 * ui.spacing().button_padding.x;
+                        let text_width =
+                            (ui.available_width() - remove_width - space::SM).max(80.0);
+                        ui.allocate_ui_with_layout(
+                            Vec2::new(text_width, 0.0),
+                            Layout::top_down(Align::Min),
+                            |ui| {
+                                ui.set_width(text_width);
                                 ui.spacing_mut().item_spacing.y = space::XXS;
-                                ui.label(
-                                    RichText::new(&m.name)
-                                        .text_style(label_strong_style())
-                                        .color(color::TEXT_PRIMARY),
+                                ui.add(
+                                    egui::Label::new(
+                                        RichText::new(&m.name)
+                                            .text_style(label_strong_style())
+                                            .color(color::TEXT_PRIMARY),
+                                    )
+                                    .truncate(),
                                 );
                                 ui.label(
-                                    RichText::new(summary(m))
+                                    RichText::new(format!("{} · {}", m.brand, kind_label(m.kind)))
                                         .small()
                                         .color(color::TEXT_SECONDARY),
                                 );
-                            });
-                            let main_heading = match m.kind {
-                                Kind::Truck => tr("new-project-cabins"),
-                                Kind::Trailer => tr("vehicles-main-textures"),
-                            };
-                            textures_to_paint(
-                                ui,
-                                m,
-                                &mut choice.textures,
-                                &main_heading,
-                                Some(&mode_text(m)),
-                            );
-                            let painted = choice.painted(m);
-                            let main = painted
-                                .iter()
-                                .filter(|p| m.paint_job.main.iter().any(|q| q.id == p.id))
-                                .count();
-                            let counts = tr!(
-                                "new-project-counts",
-                                main = main,
-                                accessories = painted.len() - main
-                            );
-                            let label = ui.label(
-                                RichText::new(format!("→ {counts}"))
-                                    .monospace()
-                                    .color(color::TEXT_SECONDARY),
-                            );
-                            label.widget_info(|| {
-                                WidgetInfo::labeled(WidgetType::Label, true, &counts)
-                            });
+                            },
+                        );
+                        ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+                            let button = egui::Button::new(
+                                RichText::new(&remove).small().color(color::TEXT_SECONDARY),
+                            )
+                            .frame(false);
+                            if ui.add(button).clicked() {
+                                action = CardAction::Remove;
+                            }
                         });
+                    });
+                    let painted = choice.painted(m);
+                    let main = painted
+                        .iter()
+                        .filter(|p| m.paint_job.main.iter().any(|q| q.id == p.id))
+                        .count();
+                    let counts = tr!(
+                        "new-project-counts",
+                        main = main,
+                        accessories = painted.len() - main
+                    );
+                    if open {
+                        let main_heading = match m.kind {
+                            Kind::Truck => tr("new-project-cabins"),
+                            Kind::Trailer => tr("vehicles-main-textures"),
+                        };
+                        textures_to_paint(
+                            ui,
+                            m,
+                            &mut choice.textures,
+                            &main_heading,
+                            Some(&mode_text(m)),
+                        );
+                        let label = ui.label(
+                            RichText::new(format!("→ {counts}"))
+                                .monospace()
+                                .color(color::TEXT_SECONDARY),
+                        );
+                        label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &counts));
+                    } else {
+                        let mains: Vec<&str> = painted
+                            .iter()
+                            .filter(|p| m.paint_job.main.iter().any(|q| q.id == p.id))
+                            .map(|p| p.name.as_str())
+                            .collect();
+                        let line = format!("{} · {counts}", mains.join(", "));
+                        let label = ui.add(
+                            egui::Label::new(
+                                RichText::new(&line).small().color(color::TEXT_SECONDARY),
+                            )
+                            .wrap()
+                            .sense(Sense::hover()),
+                        );
+                        label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &line));
+                    }
                 });
-            created(ui, m, choice);
-        });
+        },
+    );
+    let response = scope.response;
+    if !open {
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, &m.name));
+        paint_focus_ring(ui, response.rect, &response, radius::CARD);
+        if response.clicked() && matches!(action, CardAction::None) {
+            action = CardAction::Open;
+        }
+    }
+    action
 }
 
 /// The main texture mode, given by the package: "One per cabin layout" with
@@ -819,17 +942,20 @@ fn mode_text(m: &Manifest) -> String {
     })
 }
 
-/// "Textures created": each texture that will be created with its size,
-/// then their total.
-fn created(ui: &mut Ui, m: &Manifest, choice: &VehicleChoice) {
-    ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-        ui.spacing_mut().item_spacing.y = space::XS;
-        let painted = choice.painted(m);
-        let total = tr!("new-project-total", count = painted.len());
-        let label = ui.label(RichText::new(&total).text_style(label_strong_style()));
-        label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &total));
-        // Bottom-up: the last texture first.
-        for part in painted.iter().rev() {
+/// "Textures created": each texture that will be created for every
+/// vehicle, in fleet order, with its size (under each vehicle's name when
+/// there are several). Returns their count.
+fn created(ui: &mut Ui, fleet: &[(&Manifest, &VehicleChoice)]) -> usize {
+    ui.add_space(space::XS);
+    field_label(ui, &tr("new-project-created"));
+    ui.spacing_mut().item_spacing.y = space::XS;
+    let mut count = 0;
+    for (m, choice) in fleet {
+        if fleet.len() > 1 {
+            ui.label(RichText::new(&m.name).small().color(color::TEXT_MUTED));
+        }
+        for part in choice.painted(m) {
+            count += 1;
             ui.horizontal(|ui| {
                 let size = part.texture.size.label();
                 let text = tr!(
@@ -844,12 +970,6 @@ fn created(ui: &mut Ui, m: &Manifest, choice: &VehicleChoice) {
                 });
             });
         }
-        field_label(ui, &tr("new-project-created"));
-        let rect = ui.available_rect_before_wrap();
-        ui.painter().hline(
-            rect.x_range(),
-            rect.bottom() - space::XS,
-            Stroke::new(1.0, color::BORDER),
-        );
-    });
+    }
+    count
 }

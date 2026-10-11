@@ -473,7 +473,7 @@ fn two_cabins(h: &mut H) {
     let mut textures = tp_app::vehicle_project::default_textures(&package.manifest);
     textures.push("high_roof".into());
     let project =
-        tp_app::vehicle_project::fleet_project(common::SAMPLE, &package, &textures).unwrap();
+        tp_app::vehicle_project::fleet_project(common::SAMPLE, &[(&package, &textures)]).unwrap();
     h.state_mut().open_project(project);
     h.run();
 }

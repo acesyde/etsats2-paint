@@ -116,7 +116,7 @@ fn a_new_project_opens_in_the_project_space() {
     let mut h = common::harness();
     h.get_by_label("New Project").click();
     h.run();
-    h.get_by_role_and_label(Role::RadioButton, common::SAMPLE)
+    h.get_by_role_and_label(Role::CheckBox, common::SAMPLE)
         .click();
     h.run();
     h.get_by_label("Create Project").click();

@@ -1243,15 +1243,21 @@ mod tests {
     /// A project painting `textures` of the sample truck 1.1.0, with
     /// internal name "ace".
     fn truck(textures: &[&str]) -> Project {
-        let mut p =
-            fleet_project("ACE", &example("sample_truck", "1.1.0"), &ids(textures)).unwrap();
+        let mut p = fleet_project(
+            "ACE",
+            &[(&example("sample_truck", "1.1.0"), &ids(textures))],
+        )
+        .unwrap();
         p.mod_settings.internal_name = Some("ace".into());
         p
     }
 
     fn trailer(textures: &[&str]) -> Project {
-        let mut p =
-            fleet_project("ACE", &example("sample_trailer", "1.0.0"), &ids(textures)).unwrap();
+        let mut p = fleet_project(
+            "ACE",
+            &[(&example("sample_trailer", "1.0.0"), &ids(textures))],
+        )
+        .unwrap();
         p.mod_settings.internal_name = Some("ace".into());
         p
     }
@@ -1282,7 +1288,7 @@ mod tests {
             &textures,
         ))
         .unwrap();
-        let mut p = fleet_project("ACE", &package, &ids(&["cabin", "chassis"])).unwrap();
+        let mut p = fleet_project("ACE", &[(&package, &ids(&["cabin", "chassis"]))]).unwrap();
         p.mod_settings.internal_name = Some("ace".into());
         p.add(Object::new(
             ObjectId(0),
@@ -1364,7 +1370,7 @@ mod tests {
             &[],
         ))
         .unwrap();
-        let mut project = fleet_project("ACE", &package, &ids(&["base"])).unwrap();
+        let mut project = fleet_project("ACE", &[(&package, &ids(&["base"]))]).unwrap();
         project.mod_settings.internal_name = Some("ace".into());
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("ACE.scs");
@@ -2175,7 +2181,7 @@ mod tests {
         m["paint_job"]["main"][0]["also_paints"] = vec!["body.reefer", "body.reef_13ct"].into();
         let all = [tex("body", "Body"), tex("chassis", "Chassis")];
         let package = Package::read(&sample::zip(&m, &sample::templates(&all))).unwrap();
-        let mut p = fleet_project("ACE", &package, &ids(textures)).unwrap();
+        let mut p = fleet_project("ACE", &[(&package, &ids(textures))]).unwrap();
         p.mod_settings.internal_name = Some("ace".into());
         p
     }
@@ -2277,7 +2283,7 @@ mod tests {
         let package = example("sample_truck", "1.1.0");
         let mut textures = crate::vehicle_project::default_textures(&package.manifest);
         textures.push("high_roof".into());
-        let mut ws = Workspace::new(fleet_project("ACE", &package, &textures).unwrap());
+        let mut ws = Workspace::new(fleet_project("ACE", &[(&package, &textures)]).unwrap());
         let trailer = example("sample_trailer", "1.0.0");
         let all = crate::vehicle_project::default_textures(&trailer.manifest);
         ws.add_vehicle(&trailer, &all, 1.0).unwrap();

@@ -38,8 +38,11 @@ pub enum Screen {
 pub struct NewProjectDraft {
     pub name: String,
     pub focus_requested: bool,
-    /// The chosen vehicle and its checked textures.
-    pub vehicle: Option<crate::ui::vehicle_dialogs::VehicleChoice>,
+    /// The checked vehicles and their checked textures, in the order they
+    /// were checked (the fleet order).
+    pub vehicles: Vec<crate::ui::vehicle_dialogs::VehicleChoice>,
+    /// The package id of the open card of "Your fleet".
+    pub open: Option<String>,
     /// Search, kind and game of the vehicle list; the game is the
     /// project's (ETS2 when unset).
     pub filter: crate::ui::vehicle_dialogs::VehicleFilter,
@@ -70,6 +73,50 @@ impl NewProjectDraft {
     /// The project's game.
     pub fn game(&self) -> tp_vehicles::Game {
         self.filter.game.unwrap_or(tp_vehicles::Game::Ets2)
+    }
+
+    /// Checks `choice` after the checked vehicles (where it is when already
+    /// checked) and opens its card.
+    pub fn check(&mut self, choice: crate::ui::vehicle_dialogs::VehicleChoice) {
+        self.open = Some(choice.id.clone());
+        crate::ui::vehicle_dialogs::push_choice(&mut self.vehicles, choice);
+    }
+
+    /// Unchecks vehicle `id`; when its card was open, the last checked
+    /// vehicle's card opens.
+    pub fn uncheck(&mut self, id: &str) {
+        crate::ui::vehicle_dialogs::remove_choice(&mut self.vehicles, id);
+        self.keep_a_card_open();
+    }
+
+    /// Checks `vehicle` or unchecks it (a click on its row).
+    pub fn toggle(&mut self, vehicle: &crate::vehicles::InstalledVehicle) {
+        if self.vehicles.iter().any(|c| c.id == vehicle.id) {
+            self.uncheck(&vehicle.id);
+        } else {
+            self.check(crate::ui::vehicle_dialogs::VehicleChoice::of(vehicle));
+        }
+    }
+
+    /// Sets the project's game: the vehicles of the other game are
+    /// unchecked.
+    pub fn set_game(&mut self, game: tp_vehicles::Game, library: &crate::vehicles::VehicleLibrary) {
+        self.filter.game = Some(game);
+        crate::ui::vehicle_dialogs::retain_game(&mut self.vehicles, library, game);
+        self.keep_a_card_open();
+    }
+
+    /// The checked vehicle whose card is open.
+    pub fn open_choice(&self) -> Option<&crate::ui::vehicle_dialogs::VehicleChoice> {
+        let open = self.open.as_deref()?;
+        self.vehicles.iter().find(|c| c.id == open)
+    }
+
+    /// Opens the last checked vehicle's card when the open one is gone.
+    fn keep_a_card_open(&mut self) {
+        if self.open_choice().is_none() {
+            self.open = self.vehicles.last().map(|c| c.id.clone());
+        }
     }
 }
 

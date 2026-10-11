@@ -225,19 +225,6 @@ pub fn vehicle_rows<'a>(
     }
 }
 
-/// The heading of a section of a vehicle list ("Official", "Installed").
-pub fn section_heading(ui: &mut Ui, text: &str) {
-    ui.add_space(space::XS);
-    let label = ui.label(
-        RichText::new(text.to_uppercase())
-            .small()
-            .strong()
-            .color(color::TEXT_MUTED),
-    );
-    label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
-    ui.add_space(space::XXS);
-}
-
 /// A vehicle and the textures checked for it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct VehicleChoice {
@@ -287,6 +274,44 @@ impl VehicleChoice {
             .filter(|p| self.textures.contains(&p.id) || is_always_painted(m, &p.id))
             .collect()
     }
+}
+
+/// Checks `choice` at the end of the checked vehicles `choices` (the fleet
+/// order is the order they were checked). A vehicle already checked keeps
+/// its place and textures.
+pub fn push_choice(choices: &mut Vec<VehicleChoice>, choice: VehicleChoice) {
+    if !choices.iter().any(|c| c.id == choice.id) {
+        choices.push(choice);
+    }
+}
+
+/// Unchecks vehicle `id`; returns whether it was checked.
+pub fn remove_choice(choices: &mut Vec<VehicleChoice>, id: &str) -> bool {
+    let before = choices.len();
+    choices.retain(|c| c.id != id);
+    choices.len() != before
+}
+
+/// Checks `vehicle` (its newest version, default textures) or unchecks it;
+/// returns whether it is checked now.
+pub fn toggle_choice(choices: &mut Vec<VehicleChoice>, vehicle: &InstalledVehicle) -> bool {
+    if remove_choice(choices, &vehicle.id) {
+        false
+    } else {
+        push_choice(choices, VehicleChoice::of(vehicle));
+        true
+    }
+}
+
+/// Keeps the checked vehicles of `game` only.
+pub fn retain_game(choices: &mut Vec<VehicleChoice>, library: &VehicleLibrary, game: Game) {
+    choices.retain(|c| c.manifest(library).is_some_and(|m| m.game.id == game));
+}
+
+/// Whether every checked vehicle is ready (see
+/// [`VehicleChoice::is_complete`]), and at least one is checked.
+pub fn all_complete(choices: &[VehicleChoice], library: &VehicleLibrary) -> bool {
+    !choices.is_empty() && choices.iter().all(|c| c.is_complete(library))
 }
 
 /// Checkboxes for the main textures and accessories of `m`, keeping the
@@ -397,59 +422,71 @@ fn set_painted(chosen: &mut Vec<String>, order: &[&str], id: &str, on: bool) {
     }
 }
 
-/// The vehicles passing `filter` (minus `exclude`), one row each, the
-/// official ones first; the chosen one shows its textures as checkboxes.
-/// Returns the official vehicle clicked, which is chosen once installed.
+/// The vehicles passing `filter` (minus `exclude`), one checkbox row
+/// each, the official ones first; each checked one shows its textures as
+/// checkboxes under its row. Returns the unchecked official vehicle
+/// clicked, which is checked once installed.
 pub fn vehicle_list(
     ui: &mut Ui,
     library: &VehicleLibrary,
     filter: &VehicleFilter,
     exclude: &[String],
-    choice: &mut Option<VehicleChoice>,
+    choices: &mut Vec<VehicleChoice>,
 ) -> Option<&'static Entry> {
+    use super::new_project::{Row, section_header, vehicle_row};
     let rows = vehicle_rows(library, filter, exclude);
     let mut picked = None;
+    ui.spacing_mut().item_spacing.y = 0.0;
+    let textures = |ui: &mut Ui, choices: &mut Vec<VehicleChoice>, id: &str| {
+        if let Some(c) = choices.iter_mut().find(|c| c.id == id)
+            && let Some(m) = c.manifest(library)
+        {
+            ui.add_space(space::XS);
+            ui.indent(("textures", id), |ui| {
+                ui.spacing_mut().item_spacing.y = space::XS;
+                texture_checkboxes(ui, m, &mut c.textures);
+            });
+            ui.add_space(space::SM);
+        }
+    };
     if rows.sections() {
-        section_heading(ui, &tr("vehicles-section-official"));
+        section_header(ui, &tr("vehicles-section-official"));
     }
     for row in &rows.official {
         let entry = row.entry;
         let id = entry.package_id();
-        let selected = choice.as_ref().is_some_and(|c| c.id == id);
-        let text = format!("{}   {}", entry.name, row.summary());
-        let response = ui.selectable_label(selected, text);
-        response.widget_info(|| {
-            WidgetInfo::selected(WidgetType::RadioButton, true, selected, &entry.name)
-        });
-        if response.clicked() && !selected {
-            picked = Some(entry);
+        let checked = choices.iter().any(|c| c.id == id);
+        let cells = Row {
+            name: &entry.name,
+            kind: entry.kind,
+            package: format!("{} · {}", entry.brand, row.package()),
+            tip: row.summary(),
+        };
+        if vehicle_row(ui, &cells, checked) {
+            if checked {
+                remove_choice(choices, &id);
+            } else {
+                picked = Some(entry);
+            }
         }
-        if selected
-            && let Some(c) = choice.as_mut()
-            && let Some(m) = c.manifest(library)
-        {
-            ui.indent(("textures", &id), |ui| {
-                texture_checkboxes(ui, m, &mut c.textures);
-            });
-        }
+        textures(ui, choices, &id);
     }
     if rows.sections() {
-        section_heading(ui, &tr("vehicles-section-installed"));
+        section_header(ui, &tr("vehicles-section-installed"));
     }
     for vehicle in rows.installed {
         let m = &vehicle.newest().manifest;
-        let selected = choice.as_ref().is_some_and(|c| c.id == vehicle.id);
-        let text = format!("{}   {}", m.name, summary(m));
-        let row = ui.selectable_label(selected, text);
-        row.widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, true, selected, &m.name));
-        if row.clicked() && !selected {
-            *choice = Some(VehicleChoice::of(vehicle));
+        let checked = choices.iter().any(|c| c.id == vehicle.id);
+        let cells = Row {
+            name: &m.name,
+            kind: m.kind,
+            package: format!("{} {}", m.brand, m.version),
+            tip: summary(m),
+        };
+        if vehicle_row(ui, &cells, checked) {
+            toggle_choice(choices, vehicle);
         }
-        if selected && let Some(c) = choice.as_mut() {
-            ui.indent(("textures", &vehicle.id), |ui| {
-                texture_checkboxes(ui, m, &mut c.textures);
-            });
-        }
+        textures(ui, choices, &vehicle.id);
     }
     picked
 }
@@ -1271,7 +1308,8 @@ pub fn update(ctx: &egui::Context, state: &mut AppState, dialog: &mut UpdateDial
 #[derive(Clone, Debug, Default)]
 pub struct AddVehicleDialog {
     pub filter: VehicleFilter,
-    pub choice: Option<VehicleChoice>,
+    /// The checked vehicles, in the order they were checked.
+    pub choices: Vec<VehicleChoice>,
     pub messages: Vec<Result<String, String>>,
     /// The official vehicle being installed from the template pack.
     pub installing: Option<crate::official::Installing>,
@@ -1314,7 +1352,7 @@ pub fn add_vehicle(
         match finished {
             Finished::Installed(choice, message) => {
                 dialog.messages = vec![Ok(message)];
-                dialog.choice = Some(choice);
+                push_choice(&mut dialog.choices, choice);
             }
             Finished::Refused(message) => dialog.messages = vec![Err(message)],
             Finished::Cancelled => {}
@@ -1349,9 +1387,10 @@ pub fn add_vehicle(
                         .color(color::TEXT_SECONDARY),
                 );
             } else {
-                // A fixed height, as in the New Project wizard.
+                // A fixed height, as in the New Project wizard; taller on a
+                // tall window, for the textures of the checked vehicles.
                 ScrollArea::vertical()
-                    .max_height(320.0)
+                    .max_height((ctx.content_rect().height() - 380.0).clamp(320.0, 480.0))
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
                         picked = vehicle_list(
@@ -1359,18 +1398,16 @@ pub fn add_vehicle(
                             &state.vehicles,
                             &dialog.filter,
                             &exclude,
-                            &mut dialog.choice,
+                            &mut dialog.choices,
                         );
                     });
             }
         });
         super::dialogs::footer(ui, |ui| {
-            let ready = dialog
-                .choice
-                .as_ref()
-                .is_some_and(|c| c.is_complete(&state.vehicles));
+            let ready = all_complete(&dialog.choices, &state.vehicles);
             add |= ui
                 .add_enabled(ready, primary_button(&tr("add-vehicle-add")))
+                .on_disabled_hover_text(tr("reason-check-vehicle-to-add"))
                 .clicked();
             keep &= !ui.add(secondary_button(&tr("button-cancel"))).clicked();
             install_clicked |= ui.add(secondary_button(&tr("vehicles-install"))).clicked();
@@ -1403,29 +1440,45 @@ pub fn add_vehicle(
             dialog.messages = install(state, &paths);
         }
     }
-    if add && let Some(choice) = dialog.choice.clone() {
+    if add {
         let now = ctx.input(|i| i.time);
-        match state.vehicles.load(&choice.id, &choice.version) {
-            Ok(package) => {
+        match load_choices(&state.vehicles, &dialog.choices) {
+            Ok(packages) => {
+                let fleet: Vec<(&Package, &[String])> =
+                    packages.iter().map(|(p, t)| (p, t.as_slice())).collect();
                 if let Some(ws) = state.workspace_mut() {
-                    match ws.add_vehicle(&package, &choice.textures, now) {
+                    match ws.add_vehicles(&fleet, now) {
                         Ok(()) => keep = false,
                         Err(err) => dialog.messages = vec![Err(fleet_error_message(err))],
                     }
                 }
             }
-            Err(err) => {
-                dialog.messages = vec![Err(crate::vehicles::install_error_message(
-                    &err,
-                    &format!("{} {}", choice.id, choice.version),
-                ))];
-            }
+            Err(message) => dialog.messages = vec![Err(message)],
         }
     }
     if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
         keep = false;
     }
     keep
+}
+
+/// The packages of the checked vehicles with their checked textures, in
+/// order; or why one can't be read.
+pub fn load_choices(
+    library: &VehicleLibrary,
+    choices: &[VehicleChoice],
+) -> Result<Vec<(Package, Vec<String>)>, String> {
+    choices
+        .iter()
+        .map(|c| {
+            library
+                .load(&c.id, &c.version)
+                .map(|p| (p, c.textures.clone()))
+                .map_err(|err| {
+                    crate::vehicles::install_error_message(&err, &format!("{} {}", c.id, c.version))
+                })
+        })
+        .collect()
 }
 
 /// Why a fleet change was refused, in the current language.
@@ -1694,4 +1747,92 @@ pub fn copy_from_cabin(
         keep = false;
     }
     keep
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::NewProjectDraft;
+    use crate::vehicles::{SAMPLE_ID, SAMPLE_TRAILER_ID};
+
+    /// A library holding the sample truck and trailer (ETS2).
+    fn library(dir: &std::path::Path) -> VehicleLibrary {
+        let mut library = VehicleLibrary::open(dir);
+        library.install_samples().unwrap();
+        library
+    }
+
+    fn ids(choices: &[VehicleChoice]) -> Vec<&str> {
+        choices.iter().map(|c| c.id.as_str()).collect()
+    }
+
+    #[test]
+    fn checking_keeps_the_order_and_each_vehicle_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = library(dir.path());
+        let truck = library.get(SAMPLE_ID).unwrap();
+        let trailer = library.get(SAMPLE_TRAILER_ID).unwrap();
+        let mut choices = Vec::new();
+        assert!(toggle_choice(&mut choices, trailer));
+        assert!(toggle_choice(&mut choices, truck));
+        assert_eq!(ids(&choices), [SAMPLE_TRAILER_ID, SAMPLE_ID]);
+        // Already checked: stays where it is, with its textures.
+        choices[0].textures.clear();
+        push_choice(&mut choices, VehicleChoice::of(trailer));
+        assert_eq!(ids(&choices), [SAMPLE_TRAILER_ID, SAMPLE_ID]);
+        assert!(choices[0].textures.is_empty());
+        assert!(
+            all_complete(&choices, &library),
+            "a trailer's Base is always painted"
+        );
+        // Unchecking.
+        assert!(!toggle_choice(&mut choices, trailer));
+        assert_eq!(ids(&choices), [SAMPLE_ID]);
+        assert!(!remove_choice(&mut choices, SAMPLE_TRAILER_ID));
+        assert!(remove_choice(&mut choices, SAMPLE_ID));
+        assert!(!all_complete(&choices, &library), "nothing checked");
+        // The other game.
+        toggle_choice(&mut choices, truck);
+        retain_game(&mut choices, &library, Game::Ets2);
+        assert_eq!(ids(&choices), [SAMPLE_ID]);
+        retain_game(&mut choices, &library, Game::Ats);
+        assert!(choices.is_empty());
+    }
+
+    #[test]
+    fn new_project_opens_the_card_checked_last() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = library(dir.path());
+        let truck = library.get(SAMPLE_ID).unwrap();
+        let trailer = library.get(SAMPLE_TRAILER_ID).unwrap();
+        let mut draft = NewProjectDraft::new(&library);
+        assert_eq!(draft.game(), Game::Ets2);
+        draft.toggle(truck);
+        draft.toggle(trailer);
+        assert_eq!(ids(&draft.vehicles), [SAMPLE_ID, SAMPLE_TRAILER_ID]);
+        assert_eq!(draft.open.as_deref(), Some(SAMPLE_TRAILER_ID));
+        // Checking a vehicle already checked opens its card in place.
+        draft.check(VehicleChoice::of(truck));
+        assert_eq!(ids(&draft.vehicles), [SAMPLE_ID, SAMPLE_TRAILER_ID]);
+        assert_eq!(draft.open.as_deref(), Some(SAMPLE_ID));
+        // Removing the open one opens the last one left.
+        draft.uncheck(SAMPLE_ID);
+        assert_eq!(draft.open.as_deref(), Some(SAMPLE_TRAILER_ID));
+        // Removing a folded one keeps the open card.
+        draft.toggle(truck);
+        draft.open = Some(SAMPLE_TRAILER_ID.to_owned());
+        draft.toggle(truck);
+        assert_eq!(draft.open.as_deref(), Some(SAMPLE_TRAILER_ID));
+        // Unchecking the last one: no card.
+        draft.toggle(trailer);
+        assert!(draft.vehicles.is_empty());
+        assert_eq!(draft.open_choice(), None);
+        // Changing the game unchecks the other game's vehicles.
+        draft.toggle(truck);
+        draft.toggle(trailer);
+        draft.set_game(Game::Ats, &library);
+        assert!(draft.vehicles.is_empty());
+        assert_eq!(draft.open, None);
+        assert_eq!(draft.game(), Game::Ats);
+    }
 }

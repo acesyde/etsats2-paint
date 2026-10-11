@@ -238,7 +238,7 @@ new-project-no-match = No vehicle matches the search.
 new-project-custom-title = Vehicle without a package
 new-project-custom-hint = Make it from its template files (DDS, PNG or SVG) and its game data.
 new-project-fleet = Your fleet
-new-project-pick-vehicle = Pick a vehicle in the list.
+new-project-check-vehicles = Check vehicles in the list.
 new-project-cabins = Cabins
 new-project-column-vehicle = Vehicle
 new-project-column-type = Type
@@ -254,6 +254,11 @@ new-project-total = { $count ->
     [one] { $count } texture in total
    *[other] { $count } textures in total
 }
+new-project-vehicle-count = { $count ->
+    [one] { $count } vehicle
+   *[other] { $count } vehicles
+}
+new-project-remove = Remove
 vehicles-kind-all = All
 vehicles-kind-trucks = Trucks
 vehicles-kind-trailers = Trailers

@@ -94,7 +94,7 @@ fn recent_cards_show_the_first_main_texture() {
     let package = tp_vehicles::Package::read(tp_app::vehicles::SAMPLES[0].bytes).unwrap();
     let textures = tp_app::vehicle_project::default_textures(&package.manifest);
     let mut project =
-        tp_app::vehicle_project::fleet_project("Red fleet", &package, &textures).unwrap();
+        tp_app::vehicle_project::fleet_project("Red fleet", &[(&package, &textures)]).unwrap();
     // The Standard cab, first main texture, covered by a red rectangle.
     let side = project.surface().max_side();
     let mut o = Object::new(
@@ -166,7 +166,7 @@ fn new_project_defaults_to_the_vehicle_name() {
 
 /// Picks the sample vehicle in the New Project vehicle list.
 fn pick_sample(h: &mut Harness<'static, AppState>) {
-    h.get_by_role_and_label(Role::RadioButton, common::SAMPLE)
+    h.get_by_role_and_label(Role::CheckBox, common::SAMPLE)
         .click();
     h.run();
 }

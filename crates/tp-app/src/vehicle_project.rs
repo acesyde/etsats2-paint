@@ -3,6 +3,7 @@
 //! removing vehicles and textures; moving a vehicle to a newer version of
 //! its package.
 
+use std::borrow::Borrow;
 use std::sync::Arc;
 
 use tp_core::document::{AssetId, Object, apply_affine};
@@ -218,18 +219,67 @@ fn paints(project: &Project, package: &str, id: &str) -> bool {
         .any(|s| s.template.as_ref().is_some_and(|t| t.is_of(package, id)))
 }
 
-/// A new project for `chosen` textures of `package` (see [`resolve`]): one
-/// surface per texture in package order, each with its template; the first
-/// one active.
-pub fn fleet_project(
-    name: &str,
+/// Checks that `package` can join `project`: same game as its vehicles,
+/// not in it yet. Returns the textures to paint for `chosen` (see
+/// [`resolve`]).
+fn check_vehicle(
+    project: &Project,
     package: &Package,
     chosen: &[String],
+) -> Result<Vec<String>, FleetError> {
+    let m = &package.manifest;
+    if project.game().is_some_and(|g| g != m.game.id.code()) {
+        return Err(FleetError::OtherGame);
+    }
+    if project.vehicle(&m.id).is_some() {
+        return Err(FleetError::AlreadyThere);
+    }
+    resolve(m, chosen)
+}
+
+/// Appends `package` to `project` painting `ids` (already resolved): one
+/// surface per texture after the existing surfaces, each with its
+/// template, then the vehicle. Returns the index of its first surface.
+/// Shared by [`fleet_project`] and [`Workspace::add_vehicles`].
+fn push_vehicle(
+    project: &mut Project,
+    package: &Package,
+    ids: &[String],
+) -> Result<usize, FleetError> {
+    let mut surfaces = Vec::new();
+    for id in ids {
+        surfaces.push(part_surface(project, package, id).ok_or(FleetError::BadTextures)?);
+    }
+    let first = project.surfaces.len();
+    project.surfaces.extend(surfaces);
+    project.vehicles.push(project_vehicle(&package.manifest));
+    Ok(first)
+}
+
+/// A new project for a fleet: each `(package, chosen textures)` in order
+/// (see [`resolve`]), one surface per texture in package order, each with
+/// its template. The first vehicle's first texture is active. The texture
+/// resolution follows the largest texture of every vehicle. Vehicles of
+/// another game than the first, or given twice, are refused.
+pub fn fleet_project<P: Borrow<Package>, T: AsRef<[String]>>(
+    name: &str,
+    fleet: &[(P, T)],
 ) -> Result<Project, FleetError> {
-    let ids = resolve(&package.manifest, chosen)?;
-    let largest = ids
+    // Check every vehicle first: the resolution depends on all of them.
+    let mut probe = Project::new(name, TextureResolution::R4096);
+    let mut resolved = Vec::new();
+    for (package, chosen) in fleet {
+        let package = package.borrow();
+        let ids = check_vehicle(&probe, package, chosen.as_ref())?;
+        probe.vehicles.push(project_vehicle(&package.manifest));
+        resolved.push((package, ids));
+    }
+    let largest = resolved
         .iter()
-        .filter_map(|id| package.manifest.paint_job.part(id))
+        .flat_map(|(package, ids)| {
+            ids.iter()
+                .filter_map(|id| package.manifest.paint_job.part(id))
+        })
         .map(|(_, p)| p.texture.size.width.max(p.texture.size.height))
         .max()
         .unwrap_or(4096);
@@ -238,13 +288,11 @@ pub fn fleet_project(
         .find(|r| r.side() >= largest)
         .unwrap_or(TextureResolution::R8192);
     let mut project = Project::new(name, resolution);
-    let mut surfaces = Vec::new();
-    for id in &ids {
-        surfaces.push(part_surface(&mut project, package, id).ok_or(FleetError::BadTextures)?);
+    project.surfaces.clear();
+    for (package, ids) in &resolved {
+        push_vehicle(&mut project, package, ids)?;
     }
-    project.surfaces = surfaces;
     project.active_surface = 0;
-    project.vehicles = vec![project_vehicle(&package.manifest)];
     Ok(project)
 }
 
@@ -433,31 +481,55 @@ impl Workspace {
         chosen: &[String],
         now: f64,
     ) -> Result<(), FleetError> {
-        let m = &package.manifest;
-        if self.project.game().is_some_and(|g| g != m.game.id.code()) {
-            return Err(FleetError::OtherGame);
+        self.add_vehicles(&[(package, chosen)], now)
+    }
+
+    /// Adds each `(package, chosen textures)` as a new vehicle of the
+    /// project, in order, after its surfaces (see [`resolve`]); the first
+    /// new surface becomes active. Every vehicle is checked first, so a
+    /// refusal changes nothing. One undo step ("Add Vehicle" for one
+    /// vehicle).
+    pub fn add_vehicles(
+        &mut self,
+        fleet: &[(&Package, &[String])],
+        now: f64,
+    ) -> Result<(), FleetError> {
+        let mut probe = Project::new("", TextureResolution::R4096);
+        probe.vehicles = self.project.vehicles.clone();
+        let mut resolved = Vec::new();
+        for &(package, chosen) in fleet {
+            let ids = check_vehicle(&probe, package, chosen)?;
+            probe.vehicles.push(project_vehicle(&package.manifest));
+            resolved.push((package, ids));
         }
-        if self.project.vehicle(&m.id).is_some() {
-            return Err(FleetError::AlreadyThere);
+        if resolved.is_empty() {
+            return Ok(());
         }
-        let ids = resolve(m, chosen)?;
+        let label = if resolved.len() == 1 {
+            "undo-add-vehicle"
+        } else {
+            "undo-add-vehicles"
+        };
         let mut result = Ok(());
-        self.edit("undo-add-vehicle", now, false, |project, selection| {
-            let mut surfaces = Vec::new();
-            for id in &ids {
-                match part_surface(project, package, id) {
-                    Some(s) => surfaces.push(s),
-                    None => {
-                        result = Err(FleetError::BadTextures);
+        self.edit(label, now, false, |project, selection| {
+            // Built on a copy so that a template that can't be read leaves
+            // the project as it was.
+            let mut next = project.clone();
+            let mut first = None;
+            for (package, ids) in &resolved {
+                match push_vehicle(&mut next, package, ids) {
+                    Ok(i) => {
+                        first.get_or_insert(i);
+                    }
+                    Err(e) => {
+                        result = Err(e);
                         return;
                     }
                 }
             }
             selection.clear();
-            let first = project.surfaces.len();
-            project.surfaces.extend(surfaces);
-            project.vehicles.push(project_vehicle(m));
-            project.active_surface = first;
+            next.active_surface = first.unwrap_or(next.active_surface);
+            *project = next;
         });
         result
     }
@@ -613,7 +685,8 @@ pub(crate) fn test_project(name: &str) -> Project {
         &tp_vehicles::sample::truck_textures(),
     ))
     .expect("sample package");
-    fleet_project(name, &package, &default_textures(&package.manifest)).expect("sample textures")
+    fleet_project(name, &[(&package, &default_textures(&package.manifest))])
+        .expect("sample textures")
 }
 
 #[cfg(test)]
@@ -678,7 +751,7 @@ mod tests {
         ))
         .unwrap();
         let chosen = default_textures(&package.manifest);
-        let project = fleet_project("Liner", &package, &chosen).unwrap();
+        let project = fleet_project("Liner", &[(&package, &chosen)]).unwrap();
         let base = &project.surfaces[0];
         assert_eq!(base.size, Size::new(8192.0, 1024.0));
         assert_eq!(base.bounds(), Rect::new(0.0, 0.0, 8192.0, 1024.0));
@@ -752,7 +825,7 @@ mod tests {
             "cab_accessories",
             "side_skirts",
         ]);
-        let project = fleet_project("Fleet", &p, &chosen).unwrap();
+        let project = fleet_project("Fleet", &[(&p, &chosen)]).unwrap();
         let names: Vec<(&str, f64)> = project
             .surfaces
             .iter()
@@ -786,7 +859,7 @@ mod tests {
         // The order chosen doesn't matter: package order.
         let reversed: Vec<String> = chosen.iter().rev().cloned().collect();
         assert_eq!(
-            keys(&fleet_project("F", &p, &reversed).unwrap()),
+            keys(&fleet_project("F", &[(&p, &reversed)]).unwrap()),
             keys(&project)
         );
     }
@@ -798,15 +871,15 @@ mod tests {
             default_textures(&p.manifest),
             ids(&["standard", "chassis", "cab_accessories", "side_skirts"])
         );
-        let project = fleet_project("F", &p, &ids(&["standard", "chassis"])).unwrap();
+        let project = fleet_project("F", &[(&p, &ids(&["standard", "chassis"]))]).unwrap();
         assert_eq!(textures_of(&project, TRUCK), ids(&["standard", "chassis"]));
         // No main texture, or an unknown one.
         assert_eq!(
-            fleet_project("F", &p, &ids(&["chassis"])).unwrap_err(),
+            fleet_project("F", &[(&p, &ids(&["chassis"]))]).unwrap_err(),
             FleetError::BadTextures
         );
         assert_eq!(
-            fleet_project("F", &p, &ids(&["standard", "nope"])).unwrap_err(),
+            fleet_project("F", &[(&p, &ids(&["standard", "nope"]))]).unwrap_err(),
             FleetError::BadTextures
         );
     }
@@ -816,7 +889,7 @@ mod tests {
         let p = trailer();
         assert!(is_always_painted(&p.manifest, "base"));
         let project =
-            fleet_project("T", &p, &ids(&["body_13_6", "body_10_5", "mudflaps"])).unwrap();
+            fleet_project("T", &[(&p, &ids(&["body_13_6", "body_10_5", "mudflaps"]))]).unwrap();
         let names: Vec<&str> = project.surfaces.iter().map(|s| s.name.as_str()).collect();
         assert_eq!(
             names,
@@ -828,14 +901,14 @@ mod tests {
             ]
         );
         // Nothing chosen: the Base alone.
-        let alone = fleet_project("T", &p, &[]).unwrap();
+        let alone = fleet_project("T", &[(&p, Vec::<String>::new())]).unwrap();
         assert_eq!(textures_of(&alone, TRAILER), ids(&["base"]));
     }
 
     #[test]
     fn add_and_remove_vehicles() {
         let mut ws =
-            Workspace::new(fleet_project("F", &truck("1.0.0"), &ids(&["standard"])).unwrap());
+            Workspace::new(fleet_project("F", &[(&truck("1.0.0"), &ids(&["standard"]))]).unwrap());
         let assets = ws.project.assets.len();
         ws.add_vehicle(&trailer(), &ids(&["mudflaps"]), 1.0)
             .unwrap();
@@ -885,11 +958,131 @@ mod tests {
         );
     }
 
+    /// start-screen "A truck and a trailer at once": the truck's surfaces
+    /// then the trailer's, the first one active.
+    #[test]
+    fn project_from_a_truck_and_a_trailer() {
+        let (t, r) = (truck("1.1.0"), trailer());
+        let fleet = [
+            (&t, ids(&["standard", "chassis"])),
+            (&r, ids(&["mudflaps"])),
+        ];
+        let project = fleet_project("F", &fleet).unwrap();
+        assert_eq!(
+            keys(&project),
+            [
+                (TRUCK.to_owned(), "standard".to_owned()),
+                (TRUCK.to_owned(), "chassis".to_owned()),
+                (TRAILER.to_owned(), "base".to_owned()),
+                (TRAILER.to_owned(), "mudflaps".to_owned()),
+            ]
+        );
+        assert_eq!(project.active_surface, 0);
+        let vehicles: Vec<&str> = project
+            .vehicles
+            .iter()
+            .map(|v| v.package_id.as_str())
+            .collect();
+        assert_eq!(vehicles, [TRUCK, TRAILER]);
+        // Duplicates and other games are refused.
+        assert_eq!(
+            fleet_project("F", &[(&t, ids(&["standard"])), (&t, ids(&["standard"]))]).unwrap_err(),
+            FleetError::AlreadyThere
+        );
+        let ats = other_vehicle("scs.peterbilt.579", "ats");
+        assert_eq!(
+            fleet_project("F", &[(&t, ids(&["standard"])), (&ats, Vec::new())]).unwrap_err(),
+            FleetError::OtherGame
+        );
+    }
+
+    /// The resolution follows the largest texture of every vehicle.
+    #[test]
+    fn fleet_resolution_follows_the_largest_texture() {
+        let small = Package::read(&sample::package_with(
+            "community.jdoe.small",
+            "Small",
+            "1.0.0",
+            "trailer",
+            &[tex("base", "Base", 1024, 1)],
+            &[],
+        ))
+        .unwrap();
+        let alone = fleet_project("S", &[(&small, Vec::<String>::new())]).unwrap();
+        assert_eq!(alone.resolution, TextureResolution::R2048);
+        let big = Package::read(&sample::package_with(
+            "community.jdoe.big",
+            "Big",
+            "1.0.0",
+            "trailer",
+            &[tex("base", "Base", 8192, 1)],
+            &[],
+        ))
+        .unwrap();
+        let both = [(&small, Vec::<String>::new()), (&big, Vec::new())];
+        assert_eq!(
+            fleet_project("F", &both).unwrap().resolution,
+            TextureResolution::R8192
+        );
+    }
+
+    /// vehicle-projects "Several vehicles in one step".
+    #[test]
+    fn add_several_vehicles_in_one_undo_step() {
+        let t = truck("1.0.0");
+        let mut ws = Workspace::new(fleet_project("F", &[(&t, ids(&["standard"]))]).unwrap());
+        let state = |ws: &Workspace| {
+            (
+                keys(&ws.project),
+                ws.project.vehicles.len(),
+                ws.project.assets.len(),
+                ws.project.active_surface,
+            )
+        };
+        let before = state(&ws);
+        let (r, other) = (trailer(), other_vehicle("scs.schmitz.box", "ets2"));
+        let mudflaps = ids(&["mudflaps"]);
+        ws.add_vehicles(&[(&r, &mudflaps), (&other, &[])], 1.0)
+            .unwrap();
+        assert_eq!(
+            keys(&ws.project)[1..],
+            [
+                (TRAILER.to_owned(), "base".to_owned()),
+                (TRAILER.to_owned(), "mudflaps".to_owned()),
+                ("scs.schmitz.box".to_owned(), "body".to_owned()),
+            ]
+        );
+        assert_eq!(ws.project.active_surface, 1, "the first new surface");
+        assert_eq!(ws.history.undo_label(), Some("undo-add-vehicles"));
+        ws.undo();
+        assert_eq!(state(&ws), before, "one undo removes both");
+        // One refused vehicle leaves the project unchanged.
+        let ats = other_vehicle("scs.peterbilt.579", "ats");
+        assert_eq!(
+            ws.add_vehicles(&[(&r, &[]), (&ats, &[])], 2.0),
+            Err(FleetError::OtherGame)
+        );
+        assert_eq!(
+            ws.add_vehicles(&[(&r, &[]), (&r, &[])], 2.0),
+            Err(FleetError::AlreadyThere)
+        );
+        assert_eq!(
+            ws.add_vehicles(&[(&r, &[]), (&other, &ids(&["nope"]))], 2.0),
+            Err(FleetError::BadTextures)
+        );
+        assert_eq!(state(&ws), before);
+        assert_eq!(
+            ws.history.redo_label(),
+            Some("undo-add-vehicles"),
+            "no undo step recorded"
+        );
+    }
+
     #[test]
     fn set_textures_inserts_in_package_order_and_undoes() {
         let v = truck("1.1.0");
         let mut ws = Workspace::new(
-            fleet_project("F", &v, &ids(&["standard", "chassis", "side_skirts"])).unwrap(),
+            fleet_project("F", &[(&v, &ids(&["standard", "chassis", "side_skirts"]))]).unwrap(),
         );
         ws.add_vehicle(&trailer(), &[], 1.0).unwrap();
         // The trailer is active; an accessory added between two others keeps
@@ -967,7 +1160,8 @@ mod tests {
                 tex("z", "Z", 512, 1),
             ],
         );
-        let mut ws = Workspace::new(fleet_project("T", &v1, &ids(&["cabin", "old", "z"])).unwrap());
+        let mut ws =
+            Workspace::new(fleet_project("T", &[(&v1, &ids(&["cabin", "old", "z"]))]).unwrap());
         let v2 = package(
             "1.3.0",
             &[
@@ -991,8 +1185,11 @@ mod tests {
 
     #[test]
     fn game_data_is_recorded_on_creation() {
-        let project =
-            fleet_project("F", &truck("1.1.0"), &ids(&["standard", "side_skirts"])).unwrap();
+        let project = fleet_project(
+            "F",
+            &[(&truck("1.1.0"), &ids(&["standard", "side_skirts"]))],
+        )
+        .unwrap();
         let data = project.vehicles[0].game_data.as_ref().unwrap();
         assert_eq!(data.path, "truckpaint.sample");
         assert_eq!(data.main_count, 2);
@@ -1029,8 +1226,9 @@ mod tests {
             tex("old", "Old", 512, 1),
         ];
         let v1 = truck_with_chassis_ids("1.2.0", &textures, &["chassis.a"]);
-        let mut ws =
-            Workspace::new(fleet_project("T", &v1, &ids(&["cabin", "chassis", "old"])).unwrap());
+        let mut ws = Workspace::new(
+            fleet_project("T", &[(&v1, &ids(&["cabin", "chassis", "old"]))]).unwrap(),
+        );
         let v2 = truck_with_chassis_ids("1.3.0", &textures[..2], &["chassis.a", "chassis.b"]);
         assert!(ws.apply_update(&v2, &[], 1.0));
         let game_ids = |ws: &Workspace, i: usize| {
@@ -1068,7 +1266,7 @@ mod tests {
     #[test]
     fn accessories_painted_by_a_main_texture() {
         let v = trailer_also_painting("1.0.0", &["body.reefer", "body.reef_13ct"]);
-        let project = fleet_project("K", &v, &ids(&["body", "chassis"])).unwrap();
+        let project = fleet_project("K", &[(&v, &ids(&["body", "chassis"]))]).unwrap();
         let body = project.surfaces[0].template.as_ref().unwrap();
         assert_eq!(body.also_paints, ids(&["body.reefer", "body.reef_13ct"]));
         let chassis = project.surfaces[1].template.as_ref().unwrap();
@@ -1086,7 +1284,7 @@ mod tests {
     #[test]
     fn update_template_replaces_also_paints() {
         let v1 = trailer_also_painting("1.0.0", &["body.reefer"]);
-        let mut ws = Workspace::new(fleet_project("K", &v1, &ids(&["body"])).unwrap());
+        let mut ws = Workspace::new(fleet_project("K", &[(&v1, &ids(&["body"]))]).unwrap());
         let v2 = trailer_also_painting("1.1.0", &["body.reefer", "body.reef_13ct"]);
         assert!(ws.apply_update(&v2, &[], 1.0));
         let also = |ws: &Workspace| {
@@ -1105,7 +1303,7 @@ mod tests {
     #[test]
     fn missing_game_data_is_filled_from_the_package() {
         let v = truck("1.1.0");
-        let mut project = fleet_project("F", &v, &ids(&["high_roof", "chassis"])).unwrap();
+        let mut project = fleet_project("F", &[(&v, &ids(&["high_roof", "chassis"]))]).unwrap();
         let recorded = project.clone();
         project.vehicles[0].game_data = None;
         for s in &mut project.surfaces {
@@ -1122,7 +1320,7 @@ mod tests {
     fn views_reset_when_the_surfaces_change() {
         let v = truck("1.0.0");
         let mut ws =
-            Workspace::new(fleet_project("F", &v, &ids(&["standard", "chassis"])).unwrap());
+            Workspace::new(fleet_project("F", &[(&v, &ids(&["standard", "chassis"]))]).unwrap());
         let view = crate::viewport::Viewport {
             center: Point::new(10.0, 10.0),
             zoom: 2.0,
@@ -1154,7 +1352,8 @@ mod tests {
                 tex("old", "Old", 512, 1),
             ],
         );
-        let mut ws = Workspace::new(fleet_project("T", &v1, &ids(&["chassis", "old"])).unwrap());
+        let mut ws =
+            Workspace::new(fleet_project("T", &[(&v1, &ids(&["chassis", "old"]))]).unwrap());
         // Artwork on the chassis.
         ws.set_active_surface(1);
         let id = ws.create_shape(
@@ -1248,8 +1447,9 @@ mod tests {
     fn sample_truck_update_flags_scales_and_offers_side_skirts() {
         let (v1, v2) = (truck("1.0.0"), truck("1.1.0"));
         let fleet = || {
-            let mut ws =
-                Workspace::new(fleet_project("F", &v1, &default_textures(&v1.manifest)).unwrap());
+            let mut ws = Workspace::new(
+                fleet_project("F", &[(&v1, &default_textures(&v1.manifest))]).unwrap(),
+            );
             ws.add_vehicle(&trailer(), &[], 1.0).unwrap();
             ws
         };
@@ -1319,7 +1519,7 @@ mod tests {
         // The main texture changed id: the old one is marked, the new one
         // is added without being chosen.
         let v1 = package("1.2.0", &[tex("cabin", "Cabin", 1024, 1)]);
-        let mut ws = Workspace::new(fleet_project("T", &v1, &[]).unwrap());
+        let mut ws = Workspace::new(fleet_project("T", &[(&v1, Vec::<String>::new())]).unwrap());
         let v2 = package("1.3.0", &[tex("cabin_2", "Cabin", 1024, 1)]);
         let p = plan(&ws.project, &v2).unwrap();
         assert!(p.new[0].always && p.new[0].checked_by_default());
@@ -1337,7 +1537,7 @@ mod tests {
     #[test]
     fn mark_a_layout_change_as_checked() {
         let v1 = package("1.2.0", &[tex("cabin", "Cabin", 1024, 1)]);
-        let mut ws = Workspace::new(fleet_project("T", &v1, &[]).unwrap());
+        let mut ws = Workspace::new(fleet_project("T", &[(&v1, Vec::<String>::new())]).unwrap());
         let v2 = package("1.3.0", &[tex("cabin", "Cabin", 1024, 2)]);
         ws.apply_update(&v2, &[], 1.0);
         let to_check = tp_core::TextureState::ToCheck(tp_core::CheckReason::LayoutChanged);
@@ -1361,7 +1561,7 @@ mod tests {
     fn paint_on_the_chassis_and_undo_across_textures() {
         let p = package("1.2.0", &sample::truck_textures());
         let mut ws =
-            Workspace::new(fleet_project("T", &p, &default_textures(&p.manifest)).unwrap());
+            Workspace::new(fleet_project("T", &[(&p, &default_textures(&p.manifest))]).unwrap());
         let canvas = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0));
         let cabin_view = crate::viewport::Viewport::fit(Size::new(4096.0, 4096.0), canvas, 1.0);
         ws.viewport = Some(cabin_view);
@@ -1452,7 +1652,7 @@ mod tests {
             layout: 1,
         };
         let v1 = package("1.0.0", &[rect_tex(4096, 4096)]);
-        let mut ws = Workspace::new(fleet_project("T", &v1, &ids(&["cabin"])).unwrap());
+        let mut ws = Workspace::new(fleet_project("T", &[(&v1, &ids(&["cabin"]))]).unwrap());
         let rect = ws.create_shape(
             ShapeKind::rectangle(),
             Frame::from_rect(Rect::new(1000.0, 1000.0, 1400.0, 1200.0)),
@@ -1493,7 +1693,7 @@ mod tests {
     fn cabin_sources_are_main_textures_of_the_same_vehicle() {
         let mut textures = default_textures(&truck("1.1.0").manifest);
         textures.push("high_roof".into());
-        let mut project = fleet_project("p", &truck("1.1.0"), &textures).unwrap();
+        let mut project = fleet_project("p", &[(&truck("1.1.0"), &textures)]).unwrap();
         let names: Vec<&str> = project.surfaces.iter().map(|s| s.name.as_str()).collect();
         let high_roof = names.iter().position(|n| *n == "High roof").unwrap();
         let chassis = names.iter().position(|n| *n == "Chassis").unwrap();

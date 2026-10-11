@@ -1283,7 +1283,7 @@ mod tests {
         let package = Package::read(crate::vehicles::SAMPLES[0].bytes).unwrap();
         let mut textures = crate::vehicle_project::default_textures(&package.manifest);
         textures.push("high_roof".into());
-        crate::vehicle_project::fleet_project("F", &package, &textures).unwrap()
+        crate::vehicle_project::fleet_project("F", &[(&package, &textures)]).unwrap()
     }
 
     #[test]
