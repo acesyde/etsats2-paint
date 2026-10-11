@@ -34,5 +34,5 @@
 ## 5. In-game check, checks and docs
 
 - [ ] 5.1 In-game check (manual, ETS2 1.59) of the sample in design Decision 6. Export one mod painting each texture of those vehicles with distinct colors and labels, then check each cabin, accessory and body in the game. Verify by recording the result in the PR. If a trailer's main body looks wrong, stop and ask the user (design Risks); for any other failure, fix the entry and the rule behind it, then re-run 3.7.
-- [ ] 5.2 Run `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --release --locked` and the screenshot suite; verify all pass.
-- [ ] 5.3 At ship time, update `docs/roadmap.md`: add the ETS2 catalog and `tpv catalog match` to Shipped, and keep row 3 for the ATS batch; verify `openspec validate official-vehicles-ets2 --strict` passes.
+- [x] 5.2 Run `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --release --locked` and the screenshot suite; verify all pass.
+- [x] 5.3 At ship time, update `docs/roadmap.md`: add the ETS2 catalog and `tpv catalog match` to Shipped, and keep row 3 for the ATS batch; verify `openspec validate official-vehicles-ets2 --strict` passes.

@@ -285,7 +285,7 @@ None at the moment.
 | # | Change | What it does | Why now |
 |---|---|---|---|
 | 2 | `polishing` (later passes) | Fixes, ergonomics, wording and performance across the app, with no new feature; the first pass is shipped. | Smooths what the first players will meet, on the new design. |
-| 3 | `official-vehicles` batches | `tpv catalog match`, which proposes a vehicle's mapping from the pack's file names and marks the doubtful cases to validate; then the other official vehicles of ETS2 and ATS, in batches. | The first brick (shipped) proved the path from the catalog to a mod loaded in the game, on the DAF NGD and the Krone Cool Liner. |
+| 3 | `official-vehicles` ATS batch | The official ATS vehicles, matched with `tpv catalog match` on the ATS template pack, reviewed, and a sample checked in the game. | Every official ETS2 vehicle is shipped (`official-vehicles-ets2`); ATS needs its own pack. |
 | 4 | `distribution` | Release builds and installers. Includes a macOS `.app` bundle (so the app menu's bold name reads "TruckPaint", not the binary's name), and the manual checks of the drawn title bar on Windows, Linux X11 and Wayland (moving, double-click, resize grips, window controls, menus, the system title bar option and `TRUCKPAINT_SYSTEM_TITLE_BAR=1`). | A player can go from vehicle to mod without building the app. |
 | 5 | `template-update-impact` | A template update says what it changes and which projects it touches; affected textures become "to check" and affected objects are flagged. Nothing moves automatically. Works with local packages too; builds on the To check state of `texture-status` (shipped). | Each game update brings a new template pack: `tpv catalog check` tells which official vehicles changed, and the player's projects get the To check flow. |
 | 5a | `first-run` | A three-step first launch: language and game, vehicles to install from the official catalog, first project. | The official catalog (`official-vehicles`) gives it vehicles to offer; it no longer waits for the marketplace. |
@@ -315,6 +315,14 @@ their requirements are in `openspec/specs/`. The most recent ones are:
   section, light rings on very dark swatches. The English casing rule and
   American spelling are written above (Wording); German names Create
   Outlines "Konturen erstellen". Performance is left to a later pass;
+- `official-vehicles-ets2`: every official ETS2 vehicle of Paintjob Packer
+  (26 trucks, 40 trailers, DLCs included) is listed under Official, sorted
+  by brand and name. `tpv catalog match` proposes a vehicle's entry from the
+  pack's file names and reports its doubts. A trailer with several bodies
+  has the first one as its main texture (also painting that body's ids)
+  and the others as accessories. Ids that no file names go to their group's
+  plainest file, since Paintjob Packer paints a whole group with one
+  texture. Accented pack folders are found whatever their Unicode form;
 - `official-vehicles` (first brick): the DAF NGD and the Krone Cool Liner
   are listed under Official in New Project and Add Vehicle…. Picking one
   builds and installs its package from Carsmaniac's template pack, which

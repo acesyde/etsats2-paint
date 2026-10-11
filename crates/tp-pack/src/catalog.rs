@@ -447,8 +447,7 @@ fn without_trailing_commas(json: &str) -> String {
     let mut out = String::with_capacity(json.len());
     let mut in_string = false;
     let mut escaped = false;
-    let mut chars = json.char_indices().peekable();
-    while let Some((i, c)) = chars.next() {
+    for (i, c) in json.char_indices() {
         if in_string {
             if escaped {
                 escaped = false;
