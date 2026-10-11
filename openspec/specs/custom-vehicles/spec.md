@@ -8,8 +8,8 @@ Lets a player create a vehicle package inside TruckPaint from the game's templat
 
 ### Requirement: Custom Vehicle dialog
 The **Custom Vehicle** dialog SHALL be reached from:
-- **Custom vehicle…** in the vehicle list of New Project (see the start-screen capability);
-- **Custom vehicle…** in Add Vehicle… (see the vehicle-projects capability);
+- **Custom Vehicle…** in the vehicle list of New Project (see the start-screen capability);
+- **Custom Vehicle…** in Add Vehicle… (see the vehicle-projects capability);
 - **Custom Vehicle…** in the Vehicle Library (see the vehicle-packages capability).
 
 It SHALL ask for:
@@ -18,7 +18,7 @@ It SHALL ask for:
 - **Game:** ETS2 or ATS. Opened from Add Vehicle…, the game is the project's game and can't be changed;
 - **Game path:** the vehicle's path in the game's definitions (`scania.r_2016`), required;
 - **Game versions:** optional. Empty means any game version; otherwise a version range (`>=1.53`);
-- **Alternate UV set** and **Colour picker:** unchecked by default;
+- **Alternate UV set** and **Color picker:** unchecked by default;
 - the **templates**, as described by the Templates requirement.
 
 The dialog SHALL remind the player that templates from the base games belong to SCS Software and are for their own use.
@@ -26,11 +26,11 @@ The dialog SHALL remind the player that templates from the base games belong to 
 Cancel or Escape SHALL close the dialog without installing anything and return to the dialog it was opened from, unchanged. The dialog SHALL be operable by keyboard.
 
 #### Scenario: Opened from New Project
-- **WHEN** the player clicks Custom vehicle… in the vehicle list of New Project
+- **WHEN** the player clicks Custom Vehicle… in the vehicle list of New Project
 - **THEN** the Custom Vehicle dialog opens with an empty form, Kind set to Truck and Game set to ETS2
 
 #### Scenario: Opened from Add Vehicle
-- **WHEN** the player clicks Custom vehicle… in Add Vehicle… of an ATS project
+- **WHEN** the player clicks Custom Vehicle… in Add Vehicle… of an ATS project
 - **THEN** the dialog's game is ATS and can't be changed
 
 #### Scenario: Cancelling

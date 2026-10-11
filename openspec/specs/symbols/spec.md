@@ -87,7 +87,7 @@ While a symbol is edited:
 - a bar above the canvas SHALL say "Editing symbol <name>" and offer **Done**;
 - the breadcrumb SHALL show "Symbol › <name>";
 - the Textures tab and the Project space SHALL highlight no texture;
-- commands that need a texture SHALL be disabled with a tooltip saying why: the template, Copy From Cabin…, Next and Previous Texture, and Export Texture…;
+- commands that need a texture SHALL be disabled with a tooltip saying why: the template, Copy from Cabin…, Next and Previous Texture, and Export Texture…;
 - every recorded change SHALL update the symbol's instances at once.
 
 **Done**, Escape (when nothing is selected, drawn or typed: a first Escape clears the selection, as on a texture) and choosing a texture in the Textures tab or the Project space SHALL return to a texture: the one the symbol was opened from, or the chosen one. Undo and Redo SHALL work across both views. Undoing a change made in a symbol SHALL show the symbol again.

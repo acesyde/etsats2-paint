@@ -31,7 +31,7 @@ The buttons SHALL have free widths that fit their translated labels.
 ### Requirement: Recent projects list
 The Recent projects area SHALL list previously opened projects, most recent first, as **cards**. Each card SHALL show a thumbnail of the project, its name, its file location and its last-opened date. The thumbnail is the artwork of the project's first main texture drawn over its template; while it is being read, and when the file can't be read, the card SHALL show a placeholder icon instead.
 
-Clicking an available card SHALL open that project. When the list is empty, it SHALL show an explanatory empty state instead of a blank area. Entries whose file no longer exists SHALL be shown as unavailable, SHALL NOT open, and SHALL be removable from the list.
+Clicking an available card SHALL open that project. When the list is empty, it SHALL show an explanatory empty state instead of a blank area: centered on the whole width of the list (from the left of the Recent projects heading to the right of Preferences), in a frame standing where the cards will be, with a **Create Your First Project** button that does what New Project does. Entries whose file no longer exists SHALL be shown as unavailable, SHALL NOT open, and SHALL be removable from the list.
 
 #### Scenario: Empty recent list
 - **WHEN** no project has ever been opened
@@ -49,6 +49,10 @@ Clicking an available card SHALL open that project. When the list is empty, it S
 - **WHEN** a recent project's first main texture is covered by a red rectangle
 - **THEN** its card's thumbnail is red
 
+#### Scenario: Empty list centered with a create button
+- **WHEN** the home screen is shown with no recent project
+- **THEN** the empty state is centered between the left edge of the Recent projects heading and the right edge of Preferences, and clicking Create Your First Project opens New Project
+
 ### Requirement: New Project dialog
 Choosing New Project SHALL open a modal dialog on one page:
 
@@ -58,8 +62,8 @@ Choosing New Project SHALL open a modal dialog on one page:
   - then, under **Installed**, the other installed vehicles of the chosen game, one row each (name, kind, brand and newest version). An installed official vehicle is listed only under Official.
   - The section headers are shown only when both sections have rows.
   - The list is searchable by name and brand, and filterable by kind with a segmented control **All / Trucks / Trailers**. Both sections follow the search and the filter. Checked vehicles stay checked when the search or the filter hides them.
-  - Under the list, a **Custom vehicle…** entry explains that a vehicle without a package can be created from its template files (DDS, PNG or SVG) and its game data, and opens the Custom Vehicle dialog (see the custom-vehicles capability). An **Install…** button installs packages (see the vehicle-packages capability).
-  - With no vehicle installed and no official vehicle for the chosen game, the list offers Install…, Install the sample vehicles and Custom vehicle…. With no vehicle installed but official vehicles listed, Install the sample vehicles is offered under the list.
+  - Under the list, a **Custom Vehicle…** entry explains that a vehicle without a package can be created from its template files (DDS, PNG or SVG) and its game data, and opens the Custom Vehicle dialog (see the custom-vehicles capability). An **Install…** button installs packages (see the vehicle-packages capability).
+  - With no vehicle installed and no official vehicle for the chosen game, the list offers Install…, Install the sample vehicles and Custom Vehicle…. With no vehicle installed but official vehicles listed, Install the sample vehicles is offered under the list.
   - Clicking a row, or pressing Space on it, checks or unchecks the vehicle. Several vehicles, trucks and trailers, can be checked together. Checking an official vehicle installs it first when needed, asking for the template pack when its folder isn't known (see the official-vehicles capability), then checks it; until it is installed, the checked vehicles are unchanged.
 - **On the right, "Your fleet",** with the number of checked vehicles ("3 vehicles"): one card per checked vehicle, in the order they were checked, each with the vehicle's name and **Remove**, which unchecks it. One card is open at a time: the vehicle checked last, or the card the user clicks. The open card shows:
   - under **Cabins**, one chip per main texture, named after it, that toggles it (filled when it is checked, outlined otherwise; the cabins it covers in its tooltip). The first one is checked when the vehicle is checked; the last checked main texture (and so a single main texture) can't be unchecked;
@@ -70,7 +74,7 @@ Choosing New Project SHALL open a modal dialog on one page:
   A folded card shows, on one line, the names of its checked main textures and its count. Under the cards, **Textures created** lists the textures that will be created for every vehicle, each with its size, and their total. With no vehicle checked, Your fleet SHALL say to check vehicles in the list.
 - **Create Project**, the primary action, SHALL be enabled only when at least one vehicle is checked (each keeps at least one main texture); its tooltip says why when it is disabled. **Cancel** sits beside it.
 
-A vehicle created with Custom vehicle… SHALL be checked when the dialog is shown again, with its textures checked as for any checked vehicle; the vehicles checked before stay checked. The game, search and kind filter SHALL be changed if needed so it is listed; when the game changes, the vehicles of the other game are unchecked. Cancelling the Custom Vehicle dialog SHALL show the New Project dialog as it was.
+A vehicle created with Custom Vehicle… SHALL be checked when the dialog is shown again, with its textures checked as for any checked vehicle; the vehicles checked before stay checked. The game, search and kind filter SHALL be changed if needed so it is listed; when the game changes, the vehicles of the other game are unchecked. Cancelling the Custom Vehicle dialog SHALL show the New Project dialog as it was.
 
 Confirming SHALL open the editor workspace, in the Project space, with a new project for the checked vehicles, in fleet order, and their chosen textures (see the vehicle-projects capability); the first texture of the first vehicle is active. Cancelling SHALL return to the home screen without side effects. The dialog SHALL be fully operable by keyboard (Tab to move, Space to toggle a checkbox or a chip or check a vehicle, Enter to create when Create Project is enabled, Escape to cancel).
 
@@ -112,10 +116,10 @@ Confirming SHALL open the editor workspace, in the Project space, with a new pro
 
 #### Scenario: No vehicle installed
 - **WHEN** the user opens New Project with no vehicle installed and the Game set to ATS, which has no official vehicle yet
-- **THEN** Create Project is disabled, and Install…, Install the sample vehicles and Custom vehicle… are offered
+- **THEN** Create Project is disabled, and Install…, Install the sample vehicles and Custom Vehicle… are offered
 
 #### Scenario: Project from a custom vehicle
-- **WHEN** the user, with no vehicle installed, clicks Custom vehicle…, creates a truck from one template file, then clicks Create Project
+- **WHEN** the user, with no vehicle installed, clicks Custom Vehicle…, creates a truck from one template file, then clicks Create Project
 - **THEN** the workspace opens with a project for that custom vehicle, with one surface showing the template
 
 #### Scenario: Created vehicle hidden by a filter
@@ -155,7 +159,7 @@ Confirming SHALL open the editor workspace, in the Project space, with a new pro
 - **THEN** no vehicle is checked
 
 #### Scenario: Custom vehicle added to the fleet
-- **WHEN** the sample truck is checked and the user creates a custom trailer with Custom vehicle…
+- **WHEN** the sample truck is checked and the user creates a custom trailer with Custom Vehicle…
 - **THEN** the sample truck and the custom trailer are both checked, with the trailer's card open
 
 ### Requirement: Open Project action

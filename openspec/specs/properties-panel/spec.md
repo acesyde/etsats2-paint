@@ -7,10 +7,12 @@ Gives a contextual summary of the selection and quick access to its appearance p
 ## Requirements
 
 ### Requirement: Selection summary
-The inspector header SHALL show what is selected: the object's name and kind (name and kind icon) for a single object or group, or "N objects" for several. With nothing selected, the inspector SHALL show the active texture's properties instead:
+The inspector header SHALL show what is selected: the object's name and kind (name and kind icon) for a single object or group, or "N objects" for several. The name SHALL follow the Layers panel's rule (see the layers-panel capability): a name that is the kind's default name in any supported language is the kind's, said once, and a text named after its kind shows its first line. With nothing selected, the inspector SHALL show the active texture's properties instead:
 - its name, its kind (main texture or accessory texture) and its size ("4096²", or "8192 × 1024" when its sides differ);
 - when a package update flagged it, that it is **To check** (see the texture-status capability) and why: its layout changed in the vehicle's version, with a **Mark as Checked** action, or it is not in this version and is left out of the mod, with no action;
 - a hint to select an object to set its layout, fill and stroke.
+
+While a symbol is edited (see the symbols capability) and nothing is selected, the header SHALL name the symbol, say that it is a symbol and give its size, not the texture holding it.
 
 The template's Show Template and opacity settings SHALL NOT be in the inspector: they are view settings in the status bar (see the workspace-layout capability).
 
@@ -34,6 +36,14 @@ The template's Show Template and opacity settings SHALL NOT be in the inspector:
 - **WHEN** nothing is selected and the active texture is a trailer's 8192 × 1024 main texture
 - **THEN** the inspector shows its size as "8192 × 1024"
 
+#### Scenario: Text from another language
+- **WHEN** the language is French and the selected text, named "Text" when it was created in English, reads "ACE"
+- **THEN** the inspector header reads "ACE" with the kind "Texte"
+
+#### Scenario: Editing a symbol with nothing selected
+- **WHEN** the symbol "ACE badge" of 440 × 440 px is edited and nothing is selected
+- **THEN** the inspector header reads "ACE badge", that it is a symbol, and "440²"
+
 ### Requirement: Opacity
 The Appearance section of the inspector SHALL provide an opacity field and slider from 0% to 100% applying to every selected object. A slider drag SHALL be one undo step. Differing values SHALL show "Mixed".
 
@@ -53,7 +63,7 @@ When every selected object is a rectangle, the Appearance section of the inspect
 - **THEN** the inspector shows no corner radius field
 
 ### Requirement: Fill and stroke swatches
-The Appearance section SHALL show a **Fill** row and, under it, a **Stroke** row for the selection's shapes and texts (see the color-panel and stroke-panel capabilities). Each row's swatch SHALL show the paint (a "None" pattern for no stroke and a "Mixed" pattern for differing paints). Clicking a swatch SHALL make it the color target and open the color popover for it. With nothing selected, the inspector SHALL show the Fill and Stroke rows of the look used for new objects, under a heading saying so.
+The Appearance section SHALL show a **Fill** row and, under it, a **Stroke** row for the selection's shapes and texts (see the color-panel and stroke-panel capabilities). Each row's swatch SHALL show the paint (a "None" pattern for no stroke and a "Mixed" pattern for differing paints). Clicking a swatch SHALL make it the color target and open the color popover for it. The row that is the color target SHALL be marked, except while another popover of the inspector (stroke options, line settings or shadow) is open: no Fill or Stroke row is then marked. With nothing selected, the inspector SHALL show the Fill and Stroke rows of the look used for new objects, under a heading saying so.
 
 #### Scenario: Clicking the stroke swatch
 - **WHEN** a stroked rectangle is selected and the user clicks the Stroke row's swatch
@@ -62,6 +72,10 @@ The Appearance section SHALL show a **Fill** row and, under it, a **Stroke** row
 #### Scenario: Look of new objects
 - **WHEN** nothing is selected and the user sets the Fill row of new objects to red, then draws a rectangle
 - **THEN** the new rectangle is red
+
+#### Scenario: Shadow popover open
+- **WHEN** a rectangle is selected, its fill is the color target, and the user opens the Shadow row's popover
+- **THEN** neither the Fill nor the Stroke row is marked while the popover is open, and the Fill row is marked again once it closes
 
 ### Requirement: Character settings section
 When the selection contains texts (only texts, or texts within groups), the inspector SHALL show a **Text** section, after Layout, with the font family picker, weight, italic toggle, size, alignment (segmented: left, center, right), letter spacing and line height, applying to every selected text; differing values SHALL show "Mixed". With nothing selected and the Text tool active, the section edits the character style used for new texts.
