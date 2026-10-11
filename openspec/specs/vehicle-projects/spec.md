@@ -69,7 +69,7 @@ Update Template SHALL work on one vehicle of the project. It is reached from tha
 It SHALL show what will change for every texture of the vehicle in the project. It SHALL also list the textures that are new in that version: new accessories as checked checkboxes and new main textures as unchecked ones. When the new version has a single main texture and the vehicle doesn't paint it yet, that texture is always added. On confirmation, it switches the vehicle to that version as one undo step:
 
 - **Same texture id:** the template is replaced, the artwork is kept, and the size is kept.
-  - If the texture's size changed, the artwork is scaled to the new size.
+  - If the texture's size changed, the artwork is scaled to the new size: horizontally by the ratio of the widths and vertically by the ratio of the heights.
   - If its layout version changed, the surface is flagged "Layout changed".
 - **Checked new texture, or an always-added single main texture:** a new empty surface is added with its template, in package order among the vehicle's surfaces.
 - **Texture of the project missing from the new version:** the surface and its artwork are kept, marked "Not in this version" and drawn without a template.
@@ -160,7 +160,7 @@ Otherwise, a tooltip says why. Trailers and accessories have no other main textu
 
 It SHALL open a dialog listing the vehicle's other main textures in the project, each with the number of objects it holds. The first texture that holds objects is chosen by default. Confirming SHALL:
 - copy every object of the chosen texture, in stacking order, including hidden and locked ones, onto the active texture, above its objects;
-- keep each copy's position in texture pixels. When the two textures differ in size, the copies are scaled by the ratio of the sizes, as Update Template scales artwork;
+- keep each copy's position in texture pixels. When the two textures differ in size, the copies are scaled by the ratio of the widths horizontally and of the heights vertically, as Update Template scales artwork;
 - keep each copy's name, look, links to swatches and styles, visibility and lock;
 - select the copies;
 - record one undo step.
@@ -206,7 +206,7 @@ The tree:
 - **under each vehicle**, its textures in project order:
   - a **Main textures** heading over its chosen main textures (a truck's cabins, a trailer's base);
   - an **Accessories** heading over its chosen accessories, when it has any;
-- **each texture** is one row with a thumbnail of its artwork, its name, its size and, at its right end, a marker of its state (see the texture-status capability): a hollow ring for Empty, a filled dot for Modified, and a warning icon in the signal color for To check, so that the states differ by shape and not only by color. Hovering the marker SHALL show the state's label, and for To check why ("Layout changed in <version>" or "Not in this version"); the row's name for assistive technologies SHALL end with the state. The thumbnail SHALL show the texture's current artwork without the template, and follow its edits. The active texture is highlighted without relying on color alone, and clicking a texture makes it active.
+- **each texture** is one row with a thumbnail of its artwork, its name, its size ("4096²", or "8192 × 1024" when its sides differ) and, at its right end, a marker of its state (see the texture-status capability): a hollow ring for Empty, a filled dot for Modified, and a warning icon in the signal color for To check, so that the states differ by shape and not only by color. Hovering the marker SHALL show the state's label, and for To check why ("Layout changed in <version>" or "Not in this version"); the row's name for assistive technologies SHALL end with the state. The thumbnail SHALL show the texture's current artwork without the template, and follow its edits. The active texture is highlighted without relying on color alone, and clicking a texture makes it active.
 
 Vehicle groups can be collapsed; the active vehicle stays open.
 

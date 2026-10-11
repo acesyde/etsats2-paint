@@ -9,7 +9,7 @@ Lets users keep their liveries: save a project to a single `.truckpaint` file, r
 ### Requirement: Self-contained project file
 A project SHALL be saved as one `.truckpaint` file containing everything needed to reopen it identically. The file SHALL contain:
 
-- the project's name, game versions and surfaces, with each surface's name and size;
+- the project's name, game versions and surfaces, with each surface's name, width and height;
 - the project's vehicles, each with its package id, version, name, brand, kind and game, and its game data: game path, supported game versions, whether it uses the alternate UV set and the colour picker, and the mods it requires;
 - each surface's template: the vehicle and texture it belongs to, whether that texture is a main texture or an accessory, its game ids, its image, opacity, visibility, layout version and status;
 - the full object tree, with every object's identity, name, kind, geometry (including polygon settings, the points and handles of every path subpath with its open or closed state, and the path's line width), fill, stroke, opacity, shadow (color, opacity, offset, blur), visibility and lock flags;
@@ -134,7 +134,8 @@ Files that are not TruckPaint projects, are damaged, were written by a newer ver
 
 Development builds wrote project files that this version refuses as a development format:
 - files without a vehicle, written before every project needed one;
-- files whose vehicles record variants, written before projects followed the game's paint job structure.
+- files whose vehicles record variants, written before projects followed the game's paint job structure;
+- files whose surfaces have a single size, written before textures had a width and a height.
 
 Files mixing games SHALL be refused as damaged.
 
@@ -157,6 +158,10 @@ Files mixing games SHALL be refused as damaged.
 #### Scenario: Variant file from a development build
 - **WHEN** the user opens a file saved by a development build whose vehicle records the variants "Standard cab" and "High roof"
 - **THEN** a message says the file uses a development format that this version cannot open, and nothing else changes
+
+#### Scenario: File from before rectangular textures
+- **WHEN** the user opens a project file whose surfaces have a single size
+- **THEN** a message says the file uses a development format and cannot be opened, and nothing else changes
 
 ### Requirement: Unsaved changes prompt
 When the project has unsaved changes, closing it, quitting the application, closing the window, creating a new project or opening another project SHALL first ask "Save changes to “<name>” before closing?" with the choices Save, Don't Save and Cancel. Save SHALL save (asking for a location if needed) and then continue only if saving succeeded; Don't Save SHALL continue without saving; Cancel (or Escape) SHALL return to the editor with nothing changed. Without unsaved changes, these actions SHALL proceed without asking.

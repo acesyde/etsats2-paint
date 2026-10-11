@@ -265,6 +265,10 @@ The export SHALL write one `.scs` file: a ZIP archive holding the mod at its roo
 - **WHEN** a project whose Game versions are empty is exported
 - **THEN** its `manifest.sii` has no `compatible_versions`
 
+#### Scenario: Rectangular texture in the mod
+- **WHEN** a project painting a trailer whose base texture is 8192 × 1024 is exported
+- **THEN** that texture's DDS declares 8192 × 1024 and 14 mipmap levels
+
 ### Requirement: Background export with progress
 Rendering, encoding and writing SHALL run without freezing the editor. While they run, the dialog SHALL show the progress over all the mod's textures and a Cancel button. Cancelling SHALL stop the export and leave no file at the destination, and an existing file there SHALL be left unchanged.
 

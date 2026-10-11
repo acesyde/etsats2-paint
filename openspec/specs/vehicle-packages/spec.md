@@ -27,7 +27,7 @@ A vehicle package SHALL be a ZIP file with the `.tpv` extension containing a `ve
 Every part, main texture or accessory, SHALL have the same fields:
 - an `id`, unique within the vehicle, and a `name`;
 - `game_ids`: the names the game uses for what the part covers. For a main texture, the internal names of the cabins that share its layout (`["highline", "highline_8x4"]`); a main texture without game ids covers every cabin. For an accessory, the accessory ids (`["mirror.painted", "s_mirror.painted"]`);
-- `texture`: its `size` in pixels (256, 512, 1024, 2048, 4096 or 8192, square), its `template` image path inside the package (a PNG or SVG file), and its `layout_version`, a positive integer that the author increases whenever the texture's layout changes.
+- `texture`: its `size` in pixels as `[width, height]`, each a power of two from 64 to 8192 (`[4096, 4096]`, `[8192, 1024]`), its `template` image path inside the package (a PNG or SVG file), and its `layout_version`, a positive integer that the author increases whenever the texture's layout changes.
 
 Unknown fields SHALL be ignored, so packages can carry data for later TruckPaint versions. A package SHALL contain only data: JSON and images.
 
@@ -57,7 +57,7 @@ Installing a package SHALL validate it completely and refuse it, with a message 
 - two parts of the vehicle share an id;
 - the paint job has two or more main textures and one of them has no game id, or an accessory has no game id;
 - a game id is not words of a–z, 0–9 and `_` separated by dots, or appears twice among the main textures or twice among the accessories;
-- a texture size is not allowed, or a template file is missing, is not a PNG or SVG, or cannot be read;
+- a texture size is not a `[width, height]` pair of allowed sides (a single number is refused), or a template file is missing, is not a PNG or SVG, or cannot be read;
 - an entry path is absolute or contains `..`;
 - the package is larger than 512 MB uncompressed, or an image larger than 16384 px on a side.
 
@@ -78,6 +78,14 @@ Nothing SHALL be installed when validation fails.
 #### Scenario: Accessory without game id
 - **WHEN** an accessory group "Mirrors" has an empty `game_ids` list
 - **THEN** installation is refused with a message saying "Mirrors" has no game id
+
+#### Scenario: Rectangular texture
+- **WHEN** the user installs a package whose trailer base texture has the size `[8192, 1024]`
+- **THEN** it is installed, and a project made from it has an 8192 × 1024 surface
+
+#### Scenario: Single size refused
+- **WHEN** a package gives a texture the size `4096`
+- **THEN** installation is refused with a message saying the texture's size must be a width and a height
 
 ### Requirement: Installing packages
 The user SHALL be able to install a package:

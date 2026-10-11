@@ -111,6 +111,10 @@ The canvas area SHALL occupy, in the Workshop, all space not used by the bars, t
 - **WHEN** the user has zoomed to 200% and then presses Tab to hide the panels
 - **THEN** the canvas area widens, the zoom stays at 200% and the document point that was at its center stays at its center
 
+#### Scenario: Rectangular artboard
+- **WHEN** a project whose active texture is 8192 × 1024 is opened in the Workshop
+- **THEN** the artboard is eight times wider than tall, centered and entirely visible, and the rulers run from 0 to 8192 across and from 0 to 1024 down
+
 ### Requirement: Status bar
 The workspace SHALL show a status bar, 28 px high, in every space.
 
