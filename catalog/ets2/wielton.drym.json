@@ -92,21 +92,57 @@
         "chs_f_l.cgp_ext_2",
         "chs_f_l.cgp_bpl_2",
         "chs_f_l.cgp_st_2",
-        "chs_f_l.pb_2",
         "chs_f_r.cgp_2",
         "chs_f_r.cgp_ext_2",
         "chs_f_r.cgp_bpl_2",
-        "chs_f_r.cgp_st_2",
-        "chs_f_r.pb_2",
+        "chs_f_r.cgp_st_2"
+      ]
+    },
+    {
+      "id": "sideskirts_long_3_axles",
+      "name": "Sideskirts (Long, 3 axles)",
+      "file": "Accessories/Sideskirts (Long, 3 axles).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
         "chs_f_l.cgp_3",
         "chs_f_l.cgp_ext_3",
         "chs_f_l.cgp_bpl_3",
         "chs_f_l.cgp_st_3",
-        "chs_f_l.pb_3",
         "chs_f_r.cgp_3",
         "chs_f_r.cgp_ext_3",
         "chs_f_r.cgp_bpl_3",
-        "chs_f_r.cgp_st_3",
+        "chs_f_r.cgp_st_3"
+      ]
+    },
+    {
+      "id": "sideskirts_pallet_box_2_axles",
+      "name": "Sideskirts - Pallet Box (2 axles)",
+      "file": "Accessories/Sideskirts - Pallet Box (2 axles).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.pb_2",
+        "chs_f_r.pb_2"
+      ]
+    },
+    {
+      "id": "sideskirts_pallet_box_3_axles",
+      "name": "Sideskirts - Pallet Box (3 axles)",
+      "file": "Accessories/Sideskirts - Pallet Box (3 axles).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.pb_3",
         "chs_f_r.pb_3"
       ]
     }

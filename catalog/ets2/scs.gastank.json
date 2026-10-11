@@ -186,8 +186,7 @@
       "ids": [
         "chs_f_l.paint_box",
         "chs_f_l.paint_box_2",
-        "chs_f_l.p_box_sidsk",
-        "chs_f_r.p_box_sidsk"
+        "chs_f_l.p_box_sidsk"
       ]
     },
     {
@@ -200,7 +199,8 @@
       ],
       "layout_version": 1,
       "ids": [
-        "chs_f_r.paint_box"
+        "chs_f_r.paint_box",
+        "chs_f_r.p_box_sidsk"
       ]
     },
     {

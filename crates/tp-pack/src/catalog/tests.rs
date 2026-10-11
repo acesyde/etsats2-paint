@@ -253,3 +253,12 @@ fn shared_folder_file_used_by_another_entry_is_not_unused() {
     assert_eq!(report.problems, Vec::<String>::new());
     assert_eq!(report.unused, ["Brand Reefer/Spare.png"]);
 }
+
+#[test]
+fn trailing_commas_removed_outside_strings() {
+    assert_eq!(
+        without_trailing_commas("{\"a\": [\"x,]\", \"y\",\n\t],\n}"),
+        "{\"a\": [\"x,]\", \"y\"\n\t]\n}"
+    );
+    assert_eq!(without_trailing_commas(r#"["a\"," ,]"#), r#"["a\"," ]"#);
+}

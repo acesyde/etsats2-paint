@@ -145,12 +145,12 @@
   ],
   "accessories": [
     {
-      "id": "chassis_front_thermo_box_cooler",
-      "name": "Chassis Front - Thermo Box Cooler",
-      "file": "Accessories/Chassis Front - Thermo Box Cooler.png",
+      "id": "front_sideskirt_pallet_box",
+      "name": "Front Sideskirt - Pallet Box",
+      "file": "Accessories/Front Sideskirt - Pallet Box.png",
       "size": [
         2048,
-        1024
+        256
       ],
       "layout_version": 1,
       "ids": [
@@ -241,9 +241,33 @@
       ],
       "layout_version": 1,
       "ids": [
-        "r_bumper.paint",
-        "r_bumper.paint_bd",
+        "r_bumper.paint_bd"
+      ]
+    },
+    {
+      "id": "rear_bumper_exclusive_double",
+      "name": "Rear Bumper - Exclusive (Double)",
+      "file": "Accessories/Rear Bumper - Exclusive (Double).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
         "r_bumper.paint_d"
+      ]
+    },
+    {
+      "id": "rear_bumper_exclusive",
+      "name": "Rear Bumper - Exclusive",
+      "file": "Accessories/Rear Bumper - Exclusive.png",
+      "size": [
+        2048,
+        512
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_bumper.paint"
       ]
     },
     {

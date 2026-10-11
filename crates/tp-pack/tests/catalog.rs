@@ -40,7 +40,16 @@ fn repo(path: &str) -> PathBuf {
         .join(path)
 }
 
-/// A copy of the Paintjob Packer fixture and of the repository's catalog.
+/// The repository's entries of the vehicles the Paintjob Packer fixture
+/// has, except the Krone Dry Liner.
+const SYNCED: &[&str] = &[
+    "ets2/daf.2021.json",
+    "ets2/daf.xf.json",
+    "ets2/daf.xf_euro6.json",
+    "ets2/krone.coolliner.json",
+];
+
+/// A copy of the Paintjob Packer fixture, and a catalog holding [`SYNCED`].
 fn sync_setup(dir: &Path) -> (PathBuf, PathBuf) {
     let ppk = dir.join("paintjob-packer");
     copy_dir(
@@ -48,7 +57,10 @@ fn sync_setup(dir: &Path) -> (PathBuf, PathBuf) {
         &ppk,
     );
     let catalog = dir.join("catalog");
-    copy_dir(&repo("catalog"), &catalog);
+    std::fs::create_dir_all(catalog.join("ets2")).unwrap();
+    for path in SYNCED {
+        std::fs::copy(repo(&format!("catalog/{path}")), catalog.join(path)).unwrap();
+    }
     (ppk, catalog)
 }
 
@@ -120,14 +132,18 @@ fn vehicles_not_in_the_catalog() {
     ]);
     assert!(out.status.success(), "{}", text(&out.stderr));
     let stdout = text(&out.stdout);
-    for line in [
-        "not in the catalog: DAF XF105 (ets2, daf.xf)",
-        "not in the catalog: DAF XF (ets2, daf.xf_euro6)",
-        "not in the catalog: Krone Dry Liner (ets2, krone.dryliner)",
-        "not in the catalog: Freightliner Cascadia 2019 (ats, freightliner.cascadia2019)",
-    ] {
-        assert!(stdout.contains(line), "{stdout}");
-    }
+    let missing: Vec<&str> = stdout
+        .lines()
+        .filter(|l| l.starts_with("not in the catalog: "))
+        .collect();
+    assert_eq!(
+        missing,
+        [
+            "not in the catalog: Krone Dry Liner (ets2, krone.dryliner)",
+            "not in the catalog: Freightliner Cascadia 2019 (ats, freightliner.cascadia2019)",
+        ],
+        "{stdout}"
+    );
     // Mods are not official vehicles; catalog vehicles are not listed.
     assert!(!stdout.contains("MB Aerodynamic"), "{stdout}");
     assert!(!stdout.contains("not in the catalog: DAF NGD"), "{stdout}");

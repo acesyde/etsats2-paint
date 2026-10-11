@@ -49,8 +49,7 @@
       ],
       "layout_version": 1,
       "also_paints": [
-        "body.curtain",
-        "body.curtain_sb"
+        "body.curtain"
       ]
     }
   ],
@@ -82,12 +81,37 @@
         "chs_f_l.cgp_ext",
         "chs_f_l.cgp_bpl",
         "chs_f_l.cgp_st",
-        "chs_f_l.pb_3",
         "chs_f_r.cgp",
         "chs_f_r.cgp_ext",
         "chs_f_r.cgp_bpl",
-        "chs_f_r.cgp_st",
+        "chs_f_r.cgp_st"
+      ]
+    },
+    {
+      "id": "sideskirts_pallet_box",
+      "name": "Sideskirts - Pallet Box",
+      "file": "Accessories/Sideskirts - Pallet Box.png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.pb_3",
         "chs_f_r.pb_3"
+      ]
+    },
+    {
+      "id": "body_curtain_and_side_boards",
+      "name": "Body (Curtain and Side Boards)",
+      "file": "Body (Curtain and Side Boards).png",
+      "size": [
+        4096,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "body.curtain_sb"
       ]
     }
   ],

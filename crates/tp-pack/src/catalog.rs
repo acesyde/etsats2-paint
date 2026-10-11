@@ -441,6 +441,32 @@ impl PpkVehicle {
     }
 }
 
+/// `json` without the commas before a closing `]` or `}`, which Paintjob
+/// Packer's files sometimes have (Godot's parser accepts them).
+fn without_trailing_commas(json: &str) -> String {
+    let mut out = String::with_capacity(json.len());
+    let mut in_string = false;
+    let mut escaped = false;
+    let mut chars = json.char_indices().peekable();
+    while let Some((i, c)) = chars.next() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if c == '\\' {
+                escaped = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+        } else if c == '"' {
+            in_string = true;
+        } else if c == ',' && json[i + 1..].trim_start().starts_with([']', '}']) {
+            continue;
+        }
+        out.push(c);
+    }
+    out
+}
+
 /// Paintjob Packer's folder of the vehicles of `game`.
 fn ppk_game_folder(game: Game) -> &'static str {
     match game {
@@ -469,6 +495,7 @@ fn ppk_official(ppk: &Path, game: Game) -> Result<BTreeMap<String, PpkVehicle>, 
         {
             let text =
                 std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            let text = without_trailing_commas(&text);
             let bad = |e: serde_json::Error| format!("{}: {e}", path.display());
             if serde_json::from_str::<Head>(&text).map_err(bad)?.is_mod {
                 continue;

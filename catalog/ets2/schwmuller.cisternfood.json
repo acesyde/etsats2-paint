@@ -65,15 +65,39 @@
       "layout_version": 1,
       "ids": [
         "chs_f_l.sp2p",
-        "chs_f_l.sp2p_b1",
         "chs_f_l.sp2p_t",
-        "chs_f_l.sp2p_b1p",
         "chs_f_l.sp2p_b2",
         "chs_f_r.sp2p",
-        "chs_f_r.sp2p_b1",
         "chs_f_r.sp2p_t",
-        "chs_f_r.sp2p_b1p",
         "chs_f_r.sp2p_b2"
+      ]
+    },
+    {
+      "id": "chassis_front_painted_side_skirt_box_food_tank",
+      "name": "Chassis Front - Painted Side Skirt + Box (Food Tank)",
+      "file": "Accessories/Chassis Front - Painted Side Skirt + Box (Food Tank).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.sp2p_b1",
+        "chs_f_r.sp2p_b1"
+      ]
+    },
+    {
+      "id": "chassis_front_painted_side_skirt_painted_box_food_tank",
+      "name": "Chassis Front - Painted Side Skirt + Painted Box (Food Tank)",
+      "file": "Accessories/Chassis Front - Painted Side Skirt + Painted Box (Food Tank).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "chs_f_l.sp2p_b1p",
+        "chs_f_r.sp2p_b1p"
       ]
     },
     {

@@ -18,14 +18,14 @@
 - [x] 3.2 Review and complete the trucks: DAF, Iveco, MAN, Mercedes-Benz and Renault (resolve each doubt, place or leave out each uncovered id, with a reason). Verify that `tpv catalog check --catalog catalog ~/Downloads/templates` reports no problem for them, and commit them.
 - [x] 3.3 Review and complete the trucks: Scania (both shared folders, and the S BEV) and Volvo; verify with `tpv catalog check` as in 3.2, and commit them.
 - [x] 3.4 Review and complete the trailers: Feldbinder, Kässbohrer, Kögel, Krone (Dry Liner, Paper Liner, Profi Liner, Profi Liner Building) and Schmitz Cargobull, applying design Decision 1; verify with `tpv catalog check` as in 3.2, and commit them.
-- [ ] 3.5 Review and complete the trailers: Schwarzmüller, SCS, Tirsan and Wielton; verify with `tpv catalog check` as in 3.2, and commit them.
+- [x] 3.5 Review and complete the trailers: Schwarzmüller, SCS, Tirsan and Wielton; verify with `tpv catalog check` as in 3.2, and commit them.
 - [ ] 3.6 Add the 64 files to `catalog::ENTRIES`; verify with the tp-vehicles tests: every file under `catalog/` is embedded, every entry is complete (official-vehicles "Complete entries only"), and each entry builds a valid package from placeholder PNGs of its sizes.
 - [ ] 3.7 Run `tpv catalog check ~/Downloads/templates` with the embedded catalog; verify there's no problem, that the unused files include `Krone Cool Liner/Accessories/Chassis Mid - Simple Side Skirt.png` ("Pack matches the catalog"), and that each unused file is explained in the PR.
 
 ## 4. App, specs scenarios and end to end
 
 - [ ] 4.1 Update the kittest and unit tests that count or name the official vehicles; verify with kittest: official-vehicles "Every official ETS2 vehicle" (66 rows), "Sorted by brand and name", "Trailer with several bodies" (Schmitz Cargobull S.CS), "No network needed", and start-screen "Official vehicle filtered by kind" updated for 40 trailers.
-- [ ] 4.2 Update the CLI test for `tpv catalog sync`; verify official-vehicles "Vehicles not in the catalog": a fixture with a new ETS2 trailer and ATS vehicles lists only those.
+- [x] 4.2 Update the CLI test for `tpv catalog sync`; verify official-vehicles "Vehicles not in the catalog": a fixture with a new ETS2 trailer and ATS vehicles lists only those.
 - [ ] 4.3 Add a mod-export test for a trailer with several bodies; verify official-vehicles "A mod for a trailer with several bodies" (Kögel Cargo, from placeholder PNGs): the Body ids in the main texture's `also_paints` entry and the Body (Long) ids in its own accessory entry.
 - [ ] 4.4 Extend the ignored test behind `TRUCKPAINT_ETS2_PACK` to install every ETS2 entry from the real pack and plan a mod for each; verify it passes locally on `~/Downloads/templates`.
 - [ ] 4.5 Measure New Project → Create Project with the SCS Box Trailer and the Volvo FH6, every accessory checked (time and memory, release build); verify by recording the numbers in the PR, and report to the user if it's noticeably slow or heavy (design Risks).
