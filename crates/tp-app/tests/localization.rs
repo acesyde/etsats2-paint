@@ -353,6 +353,50 @@ fn new_layer_is_named_in_french_and_existing_names_stay() {
     assert_eq!(ws(&h).project.surface().get(new).unwrap().name, "Rechteck");
 }
 
+/// Whether the inspector header (or another label) reads `text`.
+fn label(h: &H, text: &str) -> bool {
+    h.query_all_by_role_and_label(Role::Label, text)
+        .next()
+        .is_some()
+}
+
+#[test]
+fn text_named_in_english_reads_its_text_in_french() {
+    let mut h = open();
+    let at = Point::new(800.0, 800.0);
+    let text = Object::text(
+        ObjectId(0),
+        tp_core::document::TextBlock::new("ACE", tp_core::document::CharStyle::default()),
+        at,
+    );
+    assert_eq!(text.name, "Text");
+    let id = ws_mut(&mut h).project.add(text);
+    ws_mut(&mut h).selection = vec![id];
+    common::settle_renders(&mut h);
+    set_language(&mut h, Language::French);
+    assert!(label(&h, "ACE") && !label(&h, "Text"));
+    // The header's kind, and the Text section's heading.
+    assert_eq!(
+        h.query_all_by_role_and_label(Role::Label, "Texte").count(),
+        2
+    );
+}
+
+#[test]
+fn english_default_name_said_once_in_german() {
+    let mut h = open();
+    common::show_tab(&mut h, tp_app::layout::LeftTab::Layers);
+    add_rect(&mut h, "Rectangle");
+    set_language(&mut h, Language::German);
+    // The header reads the name once, without the German kind.
+    assert!(label(&h, "Rectangle") && !label(&h, "Rechteck"));
+    // So does its Layers row.
+    assert!(
+        h.query_by_role_and_label(Role::Button, "Rectangle")
+            .is_some()
+    );
+}
+
 #[test]
 fn live_switch_keeps_the_document() {
     let mut h = open();
@@ -440,4 +484,51 @@ fn reset_to_defaults_keeps_the_language() {
     prefs.ui_scale = 1.5;
     prefs.reset_scaling();
     assert_eq!(prefs.language(), Some(Language::Spanish));
+}
+
+/// The Vehicle Library's details count accessories with a plural, in
+/// every language.
+#[test]
+fn library_details_plurals() {
+    let accessories = |n: usize| tp_i18n::tr!("vehicles-details-accessories", count = n);
+    let main = |n: usize| tp_i18n::tr!("vehicles-details-main", count = n, names = "Cabin");
+    let expected = [
+        (
+            Language::English,
+            ["No accessories", "1\u{a0}accessory", "2\u{a0}accessories"],
+            "Main texture: Cabin",
+            "Main textures: Cabin",
+        ),
+        (
+            Language::French,
+            [
+                "Aucun accessoire",
+                "1\u{a0}accessoire",
+                "2\u{a0}accessoires",
+            ],
+            "Texture principale : Cabin",
+            "Textures principales : Cabin",
+        ),
+        (
+            Language::German,
+            ["Kein Zubehör", "1\u{a0}Zubehörteil", "2\u{a0}Zubehörteile"],
+            "Haupttextur: Cabin",
+            "Haupttexturen: Cabin",
+        ),
+        (
+            Language::Spanish,
+            ["Sin accesorios", "1\u{a0}accesorio", "2\u{a0}accesorios"],
+            "Textura principal: Cabin",
+            "Texturas principales: Cabin",
+        ),
+    ];
+    for (language, counts, one, two) in expected {
+        tp_i18n::set_language(language);
+        assert_eq!(
+            [accessories(0), accessories(1), accessories(2)],
+            counts.map(String::from)
+        );
+        assert_eq!((main(1), main(2)), (one.to_owned(), two.to_owned()));
+    }
+    tp_i18n::set_language(Language::English);
 }

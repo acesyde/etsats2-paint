@@ -180,9 +180,15 @@ pub(crate) fn problem(ui: &mut Ui, text: &str) {
 /// A warning that doesn't block the action, with its own icon color so it
 /// can't be mistaken for a [`problem`].
 pub(crate) fn warning(ui: &mut Ui, text: &str) {
+    warning_in(ui, text, color::WARNING);
+}
+
+/// A [`warning`] whose icon is in `tint` (the signal color for a texture
+/// To check).
+pub(crate) fn warning_in(ui: &mut Ui, text: &str, tint: egui::Color32) {
     ui.horizontal_top(|ui| {
         ui.spacing_mut().item_spacing.x = space::SM;
-        ui.label(icons::rich(icons::WARNING).color(color::WARNING));
+        ui.label(icons::rich(icons::WARNING).color(tint));
         let label =
             ui.add(egui::Label::new(RichText::new(text).color(color::TEXT_SECONDARY)).wrap());
         label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
@@ -209,13 +215,19 @@ pub(crate) fn messages(ui: &mut Ui, messages: &[Result<String, String>]) {
 /// The dialog's buttons, right-aligned under a hairline, the primary
 /// action last (rightmost): `body` adds them from the right.
 pub(crate) fn footer<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
+    footer_rule(ui);
+    ui.with_layout(Layout::right_to_left(Align::Center), body)
+        .inner
+}
+
+/// The hairline above a dialog's buttons, with its spacing: for a footer
+/// that also has a button on the left.
+pub(crate) fn footer_rule(ui: &mut Ui) {
     ui.add_space(space::LG);
     let rect = ui.available_rect_before_wrap();
     ui.painter()
         .hline(rect.x_range(), rect.top(), Stroke::new(1.0, color::BORDER));
     ui.add_space(space::LG);
-    ui.with_layout(Layout::right_to_left(Align::Center), body)
-        .inner
 }
 
 /// Shows the active modal, if any.
@@ -433,7 +445,8 @@ fn unsaved_changes(ctx: &egui::Context, name: &str) -> PromptAnswer {
         });
         ui.add_space(space::XS);
         ui.label(RichText::new(tr("unsaved-hint")).color(color::TEXT_SECONDARY));
-        ui.add_space(space::XL);
+        // The message dialog's footer, Don't Save on the left.
+        footer_rule(ui);
         ui.horizontal(|ui| {
             if ui.add(secondary_button(&tr("button-dont-save"))).clicked() {
                 answer = PromptAnswer::DontSave;
@@ -497,19 +510,23 @@ fn scale_slider(
     name: &str,
     width: f32,
 ) -> (egui::Response, bool) {
-    let r = ui.add(
-        tp_ui::widgets::ThinSlider::new(pct, range.clone(), name)
-            .width(width)
-            .step(5.0),
-    );
-    let value = ui.add(
-        egui::DragValue::new(pct)
-            .range(range)
-            .speed(1.0)
-            .suffix("%")
-            .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
-    );
-    (r, value.changed())
+    // The value beside its slider.
+    ui.horizontal(|ui| {
+        let r = ui.add(
+            tp_ui::widgets::ThinSlider::new(pct, range.clone(), name)
+                .width(width)
+                .step(5.0),
+        );
+        let value = ui.add(
+            egui::DragValue::new(pct)
+                .range(range)
+                .speed(1.0)
+                .suffix("%")
+                .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
+        );
+        (r, value.changed())
+    })
+    .inner
 }
 
 /// What the Preferences dialog asks for this frame.
@@ -582,7 +599,8 @@ fn preferences_body(
 ) -> Option<tp_vehicles::Game> {
     ui.spacing_mut().item_spacing.y = space::MD;
     section(ui, &tr("prefs-interface"));
-    let slider_width = ui.available_width() - 60.0;
+    // The room left beside the slider fits its value ("100%").
+    let slider_width = ui.available_width() - 72.0;
     labelled(ui, &tr("prefs-ui-scale"), |ui| {
         let mut ui_pct = (prefs.ui_scale * 100.0).round();
         let range = (UI_SCALE_RANGE.start() * 100.0)..=(UI_SCALE_RANGE.end() * 100.0);
@@ -636,8 +654,11 @@ fn preferences_body(
     if title_bar {
         // Its hint on hover keeps the dialog within the smallest window
         // at large UI scales.
-        ui.checkbox(&mut prefs.system_title_bar, tr("prefs-system-title-bar"))
-            .on_hover_text(tr("prefs-system-title-bar-hint"));
+        ui.add(tp_ui::widgets::SquareCheckbox::new(
+            &mut prefs.system_title_bar,
+            tr("prefs-system-title-bar"),
+        ))
+        .on_hover_text(tr("prefs-system-title-bar-hint"));
     }
     ui.add_space(space::SM);
     section(ui, &tr("prefs-canvas"));
@@ -676,8 +697,11 @@ fn template_packs(
     ui.add_space(space::SM);
     section(ui, &tr("prefs-template-packs"));
     for game in games {
-        // One row per game: its name, the folder, Choose… and Clear.
-        ui.horizontal(|ui| {
+        // One row per game: its name, the folder, Choose… and Clear, as
+        // tall as the buttons from the start so the name and the folder
+        // share a line.
+        let row = egui::vec2(ui.available_width(), 30.0);
+        ui.allocate_ui_with_layout(row, Layout::left_to_right(Align::Center), |ui| {
             let label = super::vehicle_dialogs::game_label(game);
             let shown = ui.label(RichText::new(label).color(color::TEXT_SECONDARY));
             ui.add_space((44.0 - shown.rect.width()).max(0.0));
@@ -853,15 +877,28 @@ fn about(ctx: &egui::Context) -> bool {
                         .split("\n\n")
                         .map(|p| p.split_whitespace().collect::<Vec<_>>().join(" "))
                         .collect();
-                    let label = ui.add(
-                        egui::Label::new(
-                            RichText::new(paragraphs.join("\n\n"))
-                                .small()
-                                .color(color::TEXT_SECONDARY),
-                        )
-                        .wrap(),
-                    );
-                    label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, notice));
+                    // Kept clear of the scroll bar floating over the right.
+                    let gutter = ui.spacing().scroll.bar_width
+                        + ui.spacing().scroll.bar_outer_margin
+                        + space::SM;
+                    Frame::new()
+                        .inner_margin(Margin {
+                            right: gutter as i8,
+                            ..Margin::ZERO
+                        })
+                        .show(ui, |ui| {
+                            let label = ui.add(
+                                egui::Label::new(
+                                    RichText::new(paragraphs.join("\n\n"))
+                                        .small()
+                                        .color(color::TEXT_SECONDARY),
+                                )
+                                .wrap(),
+                            );
+                            label.widget_info(|| {
+                                WidgetInfo::labeled(WidgetType::Label, true, notice)
+                            });
+                        });
                 });
         }
         footer(ui, |ui| {

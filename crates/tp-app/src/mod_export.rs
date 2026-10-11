@@ -447,6 +447,8 @@ impl Warning {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct VehicleSummary {
     pub name: String,
+    /// A trailer: its main texture has no cabins.
+    pub trailer: bool,
     /// Main textures in package order, painted or not.
     pub mains: Vec<MainSummary>,
     /// Names of the painted accessories.
@@ -513,6 +515,7 @@ pub fn summary(
             mains.sort_by_key(|(i, _)| *i);
             VehicleSummary {
                 name: v.name.clone(),
+                trailer: v.kind == "trailer",
                 mains: mains.into_iter().map(|(_, m)| m).collect(),
                 accessories,
             }
@@ -1953,6 +1956,7 @@ mod tests {
             list,
             [VehicleSummary {
                 name: "TruckPaint Sample Truck".into(),
+                trailer: false,
                 mains: vec![
                     MainSummary {
                         name: "Standard cab".into(),

@@ -2,11 +2,13 @@
 //! Project dialogs, and the vehicle list and texture checkboxes shared with
 //! the New Project wizard.
 
-use egui::{Align, Checkbox, Layout, RichText, ScrollArea, TextEdit, Ui, WidgetInfo, WidgetType};
+use egui::{Align, Layout, RichText, ScrollArea, TextEdit, Ui, WidgetInfo, WidgetType};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::{color, radius, space};
-use tp_ui::widgets::{EmptyState, SegmentedControl, primary_button, secondary_button};
+use tp_ui::widgets::{
+    EmptyState, SegmentedControl, SquareCheckbox, primary_button, secondary_button,
+};
 use tp_vehicles::catalog::Entry;
 use tp_vehicles::{Game, Kind, Manifest, Package, Part};
 
@@ -45,10 +47,17 @@ impl VehicleFilter {
     /// Search field and game / kind filters.
     pub fn show(&mut self, ui: &mut Ui, id: &str) {
         ui.horizontal(|ui| {
+            // As tall as the combos beside it.
+            let height = (ui.text_style_height(&egui::TextStyle::Button)
+                + 2.0 * ui.spacing().button_padding.y)
+                .max(ui.spacing().interact_size.y)
+                .ceil();
             let search = ui.add(
                 TextEdit::singleline(&mut self.query)
                     .hint_text(format!("{} {}", icons::SEARCH, tr("vehicles-search")))
-                    .desired_width(200.0),
+                    .desired_width(200.0)
+                    .vertical_align(Align::Center)
+                    .min_size(egui::vec2(0.0, height)),
             );
             search.widget_info(|| {
                 WidgetInfo::labeled(WidgetType::TextEdit, true, tr("vehicles-search"))
@@ -108,13 +117,33 @@ pub fn game_label(game: Game) -> &'static str {
     }
 }
 
-/// Supported game versions: "any version" when unlimited.
+/// Supported game versions in words: "any version", "1.56 or later"…
 pub fn versions_text(versions: &semver::VersionReq) -> String {
-    if *versions == semver::VersionReq::STAR {
-        tr("vehicles-any-version")
+    crate::game_versions::req_in_words(versions)
+}
+
+/// The detail pane's summary of `m`: "Any game version · Main texture:
+/// Cabin · 2 accessories".
+pub fn details_text(m: &Manifest) -> String {
+    let versions = if m.game.versions == semver::VersionReq::STAR {
+        tr("vehicles-details-any-version")
     } else {
-        versions.to_string()
-    }
+        tr!(
+            "vehicles-details-versions",
+            versions = versions_text(&m.game.versions)
+        )
+    };
+    let main: Vec<&str> = m.paint_job.main.iter().map(|p| p.name.as_str()).collect();
+    let main = tr!(
+        "vehicles-details-main",
+        count = main.len(),
+        names = main.join(", ")
+    );
+    let accessories = tr!(
+        "vehicles-details-accessories",
+        count = m.paint_job.accessories.len()
+    );
+    format!("{versions} · {main} · {accessories}")
 }
 
 /// "Volvo · Truck · ETS2 · 1.3.0".
@@ -186,11 +215,6 @@ pub struct VehicleRows<'a> {
 impl VehicleRows<'_> {
     pub fn is_empty(&self) -> bool {
         self.official.is_empty() && self.installed.is_empty()
-    }
-
-    /// The section headers are shown when both sections have rows.
-    pub fn sections(&self) -> bool {
-        !self.official.is_empty() && !self.installed.is_empty()
     }
 }
 
@@ -338,9 +362,7 @@ pub fn textures_to_paint(
         let always = is_always_painted(m, &part.id);
         let mut on = always || chosen.contains(&part.id);
         let enabled = !always && !(locked && on);
-        let response = ui.add_enabled(enabled, Checkbox::new(&mut on, &part.name));
-        response
-            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, enabled, on, &part.name));
+        let response = ui.add_enabled(enabled, SquareCheckbox::new(&mut on, &part.name));
         let size = part.texture.size;
         let response = response.on_hover_text(format!("{} × {}", size.width, size.height));
         if response.changed() {
@@ -449,7 +471,7 @@ pub fn vehicle_list(
             ui.add_space(space::SM);
         }
     };
-    if rows.sections() {
+    if !rows.official.is_empty() {
         section_header(ui, &tr("vehicles-section-official"));
     }
     for row in &rows.official {
@@ -471,7 +493,7 @@ pub fn vehicle_list(
         }
         textures(ui, choices, &id);
     }
-    if rows.sections() {
+    if !rows.installed.is_empty() {
         section_header(ui, &tr("vehicles-section-installed"));
     }
     for vehicle in rows.installed {
@@ -929,11 +951,21 @@ fn library_row(
         egui::StrokeKind::Inside,
     );
 
+    // The pill sits at the right of a slot as wide as the widest status,
+    // so the versions line up whatever the status.
     let right = rect.right() - space::LG;
-    let pill = status_pill(ui, egui::pos2(right, rect.center().y), status);
+    status_pill(ui, egui::pos2(right, rect.center().y), status);
+    let slot = [
+        VehicleStatus::Custom,
+        VehicleStatus::Update,
+        VehicleStatus::UpToDate,
+    ]
+    .into_iter()
+    .map(|s| pill_size(ui, s).x)
+    .fold(0.0, f32::max);
     let painter = ui.painter();
     let version = painter.text(
-        egui::pos2(pill.left() - space::XL, rect.center().y),
+        egui::pos2(right - slot - space::XL, rect.center().y),
         egui::Align2::RIGHT_CENTER,
         m.version.to_string(),
         egui::FontId::monospace(tp_ui::tokens::typography::MONO),
@@ -984,17 +1016,29 @@ fn cover_uv(size: egui::Vec2, target: egui::Vec2) -> egui::Rect {
     egui::Rect::from_center_size(egui::pos2(0.5, 0.5), egui::vec2(w, h))
 }
 
-/// A status as an outlined pill ending at `right`: its text in its color
-/// (see [`VehicleStatus::pill`]). Returns its rectangle.
-fn status_pill(ui: &Ui, right: egui::Pos2, status: VehicleStatus) -> egui::Rect {
-    let (text, tint, outline) = status.pill();
-    let painter = ui.painter();
-    let label = painter.layout_no_wrap(
+/// The laid out text of a status pill, and its padding.
+fn pill_text(ui: &Ui, status: VehicleStatus) -> (std::sync::Arc<egui::Galley>, egui::Vec2) {
+    let (text, tint, _) = status.pill();
+    let label = ui.painter().layout_no_wrap(
         text,
         egui::FontId::proportional(tp_ui::tokens::typography::CONTROL),
         tint,
     );
-    let pad = egui::vec2(space::SM, space::XXS + 1.0);
+    (label, egui::vec2(space::SM, space::XXS + 1.0))
+}
+
+/// The size of a status pill.
+fn pill_size(ui: &Ui, status: VehicleStatus) -> egui::Vec2 {
+    let (label, pad) = pill_text(ui, status);
+    label.size() + 2.0 * pad
+}
+
+/// A status as an outlined pill ending at `right`: its text in its color
+/// (see [`VehicleStatus::pill`]). Returns its rectangle.
+fn status_pill(ui: &Ui, right: egui::Pos2, status: VehicleStatus) -> egui::Rect {
+    let (label, pad) = pill_text(ui, status);
+    let (_, tint, outline) = status.pill();
+    let painter = ui.painter();
     let size = label.size() + 2.0 * pad;
     let rect =
         egui::Rect::from_min_size(egui::pos2(right.x - size.x, right.y - size.y / 2.0), size);
@@ -1101,14 +1145,7 @@ fn detail(
                     let status_text = format!("{icon} {text}");
                     let label = ui.label(RichText::new(&status_text).color(tint));
                     label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
-                    let main: Vec<&str> =
-                        m.paint_job.main.iter().map(|p| p.name.as_str()).collect();
-                    let details = tr!(
-                        "vehicles-details",
-                        versions = versions_text(&m.game.versions),
-                        main = main.join(", "),
-                        accessories = m.paint_job.accessories.len()
-                    );
+                    let details = details_text(m);
                     ui.add(
                         egui::Label::new(RichText::new(details).color(color::TEXT_SECONDARY))
                             .wrap(),
@@ -1267,10 +1304,7 @@ pub fn update(ctx: &egui::Context, state: &mut AppState, dialog: &mut UpdateDial
             ui.label(RichText::new(tr("update-new-textures")).small());
             for new in &dialog.plan.new {
                 let mut on = new.always || dialog.added.contains(&new.id);
-                let response = ui.add_enabled(!new.always, Checkbox::new(&mut on, &new.name));
-                response.widget_info(|| {
-                    WidgetInfo::selected(WidgetType::Checkbox, !new.always, on, &new.name)
-                });
+                let response = ui.add_enabled(!new.always, SquareCheckbox::new(&mut on, &new.name));
                 if response.changed() {
                     if on {
                         dialog.added.push(new.id.clone());
@@ -1655,7 +1689,7 @@ pub fn remove_vehicle(
     keep
 }
 
-/// State of the Copy From Cabin dialog: the other main textures of the
+/// State of the Copy from Cabin dialog: the other main textures of the
 /// active texture's vehicle, with their object counts, and the chosen one.
 #[derive(Clone, Debug)]
 pub struct CopyFromCabinDialog {
@@ -1685,7 +1719,7 @@ impl CopyFromCabinDialog {
     }
 }
 
-/// Shows the Copy From Cabin dialog; returns false once it is closed.
+/// Shows the Copy from Cabin dialog; returns false once it is closed.
 pub fn copy_from_cabin(
     ctx: &egui::Context,
     state: &mut AppState,

@@ -220,7 +220,8 @@ pub fn polygon_settings(ui: &mut Ui, env: &mut PanelEnv<'_>) {
         ui.add_space(space::SM);
         let mut checked = stars == Some(true);
         let response = ui.add(
-            egui::Checkbox::new(&mut checked, tr("props-star")).indeterminate(stars.is_none()),
+            tp_ui::widgets::SquareCheckbox::new(&mut checked, tr("props-star"))
+                .indeterminate(stars.is_none()),
         );
         response.widget_info(|| {
             WidgetInfo::selected(WidgetType::Checkbox, true, checked, tr("props-star"))

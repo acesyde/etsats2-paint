@@ -146,5 +146,5 @@ fn resources(ui: &mut Ui, cmds: &mut CommandUi<'_>, env: &mut PanelEnv<'_>) {
     }
 
     ui.add_space(space::LG);
-    ui.vertical_centered(|ui| panels::import_from_library_button(ui, cmds));
+    ui.horizontal(|ui| panels::import_from_library_button(ui, cmds));
 }

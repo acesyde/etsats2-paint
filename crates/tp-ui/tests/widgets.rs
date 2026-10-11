@@ -711,3 +711,158 @@ mod popovers {
         assert_eq!(Popover::open_id(&h.ctx), None);
     }
 }
+
+mod truncated_labels {
+    use egui_kittest::kittest::Queryable;
+    use tp_ui::widgets::truncated_label;
+
+    use super::{painted_shapes, themed};
+
+    const LONG: &str = "Grey stripe along the lower edge of the cabin";
+
+    #[test]
+    fn a_long_text_ends_with_an_ellipsis_and_shows_whole_in_a_tooltip() {
+        let mut h = themed(
+            |ui, _: &mut ()| {
+                truncated_label(ui, LONG, 120.0);
+            },
+            (),
+        );
+        h.run();
+        // Named by its whole text, laid out within the width given.
+        let rect = h.get_by_label(LONG).rect();
+        assert!(rect.width() <= 120.0, "{rect:?}");
+        // One line, ending with "…".
+        let galley = painted_shapes(&h)
+            .into_iter()
+            .find_map(|shape| match shape {
+                egui::Shape::Text(t) if t.galley.text() == LONG => Some(t.galley),
+                _ => None,
+            })
+            .expect("label painted");
+        assert!(galley.elided);
+        assert_eq!(galley.rows.len(), 1);
+        let shown: String = galley.rows[0].glyphs.iter().map(|g| g.chr).collect();
+        assert!(shown.ends_with('…') && shown.len() < LONG.len(), "{shown}");
+
+        h.get_by_label(LONG).hover();
+        for _ in 0..60 {
+            h.step();
+        }
+        h.run();
+        assert_eq!(h.get_all_by_label(LONG).count(), 2, "label and tooltip");
+    }
+
+    #[test]
+    fn a_short_text_is_shown_whole() {
+        let mut h = themed(
+            |ui, _: &mut ()| {
+                truncated_label(ui, "Logo", 120.0);
+            },
+            (),
+        );
+        h.run();
+        let galley = painted_shapes(&h)
+            .into_iter()
+            .find_map(|shape| match shape {
+                egui::Shape::Text(t) if t.galley.text() == "Logo" => Some(t.galley),
+                _ => None,
+            })
+            .expect("label painted");
+        assert!(!galley.elided);
+    }
+}
+
+mod checkboxes {
+    use egui::accesskit::{Role, Toggled};
+    use egui_kittest::kittest::{NodeT, Queryable};
+    use tp_ui::tokens::color;
+    use tp_ui::widgets::SquareCheckbox;
+
+    use super::{painted_shapes, themed};
+
+    #[test]
+    fn checked_and_unchecked_square_boxes() {
+        let mut h = themed(
+            |ui, on: &mut bool| {
+                ui.add(SquareCheckbox::new(on, "Transparent"));
+            },
+            false,
+        );
+        h.run();
+        let node = h.get_by_role_and_label(Role::CheckBox, "Transparent");
+        assert_eq!(node.accesskit_node().toggled(), Some(Toggled::False));
+        // Unchecked: an outlined square with small rounded corners, no fill.
+        let square = |h: &egui_kittest::Harness<'static, bool>| {
+            painted_shapes(h).into_iter().find_map(|shape| match shape {
+                egui::Shape::Rect(r) if (r.rect.width() - r.rect.height()).abs() < 0.01 => Some(r),
+                _ => None,
+            })
+        };
+        let empty = square(&h).expect("box painted");
+        assert_eq!(empty.fill, egui::Color32::TRANSPARENT);
+        assert!(f32::from(empty.corner_radius.nw) < empty.rect.width() / 2.0);
+
+        h.get_by_label("Transparent").click();
+        h.run();
+        assert!(*h.state());
+        assert_eq!(
+            h.get_by_role_and_label(Role::CheckBox, "Transparent")
+                .accesskit_node()
+                .toggled(),
+            Some(Toggled::True)
+        );
+        // Checked: the square filled, with a check mark on it.
+        let full = square(&h).expect("box painted");
+        assert_eq!(full.fill, color::ACCENT_PRIMARY);
+        assert!(f32::from(full.corner_radius.nw) < full.rect.width() / 2.0);
+        assert!(painted_shapes(&h).iter().any(|s| matches!(s,
+            egui::Shape::Text(t) if t.galley.text() == tp_ui::icons::CHECK
+                && full.rect.contains(t.visual_bounding_rect().center()))));
+    }
+
+    #[test]
+    fn mixed_checkbox_is_a_filled_square_with_a_dash() {
+        let mut h = themed(
+            |ui, on: &mut bool| {
+                ui.add(SquareCheckbox::new(on, "Stroke").indeterminate(true));
+            },
+            false,
+        );
+        h.run();
+        let shapes = painted_shapes(&h);
+        let full = shapes
+            .iter()
+            .find_map(|shape| match shape {
+                egui::Shape::Rect(r) if (r.rect.width() - r.rect.height()).abs() < 0.01 => Some(r),
+                _ => None,
+            })
+            .expect("box painted");
+        assert_eq!(full.fill, color::ACCENT_PRIMARY);
+        assert!(shapes.iter().any(|s| matches!(s,
+            egui::Shape::LineSegment { points, .. } if full.rect.contains(points[0])
+                && full.rect.contains(points[1]))));
+        h.get_by_label("Stroke").click();
+        h.run();
+        assert!(*h.state(), "a click toggles it");
+    }
+
+    #[test]
+    fn disabled_checkbox_ignores_clicks() {
+        let mut h = themed(
+            |ui, on: &mut bool| {
+                ui.add_enabled(false, SquareCheckbox::new(on, "In the project"));
+            },
+            true,
+        );
+        h.run();
+        h.get_by_label("In the project").click();
+        h.run();
+        assert!(*h.state());
+        assert!(
+            h.get_by_label("In the project")
+                .accesskit_node()
+                .is_disabled()
+        );
+    }
+}

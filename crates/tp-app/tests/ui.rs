@@ -38,6 +38,26 @@ fn home_screen_on_launch_with_empty_recent_state() {
 }
 
 #[test]
+fn empty_recent_projects_centered_with_a_create_button() {
+    let mut h = harness();
+    h.run();
+    // Centered on the list's width: the column of the title and the
+    // Preferences button, not on a narrow box at its left.
+    let title = h.get_by_label("Recent projects").rect();
+    let preferences = h.get_by_label("Preferences").rect();
+    let empty = h.get_by_label("No recent projects").rect();
+    let middle = (title.left() + preferences.right()) / 2.0;
+    assert!(
+        (empty.center().x - middle).abs() < 2.0,
+        "empty state at {}, list middle at {middle}",
+        empty.center().x
+    );
+    h.get_by_label("Create Your First Project").click();
+    h.run();
+    assert!(h.query_by_label("Create Project").is_some());
+}
+
+#[test]
 fn closing_project_returns_home() {
     let mut h = harness();
     create_project(&mut h);
@@ -828,7 +848,7 @@ fn every_command_has_a_menu_entry() {
         open_menu(&mut h, &tp_i18n::tr(title));
         add(&h);
         for sub in ["menu-combine", "menu-align"] {
-            let label = format!("{} ⏵", tp_i18n::tr(sub));
+            let label = tp_i18n::tr(sub);
             if let Some(node) = h.query_by_label(&label) {
                 node.click();
                 h.run();
@@ -895,4 +915,46 @@ fn keyboard_shortcuts_window_lists_the_workspace_keys() {
         let label = tp_i18n::tr(id.meta().label);
         assert!(h.query_all_by_label(&label).count() >= 1, "{label}");
     }
+}
+
+// --- ui-design-system: Checkboxes -------------------------------------------
+
+/// Every checkbox of the app is the square `SquareCheckbox`: egui's
+/// `Checkbox`, which the theme's corner radius turns into a circle, is not
+/// used in tp-app.
+#[test]
+fn no_egui_checkbox_in_the_app() {
+    fn rust_files(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                rust_files(&path, out);
+            } else if path.extension().is_some_and(|e| e == "rs") {
+                out.push(path);
+            }
+        }
+    }
+    let mut files = Vec::new();
+    rust_files(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+        &mut files,
+    );
+    assert!(files.len() > 50, "only {} files found", files.len());
+    let mut found = Vec::new();
+    for file in files {
+        let source = std::fs::read_to_string(&file).unwrap();
+        for (n, line) in source.lines().enumerate() {
+            if line.trim_start().starts_with("//") {
+                continue;
+            }
+            let egui_box = line.match_indices("Checkbox").any(|(at, _)| {
+                let before = &line[..at];
+                !before.ends_with("Square") && !before.ends_with("WidgetType::")
+            });
+            if egui_box || line.contains(".checkbox(") {
+                found.push(format!("{}:{}: {}", file.display(), n + 1, line.trim()));
+            }
+        }
+    }
+    assert!(found.is_empty(), "egui checkboxes: {found:#?}");
 }

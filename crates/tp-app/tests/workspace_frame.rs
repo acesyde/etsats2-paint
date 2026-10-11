@@ -359,7 +359,7 @@ fn breadcrumb_while_editing_a_symbol() {
     editing_logo(&mut h);
     assert!(breadcrumb(&h, "Symbol › Logo"));
     // The bar above the canvas with Done stays.
-    assert!(h.query_by_label("Editing symbol Logo").is_some());
+    assert!(h.query_by_label("Editing symbol “Logo”").is_some());
     h.get_by_label("Done").click();
     h.run();
     assert!(!ws(&h).is_editing_symbol());

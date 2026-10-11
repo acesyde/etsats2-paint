@@ -10,6 +10,9 @@ pub struct MenuRow<'a> {
     icon: Option<&'a str>,
     shortcut: Option<&'a str>,
     checked: Option<bool>,
+    /// `Some(open)` for a submenu's title: an arrow at its right end, and
+    /// highlighted while its submenu is open.
+    submenu: Option<bool>,
 }
 
 impl<'a> MenuRow<'a> {
@@ -19,6 +22,7 @@ impl<'a> MenuRow<'a> {
             icon: None,
             shortcut: None,
             checked: None,
+            submenu: None,
         }
     }
 
@@ -35,6 +39,13 @@ impl<'a> MenuRow<'a> {
     /// Makes the row a toggle; a check mark is shown when `true`.
     pub fn checked(mut self, checked: Option<bool>) -> Self {
         self.checked = checked;
+        self
+    }
+
+    /// Makes the row a submenu's title (shown with [`egui::containers::menu::SubMenu`]),
+    /// `open` while its submenu is shown.
+    pub fn submenu(mut self, open: bool) -> Self {
+        self.submenu = Some(open);
         self
     }
 }
@@ -66,13 +77,20 @@ impl Widget for MenuRow<'_> {
             .layout_no_wrap(self.label.to_owned(), body.clone(), color::TEXT_PRIMARY)
             .size()
             .x;
-        let shortcut_width = self.shortcut.map_or(0.0, |s| {
-            ui.painter()
-                .layout_no_wrap(s.to_owned(), small.clone(), color::TEXT_MUTED)
-                .size()
-                .x
-                + space::XL
-        });
+        let arrow = icons::font(size::ICON - 4.0);
+        let arrow_width = if self.submenu.is_some() {
+            space::XL
+        } else {
+            0.0
+        };
+        let shortcut_width = arrow_width
+            + self.shortcut.map_or(0.0, |s| {
+                ui.painter()
+                    .layout_no_wrap(s.to_owned(), small.clone(), color::TEXT_MUTED)
+                    .size()
+                    .x
+                    + space::XL
+            });
         let desired = Vec2::new(
             PAD + leading_width + label_width + shortcut_width + PAD,
             ROW_HEIGHT.max(size::HIT_MIN),
@@ -89,7 +107,8 @@ impl Widget for MenuRow<'_> {
 
         if ui.is_rect_visible(rect) {
             let painter = ui.painter();
-            let highlighted = enabled && (response.hovered() || response.has_focus());
+            let highlighted = enabled
+                && (response.hovered() || response.has_focus() || self.submenu == Some(true));
             if highlighted {
                 painter.rect_filled(rect, radius::MD, color::SURFACE_3);
             }
@@ -129,6 +148,15 @@ impl Widget for MenuRow<'_> {
                     Align2::RIGHT_CENTER,
                     shortcut,
                     small,
+                    fg_weak,
+                );
+            }
+            if self.submenu.is_some() {
+                painter.text(
+                    egui::pos2(rect.right() - PAD, rect.center().y),
+                    Align2::RIGHT_CENTER,
+                    icons::COLLAPSED,
+                    arrow,
                     fg_weak,
                 );
             }

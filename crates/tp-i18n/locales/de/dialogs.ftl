@@ -44,6 +44,7 @@ home-preferences = Einstellungen
 home-recent = Zuletzt verwendete Projekte
 home-recent-empty = Keine zuletzt verwendeten Projekte
 home-recent-empty-hint = Geöffnete Projekte werden hier angezeigt. Erstellen Sie zunächst ein neues Projekt.
+home-recent-empty-create = Erstes Projekt erstellen
 home-recent-missing-item = { $name } (Datei nicht gefunden)
 home-remove-recent = Aus Liste entfernen
 home-file-not-found = Datei nicht gefunden
@@ -150,6 +151,9 @@ custom-row-name = Name der Textur { $n }
 custom-row-role = Rolle der Textur { $n }
 custom-row-width = Breite der Textur { $n }
 custom-row-height = Höhe der Textur { $n }
+custom-row-role-short = Rolle
+custom-row-width-short = Breite
+custom-row-height-short = Höhe
 custom-row-game-ids = Spielkennungen der Textur { $n }
 custom-row-replace = Ersetzen…
 custom-row-replace-name = Vorlage der Textur { $n } ersetzen
@@ -195,14 +199,31 @@ vehicles-trailer = Anhänger
 vehicles-installed = { $name } { $version } installiert
 vehicles-empty = Kein Fahrzeug installiert
 vehicles-empty-hint = Fahrzeugpakete (.tpv) enthalten die Vorlagen eines Lkw oder Anhängers. Installieren Sie eines, um eine Lackierung zu beginnen.
-vehicles-details = Spielversionen { $versions } · { $main } · Zubehör: { $accessories }
+vehicles-details-any-version = Jede Spielversion
+vehicles-details-versions = Spielversionen: { $versions }
+vehicles-details-main = { $count ->
+    [one] Haupttextur
+   *[other] Haupttexturen
+}: { $names }
+vehicles-details-accessories = { $count ->
+    [0] Kein Zubehör
+    [one] { $count } Zubehörteil
+   *[other] { $count } Zubehörteile
+}
 vehicles-version = Version { $version }
 vehicles-remove-version = { $name } { $version } entfernen
 vehicles-remove-confirm = { $name } aus der Bibliothek entfernen? Projekte behalten ihre Vorlagen.
 vehicles-remove = Entfernen
 vehicles-install = Installieren…
 vehicles-install-sample = Beispielfahrzeuge installieren
-vehicles-any-version = jede Version
+
+# Spielversionsbereiche in Worten („>=1.56“ heißt „1.56 oder neuer“).
+version-range-any = jede Version
+version-range-from = { $version } oder neuer
+version-range-until = { $version } oder älter
+version-range-exact = { $version }
+version-range-between = { $from } bis vor { $to }
+
 vehicles-new-version = Neue Version…
 vehicles-new-version-of = Neue Version von { $name }
 vehicles-export-version = { $name } { $version } exportieren
@@ -315,9 +336,12 @@ mod-choose-image = Bild wählen…
 mod-generated-image = Erzeugtes Bild verwenden
 mod-picture-failed = { $file } kann nicht verwendet werden ({ $reason }).
 mod-summary = Im Mod
-mod-summary-cabins = { $texture }: Kabinen { $cabins }
-mod-summary-every-cabin = { $texture }: alle Kabinen
-mod-summary-not-painted = { $texture }: nicht lackiert
+mod-summary-cabins = { $texture } ({ $count ->
+    [one] Kabine
+   *[other] Kabinen
+}: { $cabins })
+mod-summary-every-cabin = { $texture } (alle Kabinen)
+mod-summary-not-painted = { $texture } (nicht lackiert)
 mod-summary-accessories = Zubehör: { $accessories }
 mod-problem-name-empty = Der Mod braucht einen Namen.
 mod-problem-name-invalid = Der Name darf weder ", \ noch Zeilenumbrüche enthalten.
@@ -374,7 +398,7 @@ official-unreadable = { $vehicle }: „{ $file }“ kann nicht gelesen werden ({
 pack-title = { $game }-Vorlagenpaket
 pack-for-vehicle = Zum Installieren von { $vehicle }
 pack-moved = Der Ordner des { $game }-Vorlagenpakets wurde verschoben oder gelöscht. Wählen Sie ihn erneut.
-pack-explanation = Offizielle Fahrzeuge entstehen aus dem kostenlosen Vorlagenpaket von Carsmaniac für { $game }. Es ist etwa 1,2 GB groß und wird einmal für alle Fahrzeuge heruntergeladen.
+pack-explanation = Offizielle Fahrzeuge entstehen aus dem kostenlosen Vorlagenpaket von Carsmaniac für { $game }. Es ist etwa 1,2 GB groß und wird nur einmal heruntergeladen, für alle Fahrzeuge.
 pack-step-download = Laden Sie das Paket aus seinem Forumsthema herunter.
 pack-open-download = Downloadseite öffnen
 pack-copy-link = Link kopieren

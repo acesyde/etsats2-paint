@@ -136,10 +136,17 @@ fn view(ui: &mut Ui, ws: &Workspace) {
 
 /// The active texture's template: shown or hidden (View › Show Template,
 /// G), and its opacity. Neither is recorded in the undo history. Disabled
-/// without a template, or for a texture not in its vehicle's version.
+/// without a template, for a texture not in its vehicle's version, or
+/// while a symbol is edited.
 fn template(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
     let enabled = cmds.enabled(CommandId::ShowTemplate);
-    let template = ws.project.surface().template.clone();
+    // The active texture's, also while one of its symbols is edited (the
+    // settings are then disabled, but keep their values).
+    let template = ws
+        .project
+        .surfaces
+        .get(ws.project.active_surface)
+        .and_then(|s| s.template.clone());
     let visible = template.as_ref().is_some_and(|t| t.visible);
     ui.add_enabled_ui(enabled, |ui| {
         template_switch(ui, cmds, visible);
@@ -158,10 +165,12 @@ fn template(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace) {
             t.opacity = (percent / 100.0).clamp(0.0, 1.0);
             ws.settings_changed = true;
         }
-        item(
-            ui,
-            format!("{} %", tp_i18n::format_number(f64::from(percent), 0)),
-        );
+        // No value without a template.
+        let value = match template {
+            Some(_) => format!("{} %", tp_i18n::format_number(f64::from(percent), 0)),
+            None => "—".to_owned(),
+        };
+        item(ui, value);
         if let Some(key) = cmds.shortcuts.command(CommandId::ShowTemplate) {
             ui.label(
                 RichText::new(key)

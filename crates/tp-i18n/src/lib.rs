@@ -182,8 +182,7 @@ fn format_in(language: Language, id: &str, args: Option<&FluentArgs<'_>>) -> Opt
     })
 }
 
-fn format(id: &str, args: Option<&FluentArgs<'_>>) -> String {
-    let language = current();
+fn format(language: Language, id: &str, args: Option<&FluentArgs<'_>>) -> String {
     if let Some(text) = format_in(language, id, args) {
         return text;
     }
@@ -200,20 +199,44 @@ fn format(id: &str, args: Option<&FluentArgs<'_>>) -> String {
     id.to_owned()
 }
 
+/// Message `id` without arguments in `language` (English when missing
+/// there), not lengthened; cached.
+fn plain_in(language: Language, id: &str) -> String {
+    let key = (language, id.to_owned());
+    if let Some(hit) = CACHE.with(|c| c.borrow().get(&key).cloned()) {
+        return hit;
+    }
+    let text = format(language, id, None);
+    CACHE.with(|c| c.borrow_mut().insert(key, text.clone()));
+    text
+}
+
 /// Message `id` in the current language (English when missing there).
 pub fn tr(id: &str) -> String {
-    let key = (current(), id.to_owned());
-    if let Some(hit) = CACHE.with(|c| c.borrow().get(&key).cloned()) {
-        return lengthened(hit);
+    lengthened(plain_in(current(), id))
+}
+
+/// Message `id` in every supported language, then in the current one as
+/// shown (lengthened in the long-text mode), each text once. Used to
+/// recognize a text written in another language, such as an object's
+/// default name.
+pub fn tr_all(id: &str) -> Vec<String> {
+    let mut all: Vec<String> = Vec::with_capacity(Language::ALL.len() + 1);
+    for text in Language::ALL
+        .into_iter()
+        .map(|l| plain_in(l, id))
+        .chain([tr(id)])
+    {
+        if !all.contains(&text) {
+            all.push(text);
+        }
     }
-    let text = format(id, None);
-    CACHE.with(|c| c.borrow_mut().insert(key, text.clone()));
-    lengthened(text)
+    all
 }
 
 /// Message `id` with arguments, in the current language.
 pub fn tr_args(id: &str, args: &FluentArgs<'_>) -> String {
-    lengthened(format(id, Some(args)))
+    lengthened(format(current(), id, Some(args)))
 }
 
 /// Whether message `id` exists in English (the source language).

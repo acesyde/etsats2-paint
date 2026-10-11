@@ -1,6 +1,7 @@
 //! Professional widgets built from the design tokens.
 
 mod buttons;
+mod checkbox;
 mod color_widgets;
 mod empty_state;
 mod gradient_bar;
@@ -16,6 +17,7 @@ pub use buttons::{
     IconButton, SWITCH_SIZE, chip_toggle, dropdown_icon, more_menu, paint_dropdown_arrow,
     paint_switch, primary_button, secondary_button, secondary_icon_button, toggle_icon_button,
 };
+pub use checkbox::{CHECK_BOX_SIZE, SquareCheckbox, paint_check_box};
 pub use color_widgets::{
     ColorSwatch, FillOrStroke, FillStrokeSwatches, GradientPreview, Hsv, PREVIEW_STOPS,
     SwatchColor, alpha_slider, hue_slider, paint_checkerboard, sv_square,
@@ -23,14 +25,16 @@ pub use color_widgets::{
 pub use empty_state::EmptyState;
 pub use gradient_bar::{GradientBar, GradientBarEvent, keyboard_claimed};
 pub use menu_row::MenuRow;
-pub use numeric_field::{FieldEvent, NumericField, parse_number, remember_escape, take_escape};
+pub use numeric_field::{
+    FieldEvent, NumericField, label_column, parse_number, remember_escape, take_escape,
+};
 pub use paint_row::{PAINT_ROW_HEIGHT, PaintRow, PaintRowResponse};
 pub use popover::Popover;
 pub use segmented::{Segment, SegmentedControl};
 pub use thin_slider::ThinSlider;
 pub use tool_button::ToolButton;
 
-use egui::{CornerRadius, Rect, Response, Stroke, StrokeKind, Ui};
+use egui::{CornerRadius, Rect, Response, Stroke, StrokeKind, Ui, WidgetText};
 
 use crate::tokens::{color, stroke};
 
@@ -63,6 +67,26 @@ pub fn thumbnail_place(tile: Rect, size: egui::Vec2) -> (Rect, Rect) {
         let uv = Rect::from_center_size(egui::pos2(0.5, 0.5), egui::vec2(1.0, shown));
         (tile, uv)
     }
+}
+
+/// A single-line label at most `width` wide (capped at the room left): a
+/// longer text ends with "…" and shows in full in a tooltip, and is never
+/// cut mid-letter or wrapped. Its accessible name is the full text.
+pub fn truncated_label(ui: &mut Ui, text: impl Into<WidgetText>, width: f32) -> Response {
+    let width = width.min(ui.available_width()).max(0.0);
+    // A scope in the same layout, narrowed: the label sits where any other
+    // widget would (centered in a row, on the right in a right-to-left one).
+    ui.scope(|ui| {
+        ui.set_max_width(width);
+        // egui's truncation shows the full text on hover when elided.
+        ui.add(
+            egui::Label::new(text)
+                .truncate()
+                .show_tooltip_when_elided(true)
+                .selectable(false),
+        )
+    })
+    .inner
 }
 
 /// Paints the keyboard focus ring around `rect` when `response` has focus.

@@ -12,6 +12,9 @@ use crate::tokens::{color, radius, size, space, stroke, typography};
 /// Height of a paint row.
 pub const PAINT_ROW_HEIGHT: f32 = 32.0;
 
+/// The narrowest a shortened summary gets ("12 p…").
+const SUMMARY_MIN: f32 = 48.0;
+
 /// One row of the inspector's Appearance section (Fill, Stroke): the
 /// paint's swatch, the row's name and its value ("#5B8DEF", a linked
 /// swatch's name, "Linear", "Mixed"). The swatch side opens the color
@@ -27,6 +30,8 @@ pub struct PaintRow<'a> {
     label: &'a str,
     name: &'a str,
     value: &'a str,
+    tail: &'a str,
+    text_face: bool,
     linked: bool,
     target: bool,
     summary: Option<(&'a str, &'a str)>,
@@ -55,6 +60,8 @@ impl<'a> PaintRow<'a> {
             label,
             name,
             value: "",
+            tail: "",
+            text_face: false,
             linked: false,
             target: false,
             summary: None,
@@ -67,6 +74,20 @@ impl<'a> PaintRow<'a> {
     pub fn value(mut self, value: &'a str, linked: bool) -> Self {
         self.value = value;
         self.linked = linked;
+        self
+    }
+
+    /// The end of the value ("· blur 16"), always shown whole after it:
+    /// the value is shortened first when they don't both fit.
+    pub fn value_tail(mut self, tail: &'a str) -> Self {
+        self.tail = tail;
+        self
+    }
+
+    /// Sets the value in the interface face instead of the monospace one:
+    /// a value made of words and numbers ("x 8 · y 8 · blur 8").
+    pub fn text_face(mut self) -> Self {
+        self.text_face = true;
         self
     }
 
@@ -102,6 +123,11 @@ impl<'a> PaintRow<'a> {
             Sense::hover(),
         );
         let mono = egui::FontId::monospace(typography::CAPTION);
+        let value_font = if self.text_face {
+            egui::FontId::proportional(typography::CAPTION + 1.0)
+        } else {
+            mono.clone()
+        };
 
         // The action button at the very end, then the summary before it.
         let action_rect = self.action.map(|_| {
@@ -115,12 +141,58 @@ impl<'a> PaintRow<'a> {
         });
         let end = action_rect.map_or(row.right() - 2.0, |r| r.left() - 2.0);
 
+        // The room the value needs at the swatch side's end (its name, then
+        // the value and its link icon): the value comes before the summary,
+        // which is shortened first.
+        let body = TextStyle::Body.resolve(ui.style());
+        let name_x = row.left() + space::SM + 20.0 + space::SM + 2.0;
+        let value_left = name_x
+            + ui.painter()
+                .layout_no_wrap(self.label.to_owned(), body.clone(), color::TEXT_PRIMARY)
+                .size()
+                .x
+            + space::SM;
+        let value_width = if self.value.is_empty() {
+            0.0
+        } else {
+            let text = ui.painter().layout_no_wrap(
+                self.value.to_owned(),
+                value_font.clone(),
+                color::TEXT_SECONDARY,
+            );
+            let tail = if self.tail.is_empty() {
+                0.0
+            } else {
+                ui.painter()
+                    .layout_no_wrap(
+                        self.tail.to_owned(),
+                        value_font.clone(),
+                        color::TEXT_SECONDARY,
+                    )
+                    .size()
+                    .x
+                    + space::XS
+            };
+            text.size().x + tail + if self.linked { 14.0 } else { 0.0 }
+        };
+        let summary_room = end - (value_left + value_width + space::SM);
+
         // The summary first: the swatch side takes what is left.
         let summary = self.summary.map(|(text, name)| {
-            let galley =
-                ui.painter()
-                    .layout_no_wrap(text.to_owned(), mono.clone(), color::TEXT_SECONDARY);
-            let width = galley.size().x + 2.0 * space::SM;
+            let natural = ui
+                .painter()
+                .layout_no_wrap(text.to_owned(), mono.clone(), color::TEXT_SECONDARY)
+                .size()
+                .x
+                + 2.0 * space::SM;
+            let width = natural.min(summary_room.max(SUMMARY_MIN));
+            let mut job = egui::text::LayoutJob::simple_singleline(
+                text.to_owned(),
+                mono.clone(),
+                color::TEXT_SECONDARY,
+            );
+            job.wrap = egui::text::TextWrapping::truncate_at_width(width - 2.0 * space::SM);
+            let galley = ui.fonts_mut(|f| f.layout_job(job));
             let rect = Rect::from_min_max(
                 egui::pos2(end - width, row.top() + 3.0),
                 egui::pos2(end, row.bottom() - 3.0),
@@ -135,7 +207,13 @@ impl<'a> PaintRow<'a> {
                 info.current_text_value = Some(text.to_owned());
                 info
             });
-            (rect, galley, response.on_hover_text(name))
+            // A shortened summary reads in full on hover.
+            let hover = if galley.elided {
+                format!("{name}\n{text}")
+            } else {
+                name.to_owned()
+            };
+            (rect, galley, response.on_hover_text(hover))
         });
         let swatch_side = match &summary {
             Some((rect, ..)) => Rect::from_min_max(row.min, egui::pos2(rect.left(), row.max.y)),
@@ -152,7 +230,11 @@ impl<'a> PaintRow<'a> {
         swatch.widget_info(|| {
             let mut info = WidgetInfo::selected(WidgetType::Button, true, self.target, self.name);
             if !self.value.is_empty() {
-                info.current_text_value = Some(self.value.to_owned());
+                info.current_text_value = Some(if self.tail.is_empty() {
+                    self.value.to_owned()
+                } else {
+                    format!("{} {}", self.value, self.tail)
+                });
             }
             info
         });
@@ -176,6 +258,19 @@ impl<'a> PaintRow<'a> {
                 Vec2::splat(20.0),
             );
             paint_swatch(painter, chip, self.swatch);
+            // A very dark color would read as an empty box on the panel: a
+            // light ring inside the chip shows it is a color.
+            if let SwatchColor::Solid(c) = self.swatch
+                && c.a() >= 128
+                && crate::contrast::contrast_ratio(c.to_opaque(), color::SURFACE_1) < 1.4
+            {
+                painter.rect_stroke(
+                    chip.shrink(2.0),
+                    CornerRadius::same(radius::SM.saturating_sub(1)),
+                    Stroke::new(stroke::HAIRLINE, color::TEXT_DISABLED),
+                    StrokeKind::Inside,
+                );
+            }
             painter.rect_stroke(
                 chip,
                 CornerRadius::same(radius::SM),
@@ -186,8 +281,6 @@ impl<'a> PaintRow<'a> {
 
             // Name, then the value at the right end of the swatch side,
             // shortened when it does not fit.
-            let body = TextStyle::Body.resolve(ui.style());
-            let name_x = chip.right() + space::SM + 2.0;
             let name = painter.layout_no_wrap(self.label.to_owned(), body, color::TEXT_PRIMARY);
             let name_width = name.size().x;
             painter.galley(
@@ -208,9 +301,22 @@ impl<'a> PaintRow<'a> {
                 if self.linked {
                     max -= 14.0;
                 }
+                // The tail whole at the end, the value shortened before it.
+                if !self.tail.is_empty() {
+                    let tail =
+                        ui.painter()
+                            .layout_no_wrap(self.tail.to_owned(), value_font.clone(), ink);
+                    let pos =
+                        egui::pos2(x_end - tail.size().x, row.center().y - tail.size().y / 2.0);
+                    let gap = tail.size().x + space::XS;
+                    ui.painter().galley(pos, tail, ink);
+                    x_end -= gap;
+                    max -= gap;
+                }
                 if max > 8.0 {
-                    let text =
-                        WidgetText::from(egui::RichText::new(self.value).font(mono).color(ink));
+                    let text = WidgetText::from(
+                        egui::RichText::new(self.value).font(value_font).color(ink),
+                    );
                     let galley = text.into_galley(
                         ui,
                         Some(TextWrapMode::Truncate),

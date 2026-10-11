@@ -268,11 +268,15 @@ fn look_controls(ui: &mut Ui, f: &mut Fields, before: &Look, after: Look) -> Opt
         changed = true;
     }
 
+    // Width and Opacity, their boxes under each other.
+    let (width_label, opacity_label) = (tr("field-width"), tr("props-opacity"));
+    let column = tp_ui::widgets::label_column(ui, &[&width_label, &opacity_label]);
     ui.horizontal(|ui| {
         let width = look.stroke.map(|s| s.width);
         let e = ui
             .add_enabled_ui(look.stroke.is_some(), |ui| {
-                NumericField::new(&tr("field-width"), &tr("stroke-width"), width)
+                NumericField::new(&width_label, &tr("stroke-width"), width)
+                    .label_width(column)
                     .suffix("px")
                     .decimals(1)
                     .speed(0.5)
@@ -297,7 +301,8 @@ fn look_controls(ui: &mut Ui, f: &mut Fields, before: &Look, after: Look) -> Opt
 
     ui.horizontal(|ui| {
         let opacity = f64::from(look.opacity) * 100.0;
-        let e = NumericField::new(&tr("props-opacity"), &tr("props-opacity"), Some(opacity))
+        let e = NumericField::new(&opacity_label, &tr("props-opacity"), Some(opacity))
+            .label_width(column)
             .suffix("%")
             .range(0.0..=100.0)
             .width(36.0)

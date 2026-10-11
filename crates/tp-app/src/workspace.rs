@@ -1020,9 +1020,9 @@ pub fn convert_paint(paint: Paint, kind: PaintKind) -> Paint {
     }
 }
 
-/// Default name of a new object of `kind`, in the current language.
-pub fn object_name(kind: ShapeKind) -> String {
-    tr(match kind {
+/// The message naming objects of `kind`.
+fn object_key(kind: ShapeKind) -> &'static str {
+    match kind {
         ShapeKind::Rectangle { .. } => "object-rectangle",
         ShapeKind::Ellipse => "object-ellipse",
         ShapeKind::Polygon { .. } => "object-polygon",
@@ -1031,7 +1031,21 @@ pub fn object_name(kind: ShapeKind) -> String {
         ShapeKind::Text => "object-text",
         ShapeKind::Image { .. } => "object-image",
         ShapeKind::Instance { .. } => "object-instance",
-    })
+    }
+}
+
+/// Default name of a new object of `kind`, in the current language.
+pub fn object_name(kind: ShapeKind) -> String {
+    tr(object_key(kind))
+}
+
+/// Whether `name` is a default name of `kind` in any supported language
+/// (or the core's English name), so a document made in one language reads
+/// the same in another. Stored names are never changed for this.
+pub fn is_default_name(kind: ShapeKind, name: &str) -> bool {
+    name == kind.name()
+        || name == object_name(kind)
+        || tp_i18n::tr_all(object_key(kind)).iter().any(|n| n == name)
 }
 
 /// The number of a layer named like "Layer 3" in the current language.
@@ -1227,6 +1241,25 @@ mod tests {
         let s = ws.selected_objects()[0].stroke.unwrap();
         assert_eq!(s.align, tp_core::document::StrokeAlign::Inside);
         assert_eq!(s.paint, Paint::Solid(Rgba::rgb(9, 9, 9)));
+    }
+
+    #[test]
+    fn default_names_in_any_language() {
+        tp_i18n::set_language(tp_i18n::Language::French);
+        for name in ["Text", "Texte", "Texto"] {
+            assert!(is_default_name(ShapeKind::Text, name), "{name}");
+        }
+        assert!(!is_default_name(ShapeKind::Text, "ACE"));
+        // Another kind's default name is not this kind's.
+        assert!(!is_default_name(ShapeKind::Text, "Rectangle"));
+        assert!(is_default_name(ShapeKind::rectangle(), "Rechteck"));
+        // The name shown in the long-text mode.
+        tp_i18n::set_language(tp_i18n::Language::English);
+        tp_i18n::set_lengthening(40);
+        let long = object_name(ShapeKind::Text);
+        let default = is_default_name(ShapeKind::Text, &long);
+        tp_i18n::set_lengthening(0);
+        assert!(long.len() > "Text".len() && default, "{long}");
     }
 
     #[test]

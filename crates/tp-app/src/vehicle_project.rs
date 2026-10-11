@@ -412,7 +412,7 @@ pub fn scale_objects(objects: &[Object], old: Size, new: Size) -> Vec<Object> {
 }
 
 /// The other main textures of the vehicle surface `index` is a main
-/// texture of: the cabins Copy From Cabin can copy from.
+/// texture of: the cabins Copy from Cabin can copy from.
 pub fn cabin_sources(project: &Project, index: usize) -> Vec<usize> {
     let main_of = |i: usize| {
         project.surfaces[i]

@@ -242,7 +242,8 @@ fn no_network_needed() {
             "{name}"
         );
     }
-    // A single section: no headers. The sample vehicles stay offered.
+    // A single section keeps its header. The sample vehicles stay offered.
+    assert!(h.query_by_label("Official").is_some());
     assert!(h.query_by_label("Installed").is_none());
     assert!(h.query_by_label("Install the sample vehicles").is_some());
     // No crate that lists or builds official vehicles depends on a network
@@ -263,7 +264,7 @@ fn no_vehicle_installed_for_ats() {
     new_project(&mut h);
     h.get_by_label("American Truck Simulator").click();
     settle(&mut h);
-    for label in ["Install…", "Install the sample vehicles", "Custom vehicle…"] {
+    for label in ["Install…", "Install the sample vehicles", "Custom Vehicle…"] {
         assert!(h.query_by_label(label).is_some(), "{label}");
     }
     assert!(h.query_by_label("DAF NGD").is_none());
@@ -289,7 +290,8 @@ fn an_installed_official_vehicle_is_listed_once() {
             .count(),
         1
     );
-    // Only the Official section: no headers.
+    // Only the Official section, under its header.
+    assert!(h.query_by_label("Official").is_some());
     assert!(h.query_by_label("Installed").is_none());
     let rows = tp_app::ui::vehicle_dialogs::vehicle_rows(
         &h.state().vehicles,
@@ -405,10 +407,16 @@ fn wrong_folder() {
     h.get_by_label("Choose the pack folder…").click();
     settle(&mut h);
     assert!(pack_dialog_open(&h));
-    assert!(
-        h.query_by_label("This folder doesn't hold the ETS2 template pack.")
-            .is_some()
-    );
+    // Under step 3, its icon lined up with the step's text.
+    let refusal = h
+        .get_by_label("This folder doesn't hold the ETS2 template pack.")
+        .rect();
+    let step = h
+        .get_by_label("Choose the unzipped folder, or drop it on this window.")
+        .rect();
+    let button = h.get_by_label("Choose the pack folder…").rect();
+    assert!(refusal.left() > step.left() + 10.0, "{refusal:?} {step:?}");
+    assert!(refusal.top() > button.bottom());
     assert!(h.state().prefs.template_packs.is_empty());
 }
 

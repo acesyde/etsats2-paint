@@ -146,7 +146,7 @@ pub enum Modal {
     AddVehicle(crate::ui::vehicle_dialogs::AddVehicleDialog),
     /// The textures a project's vehicle paints.
     Textures(crate::ui::vehicle_dialogs::TexturesDialog),
-    /// Copy From Cabin: the main texture to copy the artwork of.
+    /// Copy from Cabin: the main texture to copy the artwork of.
     CopyFromCabin(crate::ui::vehicle_dialogs::CopyFromCabinDialog),
     /// Custom Vehicle dialog (or New Version…), over the dialog it came
     /// from.

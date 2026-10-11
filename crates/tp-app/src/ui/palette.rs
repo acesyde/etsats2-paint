@@ -270,7 +270,11 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, palette: &mut Palette) ->
 
             let items = items(state, &shortcuts, palette.textures_only);
             let entries: Vec<Entry> = items.iter().map(|i| i.entry.clone()).collect();
-            let rows = palette::rows(&entries, &palette.query, &state.palette_recent);
+            let mut rows = palette::rows(&entries, &palette.query, &state.palette_recent);
+            // Textures only: the results keep their single section's heading.
+            if palette.textures_only && !rows.is_empty() && rows[0].entry().is_some() {
+                rows.insert(0, Row::Heading("palette-heading-textures"));
+            }
             let shown = (palette.query.clone(), palette.textures_only);
             if palette.shown.as_ref() != Some(&shown) {
                 palette.shown = Some(shown);

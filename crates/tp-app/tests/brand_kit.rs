@@ -1,5 +1,5 @@
 //! Headless tests for the brand kit: linked palette swatches and Edit
-//! Swatch…, the Styles section, and Copy From Cabin….
+//! Swatch…, the Styles section, and Copy from Cabin….
 
 mod common;
 

@@ -281,7 +281,7 @@ symbols-delete-confirm = ¿Eliminar { $name }? { $count ->
    *[other] Sus { $count } instancias se convierten en grupos idénticos.
  }
 symbols-name = Nombre del símbolo
-symbol-bar-editing = Editando el símbolo { $name }
+symbol-bar-editing = Editando el símbolo «{ $name }»
 symbol-bar-done = Hecho
 props-instance-of = Instancia de { $name }
 instance-look-in-symbol = Una instancia muestra su símbolo: edite el símbolo para cambiar su aspecto, o separe la instancia.
@@ -305,6 +305,7 @@ inspector-new-objects = Objetos nuevos
 inspector-hint = Seleccione un objeto para ajustar su disposición, relleno y trazo.
 inspector-main-texture = Textura principal
 inspector-accessory-texture = Textura de accesorio
+inspector-symbol = Símbolo
 inspector-texture-kind = { $kind } · { $size }
 inspector-on-texture = En esta textura
 inspector-in-symbol = En este símbolo
@@ -345,7 +346,7 @@ vehicle-textures-named = Texturas de { $name }
 project-texture-main = Principal
 project-texture-accessory = Accesorio
 project-mod-information = Información del mod
-project-picture-generated = Generada a partir de la primera textura principal
+project-picture-generated = Creada con la primera textura principal
 project-cabin-ids = Nombres internos: { $ids }
 project-texture-states = { $modified ->
     [0] {""}
@@ -414,7 +415,8 @@ styles-name-taken = Otro estilo gráfico ya tiene este nombre.
 ## Drop shadow
 inspector-add-shadow = + Añadir una sombra
 inspector-shadow = Sombra
-inspector-shadow-summary = { $x } / { $y } · { $blur }
+inspector-shadow-summary = x { $x } · y { $y }
+inspector-shadow-summary-blur = · desenfoque { $blur }
 inspector-shadow-summary-full = Desplazamiento { $x } / { $y }, desenfoque { $blur }
 inspector-shadow-remove = Quitar sombra
 shadow-opacity = Opacidad de la sombra

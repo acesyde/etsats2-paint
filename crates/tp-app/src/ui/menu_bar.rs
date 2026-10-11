@@ -82,7 +82,15 @@ fn menu_contents(
                 min_width,
                 entries,
             } => {
-                ui.menu_button(tr(title), |ui| {
+                // A row like the others (inset, height, font), with an
+                // arrow, opening its submenu on hover or click.
+                use egui::containers::menu::{MenuState, SubMenu};
+                let open = MenuState::from_ui(ui, |state, _| {
+                    state.open_item == Some(SubMenu::id_from_widget_id(ui.next_auto_id()))
+                });
+                let title = tr(title);
+                let row = ui.add(tp_ui::widgets::MenuRow::new(&title).submenu(open));
+                SubMenu::new().show(ui, &row, |ui| {
                     ui.set_min_width(*min_width);
                     menu_contents(ui, cmds, entries, layout, aids);
                 });

@@ -1,12 +1,12 @@
 //! Dash, cap and join controls, shared by the Stroke panel (outlines of
 //! shapes and texts) and the inspector's Appearance section (lines).
 
-use egui::{Checkbox, Ui, WidgetInfo, WidgetType};
+use egui::{Ui, WidgetInfo, WidgetType};
 use tp_core::document::{Cap, Dash, Join, LineStyle};
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::tokens::color;
-use tp_ui::widgets::{FieldEvent, MenuRow, NumericField, SegmentedControl};
+use tp_ui::widgets::{FieldEvent, MenuRow, NumericField, SegmentedControl, SquareCheckbox};
 
 use super::properties::common;
 
@@ -148,8 +148,9 @@ pub fn controls(ui: &mut Ui, styles: &[LineStyle], last: Dash) -> Option<Change>
     ui.horizontal(|ui| {
         let on = dashed == Some(true);
         let mut checked = on;
-        let response =
-            ui.add(Checkbox::new(&mut checked, tr("line-dashed")).indeterminate(dashed.is_none()));
+        let response = ui.add(
+            SquareCheckbox::new(&mut checked, tr("line-dashed")).indeterminate(dashed.is_none()),
+        );
         response.widget_info(|| {
             WidgetInfo::selected(WidgetType::Checkbox, true, on, tr("line-dashed"))
         });

@@ -313,8 +313,10 @@ fn entry_row(
         |ui| {
             preview(ui, dialog, entry);
             let mut checked = in_project || dialog.checked.contains(&entry.key);
-            let response =
-                ui.add_enabled(!in_project, egui::Checkbox::new(&mut checked, &entry.name));
+            let response = ui.add_enabled(
+                !in_project,
+                tp_ui::widgets::SquareCheckbox::new(&mut checked, &entry.name),
+            );
             if response.changed() {
                 if checked {
                     dialog.checked.insert(entry.key.clone());

@@ -294,7 +294,10 @@ fn settings_ui(ui: &mut Ui, settings: &mut ExportSettings, texture: tp_core::kur
     ui.horizontal(|ui| {
         let mut transparent = settings.background.is_none();
         if ui
-            .checkbox(&mut transparent, tr("export-transparent"))
+            .add(tp_ui::widgets::SquareCheckbox::new(
+                &mut transparent,
+                tr("export-transparent"),
+            ))
             .changed()
         {
             settings.background = if transparent {

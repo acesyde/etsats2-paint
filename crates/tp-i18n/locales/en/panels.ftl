@@ -282,7 +282,7 @@ symbols-delete-confirm = Delete { $name }? { $count ->
    *[other] Its { $count } instances become groups that look the same.
 }
 symbols-name = Symbol name
-symbol-bar-editing = Editing symbol { $name }
+symbol-bar-editing = Editing symbol “{ $name }”
 symbol-bar-done = Done
 props-instance-of = Instance of { $name }
 instance-look-in-symbol = An instance shows its symbol: edit the symbol to change its look, or detach the instance.
@@ -306,6 +306,7 @@ inspector-new-objects = New objects
 inspector-hint = Select an object to set its layout, fill and stroke.
 inspector-main-texture = Main texture
 inspector-accessory-texture = Accessory texture
+inspector-symbol = Symbol
 inspector-texture-kind = { $kind } · { $size }
 inspector-on-texture = On this texture
 inspector-in-symbol = In this symbol
@@ -414,7 +415,8 @@ styles-name-taken = Another graphic style already has this name.
 ## Drop shadow
 inspector-add-shadow = + Add a shadow
 inspector-shadow = Shadow
-inspector-shadow-summary = { $x } / { $y } · { $blur }
+inspector-shadow-summary = x { $x } · y { $y }
+inspector-shadow-summary-blur = · blur { $blur }
 inspector-shadow-summary-full = Offset { $x } / { $y }, blur { $blur }
 inspector-shadow-remove = Remove shadow
 shadow-opacity = Shadow opacity
