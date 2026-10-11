@@ -205,3 +205,51 @@ fn check_lists_problems_and_unused_files() {
         ]
     );
 }
+
+#[test]
+fn accented_folder_found_in_either_unicode_form() {
+    let mut e = entry();
+    e.folder = "K\u{f6}gel Cargo".into();
+    let dir = tempfile::tempdir().unwrap();
+    let vehicle = dir.path().join("Ko\u{308}gel Cargo");
+    write(&vehicle.join("Reefer.png"), &png(128, 64));
+    write(&vehicle.join("Accessories/Box.png"), &png(64, 64));
+    assert_eq!(
+        find_pack_of(dir.path(), &[&e]),
+        Some(dir.path().to_path_buf())
+    );
+    build(&e, dir.path()).expect("built from the decomposed folder");
+    let report = check(dir.path(), &[&e]);
+    assert_eq!(report.problems, Vec::<String>::new());
+    assert_eq!(report.unused, Vec::<String>::new());
+}
+
+#[test]
+fn macos_resource_files_ignored() {
+    let e = entry();
+    let dir = tempfile::tempdir().unwrap();
+    pack(dir.path());
+    write(
+        &dir.path().join("Brand Reefer/Accessories/._Box.png"),
+        b"not a png",
+    );
+    let report = check(dir.path(), &[&e]);
+    assert_eq!(report.problems, Vec::<String>::new());
+    assert_eq!(report.unused, Vec::<String>::new());
+}
+
+#[test]
+fn shared_folder_file_used_by_another_entry_is_not_unused() {
+    let r = entry();
+    let mut s = entry();
+    s.path = "brand.reefer_s".into();
+    s.name = "Reefer S".into();
+    s.main[0].file = "S Reefer.png".into();
+    let dir = tempfile::tempdir().unwrap();
+    pack(dir.path());
+    write(&dir.path().join("Brand Reefer/S Reefer.png"), &png(128, 64));
+    write(&dir.path().join("Brand Reefer/Spare.png"), &png(64, 64));
+    let report = check(dir.path(), &[&r, &s]);
+    assert_eq!(report.problems, Vec::<String>::new());
+    assert_eq!(report.unused, ["Brand Reefer/Spare.png"]);
+}

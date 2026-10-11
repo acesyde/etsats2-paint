@@ -431,6 +431,17 @@ pub fn manifest_from_value(value: &Value) -> Result<Manifest, PackageError> {
     Manifest::deserialize(value).map_err(|e| PackageError::BadManifest(e.to_string()))
 }
 
+/// `name` for comparing names whatever their Unicode form or case:
+/// decomposed, without combining marks, lowercase (`Kögel` → `kogel`).
+pub fn fold(name: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    use unicode_normalization::char::is_combining_mark;
+    name.nfd()
+        .filter(|c| !is_combining_mark(*c))
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
 /// Lowercase words separated by dots, at least two.
 pub fn is_valid_id(id: &str) -> bool {
     let words: Vec<&str> = id.split('.').collect();

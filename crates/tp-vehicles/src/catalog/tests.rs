@@ -234,3 +234,34 @@ fn the_first_catalog() {
         ])
     );
 }
+
+#[test]
+fn entries_sort_by_brand_then_name_ignoring_accents() {
+    let named = |brand: &str, name: &str| Entry {
+        brand: brand.to_owned(),
+        name: name.to_owned(),
+        ..inline_entry()
+    };
+    let all = [
+        named("SCS", "SCS Box Trailer"),
+        named("Krone", "Krone Dry Liner"),
+        named("Kögel", "Kögel Cargo"),
+        named("Schwarzmüller", "Schwarzmüller Platform"),
+        named("Kässbohrer", "Kässbohrer K.STC"),
+        named("Krone", "Krone Cool Liner"),
+    ];
+    let mut entries: Vec<&Entry> = all.iter().collect();
+    sort(&mut entries);
+    let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
+    assert_eq!(
+        names,
+        [
+            "Kässbohrer K.STC",
+            "Kögel Cargo",
+            "Krone Cool Liner",
+            "Krone Dry Liner",
+            "Schwarzmüller Platform",
+            "SCS Box Trailer",
+        ]
+    );
+}

@@ -335,12 +335,19 @@ pub fn embedded() -> &'static [Entry] {
     })
 }
 
-/// The complete embedded entries of `game`.
+/// The complete embedded entries of `game`, sorted by brand then name.
 pub fn entries(game: Game) -> Vec<&'static Entry> {
-    embedded()
+    let mut out: Vec<&Entry> = embedded()
         .iter()
         .filter(|e| e.game == game && completeness(e).is_empty())
-        .collect()
+        .collect();
+    sort(&mut out);
+    out
+}
+
+/// Sorts `entries` by brand then name, ignoring case and accents.
+pub fn sort(entries: &mut [&Entry]) {
+    entries.sort_by_cached_key(|e| (crate::fold(&e.brand), crate::fold(&e.name)));
 }
 
 /// The embedded entry whose package id is `id`.

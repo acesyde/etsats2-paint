@@ -24,7 +24,7 @@ pub fn find_pack(folder: &Path, game: Game) -> Option<PathBuf> {
 
 /// [`find_pack`] for the vehicles `entries`.
 pub fn find_pack_of(folder: &Path, entries: &[&Entry]) -> Option<PathBuf> {
-    let holds = |dir: &Path| entries.iter().any(|e| dir.join(&e.folder).is_dir());
+    let holds = |dir: &Path| entries.iter().any(|e| vehicle_dir(dir, e).is_some());
     if holds(folder) {
         return Some(folder.to_path_buf());
     }
@@ -36,6 +36,34 @@ pub fn find_pack_of(folder: &Path, entries: &[&Entry]) -> Option<PathBuf> {
         .collect();
     inside.sort();
     inside.into_iter().find(|dir| holds(dir))
+}
+
+/// The entry `name` of `parent`: `parent/name` when it exists, else the
+/// entry whose name is the same once folded (`Kögel` composed or
+/// decomposed, as unzip tools differ).
+fn resolve(parent: &Path, name: &str) -> Option<PathBuf> {
+    let exact = parent.join(name);
+    if exact.exists() {
+        return Some(exact);
+    }
+    let folded = tp_vehicles::fold(name);
+    std::fs::read_dir(parent)
+        .ok()?
+        .flatten()
+        .find(|e| tp_vehicles::fold(&e.file_name().to_string_lossy()) == folded)
+        .map(|e| e.path())
+}
+
+/// The file `file` (`/`-separated) under `dir`, each part resolved as
+/// [`resolve`] does.
+fn resolve_file(dir: &Path, file: &str) -> Option<PathBuf> {
+    file.split('/')
+        .try_fold(dir.to_path_buf(), |p, part| resolve(&p, part))
+}
+
+/// The folder of `entry` in the pack `pack`.
+fn vehicle_dir(pack: &Path, entry: &Entry) -> Option<PathBuf> {
+    resolve(pack, &entry.folder).filter(|d| d.is_dir())
 }
 
 /// Why an official vehicle could not be built from the pack. Each names
@@ -112,12 +140,6 @@ fn png_size(bytes: &[u8]) -> Option<(u32, u32)> {
     Some((w as u32, h as u32))
 }
 
-/// The path of `file` (`/`-separated) in `dir`.
-fn join(dir: &Path, file: &str) -> PathBuf {
-    file.split('/')
-        .fold(dir.to_path_buf(), |p, part| p.join(part))
-}
-
 /// Reads texture file `file` of `entry` from its folder `dir`, checking
 /// it is a PNG of `size`.
 fn read_texture(
@@ -126,13 +148,12 @@ fn read_texture(
     file: &str,
     size: TextureSize,
 ) -> Result<Vec<u8>, CatalogError> {
-    let path = join(dir, file);
-    if !path.is_file() {
+    let Some(path) = resolve_file(dir, file).filter(|p| p.is_file()) else {
         return Err(CatalogError::MissingFile {
             vehicle: entry.name.clone(),
             file: file.to_owned(),
         });
-    }
+    };
     let unreadable = |reason: String| CatalogError::Unreadable {
         vehicle: entry.name.clone(),
         file: file.to_owned(),
@@ -166,13 +187,12 @@ pub fn build_with(
     progress: &mut dyn FnMut(usize, usize),
     cancel: &AtomicBool,
 ) -> Result<Packed, CatalogError> {
-    let dir = pack.join(&entry.folder);
-    if !dir.is_dir() {
+    let Some(dir) = vehicle_dir(pack, entry) else {
         return Err(CatalogError::NoVehicleFolder {
             vehicle: entry.name.clone(),
-            folder: dir,
+            folder: pack.join(&entry.folder),
         });
-    }
+    };
     let total = entry.textures().count();
     let mut files = BTreeMap::new();
     for (done, t) in entry.textures().enumerate() {
@@ -218,8 +238,9 @@ pub struct CheckReport {
     pub checked: Vec<String>,
     /// Problems, each starting with the vehicle's name.
     pub problems: Vec<String>,
-    /// PNG files of the checked vehicles' folders no entry uses, relative
-    /// to the pack (`Krone Cool Liner/Accessories/…png`).
+    /// PNG files of the checked vehicles' folders that no checked entry
+    /// using that folder uses, relative to the pack
+    /// (`Krone Cool Liner/Accessories/…png`).
     pub unused: Vec<String>,
     /// The pack's version, when its `Info and links.txt` tells it.
     pub pack_version: Option<String>,
@@ -227,13 +248,17 @@ pub struct CheckReport {
     pub other_version: Vec<(String, String)>,
 }
 
-/// PNG files under `dir`, relative to `root`, `/`-separated.
-fn pngs(root: &Path, dir: &Path, out: &mut Vec<String>) {
+/// PNG files under `dir`, relative to `root`, `/`-separated. macOS
+/// resource files (`._Sun Visor.png`) are skipped.
+pub(crate) fn pngs(root: &Path, dir: &Path, out: &mut Vec<String>) {
     let Ok(read) = std::fs::read_dir(dir) else {
         return;
     };
     for entry in read.flatten() {
         let path = entry.path();
+        if entry.file_name().to_string_lossy().starts_with("._") {
+            continue;
+        }
         if path.is_dir() {
             pngs(root, &path, out);
         } else if path
@@ -271,24 +296,43 @@ pub fn check(pack: &Path, entries: &[&Entry]) -> CheckReport {
                 .other_version
                 .push((name.clone(), entry.source.pack.clone()));
         }
-        let dir = pack.join(&entry.folder);
-        if !dir.is_dir() {
+        let Some(dir) = vehicle_dir(&pack, entry) else {
             report.problems.push(format!(
                 "{name}: no folder \"{}\" in the pack",
                 entry.folder
             ));
             continue;
-        }
+        };
         for t in entry.textures() {
             if let Err(e) = read_texture(entry, &dir, t.file, t.size) {
                 report.problems.push(e.to_string());
             }
         }
+    }
+    // Unused files, once per folder: a shared folder's file is used when
+    // any entry using that folder uses it.
+    let mut folders: Vec<&str> = Vec::new();
+    for entry in entries {
+        if folders
+            .iter()
+            .any(|f| tp_vehicles::fold(f) == tp_vehicles::fold(&entry.folder))
+        {
+            continue;
+        }
+        folders.push(&entry.folder);
+        let Some(dir) = vehicle_dir(&pack, entry) else {
+            continue;
+        };
+        let used: Vec<String> = entries
+            .iter()
+            .filter(|e| tp_vehicles::fold(&e.folder) == tp_vehicles::fold(&entry.folder))
+            .flat_map(|e| e.textures().map(|t| tp_vehicles::fold(t.file)))
+            .collect();
         let mut found = Vec::new();
         pngs(&dir, &dir, &mut found);
         found.sort();
         for file in found {
-            if !entry.textures().any(|t| t.file == file) {
+            if !used.contains(&tp_vehicles::fold(&file)) {
                 report.unused.push(format!("{}/{file}", entry.folder));
             }
         }

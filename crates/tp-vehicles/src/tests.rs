@@ -446,3 +446,13 @@ fn documented_example_manifests_are_valid() {
         "a truck with several layouts, one layout, a trailer"
     );
 }
+
+#[test]
+fn folded_names() {
+    let composed = "K\u{f6}gel Cargo";
+    let decomposed = "Ko\u{308}gel Cargo";
+    assert_ne!(composed, decomposed);
+    assert_eq!(fold(composed), fold(decomposed));
+    assert_eq!(fold(composed), "kogel cargo");
+    assert_eq!(fold("Schwarzm\u{fc}ller"), "schwarzmuller");
+}
