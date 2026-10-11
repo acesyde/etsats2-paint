@@ -150,9 +150,14 @@ fn complete_entries_only() {
         // Written as `tpv catalog sync` writes it.
         assert_eq!(entry.to_json(), *json, "{path} is not in canonical form");
     }
-    // An incomplete entry is not listed.
-    let ets2: Vec<String> = entries(Game::Ets2).iter().map(|e| e.path.clone()).collect();
-    assert_eq!(ets2, ["daf.2021", "krone.coolliner"]);
+    // Every official ETS2 vehicle of Paintjob Packer: 26 trucks, 40 trailers.
+    let ets2 = entries(Game::Ets2);
+    assert_eq!(ets2.len(), 66);
+    let trucks = ets2.iter().filter(|e| e.kind == Kind::Truck).count();
+    assert_eq!((trucks, ets2.len() - trucks), (26, 40));
+    for path in ["daf.2021", "krone.coolliner", "volvo.fh_2024", "scs.box"] {
+        assert!(ets2.iter().any(|e| e.path == path), "{path}");
+    }
     assert!(entries(Game::Ats).is_empty());
 }
 

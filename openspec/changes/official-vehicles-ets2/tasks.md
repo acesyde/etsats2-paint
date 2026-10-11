@@ -19,8 +19,8 @@
 - [x] 3.3 Review and complete the trucks: Scania (both shared folders, and the S BEV) and Volvo; verify with `tpv catalog check` as in 3.2, and commit them.
 - [x] 3.4 Review and complete the trailers: Feldbinder, Kässbohrer, Kögel, Krone (Dry Liner, Paper Liner, Profi Liner, Profi Liner Building) and Schmitz Cargobull, applying design Decision 1; verify with `tpv catalog check` as in 3.2, and commit them.
 - [x] 3.5 Review and complete the trailers: Schwarzmüller, SCS, Tirsan and Wielton; verify with `tpv catalog check` as in 3.2, and commit them.
-- [ ] 3.6 Add the 64 files to `catalog::ENTRIES`; verify with the tp-vehicles tests: every file under `catalog/` is embedded, every entry is complete (official-vehicles "Complete entries only"), and each entry builds a valid package from placeholder PNGs of its sizes.
-- [ ] 3.7 Run `tpv catalog check ~/Downloads/templates` with the embedded catalog; verify there's no problem, that the unused files include `Krone Cool Liner/Accessories/Chassis Mid - Simple Side Skirt.png` ("Pack matches the catalog"), and that each unused file is explained in the PR.
+- [x] 3.6 Add the 64 files to `catalog::ENTRIES`; verify with the tp-vehicles tests: every file under `catalog/` is embedded, every entry is complete (official-vehicles "Complete entries only"), and each entry builds a valid package from placeholder PNGs of its sizes.
+- [x] 3.7 Run `tpv catalog check ~/Downloads/templates` with the embedded catalog; verify there's no problem, that the unused files include `Krone Cool Liner/Accessories/Chassis Mid - Simple Side Skirt.png` ("Pack matches the catalog"), and that each unused file is explained in the PR.
 
 ## 4. App, specs scenarios and end to end
 
