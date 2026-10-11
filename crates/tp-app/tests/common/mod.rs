@@ -101,7 +101,9 @@ pub fn create_project(harness: &mut Harness<'static, AppState>) {
 /// pictures, the canvas's shadows) are shown, so that their
 /// repaints don't land in the middle of a test's interaction.
 pub fn settle_renders(harness: &mut Harness<'static, AppState>) {
-    for _ in 0..400 {
+    // A time budget, not a frame count: CI machines render much slower.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while std::time::Instant::now() < deadline {
         harness.step();
         let busy = harness.state().workspace().is_some_and(|ws| {
             ws.thumbnails.is_rendering()
