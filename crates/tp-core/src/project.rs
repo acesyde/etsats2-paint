@@ -73,13 +73,14 @@ impl Guide {
     }
 }
 
-/// One texture of the vehicle: a square artboard holding ordered objects
-/// (later objects are drawn on top) and its guides.
+/// One texture of the vehicle: an artboard of the texture's width and
+/// height holding ordered objects (later objects are drawn on top) and its
+/// guides.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Surface {
     pub name: String,
-    /// Side length in texture pixels.
-    pub size: f64,
+    /// Width and height in texture pixels (equal for a square texture).
+    pub size: Size,
     pub objects: Vec<Arc<Object>>,
     pub guides: Vec<Guide>,
     /// The vehicle's texture layout shown over the artwork (never exported).
@@ -235,7 +236,7 @@ pub struct RequiredMod {
 }
 
 impl Surface {
-    pub fn new(name: impl Into<String>, size: f64) -> Self {
+    pub fn new(name: impl Into<String>, size: Size) -> Self {
         Self {
             name: name.into(),
             size,
@@ -247,7 +248,17 @@ impl Surface {
 
     /// The artboard rectangle in texture pixels.
     pub fn bounds(&self) -> Rect {
-        Rect::new(0.0, 0.0, self.size, self.size)
+        self.size.to_rect()
+    }
+
+    /// The longer of the two sides, in texture pixels.
+    pub fn max_side(&self) -> f64 {
+        self.size.width.max(self.size.height)
+    }
+
+    /// The size as shown to the player: "4096²" or "8192 × 1024".
+    pub fn size_label(&self) -> String {
+        size_label(self.size)
     }
 
     pub fn index_of(&self, id: ObjectId) -> Option<usize> {
@@ -373,10 +384,10 @@ impl Project {
         Self {
             name,
             resolution,
-            surfaces: vec![Surface::new(
-                MAIN_SURFACE_NAME,
-                f64::from(resolution.side()),
-            )],
+            surfaces: vec![Surface::new(MAIN_SURFACE_NAME, {
+                let side = f64::from(resolution.side());
+                Size::new(side, side)
+            })],
             active_surface: 0,
             palette: Vec::new(),
             graphic_styles: Vec::new(),
@@ -904,7 +915,7 @@ impl Project {
 #[derive(Clone, Debug, PartialEq)]
 struct SurfaceMeta {
     name: String,
-    size: f64,
+    size: Size,
     template: Option<SurfaceTemplate>,
 }
 
@@ -996,6 +1007,16 @@ impl Snapshot {
     }
 }
 
+/// A texture size as shown to the player: "4096²" when its sides are
+/// equal, "8192 × 1024" (width × height) otherwise.
+pub fn size_label(size: Size) -> String {
+    if size.width == size.height {
+        format!("{}²", size.width)
+    } else {
+        format!("{} × {}", size.width, size.height)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use kurbo::Size;
@@ -1018,6 +1039,17 @@ mod tests {
         assert_eq!(p.surfaces.len(), 1);
         assert_eq!(p.surface().name, MAIN_SURFACE_NAME);
         assert_eq!(p.surface().bounds(), Rect::new(0.0, 0.0, 4096.0, 4096.0));
+    }
+
+    #[test]
+    fn rectangular_surface() {
+        let s = Surface::new("Base", Size::new(8192.0, 1024.0));
+        assert_eq!(s.bounds(), Rect::new(0.0, 0.0, 8192.0, 1024.0));
+        assert_eq!(s.max_side(), 8192.0);
+        assert_eq!(s.size_label(), "8192 × 1024");
+        let square = Surface::new("Cab", Size::new(4096.0, 4096.0));
+        assert_eq!(square.bounds(), Rect::new(0.0, 0.0, 4096.0, 4096.0));
+        assert_eq!(square.size_label(), "4096²");
     }
 
     #[test]
@@ -1361,7 +1393,7 @@ mod tests {
         p.surfaces[0].template = Some(template("cabin", asset));
         let before = p.snapshot(&[]);
         // An update: a new surface and a recorded version.
-        let mut chassis = Surface::new("Chassis", 1024.0);
+        let mut chassis = Surface::new("Chassis", Size::new(1024.0, 1024.0));
         chassis.template = Some(template("chassis", asset));
         p.surfaces.push(chassis);
         p.vehicles = vec![vehicle("a.b")];
@@ -1504,7 +1536,7 @@ mod tests {
         ]
         .iter()
         .map(|(pkg, tex, part)| {
-            let mut s = Surface::new(*tex, 1024.0);
+            let mut s = Surface::new(*tex, Size::new(1024.0, 1024.0));
             s.template = Some(keyed(pkg, tex, *part, asset));
             s
         })

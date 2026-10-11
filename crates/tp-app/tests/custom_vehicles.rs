@@ -255,13 +255,16 @@ fn dropping_the_games_templates() {
     let rows = &dialog(&h).form.rows;
     assert_eq!(rows.len(), 2);
     assert_eq!(
-        (rows[0].name.as_str(), rows[0].role, rows[0].size),
-        ("cabin", PartRole::Main, 4096)
+        (rows[0].name.as_str(), rows[0].role, rows[0].size.label()),
+        ("cabin", PartRole::Main, "4096²".to_owned())
     );
     assert_eq!(
-        (rows[1].name.as_str(), rows[1].role, rows[1].size),
-        ("mirrors", PartRole::Accessory, 1024)
+        (rows[1].name.as_str(), rows[1].role, rows[1].size.label()),
+        ("mirrors", PartRole::Accessory, "1024²".to_owned())
     );
+    assert!(h.query_all_by_label("Width of texture 1").next().is_some());
+    assert!(h.query_all_by_label("Height of texture 1").next().is_some());
+    assert!(h.query_by_label_contains("will be scaled").is_none());
     assert!(
         h.query_by_label_contains("cabin.dds · 4096 × 4096 px")
             .is_some()
@@ -276,16 +279,31 @@ fn dropping_the_games_templates() {
             .is_some()
     );
 
-    // A non-square image is flagged.
-    let wide = {
+    // A rectangular image keeps its shape, without a warning.
+    let image = |width, height| {
         let mut out = Vec::new();
-        image::RgbaImage::new(64, 32)
+        image::RgbaImage::new(width, height)
             .write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
             .unwrap();
         out
     };
-    drop_files(&mut h, vec![("wide.png", wide)]);
-    assert!(h.query_by_label_contains("Not square").is_some());
+    drop_files(&mut h, vec![("wide.png", image(4096, 2048))]);
+    assert_eq!(
+        dialog(&h).form.rows[3].size,
+        tp_vehicles::TextureSize::new(4096, 2048)
+    );
+    assert!(h.query_by_label_contains("scaled to 4096 × 2048").is_none());
+
+    // Sides that aren't powers of two are rounded, with a warning.
+    drop_files(&mut h, vec![("odd.png", image(4000, 1000))]);
+    assert_eq!(
+        dialog(&h).form.rows[4].size,
+        tp_vehicles::TextureSize::new(4096, 1024)
+    );
+    assert!(
+        h.query_by_label("The template will be scaled to 4096 × 1024.")
+            .is_some()
+    );
 }
 
 #[test]

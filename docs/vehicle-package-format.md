@@ -59,13 +59,13 @@ A truck whose cabins have two layouts:
         "id": "globetrotter",
         "name": "Globetrotter",
         "game_ids": ["globetrotter", "globetrotter_8x4"],
-        "texture": { "size": 4096, "template": "templates/globetrotter.png", "layout_version": 2 }
+        "texture": { "size": [4096, 4096], "template": "templates/globetrotter.png", "layout_version": 2 }
       },
       {
         "id": "globetrotter_xl",
         "name": "Globetrotter XL",
         "game_ids": ["globetrotter_xl"],
-        "texture": { "size": 4096, "template": "templates/globetrotter_xl.png", "layout_version": 1 }
+        "texture": { "size": [4096, 4096], "template": "templates/globetrotter_xl.png", "layout_version": 1 }
       }
     ],
     "accessories": [
@@ -73,7 +73,7 @@ A truck whose cabins have two layouts:
         "id": "mirrors",
         "name": "Mirrors",
         "game_ids": ["mirror.painted", "s_mirror.painted"],
-        "texture": { "size": 1024, "template": "templates/mirrors.svg", "layout_version": 1 }
+        "texture": { "size": [1024, 1024], "template": "templates/mirrors.svg", "layout_version": 1 }
       }
     ]
   }
@@ -96,7 +96,7 @@ A truck whose cabins all share one layout has a single main texture. Without `ga
       {
         "id": "cabin",
         "name": "Cabin",
-        "texture": { "size": 4096, "template": "templates/cabin.png", "layout_version": 1 }
+        "texture": { "size": [4096, 4096], "template": "templates/cabin.png", "layout_version": 1 }
       }
     ]
   }
@@ -119,7 +119,7 @@ A trailer has a single main texture, and its bodies and lengths are accessories:
       {
         "id": "base",
         "name": "Base",
-        "texture": { "size": 2048, "template": "templates/base.png", "layout_version": 1 }
+        "texture": { "size": [2048, 2048], "template": "templates/base.png", "layout_version": 1 }
       }
     ],
     "accessories": [
@@ -127,7 +127,7 @@ A trailer has a single main texture, and its bodies and lengths are accessories:
         "id": "body_13_6",
         "name": "Curtain body 13.6 m",
         "game_ids": ["body.curtain_136"],
-        "texture": { "size": 4096, "template": "templates/body_13_6.png", "layout_version": 1 }
+        "texture": { "size": [4096, 4096], "template": "templates/body_13_6.png", "layout_version": 1 }
       }
     ]
   }
@@ -166,7 +166,7 @@ A trailer has a single main texture, and its bodies and lengths are accessories:
 | `id` | yes | Unique within the vehicle, stable across versions (`globetrotter`, `mirrors`). Projects follow textures by this id. |
 | `name` | yes | Shown in the sidebar and the dialogs. |
 | `game_ids` | see below | What the game calls the things this part covers, as words of `a`–`z`, `0`–`9` and `_` separated by dots. |
-| `texture.size` | yes | Square size in pixels: 256, 512, 1024, 2048, 4096 or 8192. |
+| `texture.size` | yes | The texture's width and height in pixels, as `[width, height]`: `[4096, 4096]` for a square texture, `[8192, 1024]` or `[2048, 256]` for a rectangular one. Each side is a power of two from 64 to 8192. A single number (`4096`) is refused. Use the size of the game's texture: the game maps it by its UV coordinates, whatever its shape. |
 | `texture.template` | yes | Path of the template image inside the package, PNG or SVG. |
 | `texture.layout_version` | yes | Positive integer. **Increase it whenever the texture's layout changes**, for example after a game update. Projects updated to your new version flag this texture so painters check their artwork. |
 
@@ -185,7 +185,8 @@ Unknown fields are ignored, so a package can already carry data for later TruckP
 
 - Entry paths are relative and never contain `..`.
 - At most 512 MB uncompressed in total; template images at most 16384 px on a side.
-- Template images are drawn stretched to the texture's square size: make them square.
+- Texture sizes: each side a power of two from 64 to 8192.
+- Template images are drawn stretched to the texture's width and height: give them the texture's shape (an 8192 × 1024 texture needs an image eight times wider than tall).
 
 ## Packing a package
 
@@ -211,7 +212,7 @@ Templates of the base games belong to SCS Software. Pack them for your own use, 
 When no package exists for a vehicle, a painter can make one in TruckPaint, without writing a manifest: **Custom vehicle…** in New Project or in Add Vehicle…, or **Custom Vehicle…** in the Vehicle Library.
 
 1. Fill in the vehicle: name, brand, kind (truck or trailer), game, game path and, optionally, the supported game versions (empty: any version), the alternate UV set and the colour picker.
-2. Drop the template files on the dialog, or use Add Templates…: PNG, SVG, or DDS in the formats `tpv` converts. Each file becomes one texture. Its name comes from the file name and its size from the image's width. The first one is a main texture, the others are accessories. Change any of them as needed.
+2. Drop the template files on the dialog, or use Add Templates…: PNG, SVG, or DDS in the formats `tpv` converts. Each file becomes one texture. Its name comes from the file name and its size from the image's width and height. A side that isn't a power of two from 64 to 8192 is rounded to the nearest one, and the template will be scaled to that size. The first one is a main texture, the others are accessories. Change any of them as needed.
 3. Enter the game ids, as for any package:
    - for a truck with several main textures, the internal names of the cabins of each one;
    - for each accessory, the accessory ids it covers.

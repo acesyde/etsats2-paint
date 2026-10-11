@@ -76,18 +76,24 @@ pub fn guide_at(guides: &[Guide], map: &ScreenMap, pointer: Pos2) -> Option<usiz
         .map(|(i, _)| i)
 }
 
-/// Grid lines over the artboard (`artboard` in texture pixels), clipped to
+/// Grid lines over the artboard of `size` (in texture pixels), clipped to
 /// the visible `area`.
-pub fn paint_grid(painter: &Painter, map: &ScreenMap, area: Rect, side: f64, spacing: f64) {
+pub fn paint_grid(
+    painter: &Painter,
+    map: &ScreenMap,
+    area: Rect,
+    size: tp_core::kurbo::Size,
+    spacing: f64,
+) {
     let scale = f64::from(map.scale);
     let step = grid_step(spacing, scale);
     let top_left = map.to_screen(tp_core::kurbo::Point::ORIGIN);
-    let bottom_right = map.to_screen(tp_core::kurbo::Point::new(side, side));
+    let bottom_right = map.to_screen(size.to_vec2().to_point());
     let board = Rect::from_min_max(top_left, bottom_right).intersect(area);
     if !board.is_positive() {
         return;
     }
-    let visible = |from: f32, to: f32, offset: f32| {
+    let visible = |from: f32, to: f32, offset: f32, side: f64| {
         let a = (f64::from(from - offset) / scale / step).floor().max(0.0) as i64;
         let b = (f64::from(to - offset) / scale / step)
             .ceil()
@@ -102,7 +108,7 @@ pub fn paint_grid(painter: &Painter, map: &ScreenMap, area: Rect, side: f64, spa
             tokens::GRID_MINOR
         }
     };
-    for i in visible(board.left(), board.right(), map.offset.x) {
+    for i in visible(board.left(), board.right(), map.offset.x, size.width) {
         let pos = i as f64 * step;
         let x = pos as f32 * map.scale + map.offset.x;
         if x < board.left() - 0.5 || x > board.right() + 0.5 {
@@ -110,7 +116,7 @@ pub fn paint_grid(painter: &Painter, map: &ScreenMap, area: Rect, side: f64, spa
         }
         painter.vline(x, board.y_range(), Stroke::new(1.0, color(pos)));
     }
-    for i in visible(board.top(), board.bottom(), map.offset.y) {
+    for i in visible(board.top(), board.bottom(), map.offset.y, size.height) {
         let pos = i as f64 * step;
         let y = pos as f32 * map.scale + map.offset.y;
         if y < board.top() - 0.5 || y > board.bottom() + 0.5 {

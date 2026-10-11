@@ -4,6 +4,7 @@
 use resvg::tiny_skia::{IntRect, Pixmap};
 use tp_core::Project;
 use tp_core::document::Rgba;
+use tp_core::kurbo::Size;
 use tp_text::FontLibrary;
 
 use crate::render::{RenderOptions, pixmap_from_rgba, render};
@@ -27,8 +28,15 @@ pub fn render_cover(
     fonts: &mut FontLibrary,
 ) -> Pixmap {
     let (width, height) = (width.max(1), height.max(1));
+    // The surface keeps its shape: the side that covers last sets the scale.
+    let size = project
+        .surfaces
+        .get(surface)
+        .map_or(Size::new(1.0, 1.0), |s| s.size);
+    let scale = (f64::from(width) / size.width).max(f64::from(height) / size.height);
     let options = RenderOptions {
-        size: width.max(height),
+        width: ((size.width * scale).round() as u32).max(width),
+        height: ((size.height * scale).round() as u32).max(height),
         background,
     };
     let full = render(project, surface, options, fonts, &mut |_, _| true).expect("never cancelled");

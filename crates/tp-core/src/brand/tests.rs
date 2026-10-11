@@ -13,7 +13,8 @@ const BLUE: Rgba = Rgba::rgb(0, 0, 255);
 
 fn project() -> Project {
     let mut p = Project::new("p", TextureResolution::R2048);
-    p.surfaces.push(Surface::new("Second", 2048.0));
+    p.surfaces
+        .push(Surface::new("Second", Size::new(2048.0, 2048.0)));
     p
 }
 
@@ -310,7 +311,7 @@ fn a_new_look_reaches_every_follower() {
     p.symbols.push(crate::symbols::Symbol {
         id: logo,
         name: "Logo".into(),
-        surface: Surface::new("Logo", 500.0),
+        surface: Surface::new("Logo", Size::new(500.0, 500.0)),
         origin: None,
     });
     p.editing_symbol = Some(logo);

@@ -96,7 +96,7 @@ fn recent_cards_show_the_first_main_texture() {
     let mut project =
         tp_app::vehicle_project::fleet_project("Red fleet", &package, &textures).unwrap();
     // The Standard cab, first main texture, covered by a red rectangle.
-    let side = project.surface().size;
+    let side = project.surface().max_side();
     let mut o = Object::new(
         ObjectId(0),
         ShapeKind::rectangle(),
@@ -157,7 +157,10 @@ fn new_project_defaults_to_the_vehicle_name() {
     let ws = h.state().workspace().unwrap();
     assert_eq!(ws.project.name, "TruckPaint Sample Truck");
     assert_eq!(ws.project.surface().name, "Standard cab");
-    assert_eq!(ws.project.surface().size, 4096.0);
+    assert_eq!(
+        ws.project.surface().size,
+        tp_core::kurbo::Size::new(4096.0, 4096.0)
+    );
     assert_eq!(h.state().title(), "TruckPaint Sample Truck — TruckPaint");
 }
 

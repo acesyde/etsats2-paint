@@ -20,8 +20,8 @@ use tp_core::{Project, TexturePart};
 use tp_render::RenderOptions;
 use tp_text::FontLibrary;
 
-/// Side of a thumbnail, in pixels: sharp for a card's 120-point picture
-/// up to 2×.
+/// Longest side of a thumbnail, in pixels: sharp for a card's 120-point
+/// picture up to 2×.
 pub const SIDE: u32 = 256;
 
 /// Delay before the UI picks up finished thumbnails.
@@ -187,8 +187,11 @@ pub fn thumbnail(project: &Project, fonts: &mut FontLibrary) -> Option<ColorImag
                 .is_some_and(|t| t.part == TexturePart::Main)
         })
         .or((!project.surfaces.is_empty()).then_some(0))?;
-    let side = SIDE as usize;
-    let mut pixels = vec![tp_ui::tokens::canvas::ARTBOARD; side * side];
+    // The texture's shape, its longest side at SIDE.
+    let (width, height) =
+        crate::surface_thumbnails::thumbnail_size(project.surfaces[surface].size, SIDE);
+    let (w_px, h_px) = (width as usize, height as usize);
+    let mut pixels = vec![tp_ui::tokens::canvas::ARTBOARD; w_px * h_px];
     let template = project.surfaces[surface]
         .template
         .as_ref()
@@ -197,14 +200,15 @@ pub fn thumbnail(project: &Project, fonts: &mut FontLibrary) -> Option<ColorImag
     if let Some(template) = template {
         let [w, h] = template.size;
         for (i, pixel) in pixels.iter_mut().enumerate() {
-            // Stretched to the square texture, as the editor shows it.
-            let x = (i % side) * w / side;
-            let y = (i / side) * h / side;
+            // Stretched to the texture, as the editor shows it.
+            let x = (i % w_px) * w / w_px;
+            let y = (i / w_px) * h / h_px;
             *pixel = over(template.pixels[y * w + x], *pixel);
         }
     }
     let options = RenderOptions {
-        size: SIDE,
+        width,
+        height,
         background: None,
     };
     let artwork = tp_render::render(project, surface, options, fonts, &mut |_, _| true).ok()?;
@@ -213,7 +217,7 @@ pub fn thumbnail(project: &Project, fonts: &mut FontLibrary) -> Option<ColorImag
         let src = Color32::from_rgba_premultiplied(src[0], src[1], src[2], src[3]);
         *pixel = over(src, *pixel);
     }
-    Some(ColorImage::new([side, side], pixels))
+    Some(ColorImage::new([w_px, h_px], pixels))
 }
 
 /// `src` drawn over `dst` (both premultiplied).
@@ -238,7 +242,7 @@ mod tests {
     #[test]
     fn the_artwork_is_drawn_over_the_artboard() {
         let mut p = Project::new("Test", tp_core::TextureResolution::default());
-        let side = p.surface().size;
+        let side = p.surface().max_side();
         let mut o = Object::new(
             ObjectId(0),
             ShapeKind::rectangle(),
@@ -254,5 +258,13 @@ mod tests {
         let at = |x: usize| image.pixels[(SIDE as usize / 2) * SIDE as usize + x];
         assert_eq!(at(10), Color32::from_rgb(255, 0, 0));
         assert_eq!(at(SIDE as usize - 10), tp_ui::tokens::canvas::ARTBOARD);
+    }
+
+    #[test]
+    fn a_rectangular_texture_keeps_its_shape() {
+        let mut p = Project::new("Test", tp_core::TextureResolution::default());
+        p.surfaces[0].size = Size::new(8192.0, 1024.0);
+        let image = thumbnail(&p, &mut FontLibrary::bundled()).unwrap();
+        assert_eq!(image.size, [256, 32]);
     }
 }

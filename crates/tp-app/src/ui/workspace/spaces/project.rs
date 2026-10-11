@@ -32,8 +32,8 @@ const COLUMN_WIDTH: f32 = 360.0;
 const VEHICLE_THUMB: Vec2 = Vec2::new(72.0, 48.0);
 /// Padding of a vehicle card's header.
 const HEADER_PAD: Vec2 = Vec2::new(16.0, 14.0);
-/// A texture tile's thumbnail (the middle of the square texture), its
-/// padding and its width.
+/// A texture tile's thumbnail (the middle of a square texture, a wide one
+/// whole), its padding and its width.
 const TILE_THUMB: Vec2 = Vec2::new(150.0, 108.0);
 const TILE_PAD: f32 = 8.0;
 const TILE_WIDTH: f32 = TILE_THUMB.x + 2.0 * TILE_PAD;
@@ -237,7 +237,7 @@ fn card_header(
     info.spacing_mut().item_spacing.x = space::LG;
     let (thumb, _) = info.allocate_exact_size(VEHICLE_THUMB, Sense::hover());
     if let Some(surface) = first_main(env, v) {
-        paint_texture(&info, env, surface, thumb, cover_uv(thumb));
+        paint_texture(&info, env, surface, thumb);
     } else {
         info.painter()
             .rect_filled(thumb, radius::LG, canvas::ARTBOARD);
@@ -403,29 +403,22 @@ fn main_texture_mode(project: &Project, v: &ProjectVehicle) -> String {
     })
 }
 
-/// A texture's kind and size: "Main · 4096", "Accessory · 1024".
+/// A texture's kind and size: "Main · 4096²", "Accessory · 8192 × 1024".
 fn texture_detail(project: &Project, i: usize) -> String {
     let kind = tr(match vehicle::part_of(project, i) {
         TexturePart::Main => "project-texture-main",
         TexturePart::Accessory => "project-texture-accessory",
     });
-    format!("{kind} · {}", project.surfaces[i].size)
+    format!("{kind} · {}", project.surfaces[i].size_label())
 }
 
-/// The part of a square texture that covers `rect` (centered).
-fn cover_uv(rect: Rect) -> Rect {
-    let aspect = rect.aspect_ratio();
-    let (w, h) = if aspect >= 1.0 {
-        (1.0, 1.0 / aspect)
-    } else {
-        (aspect, 1.0)
-    };
-    Rect::from_center_size(egui::pos2(0.5, 0.5), Vec2::new(w, h))
-}
-
-/// Paints the `uv` part of texture `surface`: its artwork over its
-/// template, on the artboard's color.
-fn paint_texture(ui: &Ui, env: &PanelEnv<'_>, surface: usize, rect: Rect, uv: Rect) {
+/// Paints texture `surface` in `tile`, in its shape (see
+/// [`tp_ui::widgets::thumbnail_place`]): its artwork over its template, on
+/// the artboard's color. Returns where it is drawn.
+fn paint_texture(ui: &Ui, env: &PanelEnv<'_>, surface: usize, tile: Rect) -> Rect {
+    let size = env.ws.project.surfaces[surface].size;
+    let (rect, uv) =
+        tp_ui::widgets::thumbnail_place(tile, Vec2::new(size.width as f32, size.height as f32));
     let painter = ui.painter();
     painter.rect_filled(rect, radius::SM, canvas::ARTBOARD);
     let template = env.ws.project.surfaces[surface]
@@ -438,6 +431,7 @@ fn paint_texture(ui: &Ui, env: &PanelEnv<'_>, surface: usize, rect: Rect, uv: Re
     {
         painter.image(texture.id(), rect, uv, egui::Color32::WHITE);
     }
+    rect
 }
 
 /// The vehicle's textures that match the texture filter, in project order,
@@ -527,14 +521,14 @@ fn texture_tile(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     paint_focus_ring(ui, rect, &tile, radius::LG);
 
     let thumb = Rect::from_min_size(rect.min + Vec2::splat(TILE_PAD), TILE_THUMB);
-    paint_texture(ui, env, i, thumb, cover_uv(thumb));
+    let shown = paint_texture(ui, env, i, thumb);
     let (ring, width) = if active {
         (color::ACCENT_PRIMARY, 1.5)
     } else {
         (color::BORDER, 1.0)
     };
     painter.rect_stroke(
-        thumb,
+        shown,
         radius::SM,
         Stroke::new(width, ring),
         StrokeKind::Outside,
@@ -1322,18 +1316,20 @@ mod tests {
             })
             .collect();
         let expected = [
-            ("Standard cab", "Main · 4096"),
-            ("High roof", "Main · 4096"),
-            ("Chassis", "Accessory · 4096"),
-            ("Cab accessories", "Accessory · 1024"),
-            ("Side skirts", "Accessory · 1024"),
+            ("Standard cab", "Main · 4096²"),
+            ("High roof", "Main · 4096²"),
+            ("Chassis", "Accessory · 4096²"),
+            ("Cab accessories", "Accessory · 1024²"),
+            ("Side skirts", "Accessory · 1024²"),
         ];
         assert_eq!(details, expected.map(|(n, d)| (n.to_owned(), d.to_owned())));
     }
 
     #[test]
     fn cover_keeps_the_middle_of_a_square() {
-        let uv = cover_uv(Rect::from_min_size(egui::Pos2::ZERO, VEHICLE_THUMB));
+        let tile = Rect::from_min_size(egui::Pos2::ZERO, VEHICLE_THUMB);
+        let (rect, uv) = tp_ui::widgets::thumbnail_place(tile, Vec2::splat(4096.0));
+        assert_eq!(rect, tile);
         assert_eq!(uv.width(), 1.0);
         assert!((uv.height() - 48.0 / 72.0).abs() < 1e-6);
         assert!((uv.center().y - 0.5).abs() < 1e-6);

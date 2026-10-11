@@ -8,7 +8,8 @@ use crate::workspace::Workspace;
 
 fn ws() -> Workspace {
     let mut p = Project::new("t", TextureResolution::R2048);
-    p.surfaces.push(Surface::new("Chassis", 2048.0));
+    p.surfaces
+        .push(Surface::new("Chassis", Size::new(2048.0, 2048.0)));
     Workspace::new(p)
 }
 

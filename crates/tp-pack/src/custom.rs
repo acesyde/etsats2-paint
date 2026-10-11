@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use serde_json::{Map, Value, json};
-use tp_vehicles::{Game, ImageKind, Kind, Manifest, Package, Role, SIZES};
+use tp_vehicles::{Game, ImageKind, Kind, Manifest, Package, Role, TextureSize};
 
 use crate::dds::{self, DdsError};
 use crate::{PackError, Packed};
@@ -57,20 +57,25 @@ pub struct TemplateFile {
 }
 
 impl TemplateFile {
-    pub fn is_square(&self) -> bool {
-        self.width == self.height
+    /// The texture size for this image: its width and height, each rounded
+    /// to the nearest allowed side when it isn't one (the larger one on a
+    /// tie).
+    pub fn default_size(&self) -> TextureSize {
+        TextureSize::new(nearest_side(self.width), nearest_side(self.height))
     }
 
-    /// The texture size for this image: its width when allowed, else the
-    /// nearest allowed size (the larger one on a tie).
-    pub fn default_size(&self) -> u32 {
-        let w = i64::from(self.width);
-        SIZES
-            .iter()
-            .copied()
-            .min_by_key(|s| ((i64::from(*s) - w).abs(), -i64::from(*s)))
-            .expect("sizes")
+    /// Whether the image must be scaled to fill a texture of `size`.
+    pub fn is_scaled_to(&self, size: TextureSize) -> bool {
+        (self.width, self.height) != (size.width, size.height)
     }
+}
+
+/// The allowed texture side nearest to `side` (the larger one on a tie).
+fn nearest_side(side: u32) -> u32 {
+    let side = i64::from(side);
+    TextureSize::allowed_sides()
+        .min_by_key(|s| ((i64::from(*s) - side).abs(), -i64::from(*s)))
+        .expect("sizes")
 }
 
 /// Why a file can't be a template.
@@ -179,7 +184,7 @@ pub struct CustomPart {
     pub role: Role,
     /// Game ids as typed, separated by commas or spaces.
     pub game_ids: String,
-    pub size: u32,
+    pub size: TextureSize,
     pub template: TemplateFile,
 }
 
@@ -204,6 +209,11 @@ impl CustomPart {
             .filter(|s| !s.is_empty())
             .map(str::to_owned)
             .collect()
+    }
+
+    /// Whether the template will be scaled to the texture's size.
+    pub fn is_scaled(&self) -> bool {
+        self.template.is_scaled_to(self.size)
     }
 
     /// Picks another template; the name, role and game ids are kept.
@@ -635,7 +645,7 @@ mod tests {
         let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="512"/>"#;
         let svg = probe("a.svg", svg.to_vec().into()).unwrap();
         assert_eq!((svg.width, svg.height), (1024, 512));
-        assert!(!svg.is_square());
+        assert_eq!(svg.default_size(), TextureSize::new(1024, 512));
 
         let bc7 = dds::build::dx10(&dds::build::quadrants(), texpresso::Format::Bc3, 98);
         assert_eq!(
@@ -657,12 +667,35 @@ mod tests {
 
     #[test]
     fn default_sizes() {
-        assert_eq!(sized(4096, 4096).default_size(), 4096);
-        assert_eq!(sized(3000, 3000).default_size(), 2048);
-        assert_eq!(sized(3072, 3072).default_size(), 4096);
-        assert_eq!(sized(100, 100).default_size(), 256);
-        assert_eq!(sized(20000, 20000).default_size(), 8192);
-        assert!(!sized(4096, 2048).is_square());
+        let size = |w, h| TextureSize::new(w, h);
+        assert_eq!(sized(4096, 4096).default_size(), size(4096, 4096));
+        assert_eq!(sized(3000, 3000).default_size(), size(2048, 2048));
+        assert_eq!(sized(3072, 3072).default_size(), size(4096, 4096));
+        assert_eq!(sized(100, 100).default_size(), size(128, 128));
+        assert_eq!(sized(40, 20000).default_size(), size(64, 8192));
+        assert_eq!(sized(8192, 1024).default_size(), size(8192, 1024));
+    }
+
+    #[test]
+    fn not_square() {
+        // A 4096×2048 image keeps its shape, without a warning.
+        let mut v = CustomVehicle::new(Game::Ets2);
+        v.add(sized(4096, 2048));
+        assert_eq!(v.rows[0].size, TextureSize::new(4096, 2048));
+        assert_eq!(v.rows[0].size.label(), "4096 × 2048");
+        assert!(!v.rows[0].is_scaled());
+    }
+
+    #[test]
+    fn size_that_isnt_a_power_of_two() {
+        // 4000×1000 rounds to 4096 × 1024, and the template is scaled.
+        let mut v = CustomVehicle::new(Game::Ets2);
+        v.add(sized(4000, 1000));
+        assert_eq!(v.rows[0].size, TextureSize::new(4096, 1024));
+        assert!(v.rows[0].is_scaled());
+        // A size chosen by hand that differs from the image also warns.
+        v.rows[0].size = TextureSize::new(4096, 4096);
+        assert!(v.rows[0].is_scaled());
     }
 
     #[test]
@@ -685,7 +718,7 @@ mod tests {
         assert_eq!(v.rows[1].name, "side skirts");
         assert_eq!(v.rows[1].role, Role::Accessory);
         assert_eq!(v.rows[1].game_ids().len(), 3);
-        assert_eq!(v.rows[1].size, 512);
+        assert_eq!(v.rows[1].size, TextureSize::new(512, 512));
         assert!(!v.rows[1].replaced);
     }
 

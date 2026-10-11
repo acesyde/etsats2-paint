@@ -237,8 +237,8 @@ fn draw_snap_hits(painter: &Painter, ws: &Workspace, map: &ScreenMap, area: Rect
 /// The grid over the artboard, then the guides (and the one being created).
 fn draw_grid_and_guides(painter: &Painter, ws: &Workspace, map: &ScreenMap, area: Rect) {
     if ws.aids.grid {
-        let side = ws.project.surface().size;
-        super::aids::paint_grid(painter, map, area, side, ws.aids.grid_spacing);
+        let size = ws.project.surface().size;
+        super::aids::paint_grid(painter, map, area, size, ws.aids.grid_spacing);
     }
     if ws.aids.guides {
         for guide in &ws.project.surface().guides {
@@ -356,19 +356,19 @@ fn draw_template(ctx: &egui::Context, painter: &Painter, ws: &mut Workspace, map
     let Some(template) = surface.template.clone().filter(|t| t.is_drawn()) else {
         return;
     };
-    let side = surface.size;
+    let bounds = surface.bounds();
     let Some(asset) = ws.project.assets.get(&template.asset).cloned() else {
         return;
     };
     let Some(texture) = ws.images.texture(
         ctx,
         &asset,
-        side as f32 * map.scale * ctx.pixels_per_point(),
+        surface.max_side() as f32 * map.scale * ctx.pixels_per_point(),
     ) else {
         ctx.request_repaint_after(std::time::Duration::from_millis(100));
         return;
     };
-    let rect = screen_rect(map, kurbo::Rect::new(0.0, 0.0, side, side));
+    let rect = screen_rect(map, bounds);
     let tint = Color32::WHITE.gamma_multiply(template.opacity.clamp(0.0, 1.0));
     painter.image(
         texture.id(),

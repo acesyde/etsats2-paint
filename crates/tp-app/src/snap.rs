@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 use tp_core::Axis;
 use tp_core::document::{ObjectId, tree};
-use tp_core::kurbo::{Point, Rect};
+use tp_core::kurbo::{Point, Rect, Size};
 
 use crate::prefs::ViewAids;
 use crate::workspace::Workspace;
@@ -47,7 +47,8 @@ pub struct Snapper {
     ys: Vec<(f64, Source)>,
     points: Vec<Point>,
     grid: Option<f64>,
-    side: f64,
+    /// The artboard's width and height.
+    size: Size,
 }
 
 fn sorted(mut v: Vec<(f64, Source)>) -> Vec<(f64, Source)> {
@@ -71,7 +72,7 @@ impl Snapper {
     pub fn new(ws: &Workspace, exclude: &[ObjectId], skip_guide: Option<usize>) -> Self {
         let surface = ws.project.surface();
         let aids: ViewAids = ws.aids;
-        let side = surface.size;
+        let size = surface.size;
         let mut excluded: HashSet<ObjectId> = HashSet::new();
         for id in exclude {
             if let Some(o) = surface.get(*id) {
@@ -82,9 +83,13 @@ impl Snapper {
         let mut xs = Vec::new();
         let mut ys = Vec::new();
         let mut points = Vec::new();
-        for v in [0.0, side / 2.0, side] {
-            xs.push((v, Source::Artboard));
-            ys.push((v, Source::Artboard));
+        for (x, y) in [
+            (0.0, 0.0),
+            (size.width / 2.0, size.height / 2.0),
+            (size.width, size.height),
+        ] {
+            xs.push((x, Source::Artboard));
+            ys.push((y, Source::Artboard));
         }
         if aids.guides {
             for (i, g) in surface.guides.iter().enumerate() {
@@ -131,7 +136,7 @@ impl Snapper {
             ys: sorted(ys),
             points,
             grid: aids.grid.then_some(aids.grid_spacing),
-            side,
+            size,
         }
     }
 
@@ -145,9 +150,13 @@ impl Snapper {
     /// Nearest target to `v` along `axis` (x values for `Axis::Vertical`).
     fn nearest_target(&self, axis: Axis, v: f64) -> Option<(f64, Source)> {
         let line = nearest(self.lines(axis), v);
+        let end = match axis {
+            Axis::Vertical => self.size.width,
+            Axis::Horizontal => self.size.height,
+        };
         let grid = self.grid.and_then(|s| {
             let g = (v / s).round() * s;
-            (0.0..=self.side).contains(&g).then_some((g, Source::Grid))
+            (0.0..=end).contains(&g).then_some((g, Source::Grid))
         });
         [line, grid]
             .into_iter()

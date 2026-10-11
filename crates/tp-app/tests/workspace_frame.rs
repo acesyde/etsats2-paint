@@ -322,8 +322,8 @@ fn breadcrumb_follows_the_active_texture() {
     let chassis = ws(&h).project.surface();
     assert_eq!(chassis.name, "Chassis");
     let text = format!(
-        "TruckPaint Sample Truck › Accessories › Chassis {}²",
-        chassis.size
+        "TruckPaint Sample Truck › Accessories › Chassis {}",
+        chassis.size_label()
     );
     assert!(breadcrumb(&h, &text), "{text}");
     let skirts = ws(&h)

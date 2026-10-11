@@ -626,7 +626,8 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     let active = env.ws.project.active_surface == i && !env.ws.is_editing_symbol();
     let surface = &env.ws.project.surfaces[i];
     let name = surface.name.clone();
-    let size = format!("{}", surface.size);
+    let size = surface.size_label();
+    let texture_size = Vec2::new(surface.size.width as f32, surface.size.height as f32);
     let state = surface.state();
     let label = texture_name(&env.ws.project, i);
     let hover = match state_tooltip(state, &vehicle_version(&env.ws.project, i)) {
@@ -646,22 +647,19 @@ fn texture_row(ui: &mut Ui, env: &mut PanelEnv<'_>, i: usize) {
     }
     tp_ui::widgets::paint_focus_ring(ui, rect, &row, radius::MD);
 
-    // The thumbnail, over the artboard's color (as on the canvas).
+    // The thumbnail in the texture's shape, over the artboard's color (as
+    // on the canvas).
     let thumb = Rect::from_min_size(
         egui::pos2(rect.left() + space::XS + 2.0, rect.center().y - THUMB / 2.0),
         Vec2::splat(THUMB),
     );
-    painter.rect_filled(thumb, radius::SM, tp_ui::tokens::canvas::ARTBOARD);
+    let (shape, uv) = tp_ui::widgets::thumbnail_place(thumb, texture_size);
+    painter.rect_filled(shape, radius::SM, tp_ui::tokens::canvas::ARTBOARD);
     if let Some(texture) = env.ws.thumbnails.texture(i) {
-        painter.image(
-            texture.id(),
-            thumb,
-            Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-            egui::Color32::WHITE,
-        );
+        painter.image(texture.id(), shape, uv, egui::Color32::WHITE);
     }
     painter.rect_stroke(
-        thumb,
+        shape,
         radius::SM,
         Stroke::new(1.0, color::OUTLINE),
         StrokeKind::Outside,

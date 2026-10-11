@@ -437,7 +437,7 @@ fn thumbnails_follow_the_artwork() {
         .position(|s| s.name == "Chassis")
         .unwrap();
     let ws = ws_mut(&mut h);
-    let side = ws.project.surfaces[chassis].size;
+    let side = ws.project.surfaces[chassis].max_side();
     let mut red = Object::new(
         ObjectId(0),
         ShapeKind::rectangle(),

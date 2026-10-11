@@ -40,7 +40,7 @@ impl Crumbs {
     /// rows too).
     pub fn of_texture(project: &Project, index: usize) -> Self {
         let surface = &project.surfaces[index];
-        let size = Some(format!("{}²", surface.size.round() as u32));
+        let size = Some(surface.size_label());
         let Some((vehicle, texture)) = project.surface_names(index) else {
             return Self {
                 path: Vec::new(),

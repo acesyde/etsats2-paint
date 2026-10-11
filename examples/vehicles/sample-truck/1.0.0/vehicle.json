@@ -25,7 +25,7 @@
           "standard"
         ],
         "texture": {
-          "size": 4096,
+          "size": [4096, 4096],
           "template": "templates/standard_cabin.svg",
           "layout_version": 1
         }
@@ -37,7 +37,7 @@
           "high_roof"
         ],
         "texture": {
-          "size": 4096,
+          "size": [4096, 4096],
           "template": "templates/high_roof_cabin.svg",
           "layout_version": 1
         }
@@ -51,7 +51,7 @@
           "chassis.sample"
         ],
         "texture": {
-          "size": 2048,
+          "size": [2048, 2048],
           "template": "templates/chassis.svg",
           "layout_version": 1
         }
@@ -67,7 +67,7 @@
           "horn.sample"
         ],
         "texture": {
-          "size": 1024,
+          "size": [1024, 1024],
           "template": "templates/accessories.svg",
           "layout_version": 1
         }

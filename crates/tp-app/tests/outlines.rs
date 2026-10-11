@@ -138,7 +138,8 @@ fn export_difference(stroke: bool) -> (u8, usize) {
             &ws.project,
             0,
             tp_render::RenderOptions {
-                size: 1024,
+                width: 1024,
+                height: 1024,
                 background: Some(Rgba::rgb(255, 255, 255)),
             },
             &mut ws.text.fonts,

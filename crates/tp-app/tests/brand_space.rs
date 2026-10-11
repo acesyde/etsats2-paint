@@ -464,7 +464,7 @@ fn get(h: &H, surface: usize, id: ObjectId) -> Object {
 
 /// A rectangle filled with `color` over the middle of surface `surface`.
 fn middle_of(h: &H, surface: usize, color: Rgba) -> Object {
-    let side = ws(h).project.surfaces[surface].size;
+    let side = ws(h).project.surfaces[surface].max_side();
     let mut o = rect_at(0.0, color);
     o.frame = Frame::new(
         Point::new(side / 2.0, side / 2.0),

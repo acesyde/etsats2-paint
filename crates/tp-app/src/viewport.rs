@@ -1,7 +1,7 @@
 //! Canvas view: which part of the document is visible and at what zoom.
 
 use egui::{Pos2, Rect, Vec2};
-use tp_core::kurbo::{self, Point};
+use tp_core::kurbo::{self, Point, Size};
 
 /// Smallest zoom (2%).
 pub const MIN_ZOOM: f64 = 0.02;
@@ -55,16 +55,17 @@ impl ScreenMap {
 }
 
 impl Viewport {
-    /// View showing the whole surface of side `size` centered in `canvas`.
-    pub fn fit(size: f64, canvas: Rect, pixels_per_point: f32) -> Self {
+    /// View showing the whole surface of `size` centered in `canvas`.
+    pub fn fit(size: Size, canvas: Rect, pixels_per_point: f32) -> Self {
         let width = (canvas.width() - 2.0 * FIT_MARGIN).max(1.0);
         let height = (canvas.height() - 2.0 * FIT_MARGIN - LABEL_SPACE).max(1.0);
-        let points_per_px = f64::from(width.min(height)) / size.max(1.0);
+        let points_per_px =
+            (f64::from(width) / size.width.max(1.0)).min(f64::from(height) / size.height.max(1.0));
         let zoom = (points_per_px * f64::from(pixels_per_point)).clamp(MIN_ZOOM, MAX_ZOOM);
         // Shift down by half the label space so the label fits above.
         let shift = f64::from(LABEL_SPACE / 2.0) * f64::from(pixels_per_point) / zoom;
         Self {
-            center: Point::new(size / 2.0, size / 2.0 - shift),
+            center: Point::new(size.width / 2.0, size.height / 2.0 - shift),
             zoom,
             fitted: true,
         }
@@ -164,7 +165,7 @@ mod tests {
     #[test]
     fn fit_shows_whole_artboard() {
         for ppp in [1.0, 2.0] {
-            let v = Viewport::fit(4096.0, canvas(), ppp);
+            let v = Viewport::fit(Size::new(4096.0, 4096.0), canvas(), ppp);
             let m = v.map(canvas(), ppp);
             let a = m.to_screen(Point::ORIGIN);
             let b = m.to_screen(Point::new(4096.0, 4096.0));
@@ -175,8 +176,21 @@ mod tests {
     }
 
     #[test]
+    fn fit_shows_a_rectangular_artboard_whole() {
+        let v = Viewport::fit(Size::new(8192.0, 1024.0), canvas(), 1.0);
+        let m = v.map(canvas(), 1.0);
+        let a = m.to_screen(Point::ORIGIN);
+        let b = m.to_screen(Point::new(8192.0, 1024.0));
+        assert!(canvas().contains(a) && canvas().contains(b), "{a:?} {b:?}");
+        assert!(((b.x - a.x) / (b.y - a.y) - 8.0).abs() < 0.01);
+        assert!(((a.x + b.x) / 2.0 - canvas().center().x).abs() < 0.5);
+        // Limited by the width, not by the height.
+        assert!((b.x - a.x) > 900.0);
+    }
+
+    #[test]
     fn zoom_keeps_point_under_pointer() {
-        let mut v = Viewport::fit(4096.0, canvas(), 1.0);
+        let mut v = Viewport::fit(Size::new(4096.0, 4096.0), canvas(), 1.0);
         let anchor = pos2(300.0, 200.0);
         let before = v.map(canvas(), 1.0).to_doc(anchor);
         v.zoom_by(canvas(), 1.0, anchor, 3.0);
@@ -187,7 +201,7 @@ mod tests {
 
     #[test]
     fn zoom_is_clamped() {
-        let mut v = Viewport::fit(4096.0, canvas(), 1.0);
+        let mut v = Viewport::fit(Size::new(4096.0, 4096.0), canvas(), 1.0);
         v.zoom_by(canvas(), 1.0, canvas().center(), 1e9);
         assert_eq!(v.zoom, MAX_ZOOM);
         v.zoom_by(canvas(), 1.0, canvas().center(), 1e-9);
@@ -204,7 +218,7 @@ mod tests {
 
     #[test]
     fn hundred_percent_is_one_physical_pixel() {
-        let mut v = Viewport::fit(4096.0, canvas(), 2.0);
+        let mut v = Viewport::fit(Size::new(4096.0, 4096.0), canvas(), 2.0);
         v.set_zoom_centered(1.0);
         let m = v.map(canvas(), 2.0);
         let d = m.to_screen(Point::new(2.0, 0.0)).x - m.to_screen(Point::ORIGIN).x;
@@ -214,7 +228,7 @@ mod tests {
 
     #[test]
     fn resize_after_navigation_keeps_center_and_zoom() {
-        let mut v = Viewport::fit(4096.0, canvas(), 1.0);
+        let mut v = Viewport::fit(Size::new(4096.0, 4096.0), canvas(), 1.0);
         v.set_zoom_centered(2.0);
         let center_doc = v.map(canvas(), 1.0).to_doc(canvas().center());
         let bigger = Rect::from_min_size(pos2(0.0, 0.0), Vec2::new(1600.0, 900.0));
@@ -225,7 +239,7 @@ mod tests {
 
     #[test]
     fn pan_moves_content_with_delta() {
-        let mut v = Viewport::fit(4096.0, canvas(), 1.0);
+        let mut v = Viewport::fit(Size::new(4096.0, 4096.0), canvas(), 1.0);
         let p = Point::new(100.0, 100.0);
         let before = v.map(canvas(), 1.0).to_screen(p);
         v.pan(1.0, Vec2::new(30.0, -10.0));
@@ -235,7 +249,7 @@ mod tests {
 
     #[test]
     fn zoom_to_rect_fits_rect() {
-        let mut v = Viewport::fit(4096.0, canvas(), 1.0);
+        let mut v = Viewport::fit(Size::new(4096.0, 4096.0), canvas(), 1.0);
         v.zoom_to_rect(canvas(), 1.0, kurbo::Rect::new(0.0, 0.0, 500.0, 400.0));
         assert!((v.zoom - 2.0).abs() < 1e-9);
         assert_eq!(v.center, Point::new(250.0, 200.0));

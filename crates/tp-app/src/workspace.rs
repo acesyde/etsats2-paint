@@ -983,7 +983,7 @@ impl Workspace {
         let size = self.project.surface().size;
         Some(Rect::from_two_pos(
             map.to_screen(tp_core::kurbo::Point::ORIGIN),
-            map.to_screen(tp_core::kurbo::Point::new(size, size)),
+            map.to_screen(tp_core::kurbo::Point::new(size.width, size.height)),
         ))
     }
 

@@ -510,7 +510,7 @@ fn place_a_png() {
 #[test]
 fn large_image_is_scaled_down() {
     let mut h = open();
-    assert_eq!(ws(&h).project.surface().size, 4096.0);
+    assert_eq!(ws(&h).project.surface().size, Size::new(4096.0, 4096.0));
     place_bytes(&mut h, vec![("big.png", solid_png(6000, 3000, BLUE))], None);
     assert_eq!(
         ws(&h).selected_objects()[0].frame.size,

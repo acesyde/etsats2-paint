@@ -155,8 +155,8 @@ impl Project {
 
     /// The placement showing symbol `id` at 100% centered on `at`.
     pub fn placement_at(&self, id: SymbolId, at: Point) -> Option<Affine> {
-        let half = self.symbol(id)?.surface.size / 2.0;
-        Some(Affine::translate(at.to_vec2() - Vec2::new(half, half)))
+        let half = self.symbol(id)?.surface.size.to_vec2() / 2.0;
+        Some(Affine::translate(at.to_vec2() - half))
     }
 
     /// Turns the objects `ids` of the active surface into a new symbol named
@@ -200,7 +200,7 @@ impl Project {
         self.reserve_ids_up_to(next.saturating_sub(1));
         let id = SymbolId(self.fresh_id());
         let name = numbered_name(prefix, self.symbols.iter().map(|s| s.name.as_str()));
-        let mut surface = Surface::new(name.clone(), side);
+        let mut surface = Surface::new(name.clone(), Size::new(side, side));
         surface.objects = content;
         self.symbols.push(Symbol {
             id,

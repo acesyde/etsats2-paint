@@ -173,7 +173,8 @@ fn exclude_makes_a_hole_in_the_export() {
         &ws.project,
         0,
         tp_render::RenderOptions {
-            size: 2048,
+            width: 2048,
+            height: 2048,
             background: Some(Rgba::rgb(255, 255, 255)),
         },
         &mut ws.text.fonts,

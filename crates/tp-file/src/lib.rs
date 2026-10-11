@@ -102,13 +102,38 @@ struct Header {
 }
 
 /// What development builds wrote in format 1 before it was released:
-/// projects without a vehicle (blank textures), a single `vehicle`, or
-/// vehicles with `variants`. Read before the full document, which they
-/// don't match.
+/// projects without a vehicle (blank textures), a single `vehicle`,
+/// vehicles with `variants`, or surfaces with a single (square) `size`
+/// instead of a width and a height. Read before the full document, which
+/// they don't match.
 fn is_development_v1(text: &str) -> bool {
     /// True when the field is present, whatever its value.
     fn present<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
         serde::de::IgnoredAny::deserialize(d).map(|_| true)
+    }
+    /// True when the field is a single number.
+    fn number<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
+        struct IsNumber;
+        impl<'de> serde::de::Visitor<'de> for IsNumber {
+            type Value = bool;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a size")
+            }
+            fn visit_f64<E>(self, _: f64) -> Result<bool, E> {
+                Ok(true)
+            }
+            fn visit_i64<E>(self, _: i64) -> Result<bool, E> {
+                Ok(true)
+            }
+            fn visit_u64<E>(self, _: u64) -> Result<bool, E> {
+                Ok(true)
+            }
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<bool, A::Error> {
+                while seq.next_element::<serde::de::IgnoredAny>()?.is_some() {}
+                Ok(false)
+            }
+        }
+        d.deserialize_any(IsNumber)
     }
     #[derive(Deserialize)]
     struct Vehicle {
@@ -116,14 +141,26 @@ fn is_development_v1(text: &str) -> bool {
         variants: bool,
     }
     #[derive(Deserialize)]
+    struct Surface {
+        #[serde(default, deserialize_with = "number")]
+        size: bool,
+    }
+    #[derive(Deserialize)]
     struct Markers {
         #[serde(default)]
         vehicles: Vec<Vehicle>,
         #[serde(default, deserialize_with = "present")]
         vehicle: bool,
+        #[serde(default)]
+        surfaces: Vec<Surface>,
     }
     match ron_options().from_str::<Markers>(text) {
-        Ok(m) => m.vehicles.is_empty() || m.vehicle || m.vehicles.iter().any(|v| v.variants),
+        Ok(m) => {
+            m.vehicles.is_empty()
+                || m.vehicle
+                || m.vehicles.iter().any(|v| v.variants)
+                || m.surfaces.iter().any(|s| s.size)
+        }
         // Not even the markers parse: the full parse reports the damage.
         Err(_) => false,
     }

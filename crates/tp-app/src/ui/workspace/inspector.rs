@@ -137,11 +137,15 @@ fn nothing_selected(ui: &mut Ui, env: &mut PanelEnv<'_>) {
             TexturePart::Main => "inspector-main-texture",
             TexturePart::Accessory => "inspector-accessory-texture",
         });
-        let size = surface.size.round();
+        let size = surface.size_label();
         title(ui, &name);
         caption(
             ui,
-            &tr!("inspector-texture-kind", kind = kind.as_str(), size = size),
+            &tr!(
+                "inspector-texture-kind",
+                kind = kind.as_str(),
+                size = size.as_str()
+            ),
         );
         panels::vehicle::texture_notices(ui, env);
     });

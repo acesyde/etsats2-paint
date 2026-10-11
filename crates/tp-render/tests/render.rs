@@ -33,7 +33,11 @@ fn draw(p: &Project, size: u32, background: Option<Rgba>) -> image::RgbaImage {
     let pixmap = render(
         p,
         0,
-        RenderOptions { size, background },
+        RenderOptions {
+            width: size,
+            height: size,
+            background,
+        },
         &mut FontLibrary::bundled(),
         &mut |_, _| true,
     )
@@ -347,7 +351,8 @@ fn progress_can_cancel() {
         &p,
         0,
         RenderOptions {
-            size: 64,
+            width: 64,
+            height: 64,
             background: None,
         },
         &mut FontLibrary::bundled(),
@@ -1053,7 +1058,8 @@ fn shadow_in_the_exported_png() {
         &p,
         0,
         RenderOptions {
-            size: 2048,
+            width: 2048,
+            height: 2048,
             background: Some(RED),
         },
         &mut FontLibrary::bundled(),
@@ -1110,4 +1116,93 @@ fn a_texts_shadow() {
         }
     }
     assert!(checked > 100);
+}
+
+/// A project whose only surface is 8192 × 1024.
+fn rectangular() -> Project {
+    let mut p = project(TextureResolution::R8192);
+    p.surfaces[0].size = Size::new(8192.0, 1024.0);
+    p
+}
+
+fn draw_wh(p: &Project, width: u32, height: u32) -> image::RgbaImage {
+    let pixmap = render(
+        p,
+        0,
+        RenderOptions {
+            width,
+            height,
+            background: Some(WHITE),
+        },
+        &mut FontLibrary::bundled(),
+        &mut |_, _| true,
+    )
+    .unwrap();
+    to_rgba(&pixmap)
+}
+
+#[test]
+fn a_rectangular_surface_renders_its_shape() {
+    let mut p = rectangular();
+    // A red square at the right end.
+    p.add(shape(
+        ShapeKind::rectangle(),
+        (8000.0, 512.0),
+        (200.0, 200.0),
+        0.0,
+        RED,
+    ));
+    let full = draw_wh(&p, 8192, 1024);
+    assert_eq!(full.dimensions(), (8192, 1024));
+    assert_eq!(px(&full, 7950, 512), [255, 0, 0, 255]);
+    assert_eq!(px(&full, 8095, 412), [255, 0, 0, 255]);
+    assert_eq!(px(&full, 8105, 512), [255; 4]);
+    assert_eq!(px(&full, 7950, 405), [255; 4]);
+    // A quarter keeps the shape and the place.
+    let quarter = draw_wh(&p, 2048, 256);
+    assert_eq!(quarter.dimensions(), (2048, 256));
+    assert_eq!(px(&quarter, 2000, 128), [255, 0, 0, 255]);
+    assert_eq!(px(&quarter, 2030, 128), [255; 4]);
+}
+
+#[test]
+fn a_shadow_at_the_bottom_of_a_rectangular_surface_is_clipped_at_its_height() {
+    let mut p = rectangular();
+    // A square past the bottom edge: its blurred shadow still sees the
+    // part beyond the edge, and stops at 1024.
+    let mut o = shape(
+        ShapeKind::rectangle(),
+        (4000.0, 1024.0),
+        (200.0, 200.0),
+        0.0,
+        WHITE,
+    );
+    o.shadow = Some(tp_core::document::Shadow {
+        blur: 20.0,
+        offset: tp_core::kurbo::Vec2::new(0.0, 0.0),
+        ..hard()
+    });
+    let layer = tp_render::shadow_layer(
+        &o,
+        1.0,
+        1.0,
+        Some(p.surfaces[0].bounds()),
+        None,
+        &mut FontLibrary::bundled(),
+        &mut tp_render::DrawCache::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        layer.origin.y + f64::from(layer.pixmap.height()),
+        1024.0,
+        "cut at the surface's height"
+    );
+    p.add(o);
+    let img = draw_wh(&p, 8192, 1024);
+    // Right of the square, close to the bottom edge the shadow is as
+    // dark as further up.
+    let a = px(&img, 4105, 1023)[0];
+    let b = px(&img, 4105, 973)[0];
+    assert!(a < 200, "{a}");
+    assert!(a.abs_diff(b) <= 1, "{a} vs {b}");
 }

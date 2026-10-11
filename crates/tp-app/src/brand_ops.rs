@@ -666,7 +666,7 @@ mod tests {
         for name in ["Chassis", "Trailer"] {
             ws.project
                 .surfaces
-                .push(tp_core::Surface::new(name, 2048.0));
+                .push(tp_core::Surface::new(name, Size::new(2048.0, 2048.0)));
         }
         let (red, _) = ws.project.add_swatch(RED, "Color");
         ws.project.rename_swatch(red, "Company red");

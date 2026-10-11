@@ -232,3 +232,53 @@ fn opened_from_the_file_menu() {
     settle(&mut h);
     assert!(dialog(&h).is_some(), "export dialog open");
 }
+
+/// `open()` with the active surface made 8192 × 1024.
+fn open_rectangular() -> H {
+    let mut h = open();
+    let ws = h.state_mut().workspace_mut().unwrap();
+    let active = ws.project.active_surface;
+    ws.project.surfaces[active].size = Size::new(8192.0, 1024.0);
+    h.run();
+    h
+}
+
+/// texture-export "Rectangular texture": 1/4 of 8192 × 1024 is 2048 × 256.
+#[test]
+fn rectangular_texture() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("ace.png");
+    let mut h = open_rectangular();
+    open_dialog(&mut h);
+    assert!(h.query_by_label_contains("8192 × 1024 px · PNG").is_some());
+    assert!(h.query_by_label("4096 × 512").is_some());
+    h.get_by_label("2048 × 256").click();
+    settle(&mut h);
+    assert!(h.query_by_label_contains("2048 × 256 px · PNG").is_some());
+    export_to(&mut h, &path);
+    wait_until(&mut h, |h| h.state().modal.is_none());
+    assert_eq!(image::image_dimensions(&path).unwrap(), (2048, 256));
+}
+
+/// texture-export "Rectangular DDS": DXT5, 8192 × 1024, 14 levels.
+#[test]
+fn rectangular_dds() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("ace.dds");
+    let mut h = open_rectangular();
+    open_dialog(&mut h);
+    h.get_by_label("DDS").click();
+    settle(&mut h);
+    export_to(&mut h, &path);
+    wait_until(&mut h, |h| h.state().modal.is_none());
+    let bytes = std::fs::read(&path).unwrap();
+    let at = |o: usize| u32::from_le_bytes(bytes[o..o + 4].try_into().unwrap());
+    assert_eq!(&bytes[84..88], b"DXT5");
+    assert_eq!((at(16), at(12)), (8192, 1024), "width, height");
+    assert_eq!(at(28), 14, "mip levels");
+    assert_eq!(
+        bytes.len() as u64,
+        tp_render::dds_size(8192, 1024, tp_render::DdsEncoding::Bc3),
+        "down to 1 × 1"
+    );
+}

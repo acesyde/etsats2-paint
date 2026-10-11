@@ -63,7 +63,7 @@ fn trucks_with_several_main_textures_and_trailers() {
     let tex = |id, name| SampleTexture {
         id,
         name,
-        size: 4096,
+        size: TextureSize::new(4096, 4096),
         layout: 1,
     };
     let truck = sample::package_with(
@@ -115,7 +115,7 @@ fn svg_templates() {
     let t = [SampleTexture {
         id: "cabin",
         name: "Cabin",
-        size: 4096,
+        size: TextureSize::new(4096, 4096),
         layout: 1,
     }];
     let mut m = sample::manifest("a.b", "A", "1.0.0", &t);
@@ -224,11 +224,20 @@ fn invalid_packages_are_refused() {
     );
     assert_eq!(
         err(&with_manifest(
-            |m| m["paint_job"]["main"][0]["texture"]["size"] = json!(3000)
+            |m| m["paint_job"]["main"][0]["texture"]["size"] = json!([3000, 1024])
         )),
         PackageError::BadSize {
             texture: "Cabin".into(),
-            size: 3000
+            size: "[3000, 1024]".into()
+        }
+    );
+    assert_eq!(
+        err(&with_manifest(
+            |m| m["paint_job"]["accessories"][1]["texture"]["size"] = json!([1024, 32])
+        )),
+        PackageError::BadSize {
+            texture: "Accessories".into(),
+            size: "[1024, 32]".into()
         }
     );
     assert_eq!(
@@ -249,6 +258,55 @@ fn invalid_packages_are_refused() {
     ));
     assert!(is_valid_game_name("scania.r_2016") && is_valid_game_name("highline"));
     assert!(!is_valid_game_name("") && !is_valid_game_name("a..b") && !is_valid_game_name("a-b"));
+}
+
+#[test]
+fn rectangular_texture() {
+    let bytes = with_manifest(|m| {
+        m["paint_job"]["main"][0]["texture"]["size"] = json!([8192, 1024]);
+        m["paint_job"]["accessories"][0]["texture"]["size"] = json!([64, 8192]);
+    });
+    let p = Package::read(&bytes).unwrap();
+    let job = &p.manifest.paint_job;
+    assert_eq!(job.main[0].texture.size, TextureSize::new(8192, 1024));
+    assert_eq!(job.main[0].texture.size.label(), "8192 × 1024");
+    assert_eq!(job.accessories[0].texture.size, TextureSize::new(64, 8192));
+    assert_eq!(job.accessories[1].texture.size.label(), "1024²");
+}
+
+#[test]
+fn single_size_refused() {
+    // A single number, as packages wrote before textures had a width and
+    // a height.
+    for size in [
+        json!(4096),
+        json!([4096]),
+        json!([4096, 4096, 4096]),
+        json!("4096"),
+    ] {
+        let bytes = with_manifest(|m| m["paint_job"]["main"][0]["texture"]["size"] = size.clone());
+        assert_eq!(
+            err(&bytes),
+            PackageError::BadSize {
+                texture: "Cabin".into(),
+                size: size.to_string()
+            }
+        );
+        assert!(matches!(
+            Package::read_manifest(&bytes),
+            Err(PackageError::BadSize { .. })
+        ));
+    }
+}
+
+#[test]
+fn allowed_sides() {
+    let sides: Vec<u32> = TextureSize::allowed_sides().collect();
+    assert_eq!(sides, [64, 128, 256, 512, 1024, 2048, 4096, 8192]);
+    assert!(TextureSize::new(2048, 256).is_allowed());
+    assert!(!TextureSize::new(32, 64).is_allowed());
+    assert!(!TextureSize::new(16384, 1024).is_allowed());
+    assert!(!TextureSize::new(4000, 1024).is_allowed());
 }
 
 #[test]

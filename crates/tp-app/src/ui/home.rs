@@ -398,12 +398,21 @@ fn recent_card(
     };
     match thumbnail {
         Some(texture) => {
-            let aspect = picture.aspect_ratio();
-            let uv = Rect::from_center_size(egui::pos2(0.5, 0.5), Vec2::new(1.0, 1.0 / aspect));
-            egui::Image::new((texture.id(), picture.size()))
+            // The texture's shape: a square's middle, a wide one whole on
+            // the picture's background.
+            let (rect, uv) = tp_ui::widgets::thumbnail_place(picture, texture.size_vec2());
+            if rect != picture {
+                painter.rect_filled(picture, top, color::SURFACE_2);
+            }
+            let corners = if rect == picture {
+                top
+            } else {
+                CornerRadius::ZERO
+            };
+            egui::Image::new((texture.id(), rect.size()))
                 .uv(uv)
-                .corner_radius(top)
-                .paint_at(ui, picture);
+                .corner_radius(corners)
+                .paint_at(ui, rect);
         }
         None => {
             painter.rect_filled(picture, top, color::SURFACE_2);

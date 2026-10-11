@@ -8,8 +8,8 @@ use std::sync::Arc;
 use tp_core::document::{AssetId, Object, apply_affine};
 use tp_core::kurbo::Size;
 use tp_core::{
-    AssetKind, GameData, Guide, Project, ProjectVehicle, RequiredMod, Surface, SurfaceTemplate,
-    TemplateStatus, TexturePart, TextureResolution,
+    AssetKind, Axis, GameData, Guide, Project, ProjectVehicle, RequiredMod, Surface,
+    SurfaceTemplate, TemplateStatus, TexturePart, TextureResolution,
 };
 use tp_vehicles::{ImageKind, Manifest, Package, Part, Role};
 
@@ -157,11 +157,17 @@ fn template_for(
     })
 }
 
+/// The size of `part`'s texture, in texture pixels.
+fn texture_size(part: &Part) -> Size {
+    let size = part.texture.size;
+    Size::new(f64::from(size.width), f64::from(size.height))
+}
+
 /// A new empty surface for part `id` of `package`, its template added to
 /// `project`'s assets.
 fn part_surface(project: &mut Project, package: &Package, id: &str) -> Option<Surface> {
     let (role, part) = package.manifest.paint_job.part(id)?;
-    let mut surface = Surface::new(part.name.clone(), f64::from(part.texture.size));
+    let mut surface = Surface::new(part.name.clone(), texture_size(part));
     surface.template = Some(template_for(
         project,
         package,
@@ -222,7 +228,7 @@ pub fn fleet_project(
     let largest = ids
         .iter()
         .filter_map(|id| package.manifest.paint_job.part(id))
-        .map(|(_, p)| p.texture.size)
+        .map(|(_, p)| p.texture.size.width.max(p.texture.size.height))
         .max()
         .unwrap_or(4096);
     let resolution = TextureResolution::ALL
@@ -265,7 +271,7 @@ pub enum TextureChange {
         name: String,
         layout_changed: bool,
         /// Old and new sizes when the texture's size changed.
-        resized: Option<(f64, f64)>,
+        resized: Option<(Size, Size)>,
     },
     /// No longer in the package: the surface is kept, without template.
     Removed { name: String },
@@ -311,7 +317,7 @@ pub fn plan(project: &Project, package: &Package) -> Option<UpdatePlan> {
         let name = surface.name.clone();
         match m.paint_job.part(&t.texture_id) {
             Some((_, part)) => {
-                let size = f64::from(part.texture.size);
+                let size = texture_size(part);
                 changes.push(TextureChange::Replaced {
                     name,
                     layout_changed: part.texture.layout_version != t.layout_version,
@@ -342,12 +348,17 @@ pub fn plan(project: &Project, package: &Package) -> Option<UpdatePlan> {
 }
 
 /// `objects` of a texture of `old` pixels, scaled for a texture of `new`
-/// pixels (anchored at the top-left corner).
-pub fn scale_objects(objects: &[Object], old: f64, new: f64) -> Vec<Object> {
+/// pixels about the top-left corner: horizontally by the ratio of the
+/// widths and vertically by the ratio of the heights, as the resize
+/// handles stretch a selection (the game maps a texture by UV).
+pub fn scale_objects(objects: &[Object], old: Size, new: Size) -> Vec<Object> {
     if objects.is_empty() || old == new {
         return objects.to_vec();
     }
-    apply_affine(objects, tp_core::kurbo::Affine::scale(new / old))
+    apply_affine(
+        objects,
+        tp_core::kurbo::Affine::scale_non_uniform(new.width / old.width, new.height / old.height),
+    )
 }
 
 /// The other main textures of the vehicle surface `index` is a main
@@ -370,14 +381,18 @@ pub fn cabin_sources(project: &Project, index: usize) -> Vec<usize> {
 
 /// Scales a surface's artwork and guides from `old` to `new` texture pixels
 /// (anchored at the top-left corner).
-fn scale_surface(surface: &mut Surface, old: f64, new: f64) {
-    let factor = new / old;
+fn scale_surface(surface: &mut Surface, old: Size, new: Size) {
     let objects: Vec<Object> = surface.objects.iter().map(|o| (**o).clone()).collect();
     if !objects.is_empty() {
         let scaled = scale_objects(&objects, old, new);
         surface.objects = scaled.into_iter().map(Arc::new).collect();
     }
     for g in &mut surface.guides {
+        // A vertical guide is an x position, a horizontal one a y.
+        let factor = match g.axis {
+            Axis::Vertical => new.width / old.width,
+            Axis::Horizontal => new.height / old.height,
+        };
         *g = Guide::new(g.axis, g.position * factor);
     }
     surface.size = new;
@@ -543,7 +558,7 @@ impl Workspace {
                 };
                 old_assets.push(t.asset);
                 let surface = &mut project.surfaces[i];
-                let size = f64::from(part.texture.size);
+                let size = texture_size(part);
                 if size != surface.size {
                     let old = surface.size;
                     scale_surface(surface, old, size);
@@ -623,7 +638,7 @@ mod tests {
         SampleTexture {
             id,
             name,
-            size,
+            size: tp_vehicles::TextureSize::new(size, size),
             layout,
         }
     }
@@ -639,6 +654,33 @@ mod tests {
 
     fn truck(version: &str) -> Package {
         example("sample_truck", version)
+    }
+
+    /// vehicle-packages "Rectangular texture": an [8192, 1024] base gives
+    /// an 8192 × 1024 surface.
+    #[test]
+    fn rectangular_texture() {
+        let base = SampleTexture {
+            id: "base",
+            name: "Base",
+            size: tp_vehicles::TextureSize::new(8192, 1024),
+            layout: 1,
+        };
+        let package = Package::read(&sample::package_with(
+            "community.jdoe.liner",
+            "Liner",
+            "1.0.0",
+            "trailer",
+            &[base],
+            &[tex("mudflaps", "Mudflaps", 512, 1)],
+        ))
+        .unwrap();
+        let chosen = default_textures(&package.manifest);
+        let project = fleet_project("Liner", &package, &chosen).unwrap();
+        let base = &project.surfaces[0];
+        assert_eq!(base.size, Size::new(8192.0, 1024.0));
+        assert_eq!(base.bounds(), Rect::new(0.0, 0.0, 8192.0, 1024.0));
+        assert_eq!(base.size_label(), "8192 × 1024");
     }
 
     fn trailer() -> Package {
@@ -712,7 +754,7 @@ mod tests {
         let names: Vec<(&str, f64)> = project
             .surfaces
             .iter()
-            .map(|s| (s.name.as_str(), s.size))
+            .map(|s| (s.name.as_str(), s.max_side()))
             .collect();
         assert_eq!(
             names,
@@ -1086,7 +1128,7 @@ mod tests {
                 TextureChange::Replaced {
                     name: "Chassis".into(),
                     layout_changed: false,
-                    resized: Some((2048.0, 4096.0))
+                    resized: Some((Size::new(2048.0, 2048.0), Size::new(4096.0, 4096.0)))
                 },
                 TextureChange::Removed { name: "Old".into() },
             ]
@@ -1115,7 +1157,7 @@ mod tests {
             s[1].template.as_ref().unwrap().status,
             TemplateStatus::Current
         );
-        assert_eq!(s[1].size, 4096.0);
+        assert_eq!(s[1].size, Size::new(4096.0, 4096.0));
         // The chassis artwork doubled with its texture.
         let rect = s[1].objects.iter().find(|o| o.id == id).unwrap();
         assert!((rect.frame.center.x - 2000.0).abs() < 1e-6);
@@ -1169,7 +1211,7 @@ mod tests {
                 TextureChange::Replaced {
                     name: "Chassis".into(),
                     layout_changed: false,
-                    resized: Some((2048.0, 4096.0))
+                    resized: Some((Size::new(2048.0, 2048.0), Size::new(4096.0, 4096.0)))
                 },
                 TextureChange::Replaced {
                     name: "Cab accessories".into(),
@@ -1265,7 +1307,7 @@ mod tests {
         let mut ws =
             Workspace::new(fleet_project("T", &p, &default_textures(&p.manifest)).unwrap());
         let canvas = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0));
-        let cabin_view = crate::viewport::Viewport::fit(4096.0, canvas, 1.0);
+        let cabin_view = crate::viewport::Viewport::fit(Size::new(4096.0, 4096.0), canvas, 1.0);
         ws.viewport = Some(cabin_view);
         let frame = || Frame::new(Point::new(300.0, 300.0), Size::new(100.0, 50.0), 0.0);
         let on_cabin = ws.create_shape(ShapeKind::rectangle(), frame(), 1.0);
@@ -1289,8 +1331,10 @@ mod tests {
     fn copy_from_cabin_scales_keeps_links_and_undoes() {
         use tp_core::document::{Frame, Object, SwatchId};
         let mut project = tp_core::Project::new("p", TextureResolution::R2048);
-        project.surfaces[0].size = 2048.0;
-        project.surfaces.push(Surface::new("High roof", 4096.0));
+        project.surfaces[0].size = Size::new(2048.0, 2048.0);
+        project
+            .surfaces
+            .push(Surface::new("High roof", Size::new(4096.0, 4096.0)));
         let mut r = Object::new(
             ObjectId(0),
             ShapeKind::rectangle(),
@@ -1311,6 +1355,82 @@ mod tests {
         assert_eq!(ws.project.surfaces[0].objects.len(), 1, "source unchanged");
         ws.undo();
         assert!(ws.project.surfaces[1].objects.is_empty());
+    }
+
+    /// vehicle-projects "Copy from cabin": across shapes, the copies scale
+    /// by the widths' ratio across and the heights' ratio down.
+    #[test]
+    fn copy_from_cabin_onto_a_rectangular_texture() {
+        use tp_core::document::Object;
+        let mut project = tp_core::Project::new("p", TextureResolution::R4096);
+        project
+            .surfaces
+            .push(Surface::new("High roof", Size::new(8192.0, 2048.0)));
+        project.add(Object::new(
+            ObjectId(0),
+            ShapeKind::rectangle(),
+            Frame::from_rect(Rect::new(100.0, 100.0, 300.0, 150.0)),
+        ));
+        let mut ws = Workspace::new(project);
+        ws.set_active_surface(1);
+        ws.copy_from_texture(0, 1.0);
+        let copy = &ws.project.surfaces[1].objects[0];
+        let r = copy.frame.bounding_box();
+        assert!(
+            (r.x0 - 200.0).abs() < 1e-6 && (r.y0 - 50.0).abs() < 1e-6,
+            "{r:?}"
+        );
+        assert!((r.width() - 400.0).abs() < 1e-6 && (r.height() - 25.0).abs() < 1e-6);
+    }
+
+    /// vehicle-projects "Update Template": a texture from 4096 × 4096 to
+    /// 4096 × 2048 halves heights and y positions and keeps widths; a text
+    /// keeps following its style.
+    #[test]
+    fn update_to_a_rectangular_texture_scales_vertically() {
+        use tp_core::document::{CharStyle, Object, TextBlock};
+        let rect_tex = |w, h| SampleTexture {
+            id: "cabin",
+            name: "Cabin",
+            size: tp_vehicles::TextureSize::new(w, h),
+            layout: 1,
+        };
+        let v1 = package("1.0.0", &[rect_tex(4096, 4096)]);
+        let mut ws = Workspace::new(fleet_project("T", &v1, &ids(&["cabin"])).unwrap());
+        let rect = ws.create_shape(
+            ShapeKind::rectangle(),
+            Frame::from_rect(Rect::new(1000.0, 1000.0, 1400.0, 1200.0)),
+            1.0,
+        );
+        let mut text = Object::new(
+            ObjectId(0),
+            ShapeKind::Text,
+            Frame::from_rect(Rect::new(0.0, 2000.0, 800.0, 2240.0)),
+        );
+        let mut block = TextBlock::new("ACE", CharStyle::default());
+        block.layout_size = Size::new(800.0, 240.0);
+        text.text = Some(block);
+        let text = ws.project.add(text);
+        let style = ws.project.new_text_style(text, "Lettering").unwrap();
+        let v2 = package("1.1.0", &[rect_tex(4096, 2048)]);
+        assert!(ws.apply_update(&v2, &[], 2.0));
+        let surface = &ws.project.surfaces[0];
+        assert_eq!(surface.size, Size::new(4096.0, 2048.0));
+        let r = surface.get(rect).unwrap().frame.bounding_box();
+        assert!(
+            (r.x0 - 1000.0).abs() < 1e-6 && (r.width() - 400.0).abs() < 1e-6,
+            "{r:?}"
+        );
+        assert!(
+            (r.y0 - 500.0).abs() < 1e-6 && (r.height() - 100.0).abs() < 1e-6,
+            "{r:?}"
+        );
+        let t = surface.get(text).unwrap();
+        let block = t.text.as_ref().unwrap();
+        assert_eq!(block.style_id, Some(style), "still follows its style");
+        assert_eq!(block.style, CharStyle::default());
+        assert!((block.scale.x - 1.0).abs() < 1e-6 && (block.scale.y - 0.5).abs() < 1e-6);
+        assert!((t.frame.bounding_box().y0 - 1000.0).abs() < 1e-6);
     }
 
     #[test]

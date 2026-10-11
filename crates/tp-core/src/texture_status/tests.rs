@@ -45,7 +45,7 @@ fn hidden(mut o: Object) -> Object {
 }
 
 fn surface(objects: Vec<Object>) -> Surface {
-    let mut s = Surface::new("Chassis", 1024.0);
+    let mut s = Surface::new("Chassis", Size::new(1024.0, 1024.0));
     s.objects = objects.into_iter().map(Arc::new).collect();
     s.template = Some(SurfaceTemplate {
         package_id: "truck".to_owned(),
