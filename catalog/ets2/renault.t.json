@@ -226,12 +226,36 @@
         "r_chs_cover.4x2_satin",
         "r_chs_cover.4x2t_satin",
         "r_chs_cover.4x2_thor_pn",
-        "r_chs_cover.4x2t_thor_pn",
+        "r_chs_cover.4x2t_thor_pn"
+      ]
+    },
+    {
+      "id": "chassis_cover_6x_long",
+      "name": "Chassis Cover (6x Long)",
+      "file": "Accessories/Chassis Cover (6x Long).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
         "r_chs_cover.6x2_diva",
-        "r_chs_cover.6x24_diva",
         "r_chs_cover.6x2_satin",
+        "r_chs_cover.6x2_thor_pn"
+      ]
+    },
+    {
+      "id": "chassis_cover_6x_short",
+      "name": "Chassis Cover (6x Short)",
+      "file": "Accessories/Chassis Cover (6x Short).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_chs_cover.6x24_diva",
         "r_chs_cover.6x24_satin",
-        "r_chs_cover.6x2_thor_pn",
         "r_chs_cover.6x24_thor_pn"
       ]
     },
@@ -315,12 +339,48 @@
         "r_fender.4x2paintn",
         "r_fender.4x2painto",
         "r_fendr_top.4x2paintn",
-        "r_fender.6x24paintn",
-        "r_fender.6x24painto",
+        "r_fender.4x2_pn",
+        "r_fender.4x2_pn_ch",
+        "r_fendr_top.4x2_pn",
+        "r_fendr_top.4x2_pn_ch"
+      ]
+    },
+    {
+      "id": "rear_fender_6x_long",
+      "name": "Rear Fender (6x Long)",
+      "file": "Accessories/Rear Fender (6x Long).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
         "r_fender.6x2paintn",
         "r_fender.6x2painto",
+        "r_fendr_top.6x2paintn",
+        "r_fender.6x2_pn",
+        "r_fender.6x2_pn_ch",
+        "r_fendr_top.6x2_pn",
+        "r_fendr_top.6x2_pn_ch"
+      ]
+    },
+    {
+      "id": "rear_fender_6x_short",
+      "name": "Rear Fender (6x Short)",
+      "file": "Accessories/Rear Fender (6x Short).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.6x24paintn",
+        "r_fender.6x24painto",
         "r_fendr_top.6x24paintn",
-        "r_fendr_top.6x2paintn"
+        "r_fender.6x24_pn",
+        "r_fender.6x24_pn_ch",
+        "r_fendr_top.6x24_pn",
+        "r_fendr_top.6x24_pn_ch"
       ]
     },
     {
@@ -334,10 +394,22 @@
       "layout_version": 1,
       "ids": [
         "r_mudflap.4x2pnt",
-        "r_mudflap.4x2pntw",
         "r_mudflap.6x2pnt",
+        "r_mudflap.6x24pnt"
+      ]
+    },
+    {
+      "id": "rear_mudflaps_wide",
+      "name": "Rear Mudflaps (Wide)",
+      "file": "Accessories/Rear Mudflaps (Wide).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_mudflap.4x2pntw",
         "r_mudflap.6x2pntw",
-        "r_mudflap.6x24pnt",
         "r_mudflap.6x24pntw"
       ]
     },
@@ -369,9 +441,7 @@
         "sideskirt.4x2shp",
         "sideskirt.4x2side1p",
         "sideskirt.4x2side2pg",
-        "sideskirt.4x2side3",
-        "sideskirt.4x2plain",
-        "sideskirt.4x2satin"
+        "sideskirt.4x2side3"
       ]
     },
     {
@@ -387,9 +457,7 @@
         "sideskirt.6x2shp",
         "sideskirt.6x2side1p",
         "sideskirt.6x2side2pg",
-        "sideskirt.6x2side3",
-        "sideskirt.6x2plain",
-        "sideskirt.6x2satin"
+        "sideskirt.6x2side3"
       ]
     },
     {
@@ -407,6 +475,84 @@
         "sideskirt.6x24side2pg",
         "sideskirt.6x24side3"
       ]
+    },
+    {
+      "id": "sideskirts_satin_4x",
+      "name": "Sideskirts - Satin (4x)",
+      "file": "Accessories/Sideskirts - Satin (4x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.4x2satin"
+      ]
+    },
+    {
+      "id": "sideskirts_satin_6x_long",
+      "name": "Sideskirts - Satin (6x Long)",
+      "file": "Accessories/Sideskirts - Satin (6x Long).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.6x2satin"
+      ]
+    },
+    {
+      "id": "sideskirts_satin_6x_short",
+      "name": "Sideskirts - Satin (6x Short)",
+      "file": "Accessories/Sideskirts - Satin (6x Short).png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.6x24satin"
+      ]
+    },
+    {
+      "id": "sideskirts_stock_4x",
+      "name": "Sideskirts - Stock (4x)",
+      "file": "Accessories/Sideskirts - Stock (4x).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.4x2plain"
+      ]
+    },
+    {
+      "id": "sideskirts_stock_6x_long",
+      "name": "Sideskirts - Stock (6x Long)",
+      "file": "Accessories/Sideskirts - Stock (6x Long).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.6x2plain"
+      ]
+    },
+    {
+      "id": "sideskirts_stock_6x_short",
+      "name": "Sideskirts - Stock (6x Short)",
+      "file": "Accessories/Sideskirts - Stock (6x Short).png",
+      "size": [
+        2048,
+        1024
+      ],
+      "layout_version": 1,
+      "ids": [
+        "sideskirt.6x24plain"
+      ]
     }
   ],
   "left_out": [
@@ -421,30 +567,6 @@
       "ids": [
         "r_grill.boss_pn",
         "r_grill.boss_pn_led"
-      ],
-      "reason": "no template in the pack"
-    },
-    {
-      "ids": [
-        "r_fender.4x2_pn",
-        "r_fender.4x2_pn_ch",
-        "r_fender.6x2_pn",
-        "r_fender.6x2_pn_ch",
-        "r_fender.6x24_pn",
-        "r_fender.6x24_pn_ch",
-        "r_fendr_top.4x2_pn",
-        "r_fendr_top.4x2_pn_ch",
-        "r_fendr_top.6x2_pn",
-        "r_fendr_top.6x2_pn_ch",
-        "r_fendr_top.6x24_pn",
-        "r_fendr_top.6x24_pn_ch"
-      ],
-      "reason": "no template in the pack"
-    },
-    {
-      "ids": [
-        "sideskirt.6x24plain",
-        "sideskirt.6x24satin"
       ],
       "reason": "no template in the pack"
     },

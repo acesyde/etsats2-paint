@@ -173,6 +173,20 @@
       ]
     },
     {
+      "id": "main_mirrors_standard",
+      "name": "Main Mirrors - Standard",
+      "file": "Accessories/Main Mirrors - Standard.png",
+      "size": [
+        2048,
+        2048
+      ],
+      "layout_version": 1,
+      "ids": [
+        "mirror.pnt_pla",
+        "mirror.pnt_pla_bs"
+      ]
+    },
+    {
       "id": "rear_fender_top",
       "name": "Rear Fender Top",
       "file": "Accessories/Rear Fender Top.png",
@@ -214,8 +228,6 @@
       ],
       "layout_version": 1,
       "ids": [
-        "mirror.pnt_pla",
-        "mirror.pnt_pla_bs",
         "s_mirror.pnt"
       ]
     },

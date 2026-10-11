@@ -145,15 +145,35 @@
       ],
       "layout_version": 1,
       "ids": [
-        "r_fender.paint_4x2",
-        "r_fender.paint_6x22",
-        "r_fender.paint_6x24",
+        "r_fender.paint_4x2"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_6x2_long_6x4",
+      "name": "Rear Fender - Paint (6x2 Long & 6x4)",
+      "file": "Accessories/Rear Fender - Paint (6x2 Long & 6x4).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
         "r_fender.paint_6x2_2",
-        "r_fender.paint_6x4",
-        "r_fendr_top.paint_6x22",
-        "r_fendr_top.paint_6x24",
-        "r_fendr_top.paint_6x2_2",
-        "r_fendr_top.paint_6x4"
+        "r_fender.paint_6x4"
+      ]
+    },
+    {
+      "id": "rear_fender_paint_6x2_short",
+      "name": "Rear Fender - Paint (6x2 Short)",
+      "file": "Accessories/Rear Fender - Paint (6x2 Short).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fender.paint_6x22",
+        "r_fender.paint_6x24"
       ]
     },
     {
@@ -180,6 +200,34 @@
       "layout_version": 1,
       "ids": [
         "r_fendr_top.paint_4x2"
+      ]
+    },
+    {
+      "id": "rear_fender_top_paint_6x2_long_6x4",
+      "name": "Rear Fender Top - Paint (6x2 Long & 6x4)",
+      "file": "Accessories/Rear Fender Top - Paint (6x2 Long & 6x4).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.paint_6x2_2",
+        "r_fendr_top.paint_6x4"
+      ]
+    },
+    {
+      "id": "rear_fender_top_paint_6x2_short",
+      "name": "Rear Fender Top - Paint (6x2 Short)",
+      "file": "Accessories/Rear Fender Top - Paint (6x2 Short).png",
+      "size": [
+        2048,
+        256
+      ],
+      "layout_version": 1,
+      "ids": [
+        "r_fendr_top.paint_6x22",
+        "r_fendr_top.paint_6x24"
       ]
     },
     {
