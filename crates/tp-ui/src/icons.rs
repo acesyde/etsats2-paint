@@ -52,6 +52,7 @@ pub const RESET: &str = ph::ARROW_COUNTER_CLOCKWISE;
 pub const ROTATE: &str = ph::ARROW_CLOCKWISE;
 pub const REMOVE: &str = ph::TRASH;
 pub const MORE: &str = ph::DOTS_THREE;
+pub const COPY: &str = ph::COPY;
 
 pub const EXPANDED: &str = ph::CARET_DOWN;
 pub const COLLAPSED: &str = ph::CARET_RIGHT;

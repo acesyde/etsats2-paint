@@ -343,6 +343,34 @@ fn download_page() {
 }
 
 #[test]
+fn copy_download_link() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    new_project(&mut h);
+    pick(&mut h, "DAF NGD");
+    settle(&mut h);
+    h.get_by_label("Copy the link").click();
+    h.step();
+    let copied: Vec<String> = h
+        .output()
+        .platform_output
+        .commands
+        .iter()
+        .filter_map(|c| match c {
+            egui::OutputCommand::CopyText(text) => Some(text.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        copied,
+        ["https://forum.scssoft.com/viewtopic.php?f=33&t=272386"]
+    );
+    h.step();
+    assert!(h.query_by_label("Link copied").is_some());
+    assert!(pack_dialog_open(&h));
+}
+
+#[test]
 fn folder_unzipped_inside_another() {
     let dir = tempfile::tempdir().unwrap();
     let outer = dir.path().join("Downloads");
