@@ -354,7 +354,8 @@ fn folder_unzipped_inside_another() {
     settle(&mut h);
     script_folders(&mut h, &[&outer]);
     h.get_by_label("Choose the pack folder…").click();
-    h.run();
+    // The DAF then installs from it: wait for the end of its spinner.
+    wait_install(&mut h);
     assert_eq!(
         h.state().prefs.template_pack(Game::Ets2),
         Some(inner.as_path())
