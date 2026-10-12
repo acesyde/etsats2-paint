@@ -27,7 +27,7 @@ pub fn url(port: u16) -> String {
 
 /// A running server; stopped when dropped.
 pub struct ServerHandle {
-    server: Arc<Server>,
+    server: Option<Arc<Server>>,
     thread: Option<JoinHandle<()>>,
     pub port: u16,
 }
@@ -84,7 +84,7 @@ pub fn start(
             set(ServerState::Listening);
             tracing::info!(port, "MCP server listening");
             Ok(ServerHandle {
-                server,
+                server: Some(server),
                 thread: Some(thread),
                 port,
             })
@@ -104,11 +104,24 @@ impl ServerHandle {
     }
 
     fn shutdown(&mut self) {
-        self.server.unblock();
+        let Some(server) = self.server.take() else {
+            return;
+        };
+        server.unblock();
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
-            tracing::info!(port = self.port, "MCP server stopped");
         }
+        // The last reference: tiny_http wakes its accept thread, which then
+        // closes the listening socket on its own. Wait for it, so the port is
+        // free (and refuses connections) once this returns.
+        drop(server);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while std::net::TcpListener::bind(("127.0.0.1", self.port)).is_err()
+            && std::time::Instant::now() < deadline
+        {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        tracing::info!(port = self.port, "MCP server stopped");
     }
 }
 

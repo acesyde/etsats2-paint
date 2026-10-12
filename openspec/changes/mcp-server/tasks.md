@@ -26,7 +26,7 @@
 
 ## 4. End-to-end check, screenshots and docs
 
-- [ ] 4.1 Connect a real MCP client (Claude Code with `claude mcp add --transport http truckpaint http://127.0.0.1:7373/mcp`) to the app with the sample truck open, ask it to recreate a simple livery from a reference image and to place a logo; verify the tools are listed, the drawing appears on the right texture, render_texture shows it, and ⌘Z undoes each call. Note what the tool descriptions need to improve in design.md.
+- [x] 4.1 Connect a real MCP client (Claude Code with `claude mcp add --transport http truckpaint http://127.0.0.1:7373/mcp`) to the app with the sample truck open, ask it to recreate a simple livery from a reference image and to place a logo; verify the tools are listed, the drawing appears on the right texture, render_texture shows it, and ⌘Z undoes each call. Note what the tool descriptions need to improve in design.md.
 - [x] 4.2 Add to `tests/screenshots.rs` the Preferences section (off, on, port in use) and the status bar item (EN and DE, 100 % and 200 %), and run the long-text check over them; verify no label is clipped or overlaps.
 - [x] 4.3 Document how to connect a client (Claude Desktop, Claude Code, generic Streamable HTTP) in the README; verify the commands work as written.
 - [x] 4.4 Run `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings` and `cargo test --workspace --release --locked`; verify all pass.
