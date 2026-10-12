@@ -116,6 +116,9 @@ pub const UNLOCKED: &str = ph::LOCK_SIMPLE_OPEN;
 pub const LINKED: &str = ph::LINK_SIMPLE;
 pub const UNLINKED: &str = ph::LINK_BREAK;
 pub const ADD: &str = ph::PLUS;
+/// The local MCP server: listening, or a client connected.
+pub const MCP: &str = ph::PLUGS;
+pub const MCP_CONNECTED: &str = ph::PLUGS_CONNECTED;
 /// A status bar toggle that is on / off (the knob's side tells them apart).
 pub const TOGGLE_ON: &str = ph::TOGGLE_RIGHT;
 pub const TOGGLE_OFF: &str = ph::TOGGLE_LEFT;

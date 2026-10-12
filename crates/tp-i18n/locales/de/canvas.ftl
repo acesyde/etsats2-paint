@@ -95,3 +95,23 @@ undo-add-vehicle = Fahrzeug hinzufügen
 undo-add-vehicles = Fahrzeuge hinzufügen
 undo-change-textures = Texturen ändern
 undo-remove-vehicle = Fahrzeug entfernen
+
+## Änderungen eines KI-Assistenten über den MCP-Server
+
+undo-ai-add-shape = KI: Form hinzufügen
+undo-ai-add-path = KI: Pfad hinzufügen
+undo-ai-add-text = KI: Text hinzufügen
+undo-ai-import-image = KI: Bild importieren
+undo-ai-update-object = KI: Objekt ändern
+undo-ai-arrange = KI: Anordnen
+undo-ai-delete = KI: Löschen
+undo-ai-add-swatch = KI: Farbfeld hinzufügen
+undo-ai-apply-style = KI: Stil anwenden
+undo-ai-place-symbol = KI: Symbol platzieren
+status-mcp = MCP
+status-mcp-connected = MCP · verbunden
+status-mcp-changes = { $count ->
+    [one] MCP · { $count } Änderung
+   *[other] MCP · { $count } Änderungen
+    }
+status-mcp-tooltip = Lokaler MCP-Server unter { $url }. Klicken, um seine Einstellungen zu öffnen.

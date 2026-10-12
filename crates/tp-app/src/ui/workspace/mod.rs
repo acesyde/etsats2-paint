@@ -46,8 +46,10 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     let mode = state.title_bar_mode();
     let menu_row = state.draws_menu_row();
     let double_click = state.double_click;
+    let mcp = state.mcp.view();
     let AppState {
         prefs,
+        reveal_mcp_preferences,
         queue,
         screen,
         vehicles,
@@ -110,7 +112,12 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     Panel::bottom("status_bar")
         .exact_size(size::STATUS_BAR_HEIGHT)
         .frame(bar_frame().inner_margin(Margin::symmetric(space::MD as i8, 0)))
-        .show(ui, |ui| status_bar::show(ui, &mut cmds, ws, aids));
+        .show(ui, |ui| {
+            if status_bar::show(ui, &mut cmds, ws, aids, &mcp) {
+                *reveal_mcp_preferences = true;
+                cmds.push(crate::commands::CommandId::Preferences);
+            }
+        });
 
     macro_rules! env {
         () => {

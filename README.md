@@ -11,6 +11,33 @@ vehicle, design its paint job with vector tools, and export a ready-to-install m
 Built in Rust with [egui](https://github.com/emilk/egui) (wgpu backend) for Linux,
 Windows and macOS.
 
+## Drawing with an AI assistant (MCP)
+
+TruckPaint can let an AI assistant draw on the open project through a local
+[MCP](https://modelcontextprotocol.io) server: recreate a livery from a reference
+image, or place a logo you give it. The assistant runs in your own MCP client;
+TruckPaint holds no API key.
+
+1. In **Preferences › AI assistant (MCP)**, check **Let an AI assistant draw on the
+   open project**. The server listens on `http://127.0.0.1:7373/mcp` (loopback only;
+   the port can be changed while it is off). It is off by default.
+2. Add it to your client:
+   - **Claude Code**: `claude mcp add --transport http truckpaint http://127.0.0.1:7373/mcp`
+   - **Claude Desktop**, or any client that only speaks stdio, through
+     [mcp-remote](https://www.npmjs.com/package/mcp-remote), in
+     `claude_desktop_config.json`:
+     ```json
+     { "mcpServers": { "truckpaint": { "command": "npx", "args": ["mcp-remote", "http://127.0.0.1:7373/mcp"] } } }
+     ```
+   - Any other client: the Streamable HTTP transport at that address.
+3. Open a project and ask, for example: *"Paint the Standard cab like this photo"*.
+
+The assistant reads the project, looks at each texture's template, draws shapes, SVG
+paths, texts and images in texture pixels, and renders the texture to check its work.
+Every change it makes is one undo step labeled "AI: …". It can't save, export or open
+files; the status bar shows when it is connected and how many changes it made in the
+last minute.
+
 ## Building
 
 Runtimes and commands are managed by [mise](https://mise.jdx.dev): `mise.toml` pins
@@ -87,6 +114,7 @@ Logs are written to stderr and to a daily file in the application data directory
 | `tp-app`   | The desktop application: screens, commands, layout, preferences.     |
 | `tp-vehicles` | Vehicle packages (`.tpv`): manifest, validation, templates.       |
 | `tp-pack`  | The `tpv` command: builds and checks vehicle packages.               |
+| `tp-mcp`   | The local MCP server: protocol, tools and their arguments (no UI).   |
 
 Planned changes are tracked with OpenSpec in `openspec/`; product decisions and the
 order of upcoming changes are in [docs/roadmap.md](docs/roadmap.md).
