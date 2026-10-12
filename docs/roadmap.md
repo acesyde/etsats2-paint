@@ -289,7 +289,6 @@ None at the moment.
 | 4 | `distribution` | Release builds and installers. Includes a macOS `.app` bundle (so the app menu's bold name reads "TruckPaint", not the binary's name), and the manual checks of the drawn title bar on Windows, Linux X11 and Wayland (moving, double-click, resize grips, window controls, menus, the system title bar option and `TRUCKPAINT_SYSTEM_TITLE_BAR=1`). | A player can go from vehicle to mod without building the app. |
 | 5 | `template-update-impact` | A template update says what it changes and which projects it touches; affected textures become "to check" and affected objects are flagged. Nothing moves automatically. Works with local packages too; builds on the To check state of `texture-status` (shipped). | Each game update brings a new template pack: `tpv catalog check` tells which official vehicles changed, and the player's projects get the To check flow. |
 | 5a | `first-run` | A three-step first launch: language and game, vehicles to install from the official catalog, first project. | The official catalog (`official-vehicles`) gives it vehicles to offer; it no longer waits for the marketplace. |
-| 6 | `mcp-server` | A local MCP server (Streamable HTTP on 127.0.0.1, off by default, switched on in Preferences) through which an external LLM client draws on the open project: read the project, see a texture's template and artwork, add shapes, SVG paths, texts and images, and change, arrange or delete objects. Each call is one undo step ("AI: …"); nothing is saved or exported by the LLM. No LLM, chat or API key inside the app. | Lets a player recreate a livery from a photo or place a supplied logo with the LLM client they already use; the tools layer could later serve a built-in chat. |
 
 The `marketplace` (browsing and installing community packages from a
 GitHub-hosted index) is postponed with no date: it needs hosting,
@@ -300,6 +299,19 @@ moderation and a release first, and the official vehicles come from
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `mcp-server`: a local MCP server lets an AI assistant draw on the open
+  project, from the player's own MCP client (Claude Code, Claude Desktop…);
+  TruckPaint embeds no LLM and stores no API key. Off by default, it is
+  turned on in Preferences › AI assistant (MCP) and listens on
+  `http://127.0.0.1:7373/mcp` only (port editable, web pages refused). Its
+  tools read the project, render a texture or its template as a PNG, and
+  add, change, arrange or delete objects on a named texture in texture
+  pixels: shapes, SVG paths (holes with even-odd), texts, images (base64 or
+  a file path), swatches, styles and symbol instances. Each call is one
+  undo step "AI: …", applied whole or not at all; calls wait for the
+  player's gestures and dialogs (30 s), and nothing is saved, exported or
+  written to disk. The status bar shows the server's state and its changes
+  of the last minute;
 - `polishing` (first pass, after a screenshot audit in every language and
   in the long-text mode): fixes, ergonomics and wording, with no new
   feature. Layouts fit every language at the minimum window size (960 ×
