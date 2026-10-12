@@ -30,4 +30,4 @@
 - [x] 4.2 Add to `tests/screenshots.rs` the Preferences section (off, on, port in use) and the status bar item (EN and DE, 100 % and 200 %), and run the long-text check over them; verify no label is clipped or overlaps.
 - [x] 4.3 Document how to connect a client (Claude Desktop, Claude Code, generic Streamable HTTP) in the README; verify the commands work as written.
 - [x] 4.4 Run `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings` and `cargo test --workspace --release --locked`; verify all pass.
-- [ ] 4.5 At ship time, update `docs/roadmap.md`: remove `mcp-server` from "Next changes" and add it at the top of "Shipped"; verify `openspec validate mcp-server --strict` passes.
+- [x] 4.5 At ship time, update `docs/roadmap.md`: remove `mcp-server` from "Next changes" and add it at the top of "Shipped"; verify `openspec validate mcp-server --strict` passes.
