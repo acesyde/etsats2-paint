@@ -1,15 +1,18 @@
 //! Status bar. In the Workshop: zoom, pointer position, the active texture's
 //! template (shown, opacity, key G), the Snapping, Grid and Guides toggles
 //! and the save state; in the Project and Brand spaces, the save state only.
+//! In every space, while the local MCP server is on, its state.
 
 use egui::{Align, Layout, RichText, Sense, Ui, WidgetInfo, WidgetType};
 use tp_i18n::tr;
+use tp_mcp::ServerState;
 use tp_ui::icons;
 use tp_ui::tokens::{color, space, typography};
 use tp_ui::widgets::{SWITCH_SIZE, ThinSlider, paint_switch};
 
 use crate::commands::CommandId;
 use crate::layout::Space;
+use crate::mcp::McpView;
 use crate::prefs::ViewAids;
 use crate::ui::CommandUi;
 use crate::workspace::{SaveState, Workspace};
@@ -64,7 +67,15 @@ pub fn format_zoom(percent: f32) -> String {
     }
 }
 
-pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace, aids: ViewAids) {
+/// Draws the status bar; returns true when the MCP item was clicked.
+pub fn show(
+    ui: &mut Ui,
+    cmds: &mut CommandUi<'_>,
+    ws: &mut Workspace,
+    aids: ViewAids,
+    mcp: &McpView,
+) -> bool {
+    let mut mcp_clicked = false;
     ui.horizontal_centered(|ui| {
         ui.spacing_mut().item_spacing.x = space::SM;
         if ws.space == Space::Workshop {
@@ -76,6 +87,12 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace, aids: Vie
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             save_state(ui, ws);
+            if mcp.state != ServerState::Off {
+                ui.add_space(space::SM);
+                divider(ui);
+                ui.add_space(space::SM);
+                mcp_clicked = mcp_item(ui, mcp);
+            }
             if ws.space == Space::Workshop {
                 ui.add_space(space::SM);
                 divider(ui);
@@ -99,6 +116,44 @@ pub fn show(ui: &mut Ui, cmds: &mut CommandUi<'_>, ws: &mut Workspace, aids: Vie
             }
         });
     });
+    mcp_clicked
+}
+
+/// The MCP server's state: "MCP", "MCP · connected" or "MCP · 3 changes",
+/// with an icon; its tooltip gives the address. Returns whether it was
+/// clicked.
+fn mcp_item(ui: &mut Ui, mcp: &McpView) -> bool {
+    let (icon, text, tint) = match mcp.state {
+        ServerState::Listening if mcp.recent_writes > 0 => (
+            icons::MCP_CONNECTED,
+            tr!("status-mcp-changes", count = mcp.recent_writes),
+            color::TEXT_PRIMARY,
+        ),
+        ServerState::Listening if mcp.connected => (
+            icons::MCP_CONNECTED,
+            tr("status-mcp-connected"),
+            color::TEXT_PRIMARY,
+        ),
+        ServerState::Listening => (icons::MCP, tr("status-mcp"), color::TEXT_MUTED),
+        ServerState::PortInUse | ServerState::Failed(_) => {
+            (icons::WARNING, tr("status-mcp"), color::WARNING)
+        }
+        ServerState::Off => return false,
+    };
+    let response = ui
+        .add(
+            egui::Button::new((
+                RichText::new(&text)
+                    .size(typography::CAPTION)
+                    .color(color::TEXT_MUTED),
+                icons::rich(icon).size(typography::BODY).color(tint),
+            ))
+            .frame(false)
+            .sense(Sense::click()),
+        )
+        .on_hover_text(tr!("status-mcp-tooltip", url = tp_mcp::url(mcp.port)));
+    response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, &text));
+    response.clicked()
 }
 
 /// Zoom and pointer position in texture pixels.

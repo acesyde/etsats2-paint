@@ -3288,3 +3288,119 @@ fn render_multi_vehicle_choice() {
         save(&mut h, &name("add_vehicle"));
     }
 }
+
+/// Posts one tools/call to the local MCP server at `port` (from another
+/// thread, while the harness steps) and waits for its answer.
+fn mcp_call(
+    h: &mut egui_kittest::Harness<'static, tp_app::AppState>,
+    port: u16,
+    name: &str,
+    arguments: serde_json::Value,
+) {
+    use std::io::{Read, Write};
+    let body = serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+        "params": {"name": name, "arguments": arguments}})
+    .to_string();
+    let client = std::thread::spawn(move || {
+        let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+        write!(
+            stream,
+            "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
+        .unwrap();
+        let mut answer = String::new();
+        stream.read_to_string(&mut answer).unwrap();
+    });
+    while !client.is_finished() {
+        h.step();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    client.join().unwrap();
+}
+
+/// The local MCP server: Preferences' AI assistant (MCP) section off, on
+/// with a client connected, and with its port in use, and the Workshop's
+/// status bar while a client draws, in English and German at 100 % and
+/// 200 %; then the same at 100 % with every text 40 % longer. Files are
+/// named `mcp_<language>_<screen>_<scale>.png`.
+#[test]
+#[ignore = "needs a GPU; run manually for visual QA"]
+fn render_mcp() {
+    use tp_app::state::Modal;
+    use tp_i18n::Language;
+    let free_port = || {
+        std::net::TcpListener::bind(("127.0.0.1", 0))
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port()
+    };
+    let runs = [
+        (Language::English, 1.0, "100", 0),
+        (Language::English, 2.0, "200", 0),
+        (Language::German, 1.0, "100", 0),
+        (Language::German, 2.0, "200", 0),
+        (Language::English, 1.0, "long", 40),
+    ];
+    for (language, scale, suffix, lengthening) in runs {
+        tp_i18n::set_lengthening(lengthening);
+        let code = language.code();
+        let name = |screen: &str| format!("mcp_{code}_{screen}_{suffix}");
+        let port = free_port();
+        let mut prefs = Prefs {
+            ui_scale: scale,
+            mcp_port: port,
+            ..Prefs::default()
+        };
+        prefs.set_language(Some(language));
+        let size = Vec2::new(1440.0, 900.0) * scale.max(1.0);
+        let mut h = common::wgpu_harness_with(prefs, size);
+        mac_native(&mut h);
+        common::create_project(&mut h);
+        demo_scene(&mut h);
+        // Off.
+        h.state_mut().modal = Some(Modal::Preferences);
+        h.state_mut().reveal_mcp_preferences = true;
+        h.run();
+        save(&mut h, &name("prefs_off"));
+        // On, a client drawing.
+        h.state_mut().prefs.mcp_enabled = true;
+        h.run();
+        let texture = {
+            let p = &h.state().workspace().unwrap().project;
+            let t = p.surfaces[0].template.as_ref().unwrap();
+            format!("{}/{}", t.package_id, t.texture_id)
+        };
+        for x in [600, 1400, 2200] {
+            mcp_call(
+                &mut h,
+                port,
+                "add_shape",
+                serde_json::json!({"texture": texture, "shape": "star", "x": x, "y": 3000,
+                    "width": 600, "height": 600, "fill": "#F2B705"}),
+            );
+        }
+        h.state_mut().reveal_mcp_preferences = true;
+        h.run();
+        save(&mut h, &name("prefs_connected"));
+        h.state_mut().modal = None;
+        h.run();
+        save(&mut h, &name("status_bar"));
+        // The port taken by another program.
+        h.state_mut().prefs.mcp_enabled = false;
+        h.run();
+        let taken = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        h.state_mut().prefs.mcp_port = taken.local_addr().unwrap().port();
+        h.state_mut().prefs.mcp_enabled = true;
+        h.state_mut().modal = Some(Modal::Preferences);
+        h.state_mut().reveal_mcp_preferences = true;
+        h.run();
+        save(&mut h, &name("prefs_port_in_use"));
+        h.state_mut().modal = None;
+        h.run();
+        save(&mut h, &name("status_bar_port_in_use"));
+        drop(taken);
+    }
+    tp_i18n::set_lengthening(0);
+}

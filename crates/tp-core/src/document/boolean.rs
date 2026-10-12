@@ -280,6 +280,36 @@ fn reversed(path: &BezPath) -> BezPath {
 /// even number of times wind one way, the others the opposite way.
 fn orient_for_nonzero(paths: &Paths) -> BezPath {
     let subs: Vec<BezPath> = paths.iter().map(|q| from_flo(&vec![q.clone()])).collect();
+    orient_subpaths(&subs)
+}
+
+/// The same outline drawn with the non-zero rule as `path` is with the
+/// even-odd rule: each closed contour is turned to wind by how many others
+/// enclose it. Exact for contours that don't cross each other or
+/// themselves (rings, letter counters).
+pub fn orient_even_odd(path: &BezPath) -> BezPath {
+    let mut subs: Vec<BezPath> = Vec::new();
+    for el in path.elements() {
+        if matches!(el, PathEl::MoveTo(_)) || subs.is_empty() {
+            subs.push(BezPath::new());
+        }
+        subs.last_mut().expect("pushed").push(*el);
+    }
+    subs.retain(|s| s.segments().next().is_some());
+    // Open lines have no area: kept as they are, after the contours.
+    let (closed, open): (Vec<BezPath>, Vec<BezPath>) = subs
+        .into_iter()
+        .partition(|s| matches!(s.elements().last(), Some(PathEl::ClosePath)));
+    let mut out = orient_subpaths(&closed);
+    for line in open {
+        out.extend(line.elements().iter().copied());
+    }
+    out
+}
+
+/// Orients separate closed contours for the non-zero rule (see
+/// [`orient_for_nonzero`]).
+fn orient_subpaths(subs: &[BezPath]) -> BezPath {
     let mut out = BezPath::new();
     for (i, sub) in subs.iter().enumerate() {
         let probe = sub.segments().next().map_or(Point::ORIGIN, |s| s.eval(0.5));
@@ -586,5 +616,16 @@ mod tests {
         );
         assert!(operand_problem(&line).is_some());
         assert!(operand_problem(&circle(0.0, 0.0, 1.0)).is_none());
+    }
+    #[test]
+    fn even_odd_ring_keeps_its_hole() {
+        let mut path = kurbo::Circle::new((0.0, 0.0), 100.0).to_path(0.1);
+        // Both circles wind the same way: non-zero would fill the hole.
+        path.extend(kurbo::Circle::new((0.0, 0.0), 50.0).to_path(0.1));
+        assert_ne!(path.winding(Point::new(0.0, 0.0)), 0);
+        let ring = orient_even_odd(&path);
+        assert_eq!(ring.winding(Point::new(0.0, 0.0)), 0);
+        assert_ne!(ring.winding(Point::new(75.0, 0.0)), 0);
+        assert_eq!(ring.winding(Point::new(150.0, 0.0)), 0);
     }
 }

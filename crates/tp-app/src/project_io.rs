@@ -391,6 +391,7 @@ impl AppState {
 
     /// Normal exit: pending saves finish and the recovery copy is removed.
     pub fn shutdown(&mut self) {
+        self.mcp.stop();
         // A library change not yet queued is written before quitting.
         if let Some((library, path)) = self.library.take_write()
             && let Err(err) = tp_file::library::write(&library, &path)

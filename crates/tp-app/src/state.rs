@@ -276,6 +276,11 @@ pub struct AppState {
     /// Why the pack folder last chosen in Preferences was refused (shown
     /// in the dialog until it closes).
     pub preferences_refusal: Option<String>,
+    /// The local MCP server and its calls.
+    pub mcp: crate::mcp::McpHost,
+    /// Preferences should scroll to the AI assistant (MCP) section when
+    /// it opens (the status bar's MCP item was clicked).
+    pub reveal_mcp_preferences: bool,
 }
 
 impl AppState {
@@ -346,6 +351,8 @@ impl AppState {
             double_click: Default::default(),
             shown_title_bar_mode: None,
             preferences_refusal: None,
+            mcp: Default::default(),
+            reveal_mcp_preferences: false,
         };
         state.refresh_recent_availability();
         state
@@ -571,6 +578,13 @@ impl AppState {
             tp_ui::theme::configure_style(ui.style_mut(), self.prefs.theme().text_scale);
         }
         tp_ui::theme::follow_display(&ctx);
+        self.mcp
+            .sync(self.prefs.mcp_enabled, self.prefs.mcp_port, &ctx);
+        // Calls run before the frame draws, so it shows their result.
+        self.run_mcp_calls(ctx.input(|i| i.time));
+        if let Some(next) = self.mcp.next_change() {
+            ctx.request_repaint_after(next);
+        }
         self.handle_close_request(&ctx);
         self.handle_keyboard(&ctx);
         let aids = self.prefs.view_aids;

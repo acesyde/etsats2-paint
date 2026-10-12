@@ -278,11 +278,14 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         return;
     }
     if matches!(state.modal, Some(Modal::Preferences)) {
+        let mcp = state.mcp.view();
         let outcome = preferences(
             ctx,
             &mut state.prefs,
             !state.macos,
             state.preferences_refusal.as_deref(),
+            &mcp,
+            &mut state.reveal_mcp_preferences,
         );
         match outcome {
             PrefsOutcome::Pending => {}
@@ -550,8 +553,10 @@ enum PackAction {
 }
 
 /// The window height (points) under which the settings of Preferences
-/// scroll: about the dialog's own height.
+/// always scroll.
 const PREFERENCES_HEIGHT: f32 = 700.0;
+/// Room the dialog's title, footer and margins take around its settings.
+const PREFERENCES_CHROME: f32 = 200.0;
 
 /// The Preferences dialog. `title_bar` offers the system title bar option
 /// (Windows and Linux); `refusal` says why the last pack folder chosen was
@@ -561,6 +566,8 @@ fn preferences(
     prefs: &mut crate::prefs::Prefs,
     title_bar: bool,
     refusal: Option<&str>,
+    mcp: &crate::mcp::McpView,
+    reveal_mcp: &mut bool,
 ) -> PrefsOutcome {
     let mut choose = None;
     let response = modal("preferences_modal").show(ctx, |ui| {
@@ -569,17 +576,26 @@ fn preferences(
         ui.add_space(space::LG);
         // The settings scroll when the window is too short for them (large
         // UI scales), so the buttons stay in view.
+        // They also scroll when they were taller than the window last frame
+        // (long texts).
         let height = ctx.content_rect().height();
-        choose = if height < PREFERENCES_HEIGHT {
-            egui::ScrollArea::vertical()
+        let body_id = egui::Id::new("preferences_body_height");
+        let body = ctx.data(|d| d.get_temp::<f32>(body_id)).unwrap_or(0.0);
+        choose = if height < PREFERENCES_HEIGHT || body + PREFERENCES_CHROME > height {
+            let out = egui::ScrollArea::vertical()
                 .max_height((height - 160.0).max(160.0))
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
-                    preferences_body(ctx, ui, prefs, title_bar, refusal)
-                })
-                .inner
+                    preferences_body(ctx, ui, prefs, title_bar, refusal, mcp, reveal_mcp)
+                });
+            ctx.data_mut(|d| d.insert_temp(body_id, out.content_size.y));
+            out.inner
         } else {
-            preferences_body(ctx, ui, prefs, title_bar, refusal)
+            let top = ui.cursor().top();
+            let inner = preferences_body(ctx, ui, prefs, title_bar, refusal, mcp, reveal_mcp);
+            let used = ui.cursor().top() - top;
+            ctx.data_mut(|d| d.insert_temp(body_id, used));
+            inner
         };
         let mut close = false;
         footer(ui, |ui| {
@@ -610,6 +626,8 @@ fn preferences_body(
     prefs: &mut crate::prefs::Prefs,
     title_bar: bool,
     refusal: Option<&str>,
+    mcp: &crate::mcp::McpView,
+    reveal_mcp: &mut bool,
 ) -> Option<PackAction> {
     ui.spacing_mut().item_spacing.y = space::MD;
     section(ui, &tr("prefs-interface"));
@@ -689,7 +707,90 @@ fn preferences_body(
             WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-grid-spacing"))
         });
     });
-    template_packs(ui, prefs, refusal)
+    let action = template_packs(ui, prefs, refusal);
+    mcp_section(ui, prefs, mcp, reveal_mcp);
+    action
+}
+
+/// The AI assistant (MCP) section of Preferences: the switch, the port
+/// (editable while the server is off), the address with Copy, what it is
+/// for, and the server's state. Scrolled into view when `reveal` is set.
+fn mcp_section(
+    ui: &mut Ui,
+    prefs: &mut crate::prefs::Prefs,
+    mcp: &crate::mcp::McpView,
+    reveal: &mut bool,
+) {
+    ui.add_space(space::SM);
+    let header = ui.label(
+        RichText::new(tr("prefs-mcp"))
+            .text_style(label_strong_style())
+            .color(color::TEXT_PRIMARY),
+    );
+    if std::mem::take(reveal) {
+        header.scroll_to_me(Some(Align::TOP));
+    }
+    ui.add(tp_ui::widgets::SquareCheckbox::new(
+        &mut prefs.mcp_enabled,
+        tr("prefs-mcp-enable"),
+    ));
+    let url = tp_mcp::url(prefs.mcp_port);
+    labelled(ui, &tr("prefs-mcp-url"), |ui| {
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = space::SM;
+            let copy = ui.add(secondary_button(&tr("prefs-mcp-copy")));
+            let field = ui.add(
+                TextEdit::singleline(&mut url.as_str())
+                    .id_salt("prefs_mcp_url")
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(ui.available_width()),
+            );
+            field.widget_info(|| {
+                WidgetInfo::labeled(WidgetType::TextEdit, true, tr("prefs-mcp-url"))
+            });
+            if copy.clicked() {
+                ui.ctx().copy_text(url.clone());
+            }
+        });
+    });
+    labelled(ui, &tr("prefs-mcp-port"), |ui| {
+        let r = ui.add_enabled(
+            !prefs.mcp_enabled,
+            egui::DragValue::new(&mut prefs.mcp_port)
+                .range(crate::prefs::MCP_PORT_RANGE)
+                .speed(1.0),
+        );
+        r.widget_info(|| WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-mcp-port")));
+    });
+    use tp_mcp::ServerState;
+    match &mcp.state {
+        ServerState::PortInUse => problem(ui, &tr!("prefs-mcp-port-in-use", port = mcp.port)),
+        ServerState::Failed(error) => problem(ui, &tr!("prefs-mcp-failed", error = error.as_str())),
+        state => {
+            let (icon, text, tint) = match state {
+                ServerState::Listening if mcp.connected => (
+                    icons::MCP_CONNECTED,
+                    tr("prefs-mcp-connected"),
+                    color::SUCCESS,
+                ),
+                ServerState::Listening => (icons::MCP, tr("prefs-mcp-on"), color::SUCCESS),
+                _ => (icons::MCP, tr("prefs-mcp-off"), color::TEXT_SECONDARY),
+            };
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = space::SM;
+                ui.label(icons::rich(icon).color(tint));
+                ui.label(RichText::new(text).color(color::TEXT_SECONDARY));
+            });
+        }
+    }
+    ui.add(
+        egui::Label::new(
+            RichText::new(tr("prefs-mcp-hint"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        )
+        .wrap(),
+    );
 }
 
 /// The Template packs section of Preferences: for each game with official

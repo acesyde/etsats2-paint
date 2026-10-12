@@ -96,3 +96,23 @@ undo-add-vehicle = Add Vehicle
 undo-add-vehicles = Add Vehicles
 undo-change-textures = Change Textures
 undo-remove-vehicle = Remove Vehicle
+
+## Changes made by an AI assistant through the MCP server
+
+undo-ai-add-shape = AI: Add Shape
+undo-ai-add-path = AI: Add Path
+undo-ai-add-text = AI: Add Text
+undo-ai-import-image = AI: Import Image
+undo-ai-update-object = AI: Update Object
+undo-ai-arrange = AI: Arrange
+undo-ai-delete = AI: Delete
+undo-ai-add-swatch = AI: Add Swatch
+undo-ai-apply-style = AI: Apply Style
+undo-ai-place-symbol = AI: Place Symbol
+status-mcp = MCP
+status-mcp-connected = MCP · connected
+status-mcp-changes = { $count ->
+    [one] MCP · { $count } change
+   *[other] MCP · { $count } changes
+}
+status-mcp-tooltip = Local MCP server at { $url }. Click to open its settings.

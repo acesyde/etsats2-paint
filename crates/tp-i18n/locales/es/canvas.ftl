@@ -95,3 +95,23 @@ undo-add-vehicle = Añadir vehículo
 undo-add-vehicles = Añadir vehículos
 undo-change-textures = Cambiar texturas
 undo-remove-vehicle = Quitar vehículo
+
+## Cambios hechos por un asistente de IA a través del servidor MCP
+
+undo-ai-add-shape = IA: Añadir forma
+undo-ai-add-path = IA: Añadir trazado
+undo-ai-add-text = IA: Añadir texto
+undo-ai-import-image = IA: Importar imagen
+undo-ai-update-object = IA: Modificar objeto
+undo-ai-arrange = IA: Organizar
+undo-ai-delete = IA: Eliminar
+undo-ai-add-swatch = IA: Añadir muestra
+undo-ai-apply-style = IA: Aplicar estilo
+undo-ai-place-symbol = IA: Colocar símbolo
+status-mcp = MCP
+status-mcp-connected = MCP · conectado
+status-mcp-changes = { $count ->
+    [one] MCP · { $count } cambio
+   *[other] MCP · { $count } cambios
+    }
+status-mcp-tooltip = Servidor MCP local en { $url }. Haz clic para abrir sus ajustes.

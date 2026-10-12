@@ -59,7 +59,7 @@ No token is required: the server is local, off by default, and any local process
 ```
 
 - The **server thread** parses and validates arguments into typed requests (`tp-core` types: `Frame`, `Paint`, `PathData`…), so the UI thread does only cheap, already-checked work. Parsing SVG path data happens here.
-- The **UI thread** drains the channel at the start of each frame, **unless a gesture is in progress** (a drag, a transform, a pen path being drawn, a text editing session, a modal dialog). Requests then wait in the channel and run on the first frame after the gesture ends. This is what "calls wait for the player's gesture" means.
+- The **UI thread** drains the channel at the start of each frame, **unless a gesture is in progress** (a drag, a transform, a pen path being drawn, a text editing session, a live panel edit, or a modal dialog other than Preferences, About, Keyboard Shortcuts and messages: Preferences is where the player turns the server on, and blocking calls there would make the first call time out). Requests then wait in the channel and run on the first frame after the gesture ends. This is what "calls wait for the player's gesture" means.
 - **Read requests** get a cheap clone of what they need (`Arc`-based objects and surfaces) and the reply is built on the server thread.
 - **Render requests** take a clone of the surface and its assets on the UI thread, and the render and PNG encoding run on the server thread, so the UI never waits for tiny-skia.
 - **Timeout:** if the UI thread doesn't answer within 30 s (a long gesture, a modal dialog left open), the call fails with "TruckPaint is busy (a dialog or an edit is in progress); try again". The request is marked cancelled so it isn't applied late.
@@ -100,7 +100,7 @@ While a symbol is being edited, the project's textures are still addressable, bu
 
 `render_texture` and `get_template` return an MCP `image` content (base64 PNG). Images are expensive in the LLM's context, so the output is capped: `max_size` defaults to 1024 px on the longest side, and is capped at 2048. The tool's text content states the scale ("rendered at 1024 × 512, 1 px = 4 texture px") so the LLM can convert what it sees back into texture pixels.
 
-`render_texture` takes `with_template` (default true): the template under the artwork at its usual opacity, as the canvas shows it. The template matters for placing things on the truck.
+`render_texture` takes `with_template` (default true): the artwork on the artboard color, with the template over it at its opacity, as the canvas shows it (the canvas draws the template over the artwork). The template matters for placing things on the truck.
 
 ### 8. Tool descriptions carry the livery rules
 

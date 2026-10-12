@@ -54,20 +54,20 @@ A texture id SHALL stay the same across sessions for the same vehicle texture. W
 ### Requirement: See tools
 The server SHALL provide tools that return images:
 - **get_template** returns the texture's template as a PNG image;
-- **render_texture** returns the texture's artwork as a PNG image, drawn as Export Texture draws it, with the template underneath unless `with_template` is false.
+- **render_texture** returns the texture's artwork as a PNG image, drawn as Export Texture draws it on the artboard color, with the template over it at its opacity as the canvas shows it, unless `with_template` is false.
 
 Both SHALL take an optional `max_size` (longest side in pixels), default 1024, never more than 2048, never upscaling, and SHALL state in their text result the image size and how many texture pixels one image pixel covers. A texture without a template SHALL make get_template fail with a message saying so.
 
 #### Scenario: Seeing the result
 - **WHEN** the client adds a red rectangle on a 4096 × 4096 texture and calls render_texture without `max_size`
-- **THEN** it receives a 1024 × 1024 PNG showing the rectangle over the template, and the text says 1 px = 4 texture px
+- **THEN** it receives a 1024 × 1024 PNG showing the rectangle under the template, and the text says 1 image px = 4 texture px
 
 #### Scenario: Size capped
 - **WHEN** the client calls render_texture with `max_size` 8000 on a 4096 × 4096 texture
 - **THEN** the image is 2048 × 2048
 
 ### Requirement: Write tools
-The server SHALL provide tools that change one texture, named by its id in every call, using texture pixels (origin top-left, y down) and colors as hex (`#rrggbb` or `#rrggbbaa`) or as a palette swatch, which links the color to that swatch:
+The server SHALL provide tools that change one texture, named by its id in every call (except add_swatch, which changes the project's palette), using texture pixels (origin top-left, y down) and colors as hex (`#rrggbb` or `#rrggbbaa`) or as a palette swatch, which links the color to that swatch:
 - **add_shape**: a rectangle (with corner radius), an ellipse, a polygon (3 to 12 sides) or a star, at `x, y, width, height` with an optional rotation, fill, stroke, opacity and name;
 - **add_path**: a path from SVG path data (`d`, absolute or relative commands, arcs included), with a fill rule, fill, stroke, opacity and name; several subpaths make one path with holes;
 - **add_text**: a text with its content, font family, size, alignment and color, at a position;
@@ -115,13 +115,17 @@ No tool SHALL write, create or delete a file, save the project, export a texture
 - **THEN** the status bar shows "Unsaved changes" and the file on disk is unchanged until the user saves
 
 ### Requirement: The user's work comes first
-A tool call that arrives while the user is in the middle of a gesture (dragging or transforming objects, drawing a path with the Pen, editing a text, a gradient drag) or while a modal dialog is open SHALL wait until it ends, then run. A call that has waited 30 seconds SHALL fail with a message saying TruckPaint is busy, and SHALL NOT run later.
+A tool call that arrives while the user is in the middle of a gesture (dragging or transforming objects, drawing a path with the Pen, editing a text, a gradient drag, a value being dragged in a panel) or while a modal dialog other than Preferences, About, Keyboard Shortcuts or a message is open SHALL wait until it ends, then run. A call that has waited 30 seconds SHALL fail with a message saying TruckPaint is busy, and SHALL NOT run later.
 
 While a symbol is being edited, write tools SHALL fail with a message asking to finish editing the symbol; read and see tools SHALL still work.
 
 #### Scenario: Call during a drag
 - **WHEN** the user is dragging a rectangle and the client adds an ellipse
 - **THEN** the ellipse appears after the user releases the mouse, and the drag and the addition are two undo steps
+
+#### Scenario: Preferences open
+- **WHEN** Preferences is open (where the user just turned the server on) and the client calls get_project
+- **THEN** the call runs at once
 
 #### Scenario: Dialog left open
 - **WHEN** the Export Mod dialog is open and the client calls add_shape, and the dialog stays open for 30 seconds

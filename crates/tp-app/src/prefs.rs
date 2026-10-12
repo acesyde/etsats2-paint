@@ -76,7 +76,14 @@ pub struct Prefs {
     /// The template pack folder of each game, by game code (`ets2`), for
     /// official vehicles (Reset to defaults keeps them).
     pub template_packs: BTreeMap<String, PathBuf>,
+    /// The local MCP server is on (Reset to defaults keeps it).
+    pub mcp_enabled: bool,
+    /// The port of the local MCP server (Reset to defaults keeps it).
+    pub mcp_port: u16,
 }
+
+/// Ports the MCP server may use (no privileged port).
+pub const MCP_PORT_RANGE: std::ops::RangeInclusive<u16> = 1024..=65535;
 
 impl Default for Prefs {
     fn default() -> Self {
@@ -91,6 +98,8 @@ impl Default for Prefs {
             language: None,
             system_title_bar: false,
             template_packs: BTreeMap::new(),
+            mcp_enabled: false,
+            mcp_port: tp_mcp::DEFAULT_PORT,
         }
     }
 }
@@ -167,6 +176,9 @@ impl Prefs {
         self.layout = self.layout.sanitized();
         self.recent.truncate(MAX_RECENT);
         self.recent_colors.truncate(MAX_RECENT_COLORS);
+        if !MCP_PORT_RANGE.contains(&self.mcp_port) {
+            self.mcp_port = tp_mcp::DEFAULT_PORT;
+        }
         let spacing = self.view_aids.grid_spacing;
         self.view_aids.grid_spacing = if spacing.is_finite() {
             spacing.clamp(*GRID_SPACING_RANGE.start(), *GRID_SPACING_RANGE.end())
