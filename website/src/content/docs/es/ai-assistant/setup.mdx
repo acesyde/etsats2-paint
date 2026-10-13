@@ -1,0 +1,64 @@
+---
+title: Configurar un asistente de IA
+description: Active el servidor MCP local de TruckPaint y conecte Claude Code, Claude Desktop u otro cliente MCP para que un asistente de IA pueda dibujar en su proyecto.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Ui from '~/components/Ui.astro';
+
+TruckPaint puede dejar que un asistente de IA dibuje en el proyecto abierto, a través de un servidor [MCP](https://modelcontextprotocol.io) local. Pídale que recree una librea a partir de una foto de referencia, o que coloque un logotipo que usted le dé. El asistente funciona en su propio cliente MCP, como Claude Code o Claude Desktop: TruckPaint no guarda ninguna clave de API ni integra ninguna IA.
+
+## Activar el servidor
+
+1. Abra <Ui id="cmd-preferences" />: <Ui id="menu-edit" /> › <Ui id="cmd-preferences" /> en Windows y Linux, <Ui id="menu-app" /> › <Ui id="app-menu-settings" /> en macOS.
+2. En la sección <Ui id="prefs-mcp" />, active <Ui id="prefs-mcp-enable" />.
+3. Haga clic en <Ui id="prefs-mcp-copy" /> junto a la <Ui id="prefs-mcp-url" />: `http://127.0.0.1:7373/mcp`.
+
+<Shot name="ai-assistant/preferences" alt="El diálogo Preferencias con la sección Asistente de IA (MCP): el servidor activado, su puerto y su dirección con el botón Copiar" />
+
+El servidor está desactivado por defecto y, una vez activado, sigue activado tras reiniciar. Solo funciona mientras TruckPaint está abierto.
+
+El <Ui id="prefs-mcp-port" /> es 7373. Si otro programa ya lo usa, Preferencias lo indica: desactive el servidor, elija otro puerto y vuelva a activarlo. Recuerde usar también el nuevo puerto en su cliente.
+
+## Añadirlo a su cliente
+
+**Claude Code:**
+
+```sh
+claude mcp add --transport http truckpaint http://127.0.0.1:7373/mcp
+```
+
+**Claude Desktop**, o cualquier cliente que solo hable stdio: pase por [mcp-remote](https://www.npmjs.com/package/mcp-remote), en `claude_desktop_config.json`:
+
+```json
+{ "mcpServers": { "truckpaint": { "command": "npx", "args": ["mcp-remote", "http://127.0.0.1:7373/mcp"] } } }
+```
+
+**Cualquier otro cliente:** use el transporte Streamable HTTP en `http://127.0.0.1:7373/mcp`.
+
+## Pedirle que pinte
+
+Abra un proyecto en TruckPaint y pídale a su asistente, por ejemplo:
+
+- *«Pinta la cabina Standard como en esta foto».*
+- *«Añade una franja roja a lo largo de la parte inferior del Chasis, con la muestra Rojo empresa».*
+- *«Coloca mi logotipo de este archivo en los Faldones laterales, centrado».*
+
+El asistente lee el proyecto, mira la plantilla de cada textura, dibuja formas, trazados SVG, textos e imágenes en píxeles de textura, y renderiza la textura para comparar su trabajo con su referencia.
+
+## Lo que puede y no puede hacer
+
+**Puede** leer el proyecto (vehículos, texturas, paleta, estilos y símbolos), listar e inspeccionar objetos, ver la plantilla y el diseño de una textura, añadir formas, trazados, textos e imágenes, modificar, organizar, combinar y eliminar objetos, añadir muestras, aplicar estilos y colocar símbolos.
+
+**No puede** guardar, exportar ni abrir archivos, abrir ni cerrar un proyecto, ni cambiar sus preferencias. Guardar y exportar sigue siendo cosa suya: sus cambios marcan el proyecto como no guardado, igual que los de usted.
+
+Cada cambio que hace es un paso de deshacer con la etiqueta «IA: …», de modo que <Ui id="cmd-undo" /> lo revierte. Su trabajo tiene prioridad: una llamada que llega mientras usted arrastra, dibuja o escribe espera hasta que termine. Mientras edita un símbolo, el asistente solo puede leer.
+
+Mientras el servidor está activado, la barra de estado muestra <Ui id="status-mcp" /> y cuántos cambios ha hecho el asistente en el último minuto. Haga clic en él para abrir sus ajustes.
+
+## Privacidad
+
+- El servidor solo escucha en su propio ordenador (`127.0.0.1`) y rechaza las solicitudes de páginas web.
+- Está desactivado hasta que usted lo active, y puede desactivarlo en cualquier momento.
+- TruckPaint no envía nada a ninguna parte: lo que su asistente haga con el contenido del proyecto depende del cliente y del servicio de IA que utilice.

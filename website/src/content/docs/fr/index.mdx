@@ -1,0 +1,34 @@
+---
+title: TruckPaint
+description: Créez les peintures de votre flotte pour Euro Truck Simulator 2 et American Truck Simulator, et exportez-les en un mod prêt à installer.
+template: splash
+hero:
+  tagline: Créez les peintures de votre flotte pour Euro Truck Simulator 2 et American Truck Simulator, et exportez-les en un mod prêt à installer.
+  actions:
+    - text: Commencer
+      link: getting-started/installation/
+      icon: right-arrow
+    - text: Voir sur GitHub
+      link: https://github.com/acesyde/etsats2-paint
+      icon: external
+      variant: minimal
+---
+import { Card, CardGrid } from '@astrojs/starlight/components';
+import Clip from '~/components/Clip.astro';
+
+<Clip name="workshop/draw-rectangle" label="Tracé d’un rectangle sur la texture d’un camion dans l’Atelier" />
+
+<CardGrid>
+	<Card title="Choisissez vos véhicules" icon="rocket">
+		Partez d’un camion ou d’une remorque officiels, ou apportez vos propres gabarits. Un projet, c’est la flotte d’un seul jeu.
+	</Card>
+	<Card title="Peignez sur le gabarit" icon="pencil">
+		Formes, tracés, textes, images et dégradés, dessinés sur chaque texture par-dessus le gabarit du véhicule.
+	</Card>
+	<Card title="Partagez votre marque" icon="star">
+		Une palette, des styles et des symboles partagés par toute la flotte : changez une couleur une fois, toutes les textures suivent.
+	</Card>
+	<Card title="Exportez le mod" icon="document">
+		Un seul clic écrit toute la flotte en un mod prêt à installer pour le Gestionnaire de mods du jeu.
+	</Card>
+</CardGrid>

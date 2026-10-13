@@ -1,0 +1,57 @@
+---
+title: Symbols
+description: Draw a logo once as a symbol, place it on every texture, and edit it once for all its instances.
+sidebar:
+  order: 3
+---
+import Ui from '~/components/Ui.astro';
+
+A symbol is a drawing you reuse across the fleet: a logo, a lettering, a set of stripes. You draw it once, then place it on each texture as an **instance**.
+
+Each instance has its own position, size, rotation and flips, because every texture has a different layout: the logo sits on the cab door on one texture and on the trailer's side on another. Its look, however, always comes from the symbol. Edit the symbol, and every instance changes, on every texture.
+
+## Make a symbol
+
+1. Draw the logo on a texture, then select all its parts.
+2. Choose <Ui id="menu-object" /> › <Ui id="cmd-convert-to-symbol" />. In the <Ui id="cmd-space-brand" /> space, <Ui id="brand-create-from-selection" /> in the <Ui id="panel-symbols" /> section does the same.
+
+The selected objects become the symbol "Symbol 1", and one instance takes their place, exactly where they were. Right-click the symbol and choose <Ui id="symbols-rename" /> to name it.
+
+## Place a symbol on another texture
+
+1. Open the texture where you want the logo.
+2. In the <Ui id="cmd-tab-resources" /> tab, under <Ui id="panel-symbols" />, click the symbol's place button (<Ui id="symbols-place" args={{ name: 'Logo' }} />), or drag the symbol onto the canvas.
+3. Move, resize and rotate the new instance to fit this texture's layout.
+
+The <Ui id="cmd-space-brand" /> space shows how many instances each symbol has and on how many textures, such as "6 instances · 2 textures".
+
+## Work with an instance
+
+An instance behaves as one object: you select, move, resize, rotate, align, duplicate and copy it like any other. You can change its opacity, hide it or lock it.
+
+Its colors, however, can't be changed in place: the inspector says the look is edited in the symbol. With an instance selected, the inspector's header offers <Ui id="cmd-edit-symbol" /> and <Ui id="cmd-detach-instance" />.
+
+## Edit a symbol
+
+Open the symbol in one of these ways:
+
+- double-click an instance;
+- select an instance and choose <Ui id="menu-object" /> › <Ui id="cmd-edit-symbol" />, or click <Ui id="cmd-edit-symbol" /> in the inspector;
+- click the edit button on the symbol (<Ui id="symbols-edit" args={{ name: 'Logo' }} />) in the <Ui id="cmd-tab-resources" /> tab or the <Ui id="cmd-space-brand" /> space.
+
+The canvas then shows the symbol alone, on its own artboard, with a bar above it saying which symbol you are editing. Every tool works as on a texture, and each change shows at once on every instance. Click <Ui id="symbol-bar-done" />, or press Escape with nothing selected, to go back to the texture you came from.
+
+While a symbol is open, commands that need a texture, such as <Ui id="cmd-export-texture" /> and <Ui id="cmd-copy-from-cabin" />, are disabled. Undo and Redo work across both views.
+
+Swatches and styles used inside a symbol keep working: recolor "Company red" in the [palette](../palette/), and every instance of a logo that uses it turns the new color.
+
+## Make a one-off variant
+
+- **<Ui id="cmd-detach-instance" />** turns the selected instance into a plain group that looks the same. Only that copy is free to change; the symbol and its other instances are untouched.
+- **<Ui id="symbols-duplicate" />** on a symbol creates "Logo copy" with the same content and no instance. Edit it without changing the original, for example for a trailer version of your logo.
+
+## Delete a symbol
+
+Choose <Ui id="symbols-delete" />. If the symbol has instances, TruckPaint asks first, naming how many. Each instance then becomes a group that looks the same, at the same place. Undo brings the symbol and its instances back.
+
+To reuse a symbol in other projects, add it to your [library](../library/): its images, swatches and styles come along.

@@ -1,0 +1,69 @@
+---
+title: The Workshop
+description: Find your way around the Workshop, where you paint each texture of your vehicles over its template.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+The Workshop is where you paint. TruckPaint is a livery editor: you always work on **one texture** of a vehicle at a time, in texture pixels, on top of that texture's template (the UV layout of the vehicle). Everything you draw on a texture is what the game gets as that texture when you export.
+
+<Shot name="workshop/workshop" alt="The Workshop with a simple livery: a band, a plate, an ellipse and the lettering ACE Logistics, drawn over the truck's template." />
+
+## The three spaces
+
+The switcher in the top bar moves between the three spaces of a project. Switching never changes your work, your selection or your undo history.
+
+| Space | What you do there | Shortcut |
+|---|---|---|
+| <Ui id="cmd-space-project" /> | your fleet and the mod information | Ctrl+1 (⌘1 on macOS) |
+| <Ui id="cmd-space-workshop" /> | painting the active texture | Ctrl+2 |
+| <Ui id="cmd-space-brand" /> | the palette, styles, symbols and images of the whole project | Ctrl+3 |
+
+Opening a project shows the Project space; click a texture there to paint it in the Workshop. The <Ui id="top-bar-export" /> button at the right of the top bar is always there: it runs <Ui id="cmd-export-mod" /> (see [Export the mod](../../export/mod/)).
+
+## The parts of the Workshop
+
+From left to right:
+
+- **The tool rail.** One icon per tool. Hover a tool to see its name and its shortcut. See [Drawing tools](../tools/).
+- **The left panel**, with three tabs:
+  - <Ui id="cmd-tab-textures" /> (key 1): your fleet as a tree. Click a texture to paint it. A breadcrumb in the corner of the canvas always tells you which vehicle and texture you are on, and its size.
+  - <Ui id="cmd-tab-layers" /> (key 2): the objects of the active texture. See [Layers](../layers/).
+  - <Ui id="cmd-tab-resources" /> (key 3): the project's palette, symbols, styles and images, ready to drag onto the canvas. The [Brand](../../brand/palette/) space manages them.
+- **The canvas**, with rulers along its top and left edges, graduated in texture pixels.
+- **The inspector**, on the right. It shows the settings of what is selected: <Ui id="inspector-layout" />, <Ui id="inspector-text" />, <Ui id="inspector-appearance" /> and more. With nothing selected, it shows the active texture (its kind and size), a summary <Ui id="inspector-on-texture" />, and the fill and stroke used for new objects.
+
+Above the canvas, the tool options bar shows the name of the active tool, and the settings of the Polygon tool when it is active. You can drag the edge of the left panel or the inspector to resize them.
+
+To make room, choose <Ui id="menu-view" /> › <Ui id="cmd-hide-panels" /> (Tab): the left panel and the inspector disappear, the tool rail and the bars stay. Press Tab again to bring them back. <Ui id="menu-view" /> › <Ui id="cmd-reset-workspace" /> puts the panels back at their default widths.
+
+## The template overlay
+
+The template is drawn over your artwork as a locked guide: you can't select or move it, it is not in the Layers tab, and it is **never exported**. Press G, or choose <Ui id="menu-view" /> › <Ui id="cmd-show-template" />, to hide or show it. Set its opacity (60% by default) next to the <Ui id="status-template" /> toggle in the status bar. Both settings are kept per texture.
+
+## The status bar
+
+At the bottom, the status bar shows the zoom level, the pointer position in texture pixels, the template settings, the <Ui id="status-snapping" />, <Ui id="status-grid" /> and <Ui id="status-guides" /> toggles, and whether the project is <Ui id="status-saved" /> or has <Ui id="status-unsaved" />.
+
+## Zoom and move around
+
+| To | Do this |
+|---|---|
+| Zoom toward the pointer | mouse wheel, pinch, or Ctrl + scroll |
+| Pan | two-finger scroll on a trackpad, Shift + wheel (horizontally), hold Space and drag, drag with the middle button, or use the <Ui id="tool-hand" /> tool |
+| <Ui id="cmd-zoom-in" /> / <Ui id="cmd-zoom-out" /> | Ctrl+= / Ctrl+- |
+| <Ui id="cmd-fit-to-screen" /> | Shift+Ctrl+0 |
+| <Ui id="cmd-actual-size-100pct" /> | Ctrl+0 |
+
+At 100%, one texture pixel is one screen pixel. With the <Ui id="tool-zoom" /> tool, click to zoom in, Alt-click (Option-click on macOS) to zoom out, or drag a rectangle to zoom onto it.
+
+## Undo anything
+
+Every change to the drawing can be undone: <Ui id="menu-edit" /> › <Ui id="cmd-undo" /> (Ctrl+Z) and <Ui id="cmd-redo" /> (Ctrl+Shift+Z or Ctrl+Y). The menu names the step, such as "Undo Resize". A whole drag counts as one step. Zooming, panning and selecting are not recorded, so undo never moves your view.
+
+:::tip
+Lost a command? Open the <Ui id="cmd-command-palette" /> with Ctrl+K and type its name: it also finds your textures.
+:::

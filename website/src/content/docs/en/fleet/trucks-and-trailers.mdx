@@ -1,0 +1,73 @@
+---
+title: Trucks and trailers
+description: Add and remove vehicles and textures, understand cabins and accessories, and copy artwork between the cabins of a truck.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+A project is the fleet of one company: several trucks, with the cabins you choose, and several trailers. You design the identity once and export the whole fleet as one mod.
+
+## One game per project
+
+A project belongs to one game, ETS2 or ATS, set by its first vehicle. ETS2 and ATS mods are separate, so you can only add vehicles of the project's game. If you drive in both games, make one project per game: your [personal library](../../brand/palette/) carries your colors, styles and symbols from one to the other.
+
+## How a vehicle's paint job is made
+
+The games split a paint job into a **main texture** and **accessory textures**, and TruckPaint follows them:
+
+- **A truck** has one main texture per cabin layout. When its cabins have different layouts (a standard cab and a high roof, for example), each layout has its own main texture, and you choose which ones to paint. Cabins you leave out simply don't get the paint job. When all its cabins share one layout, a single main texture covers them all.
+- **A trailer** has a single main texture. Its body types and lengths are accessories, not variants: a trailer has no variants.
+- **Accessories** (side skirts, mirrors, mudflaps…) belong to the vehicle and are shared by all its cabins.
+
+## Add vehicles
+
+1. Click <Ui id="cmd-add-vehicle" /> in the [Project space](../project/), or the + button of the <Ui id="cmd-tab-textures" /> tab in the Workshop, or choose <Ui id="menu-vehicle" /> › <Ui id="cmd-add-vehicle" />.
+2. Check one or more vehicles. The list shows the official vehicles first, then your other installed vehicles, all of the project's game. Search by name or brand, and filter trucks or trailers.
+3. Under each checked vehicle, check the main textures and accessories to paint. At least one main texture stays checked.
+4. Click <Ui id="add-vehicle-add" />.
+
+<Shot name="fleet/add-vehicle" alt="The Add Vehicle dialog listing the vehicles of the project's game, with a vehicle checked and its textures below it" />
+
+The new vehicles join the fleet in the order you checked them, and the first new texture becomes active. One Undo (Ctrl+Z, ⌘ on macOS) removes them all.
+
+No package for your vehicle? Click <Ui id="custom-open" /> in the same dialog: see [Custom vehicles](../../vehicles/custom-vehicles/).
+
+## Move between textures
+
+In the Workshop, the <Ui id="cmd-tab-textures" /> tab shows the fleet as a tree: each vehicle, with its main textures and its accessories. Click a texture to paint on it. Its marker tells its state: a hollow ring for Empty, a dot for Modified, a warning icon for To check.
+
+<Shot name="fleet/textures-tab" alt="The Workshop with the Textures tab showing the fleet tree, a truck and a trailer with their main textures and accessories" />
+
+<Ui id="menu-vehicle" /> › <Ui id="cmd-next-texture" /> (Ctrl+]) and <Ui id="cmd-previous-texture" /> (Ctrl+[) go through every texture of the project. The <Ui id="textures-search" /> field above the tree opens the command palette (Ctrl+K) to jump to a texture by name.
+
+## Change a vehicle's textures
+
+Click <Ui id="vehicles-textures" /> on the vehicle's card in the Project space, or in its ⋯ menu in the <Ui id="cmd-tab-textures" /> tab. Check a texture to add it, uncheck one to remove it, then click <Ui id="textures-apply" />.
+
+<Shot name="fleet/textures-dialog" alt="The Textures dialog of a vehicle, with its main textures and accessories as checkboxes" />
+
+If a texture you remove holds artwork, TruckPaint names it and asks first. Undo brings it back with its artwork. A vehicle always keeps at least one main texture.
+
+## Remove a vehicle
+
+Choose <Ui id="vehicles-remove-from-project" /> in the vehicle's ⋯ menu. If its textures hold artwork, TruckPaint asks first. The last vehicle of a project can't be removed.
+
+## Reuse your design across vehicles
+
+Each vehicle's textures are laid out differently, by its 3D model, so a design can't be copied to the same spot on another vehicle. What you share across the fleet are the **elements**: the brand palette, the styles and the symbols. Draw your logo once as a symbol and place it on each texture: editing it updates them all. See [the Brand space](../../brand/palette/).
+
+### Copy from Cabin
+
+The cabin layouts of one truck share most of their texture, so the same positions fit. To start a cabin from another one:
+
+1. Open the main texture you want to fill, for example the high roof.
+2. Choose <Ui id="menu-vehicle" /> › <Ui id="cmd-copy-from-cabin" />.
+3. Choose the cabin to copy from. Each one shows how many objects it holds.
+4. Click <Ui id="copy-cabin-copy" />.
+
+Every object of that cabin is copied onto the active texture, above its own objects, at the same positions (scaled if the two textures differ in size), and selected so you can adjust them. Links to swatches and styles are kept. The source cabin is unchanged, and one Undo removes the copies.
+
+<Ui id="cmd-copy-from-cabin" /> works only between main textures of the same truck, when the project paints at least two of them. Accessories and trailers have no other cabin to copy from.

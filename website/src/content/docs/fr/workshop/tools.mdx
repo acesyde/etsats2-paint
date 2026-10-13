@@ -1,0 +1,97 @@
+---
+title: Outils de dessin
+description: Dessinez des formes, des étoiles, des tracés et des lignes sur une texture, puis sélectionnez-les, déplacez-les, redimensionnez-les, faites-les pivoter, alignez-les et combinez-les.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Les outils dessinent des formes vectorielles sur la texture active. Les tailles et les positions sont en pixels de texture : un bandeau de 512 px fait donc 512 pixels de la texture exportée, quel que soit le zoom. Survolez un outil dans la barre d’outils pour voir son nom et son raccourci.
+
+Les nouvelles formes prennent le fond et le contour affichés dans l’inspecteur quand rien n’est sélectionné (voir [Couleurs et dégradés](../color-and-gradients/)), et se placent en haut du calque actif.
+
+## Dessiner des rectangles et des ellipses
+
+1. Choisissez l’outil <Ui id="tool-rectangle" /> ou <Ui id="tool-ellipse" />.
+2. Faites glisser sur la texture. Maintenez Maj pour un carré ou un cercle, et Alt (Option sous macOS) pour dessiner à partir du centre.
+3. Relâchez. La forme est sélectionnée et l’outil reste actif pour la suivante.
+
+Appuyez sur Échap pendant le glissement pour annuler. Arrondissez les angles d’un rectangle avec <Ui id="props-corner-radius" /> dans la section <Ui id="inspector-appearance" /> de l’inspecteur.
+
+<Clip name="workshop/draw-rectangle" label="Choix de l’outil Rectangle et tracé d’un rectangle sur la texture" />
+
+## Dessiner des polygones et des étoiles
+
+Avec l’outil <Ui id="tool-polygon" />, tracez un cadre : le polygone le remplit, premier sommet vers le haut. Maj le garde régulier. Réglez <Ui id="props-sides" /> (de 3 à 12), <Ui id="props-star" /> et <Ui id="props-inner-radius" /> dans la barre d’options de l’outil au-dessus de la zone de travail, avant de dessiner. Quand des polygones sont sélectionnés, les mêmes réglages apparaissent dans la section <Ui id="inspector-polygon" /> de l’inspecteur et les modifient sur place.
+
+## Dessiner des tracés avec la Plume
+
+1. Choisissez l’outil <Ui id="tool-pen" />.
+2. Cliquez pour ajouter des points d’angle. Appuyez et faites glisser pour ajouter un point lisse avec des poignées de courbe. Maj garde le nouveau point et ses poignées par pas de 45°.
+3. Cliquez sur le premier point pour fermer la forme, ou appuyez sur Entrée ou Échap pour laisser le tracé ouvert.
+
+Retour arrière, ou Ctrl+Z (⌘Z sous macOS), supprime le dernier point pendant le dessin.
+
+<Clip name="workshop/draw-path" label="Quatre points cliqués avec l’outil Plume, puis un clic sur le premier pour fermer la forme" />
+
+## Tracer des lignes
+
+Avec l’outil <Ui id="tool-line" />, faites glisser d’une extrémité à l’autre ; Maj aligne l’angle par pas de 45° et Alt dessine à partir du milieu. Les lignes et les tracés ouverts sont peints avec la couleur du fond. Leur épaisseur est le champ <Ui id="field-width" /> de l’inspecteur (8 px au départ) ; cliquez dessus pour régler <Ui id="line-dashed" />, <Ui id="line-cap" /> et <Ui id="line-join" />.
+
+<Shot name="workshop/shapes-paths" alt="Des étoiles, un polygone, un tracé en virgule avec un trou et des lignes ouvertes sur une texture." />
+
+## Sélectionner, déplacer, redimensionner et faire pivoter
+
+Avec l’outil <Ui id="tool-selection" /> :
+
+- **Cliquez** sur un objet pour le sélectionner ; un clic sur un objet à l’intérieur d’un groupe sélectionne le groupe, et Ctrl-clic sélectionne l’objet lui-même. **Maj-clic** ajoute ou retire. **Faites glisser** sur une zone vide pour sélectionner avec un rectangle de sélection. <Ui id="cmd-select-all" /> se fait avec Ctrl+A, Échap désélectionne.
+- **Faites glisser** la sélection pour la déplacer ; Maj garde le déplacement droit ou à 45°. Les touches fléchées la décalent de 1 px, de 10 px avec Maj.
+- **Faites glisser une poignée** pour redimensionner : Maj garde les proportions, Alt redimensionne à partir du centre.
+- **Faites glisser juste à l’extérieur d’un coin** pour faire pivoter ; Maj aligne par pas de 15°.
+
+<Clip name="workshop/move-resize" label="Clic sur l’ellipse, glissement de celle-ci, puis glissement d’une poignée d’angle" />
+
+Pour des valeurs exactes, saisissez-les dans la section <Ui id="inspector-layout" /> de l’inspecteur : <Ui id="transform-x" />, <Ui id="transform-y" />, <Ui id="field-width" />, <Ui id="field-height" />, <Ui id="transform-rotation" /> et <Ui id="transform-scale" />. Vous pouvez aussi faire glisser le libellé d’un champ pour changer sa valeur.
+
+<Ui id="cmd-duplicate" /> (Ctrl+D), <Ui id="cmd-copy" />, <Ui id="cmd-paste" /> et <Ui id="cmd-delete" /> se trouvent dans le menu <Ui id="menu-edit" />. Les objets copiés peuvent être collés sur une autre texture ou dans un autre projet.
+
+## Modifier des points
+
+L’outil <Ui id="tool-direct-selection" /> affiche les points d’un tracé. Cliquez sur un point (Maj-clic pour en ajouter) et faites-le glisser, ou faites glisser ses poignées ; Alt-glisser une poignée transforme un point lisse en point d’angle. Double-cliquez sur un point pour le faire passer d’angle à lisse et inversement, double-cliquez sur un segment pour ajouter un point, et appuyez sur Suppr pour supprimer les points sélectionnés.
+
+Les rectangles, ellipses et polygones n’ont pas de points modifiables tant que vous n’avez pas choisi <Ui id="menu-object" /> › <Ui id="cmd-convert-to-path" />.
+
+## Aligner les éléments
+
+- **Le magnétisme** attire ce que vous déplacez ou dessinez sur la grille, les repères, les bords et le centre de la texture, et les bords et centres des autres objets. Activez-le ou désactivez-le avec <Ui id="menu-view" /> › <Ui id="cmd-snapping" /> ou dans la barre d’état ; maintenez Ctrl pendant un glissement pour l’ignorer.
+- **Repères :** faites glisser depuis une règle sur la zone de travail. Ramenez un repère sur une règle pour le supprimer. <Ui id="cmd-show-guides" /> et <Ui id="cmd-clear-guides" /> se trouvent dans le menu <Ui id="menu-view" />.
+- **Grille :** <Ui id="menu-view" /> › <Ui id="cmd-show-grid" />. Réglez son <Ui id="prefs-grid-spacing" /> dans <Ui id="cmd-preferences" /> (64 px par défaut).
+
+Les repères et la grille ne sont jamais exportés.
+
+## Aligner et répartir
+
+Sélectionnez des objets et utilisez les boutons de la section <Ui id="inspector-layout" />, ou <Ui id="menu-object" /> › <Ui id="menu-align" />. <Ui id="transform-align-to" /> choisit la référence : <Ui id="align-to-selection" />, <Ui id="align-to-artboard" /> (toute la texture, pratique pour centrer un logo) ou <Ui id="align-to-key-object" /> (le dernier objet sélectionné). Répartir nécessite au moins trois objets.
+
+## Combiner des formes
+
+Sélectionnez au moins deux formes et choisissez <Ui id="menu-object" /> › <Ui id="menu-combine" /> :
+
+| Commande | Résultat |
+|---|---|
+| <Ui id="op-unite" /> (Ctrl+Maj+U) | une seule forme qui les couvre toutes |
+| <Ui id="op-minus-front" /> (Ctrl+Maj+-) | la forme du dessous, découpée par les formes au-dessus |
+| <Ui id="op-intersect" /> | uniquement là où elles se chevauchent toutes |
+| <Ui id="op-exclude" /> | là où elles ne se chevauchent pas |
+
+Le résultat est un seul tracé. Les textes doivent d’abord passer par <Ui id="cmd-create-outlines" /> ; les images et les lignes ouvertes ne peuvent pas être combinées.
+
+## Retourner
+
+<Ui id="op-flip-horizontal" /> (Maj+H) et <Ui id="op-flip-vertical" /> (Maj+V), dans le menu <Ui id="menu-object" /> et l’inspecteur, retournent la sélection sur place, en miroir.
+
+## Contours
+
+La ligne <Ui id="panel-stroke" /> de l’inspecteur ajoute un contour aux formes et aux textes, à l’intérieur, à l’extérieur ou centré sur le bord. Voir [Couleurs et dégradés](../color-and-gradients/).

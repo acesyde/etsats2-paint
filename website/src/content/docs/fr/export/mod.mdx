@@ -1,0 +1,72 @@
+---
+title: Exporter le mod
+description: Renseignez les informations du mod, exportez toute la flotte en un seul mod .scs, et activez-le dans le jeu.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Exporter le mod transforme votre projet en un mod prêt à installer : un seul fichier `.scs` qui contient la peinture de chaque véhicule de la flotte, avec ses textures, son icône de boutique et son entrée dans le Gestionnaire de mods du jeu.
+
+## Renseigner les informations du mod
+
+Les réglages du mod appartiennent au projet. Modifiez-les dans l’espace <Ui id="cmd-space-project" /> (<kbd>Ctrl</kbd>+<kbd>1</kbd>, <kbd>⌘</kbd> sous macOS), dans la colonne <Ui id="project-mod-information" /> à droite. Chaque modification est enregistrée avec le projet et peut être annulée.
+
+<Shot name="export/mod-information" alt="L’espace Projet avec la colonne Informations du mod : l’icône de la boutique, l’image du Gestionnaire de mods et les réglages du mod" />
+
+- **<Ui id="mod-icon" />** (256 × 64) et **<Ui id="mod-image" />** (276 × 162) : générées à partir de votre première texture principale. Pour utiliser votre propre image, cliquez sur <Ui id="mod-choose-icon" /> ou <Ui id="mod-choose-image" />, ou déposez un fichier PNG ou JPEG sur l’aperçu. <Ui id="mod-generated-icon" /> et <Ui id="mod-generated-image" /> rétablissent l’image générée.
+- **<Ui id="mod-name" /> :** le nom de la peinture dans la boutique et le nom du mod dans le Gestionnaire de mods. Au départ, c’est le nom du projet.
+- **<Ui id="mod-author" />** et **<Ui id="mod-version" />** (`1.0` au départ), affichés dans le Gestionnaire de mods.
+- **<Ui id="project-game-versions" /> :** les versions du jeu pour lesquelles votre mod est fait, écrites comme le jeu les écrit, par exemple `1.56.*`. Cliquez sur <Ui id="project-game-versions-add" /> pour en ajouter une, ou plusieurs séparées par des virgules. Sous la liste, TruckPaint affiche les versions prises en charge par tous les véhicules du projet.
+- **<Ui id="mod-description" /> :** affichée dans le Gestionnaire de mods. TruckPaint y ajoute la liste des véhicules que le mod peint.
+- **<Ui id="mod-price" />** (5000 au départ) et **<Ui id="mod-unlock" />** (0) : ce que coûte la peinture dans la monnaie du jeu, et le niveau du joueur qui la débloque.
+- **<Ui id="mod-advanced" />** › **<Ui id="mod-internal-name" /> :** l’identifiant de la peinture dans les fichiers du jeu, formé à partir du Nom (uniquement a–z, 0–9 et _). Changez-le si vous voulez, en le gardant unique, pour que vos mods n’entrent pas en conflit avec d’autres.
+
+## Corriger ce qui bloque l’export
+
+Sous <Ui id="project-before-exporting" />, la colonne liste ce qui doit d’abord être corrigé, avec <Ui id="project-show" /> pour aller directement au bon champ ou à la bonne carte de véhicule. Les cas les plus courants :
+
+- le Nom est vide, ou le Nom, la Version ou l’Auteur contient `"`, `\` ou un retour à la ligne ;
+- le Prix vaut 0 ;
+- le nom interne est trop long : 12 caractères au plus, ou 10 quand un camion du projet a une texture principale par disposition de cabine ;
+- une version du jeu est mal écrite, ou n’est pas prise en charge par l’un de vos véhicules ;
+- les données de jeu d’un véhicule manquent, ou deux véhicules sont le même véhicule dans le jeu.
+
+La même liste affiche aussi des avertissements qui ne bloquent pas l’export : les textures vides sont exportées transparentes, pour laisser apparaître la couleur de base du jeu ; les textures **À vérifier** après une mise à jour du gabarit méritent un coup d’œil. Voir [l’espace Projet](../../fleet/project/).
+
+## Exporter le mod
+
+1. Cliquez sur <Ui id="top-bar-export" /> dans la barre du haut, depuis n’importe quel espace, ou choisissez <Ui id="menu-file" /> › <Ui id="cmd-export-mod" /> (<kbd>Ctrl</kbd>+<kbd>E</kbd>).
+2. Vérifiez le récapitulatif : chaque véhicule avec les textures qu’il peint, et les cabines laissées sans peinture.
+3. Vérifiez la <Ui id="mod-destination" />, et cliquez sur <Ui id="mod-change-destination" /> pour choisir un autre fichier.
+4. Cliquez sur <Ui id="mod-export-start" />.
+
+<Shot name="export/export-mod-dialog" alt="La boîte de dialogue Exporter le mod avec le récapitulatif du mod, sa destination avec Modifier…, un avertissement sur les textures vides, et les boutons Annuler et Exporter" />
+
+<Clip name="export/export-mod" label="Clic sur Exporter… dans la barre du haut, puis sur Exporter dans la boîte de dialogue Exporter le mod" />
+
+<Ui id="mod-export-start" /> reste désactivé tant qu’un problème subsiste, et les problèmes sont listés au-dessus des boutons. Leur bouton <Ui id="project-show" /> ferme la boîte de dialogue et vous amène au champ à corriger. Si le fichier existe déjà, TruckPaint vous demande confirmation avant de le remplacer.
+
+L’export s’exécute en arrière-plan en affichant sa progression ; l’annuler ne laisse aucun fichier derrière lui et laisse intact un export précédent. Il ne modifie jamais votre projet.
+
+## Où va le mod
+
+La boîte de dialogue propose « Nom.scs » dans le dossier des mods du jeu, quand ce dossier existe :
+
+| | Euro Truck Simulator 2 | American Truck Simulator |
+|---|---|---|
+| Windows | `Documents\Euro Truck Simulator 2\mod` | `Documents\American Truck Simulator\mod` |
+| macOS | `~/Library/Application Support/Euro Truck Simulator 2/mod` | `~/Library/Application Support/American Truck Simulator/mod` |
+| Linux | `~/.local/share/Euro Truck Simulator 2/mod` | `~/.local/share/American Truck Simulator/mod` |
+
+Sinon, elle propose votre dossier Documents : déplacez alors vous-même le fichier dans le dossier `mod` du jeu.
+
+## Activer le mod dans le jeu
+
+1. Lancez le jeu et ouvrez le **Gestionnaire de mods** depuis l’écran des profils.
+2. Trouvez votre mod grâce à son nom et à son image, activez-le et confirmez.
+3. Chargez votre profil et achetez la peinture, sous son Nom, pour votre camion ou votre remorque.
+
+Les textures sont écrites en DDS avec leurs mipmaps, à la taille réelle de chaque texture. Les gabarits ne sont jamais inclus.

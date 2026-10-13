@@ -1,0 +1,61 @@
+---
+title: Stile
+description: Speichern Sie ein Aussehen oder einen Schriftzug als Stil, wenden Sie ihn auf jeder Textur an und ändern Sie ihn für die ganze Flotte auf einmal.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Ein Stil ist ein benanntes Aussehen, dem Objekte folgen. Ändern Sie den Stil, ändert sich auch jedes Objekt, das ihm folgt, auf jeder Textur des Projekts. Es gibt zwei Arten:
+
+- **Grafikstile:** eine Fläche, eine Kontur (oder keine), eine Deckkraft und ein Schlagschatten (oder keiner). Verwenden Sie sie für Streifen, Bänder und Platten.
+- **Textstile:** der ganze Schriftzug: Schrift, Schriftstärke, Kursiv, Größe, Ausrichtung, Zeichenabstand und Zeilenhöhe, dazu Fläche, Kontur, Deckkraft und Schatten. Verwenden Sie sie für Firmennamen, Telefonnummern und Slogans.
+
+Die Farben eines Stils können mit [Farbfeldern der Palette](../palette/) verknüpft sein: Eine Bearbeitung des Farbfelds aktualisiert den Stil und jedes Objekt, das ihm folgt.
+
+## Einen Stil erstellen
+
+1. Wählen Sie ein Objekt mit dem gewünschten Aussehen aus: eine Form oder einen Text für einen Grafikstil, einen Text für einen Textstil.
+2. Klicken Sie auf der Registerkarte <Ui id="cmd-tab-resources" /> unter <Ui id="panel-styles" /> auf + neben <Ui id="styles-graphic" /> oder <Ui id="styles-text" />. Im Bereich <Ui id="cmd-space-brand" /> heißt dieselbe Schaltfläche <Ui id="brand-new-style" />.
+
+Der neue Stil heißt „Stil 1“ oder „Textstil 1“, und das ausgewählte Objekt folgt ihm sofort. Klicken Sie mit der rechten Maustaste darauf und wählen Sie <Ui id="styles-rename" />, um ihm einen besseren Namen zu geben.
+
+## Einen Stil anwenden
+
+Wählen Sie eine oder mehrere Formen oder Texte aus und klicken Sie dann im Abschnitt <Ui id="panel-styles" /> der Registerkarte <Ui id="cmd-tab-resources" /> auf den Stil. Jedes Objekt übernimmt das Aussehen des Stils und folgt ihm.
+
+<Clip name="brand/apply-style" label="Ein Klick auf den Grafikstil Band wendet sein Aussehen auf die ausgewählte Platte an" />
+
+Sie können einen Stil auch in der Zeile <Ui id="inspector-style" /> des Inspektors wählen. Diese Zeile nennt den Stil, dem die Auswahl folgt, oder zeigt <Ui id="inspector-style-none" />.
+
+Einige Regeln:
+
+- Einen Stil auf eine Gruppe anzuwenden, wendet ihn auf jede Form und jeden Text darin an; die Gruppe selbst folgt keinem Stil.
+- Ein Textstil gilt nur für Texte. Ein Text folgt entweder einem Grafikstil oder einem Textstil, nie beiden.
+- Bei einem Verlauf liefert der Stil die Farben und die Art des Verlaufs, aber jedes Objekt behält seine eigene Verlaufsposition.
+
+## Wenn ein Objekt seinem Stil nicht mehr folgt
+
+Ein Objekt folgt seinem Stil, solange sein Aussehen das des Stils ist. Es folgt ihm nicht mehr, wenn Sie seine eigene Fläche, Kontur, Deckkraft oder seinen Schatten ändern, oder die Schrifteinstellungen eines Texts, oder wenn Sie ihm ein anderes Farbfeld, einen anderen Stil oder die Farbe der Pipette geben. Die Zeile <Ui id="inspector-style" /> zeigt dann <Ui id="inspector-style-none" />, und spätere Bearbeitungen des Stils erreichen es nicht mehr.
+
+Verschieben, Skalieren, Drehen, Spiegeln, Duplizieren, Gruppieren oder Kopieren eines Objekts erhält die Verknüpfung, ebenso das Verschieben auf eine andere Textur.
+
+## Einen Stil für die ganze Flotte ändern
+
+Das Kontextmenü jedes Stils bietet zwei Möglichkeiten, ihn überall zu ändern:
+
+- **<Ui id="styles-edit" />** (nur Grafikstile) öffnet den Vorher/Nachher-Editor wie bei einem Farbfeld: Legen Sie Fläche, Kontur und Deckkraft fest, prüfen Sie die Auswirkung und die Miniaturen der betroffenen Texturen und klicken Sie dann auf <Ui id="brand-apply-to-fleet" />. Vorher ändert sich nichts.
+- **<Ui id="styles-redefine" />** gibt dem Stil das Aussehen des ausgewählten Objekts. So ändern Sie einen Textstil: Wählen Sie einen Text aus, der ihm folgt, ändern Sie seine Schrift oder Größe, und wählen Sie dann <Ui id="styles-redefine" /> auf dem Stil. Jeder Text, der ihm folgt, ändert sich, auf jeder Textur.
+
+Jede Änderung ist ein Rückgängig-Schritt, der überall das vorherige Aussehen wiederherstellt.
+
+Im Bereich <Ui id="cmd-space-brand" /> zeigt jeder Stil außerdem seine Verwendung, etwa „5 Texturen · 5 Objekte“, oder <Ui id="brand-unused" />.
+
+## Weitere Stilaktionen
+
+- **<Ui id="styles-select-users" />** wählt die Objekte der aktiven Textur aus, die dem Stil folgen.
+- **<Ui id="styles-delete" />** entfernt den Stil. Die Objekte behalten ihr Aussehen und folgen ihm einfach nicht mehr.
+
+Um Ihre Stile in anderen Projekten zu verwenden, fügen Sie sie Ihrer [Bibliothek](../library/) hinzu.

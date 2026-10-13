@@ -1,0 +1,72 @@
+---
+title: Vehículos personalizados
+description: Cree un paquete de vehículo a partir de los archivos de plantilla del juego cuando no existe ningún paquete para su camión o remolque.
+sidebar:
+  order: 3
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Todo proyecto parte de un vehículo. Cuando el que desea no tiene paquete, por ejemplo un camión publicado en la última actualización del juego o un vehículo de un mod de la comunidad, créelo usted mismo con <Ui id="custom-open" />. Usted da a TruckPaint los archivos de plantilla y los datos del juego, y TruckPaint crea e instala un paquete, comprobado exactamente igual que cualquier otro.
+
+## Abrir el diálogo Vehículo personalizado
+
+<Ui id="custom-open" /> está disponible en tres lugares:
+
+- bajo la lista de vehículos de <Ui id="home-new-project" />;
+- en <Ui id="cmd-add-vehicle" />, donde el juego es el del proyecto y no se puede cambiar;
+- en la [Biblioteca de vehículos](../library/).
+
+## Describir el vehículo
+
+Rellene:
+
+- <Ui id="custom-name" /> y <Ui id="custom-brand" />, ambos obligatorios;
+- <Ui id="custom-kind" />: camión o remolque;
+- <Ui id="custom-game" />: ETS2 o ATS;
+- <Ui id="custom-game-path" />: la ruta del vehículo en las definiciones del juego, como `scania.r_2016`;
+- <Ui id="custom-game-versions" />, opcional: déjelo vacío para cualquier versión, o escriba un rango como `>=1.53`;
+- <Ui id="custom-alt-uv" /> y <Ui id="custom-colour-picker" />, sin marcar salvo que las pinturas del vehículo los usen (algunos camiones de ATS usan el conjunto UV alternativo).
+
+## Añadir las plantillas
+
+Suelte los archivos de plantilla del juego sobre el diálogo, o haga clic en <Ui id="custom-add-templates" />. TruckPaint lee archivos PNG, SVG y DDS (BC1, BC2, BC3, o RGB y RGBA sin comprimir). Cada archivo se convierte en una fila de textura con:
+
+- su nombre, tomado del nombre del archivo, que puede editar;
+- su función, <Ui id="custom-role-main" /> o <Ui id="custom-role-accessory" />. El primer archivo se convierte en la textura principal y los siguientes en accesorios; cambie la función si hace falta;
+- sus identificadores del juego;
+- su tamaño, tomado de la imagen y redondeado a una potencia de dos entre 64 y 8192. La fila le avisa cuando la plantilla se va a escalar.
+
+<Ui id="custom-row-replace" /> elige otro archivo para una fila, y el botón de quitar elimina la fila. Un archivo que no se puede leer no se añade, y el diálogo indica el motivo.
+
+<Shot name="vehicles/custom-vehicle" alt="El diálogo Vehículo personalizado relleno con un nombre, una marca, una ruta en el juego y dos plantillas PNG" />
+
+## Indicar los identificadores del juego
+
+Los identificadores del juego le dicen al juego qué pinta cada textura, para que el mod funcione:
+
+- **Un camión cuyas cabinas comparten una disposición** tiene una textura principal. Deje vacíos sus identificadores del juego: se pinta en todas las cabinas.
+- **Un camión cuyas cabinas tienen disposiciones distintas** tiene una textura principal por disposición. Cada una necesita los nombres internos de las cabinas que la usan.
+- **Un remolque** tiene exactamente una textura principal.
+- **Cada accesorio** necesita los identificadores de los accesorios que cubre, como `mirror.painted`.
+
+El diálogo comprueba el formulario a medida que escribe y muestra cada problema junto a su campo. <Ui id="custom-create" /> se activa cuando ya no queda ninguno.
+
+## Crearlo
+
+Haga clic en <Ui id="custom-create" />. TruckPaint crea el paquete, versión 1.0.0, convirtiendo las plantillas DDS a PNG, y lo instala en su biblioteca. Vuelve al diálogo del que venía: en <Ui id="home-new-project" /> y <Ui id="cmd-add-vehicle" />, el nuevo vehículo aparece marcado, con su primera textura principal y sus accesorios; en la Biblioteca de vehículos, aparece en la lista.
+
+El identificador del paquete se forma a partir de la marca y el nombre: «R 2024» de «Scania» da `custom.scania.r_2024`. Si ese identificador ya está instalado, TruckPaint se niega a crearlo de nuevo: cree una nueva versión en su lugar.
+
+:::caution
+Las plantillas de los juegos base pertenecen a SCS Software. Úselas para sus propias libreas y compruebe su licencia antes de compartir un paquete.
+:::
+
+## Crear una nueva versión tras una actualización del juego
+
+Cuando una actualización del juego cambia su vehículo, abra la [Biblioteca de vehículos](../library/), elija el vehículo y haga clic en <Ui id="vehicles-new-version" />. Se abre el diálogo Vehículo personalizado, relleno a partir de la versión más reciente, con un campo <Ui id="custom-version" /> que propone la siguiente (1.0.0 da 1.1.0).
+
+Reemplace las plantillas que han cambiado, añada o quite filas y haga clic en <Ui id="custom-create" />. La nueva versión se instala junto a la anterior. Una textura cuya plantilla ha reemplazado se marca como con nueva disposición, de modo que en sus proyectos <Ui id="cmd-update-template" /> pasa el vehículo a la nueva versión y le indica qué texturas revisar.
+
+Para compartir un vehículo personalizado, use <Ui id="vehicles-export" /> en la Biblioteca de vehículos: guarda un archivo `.tpv` que cualquiera puede instalar.

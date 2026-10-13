@@ -1,0 +1,57 @@
+---
+title: Symboles
+description: Dessinez un logo une seule fois sous forme de symbole, placez-le sur chaque texture, et modifiez-le une fois pour toutes ses instances.
+sidebar:
+  order: 3
+---
+import Ui from '~/components/Ui.astro';
+
+Un symbole est un dessin que vous réutilisez dans toute la flotte : un logo, un lettrage, un jeu de bandes. Vous le dessinez une fois, puis le placez sur chaque texture sous forme d’**instance**.
+
+Chaque instance a sa propre position, sa taille, sa rotation et ses retournements, car chaque texture a une disposition différente : le logo se trouve sur la portière de la cabine dans une texture et sur le flanc de la remorque dans une autre. Son apparence, en revanche, vient toujours du symbole. Modifiez le symbole, et chaque instance change, sur toutes les textures.
+
+## Créer un symbole
+
+1. Dessinez le logo sur une texture, puis sélectionnez toutes ses parties.
+2. Choisissez <Ui id="menu-object" /> › <Ui id="cmd-convert-to-symbol" />. Dans l’espace <Ui id="cmd-space-brand" />, <Ui id="brand-create-from-selection" /> dans la section <Ui id="panel-symbols" /> fait la même chose.
+
+Les objets sélectionnés deviennent le symbole « Symbole 1 », et une instance prend leur place, exactement là où ils étaient. Faites un clic droit sur le symbole et choisissez <Ui id="symbols-rename" /> pour le nommer.
+
+## Placer un symbole sur une autre texture
+
+1. Ouvrez la texture où vous voulez le logo.
+2. Dans l’onglet <Ui id="cmd-tab-resources" />, sous <Ui id="panel-symbols" />, cliquez sur le bouton de placement du symbole (<Ui id="symbols-place" args={{ name: 'Logo' }} />), ou faites glisser le symbole sur la zone de travail.
+3. Déplacez, redimensionnez et faites pivoter la nouvelle instance pour l’adapter à la disposition de cette texture.
+
+L’espace <Ui id="cmd-space-brand" /> indique combien d’instances a chaque symbole et sur combien de textures, par exemple « 6 instances · 2 textures ».
+
+## Travailler avec une instance
+
+Une instance se comporte comme un seul objet : vous la sélectionnez, la déplacez, la redimensionnez, la faites pivoter, l’alignez, la dupliquez et la copiez comme n’importe quel autre. Vous pouvez changer son opacité, la masquer ou la verrouiller.
+
+Ses couleurs, en revanche, ne peuvent pas être modifiées sur place : l’inspecteur indique que l’apparence se modifie dans le symbole. Quand une instance est sélectionnée, l’en-tête de l’inspecteur propose <Ui id="cmd-edit-symbol" /> et <Ui id="cmd-detach-instance" />.
+
+## Modifier un symbole
+
+Ouvrez le symbole de l’une de ces façons :
+
+- double-cliquez sur une instance ;
+- sélectionnez une instance et choisissez <Ui id="menu-object" /> › <Ui id="cmd-edit-symbol" />, ou cliquez sur <Ui id="cmd-edit-symbol" /> dans l’inspecteur ;
+- cliquez sur le bouton de modification du symbole (<Ui id="symbols-edit" args={{ name: 'Logo' }} />) dans l’onglet <Ui id="cmd-tab-resources" /> ou l’espace <Ui id="cmd-space-brand" />.
+
+La zone de travail affiche alors le symbole seul, sur son propre plan de travail, avec au-dessus une barre qui indique le symbole en cours de modification. Tous les outils fonctionnent comme sur une texture, et chaque modification s’affiche aussitôt sur toutes les instances. Cliquez sur <Ui id="symbol-bar-done" />, ou appuyez sur Échap sans rien de sélectionné, pour revenir à la texture d’où vous veniez.
+
+Tant qu’un symbole est ouvert, les commandes qui ont besoin d’une texture, comme <Ui id="cmd-export-texture" /> et <Ui id="cmd-copy-from-cabin" />, sont désactivées. Annuler et Rétablir fonctionnent dans les deux vues.
+
+Les nuances et les styles utilisés dans un symbole continuent de fonctionner : recolorez « Rouge société » dans la [palette](../palette/), et chaque instance d’un logo qui l’utilise prend la nouvelle couleur.
+
+## Créer une variante ponctuelle
+
+- **<Ui id="cmd-detach-instance" />** transforme l’instance sélectionnée en un simple groupe d’aspect identique. Seule cette copie devient libre de changer ; le symbole et ses autres instances ne sont pas touchés.
+- **<Ui id="symbols-duplicate" />** sur un symbole crée « Logo copie », avec le même contenu et aucune instance. Modifiez-le sans changer l’original, par exemple pour une version remorque de votre logo.
+
+## Supprimer un symbole
+
+Choisissez <Ui id="symbols-delete" />. Si le symbole a des instances, TruckPaint vous demande d’abord confirmation, en indiquant leur nombre. Chaque instance devient alors un groupe d’aspect identique, au même endroit. Annuler fait revenir le symbole et ses instances.
+
+Pour réutiliser un symbole dans d’autres projets, ajoutez-le à votre [bibliothèque](../library/) : ses images, ses nuances et ses styles l’accompagnent.

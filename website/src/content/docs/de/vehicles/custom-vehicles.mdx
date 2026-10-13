@@ -1,0 +1,72 @@
+---
+title: Eigene Fahrzeuge
+description: Erstellen Sie aus den Vorlagendateien des Spiels ein Fahrzeugpaket, wenn es für Ihren Lkw oder Anhänger keines gibt.
+sidebar:
+  order: 3
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Jedes Projekt beginnt mit einem Fahrzeug. Hat das gewünschte kein Paket, etwa ein Lkw aus dem letzten Spielupdate oder ein Fahrzeug aus einem Community-Mod, erstellen Sie es selbst mit <Ui id="custom-open" />. Sie geben TruckPaint die Vorlagendateien und die Spieldaten, und es erstellt und installiert ein Paket, das genauso geprüft wird wie jedes andere.
+
+## Den Dialog Eigenes Fahrzeug öffnen
+
+<Ui id="custom-open" /> wird an drei Stellen angeboten:
+
+- unter der Fahrzeugliste von <Ui id="home-new-project" />;
+- in <Ui id="cmd-add-vehicle" />, wo das Spiel das des Projekts ist und sich nicht ändern lässt;
+- in der [Fahrzeugbibliothek](../library/).
+
+## Das Fahrzeug beschreiben
+
+Füllen Sie aus:
+
+- <Ui id="custom-name" /> und <Ui id="custom-brand" />, beide Pflichtfelder;
+- <Ui id="custom-kind" />: Lkw oder Anhänger;
+- <Ui id="custom-game" />: ETS2 oder ATS;
+- <Ui id="custom-game-path" />: der Pfad des Fahrzeugs in den Definitionen des Spiels, etwa `scania.r_2016`;
+- <Ui id="custom-game-versions" />, optional: Lassen Sie das Feld für jede Version leer, oder geben Sie einen Bereich wie `>=1.53` ein;
+- <Ui id="custom-alt-uv" /> und <Ui id="custom-colour-picker" />, nicht markiert, außer die Lackierungen des Fahrzeugs verwenden sie (einige ATS-Lkw nutzen den alternativen UV-Satz).
+
+## Die Vorlagen hinzufügen
+
+Ziehen Sie die Vorlagendateien des Spiels auf den Dialog, oder klicken Sie auf <Ui id="custom-add-templates" />. TruckPaint liest PNG-, SVG- und DDS-Dateien (BC1, BC2, BC3 oder unkomprimiertes RGB und RGBA). Jede Datei wird zu einer Texturzeile mit:
+
+- ihrem Namen, aus dem Dateinamen übernommen, den Sie bearbeiten können;
+- ihrer Rolle, <Ui id="custom-role-main" /> oder <Ui id="custom-role-accessory" />. Die erste Datei wird zur Haupttextur, die weiteren zu Zubehör; ändern Sie die Rolle bei Bedarf;
+- ihren Spielkennungen;
+- ihrer Größe, aus dem Bild übernommen und auf eine Zweierpotenz von 64 bis 8192 gerundet. Die Zeile warnt Sie, wenn die Vorlage skaliert wird.
+
+<Ui id="custom-row-replace" /> wählt eine andere Datei für eine Zeile, und die Entfernen-Schaltfläche nimmt die Zeile heraus. Eine Datei, die nicht gelesen werden kann, wird nicht hinzugefügt, und der Dialog nennt den Grund.
+
+<Shot name="vehicles/custom-vehicle" alt="Der Dialog Eigenes Fahrzeug, ausgefüllt mit Name, Marke, Pfad im Spiel und zwei PNG-Vorlagen" />
+
+## Die Spielkennungen angeben
+
+Die Spielkennungen sagen dem Spiel, was jede Textur lackiert, damit der Mod funktioniert:
+
+- **Ein Lkw, dessen Kabinen ein gemeinsames Layout haben,** hat eine Haupttextur. Lassen Sie ihre Spielkennungen leer: Sie wird auf jede Kabine lackiert.
+- **Ein Lkw, dessen Kabinen unterschiedliche Layouts haben,** hat eine Haupttextur pro Layout. Jede braucht die internen Namen der Kabinen, die sie verwenden.
+- **Ein Anhänger** hat genau eine Haupttextur.
+- **Jedes Zubehörteil** braucht die Zubehörkennungen, die es abdeckt, etwa `mirror.painted`.
+
+Der Dialog prüft das Formular während der Eingabe und zeigt jedes Problem neben seinem Feld. <Ui id="custom-create" /> wird aktiv, sobald keines mehr besteht.
+
+## Erstellen
+
+Klicken Sie auf <Ui id="custom-create" />. TruckPaint erstellt das Paket in Version 1.0.0, wandelt DDS-Vorlagen in PNG um und installiert es in Ihrer Bibliothek. Sie kehren in den Dialog zurück, aus dem Sie gekommen sind: In <Ui id="home-new-project" /> und <Ui id="cmd-add-vehicle" /> ist das neue Fahrzeug markiert, mit seiner ersten Haupttextur und seinem Zubehör; in der Fahrzeugbibliothek ist es aufgeführt.
+
+Die Kennung des Pakets wird aus Marke und Name gebildet: „R 2024“ von „Scania“ ergibt `custom.scania.r_2024`. Ist diese Kennung bereits installiert, weigert sich TruckPaint, sie erneut zu erstellen: Erstellen Sie stattdessen eine neue Version.
+
+:::caution
+Vorlagen aus den Basisspielen gehören SCS Software. Verwenden Sie sie für Ihre eigenen Lackierungen, und prüfen Sie ihre Lizenz, bevor Sie ein Paket weitergeben.
+:::
+
+## Nach einem Spielupdate eine neue Version erstellen
+
+Ändert ein Spielupdate Ihr Fahrzeug, öffnen Sie die [Fahrzeugbibliothek](../library/), wählen Sie das Fahrzeug und klicken Sie auf <Ui id="vehicles-new-version" />. Der Dialog Eigenes Fahrzeug öffnet sich, ausgefüllt mit der neuesten Version, und mit einem Feld <Ui id="custom-version" />, das die nächste vorschlägt (aus 1.0.0 wird 1.1.0).
+
+Ersetzen Sie die geänderten Vorlagen, fügen Sie Zeilen hinzu oder entfernen Sie welche, und klicken Sie dann auf <Ui id="custom-create" />. Die neue Version wird neben der alten installiert. Eine Textur, deren Vorlage Sie ersetzt haben, wird als neues Layout gekennzeichnet, sodass <Ui id="cmd-update-template" /> in Ihren Projekten das Fahrzeug auf die neue Version umstellt und Ihnen sagt, welche Texturen Sie prüfen sollten.
+
+Um ein eigenes Fahrzeug zu teilen, verwenden Sie <Ui id="vehicles-export" /> in der Fahrzeugbibliothek: Es speichert eine `.tpv`-Datei, die jeder installieren kann.

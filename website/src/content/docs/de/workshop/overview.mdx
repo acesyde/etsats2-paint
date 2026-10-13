@@ -1,0 +1,69 @@
+---
+title: Die Werkstatt
+description: Finden Sie sich in der Werkstatt zurecht, wo Sie jede Textur Ihrer Fahrzeuge über ihrer Vorlage lackieren.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+In der Werkstatt wird gemalt. TruckPaint ist ein Lackierungseditor: Sie arbeiten immer an **einer Textur** eines Fahrzeugs zur Zeit, in Texturpixeln, über der Vorlage dieser Textur (dem UV-Layout des Fahrzeugs). Alles, was Sie auf eine Textur zeichnen, bekommt das Spiel beim Export als diese Textur.
+
+<Shot name="workshop/workshop" alt="Die Werkstatt mit einer einfachen Lackierung: ein Band, eine Platte, eine Ellipse und der Schriftzug ACE Logistics, über die Vorlage des Lkw gezeichnet." />
+
+## Die drei Bereiche
+
+Der Umschalter in der oberen Leiste wechselt zwischen den drei Bereichen eines Projekts. Der Wechsel ändert nie Ihre Arbeit, Ihre Auswahl oder Ihren Rückgängig-Verlauf.
+
+| Bereich | Was Sie dort tun | Tastenkombination |
+|---|---|---|
+| <Ui id="cmd-space-project" /> | Ihre Flotte und die Informationen des Mods | Strg+1 (⌘1 unter macOS) |
+| <Ui id="cmd-space-workshop" /> | die aktive Textur lackieren | Strg+2 |
+| <Ui id="cmd-space-brand" /> | Palette, Stile, Symbole und Bilder des ganzen Projekts | Strg+3 |
+
+Beim Öffnen eines Projekts erscheint der Bereich Projekt; klicken Sie dort auf eine Textur, um sie in der Werkstatt zu lackieren. Die Schaltfläche <Ui id="top-bar-export" /> rechts in der oberen Leiste ist immer da: Sie führt <Ui id="cmd-export-mod" /> aus (siehe [Den Mod exportieren](../../export/mod/)).
+
+## Die Teile der Werkstatt
+
+Von links nach rechts:
+
+- **Die Werkzeugleiste.** Ein Symbol pro Werkzeug. Fahren Sie über ein Werkzeug, um seinen Namen und seine Tastenkombination zu sehen. Siehe [Zeichenwerkzeuge](../tools/).
+- **Das linke Bedienfeld** mit drei Registerkarten:
+  - <Ui id="cmd-tab-textures" /> (Taste 1): Ihre Flotte als Baum. Klicken Sie auf eine Textur, um sie zu lackieren. Eine Pfadleiste in der Ecke der Arbeitsfläche zeigt immer, auf welchem Fahrzeug und welcher Textur Sie sich befinden, und deren Größe.
+  - <Ui id="cmd-tab-layers" /> (Taste 2): die Objekte der aktiven Textur. Siehe [Ebenen](../layers/).
+  - <Ui id="cmd-tab-resources" /> (Taste 3): Palette, Symbole, Stile und Bilder des Projekts, bereit zum Ziehen auf die Arbeitsfläche. Der Bereich [Marke](../../brand/palette/) verwaltet sie.
+- **Die Arbeitsfläche**, mit Linealen am oberen und linken Rand, in Texturpixeln skaliert.
+- **Der Inspektor** rechts. Er zeigt die Einstellungen der Auswahl: <Ui id="inspector-layout" />, <Ui id="inspector-text" />, <Ui id="inspector-appearance" /> und mehr. Ohne Auswahl zeigt er die aktive Textur (ihre Art und Größe), eine Übersicht <Ui id="inspector-on-texture" /> sowie Fläche und Kontur für neue Objekte.
+
+Über der Arbeitsfläche zeigt die Werkzeugoptionsleiste den Namen des aktiven Werkzeugs und, wenn das Polygon-Werkzeug aktiv ist, dessen Einstellungen. Sie können den Rand des linken Bedienfelds oder des Inspektors ziehen, um ihre Breite zu ändern.
+
+Für mehr Platz wählen Sie <Ui id="menu-view" /> › <Ui id="cmd-hide-panels" /> (Tab): Das linke Bedienfeld und der Inspektor verschwinden, die Werkzeugleiste und die übrigen Leisten bleiben. Drücken Sie erneut Tab, um sie zurückzuholen. <Ui id="menu-view" /> › <Ui id="cmd-reset-workspace" /> stellt die Standardbreiten der Bedienfelder wieder her.
+
+## Die Vorlagenüberlagerung
+
+Die Vorlage wird als gesperrte Hilfe über Ihre Grafik gezeichnet: Sie können sie weder auswählen noch verschieben, sie steht nicht auf der Registerkarte Ebenen und wird **nie exportiert**. Drücken Sie G oder wählen Sie <Ui id="menu-view" /> › <Ui id="cmd-show-template" />, um sie aus- oder einzublenden. Ihre Deckkraft (standardmäßig 60 %) stellen Sie neben dem Schalter <Ui id="status-template" /> in der Statusleiste ein. Beide Einstellungen werden pro Textur gespeichert.
+
+## Die Statusleiste
+
+Unten zeigt die Statusleiste die Zoomstufe, die Zeigerposition in Texturpixeln, die Vorlageneinstellungen, die Schalter <Ui id="status-snapping" />, <Ui id="status-grid" /> und <Ui id="status-guides" /> und ob das Projekt <Ui id="status-saved" /> ist oder <Ui id="status-unsaved" /> hat.
+
+## Zoomen und navigieren
+
+| Ziel | So geht's |
+|---|---|
+| Zum Zeiger hin zoomen | Mausrad, Zwei-Finger-Zoom oder Strg + Scrollen |
+| Ansicht verschieben | Zwei-Finger-Scrollen auf dem Trackpad, Umschalt + Mausrad (horizontal), Leertaste halten und ziehen, mit der mittleren Maustaste ziehen oder das Werkzeug <Ui id="tool-hand" /> verwenden |
+| <Ui id="cmd-zoom-in" /> / <Ui id="cmd-zoom-out" /> | Strg+= / Strg+- |
+| <Ui id="cmd-fit-to-screen" /> | Umschalt+Strg+0 |
+| <Ui id="cmd-actual-size-100pct" /> | Strg+0 |
+
+Bei 100 % entspricht ein Texturpixel einem Bildschirmpixel. Mit dem Werkzeug <Ui id="tool-zoom" /> klicken Sie zum Einzoomen, Alt-Klick (Wahltaste-Klick unter macOS) zoomt aus, und ein aufgezogenes Rechteck zoomt auf diesen Ausschnitt.
+
+## Alles rückgängig machen
+
+Jede Änderung an der Zeichnung lässt sich rückgängig machen: <Ui id="menu-edit" /> › <Ui id="cmd-undo" /> (Strg+Z) und <Ui id="cmd-redo" /> (Strg+Umschalt+Z oder Strg+Y). Das Menü nennt den Schritt, etwa „Rückgängig: Größe ändern“. Ein ganzer Ziehvorgang zählt als ein Schritt. Zoomen, Verschieben der Ansicht und Auswählen werden nicht aufgezeichnet, sodass Rückgängig nie Ihre Ansicht verändert.
+
+:::tip
+Einen Befehl nicht gefunden? Öffnen Sie die <Ui id="cmd-command-palette" /> mit Strg+K und geben Sie seinen Namen ein: Sie findet auch Ihre Texturen.
+:::

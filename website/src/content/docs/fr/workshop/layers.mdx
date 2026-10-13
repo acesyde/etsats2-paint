@@ -1,0 +1,68 @@
+---
+title: Calques
+description: Organisez les objets d’une texture dans l’onglet Calques, avec les groupes, l’ordre d’empilement, la visibilité, le verrouillage et les noms.
+sidebar:
+  order: 5
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Chaque texture a sa propre pile d’objets. L’onglet <Ui id="cmd-tab-layers" /> du panneau de gauche (touche 2, ou <Ui id="menu-view" /> › <Ui id="cmd-tab-layers" />) affiche la pile de la texture active sous forme d’arborescence, l’objet du dessus en premier. Changez de texture et l’onglet suit.
+
+<Shot name="workshop/layers" alt="L’onglet Calques avec l’arborescence d’une livrée : Background, un groupe Graphics contenant trois bandes, et Branding, avec une bande sélectionnée." />
+
+L’en-tête nomme la texture et compte ses objets de premier niveau. Chaque ligne affiche l’icône du type de l’objet, son nom, un bouton de visibilité (l’œil) et un bouton de verrouillage. Un texte sans nom propre affiche sa première ligne, pour que vous distinguiez vos lettrages.
+
+## Sélectionner depuis la liste
+
+- Cliquez sur une ligne pour sélectionner son objet, même à l’intérieur d’un groupe.
+- Ctrl-clic (⌘-clic sous macOS) ajoute ou retire une ligne.
+- Maj-clic sélectionne toutes les lignes entre la dernière cliquée et celle-ci.
+
+Cela fonctionne dans les deux sens : sélectionner sur la zone de travail met les lignes en surbrillance, et déplie les groupes qui les contiennent.
+
+## Changer l’ordre
+
+Les objets placés plus haut dans la liste sont dessinés par-dessus. Pour les déplacer :
+
+- faites glisser des lignes vers le haut ou vers le bas ; un trait indique où elles arriveront. Plusieurs lignes sélectionnées se déplacent ensemble ;
+- déposez des lignes au milieu de la ligne d’un groupe pour les placer dans ce groupe, tout en haut ;
+- ou utilisez <Ui id="menu-object" /> › <Ui id="cmd-bring-forward" /> (Alt+Ctrl+]) et <Ui id="cmd-send-backward" /> (Alt+Ctrl+[).
+
+## Grouper des objets
+
+Les groupes gardent ensemble les parties d’un design : les bandes d’un bandeau, le lettrage d’une portière. Cliquer sur un objet groupé dans la zone de travail sélectionne tout le groupe, qui se déplace d’un bloc (Ctrl-clic atteint l’objet à l’intérieur).
+
+| Commande | Raccourci | Ce qu’elle fait |
+|---|---|---|
+| <Ui id="cmd-group" /> | Ctrl+G | réunit les objets sélectionnés dans un nouveau groupe |
+| <Ui id="cmd-ungroup" /> | Ctrl+Maj+G | remet les objets du groupe à sa place |
+| <Ui id="cmd-new-layer" /> | Ctrl+Maj+N | ajoute un groupe vide en haut, nommé « Calque 1 », « Calque 2 »… |
+| <Ui id="cmd-duplicate-layer" /> | | duplique les lignes sélectionnées |
+| <Ui id="cmd-delete-layer" /> | | supprime les lignes sélectionnées |
+
+Grouper et Dissocier se trouvent dans le menu <Ui id="menu-object" />, les commandes de calque dans le menu <Ui id="menu-layer" />. Toutes sont aussi dans le menu contextuel de l’onglet et ses boutons de pied de panneau, et le bouton + de l’en-tête ajoute un calque.
+
+Les nouvelles formes se placent en haut du calque actif : le groupe sélectionné, ou le groupe qui contient la sélection. Sélectionnez un calque avant de dessiner pour dessiner dedans.
+
+Repliez la ligne d’un groupe pour garder une longue liste courte ; sélectionner l’un de ses objets dans la zone de travail la déplie à nouveau.
+
+## Masquer et verrouiller
+
+- L’**œil** masque un objet, ou un groupe et tout ce qu’il contient. Un objet masqué reste dans la liste mais n’est pas dessiné dans la zone de travail, ne peut pas être cliqué, et **n’est pas exporté**. Une texture dont tous les objets sont masqués compte comme vide, et est exportée avec la couleur du jeu.
+- Le **cadenas** empêche de sélectionner ou de modifier un objet dans la zone de travail, ce qui est pratique pour un fond sur lequel vous cliquez sans arrêt par erreur. Les objets verrouillés peuvent toujours être sélectionnés dans la liste, pour les déverrouiller.
+
+Masquer ou verrouiller un objet sélectionné le désélectionne.
+
+## Renommer
+
+Double-cliquez sur un nom, ou faites un clic droit sur la ligne et choisissez <Ui id="undo-rename" />. Tapez le nouveau nom et appuyez sur Entrée ; Échap annule. Un nom vide revient au nom par défaut, comme « Rectangle » ou « Groupe ».
+
+Des noms clairs vous seront utiles quand vous reviendrez sur une livrée des mois plus tard.
+
+:::note
+Le gabarit n’est pas un calque : il n’apparaît jamais dans cette liste, ne peut pas être sélectionné, et n’est jamais exporté. Affichez-le ou masquez-le avec G (voir [L’Atelier](../overview/#le-gabarit-en-surimpression)).
+:::
+
+Réordonner, grouper, masquer, verrouiller et renommer peuvent tous être annulés, une étape à chaque fois.

@@ -1,0 +1,57 @@
+---
+title: Símbolos
+description: Dibuje un logotipo una vez como símbolo, colóquelo en cada textura y edítelo una sola vez para todas sus instancias.
+sidebar:
+  order: 3
+---
+import Ui from '~/components/Ui.astro';
+
+Un símbolo es un dibujo que se reutiliza en toda la flota: un logotipo, una rotulación, un juego de franjas. Lo dibuja una vez y luego lo coloca en cada textura como una **instancia**.
+
+Cada instancia tiene su propia posición, tamaño, rotación y volteo, porque cada textura tiene una disposición distinta: el logotipo va en la puerta de la cabina en una textura y en el lateral del remolque en otra. Su aspecto, en cambio, siempre procede del símbolo. Edite el símbolo, y todas las instancias cambian, en todas las texturas.
+
+## Crear un símbolo
+
+1. Dibuje el logotipo en una textura y seleccione todas sus partes.
+2. Elija <Ui id="menu-object" /> › <Ui id="cmd-convert-to-symbol" />. En el espacio <Ui id="cmd-space-brand" />, <Ui id="brand-create-from-selection" /> en la sección <Ui id="panel-symbols" /> hace lo mismo.
+
+Los objetos seleccionados se convierten en el símbolo «Símbolo 1», y una instancia ocupa su lugar, exactamente donde estaban. Haga clic derecho en el símbolo y elija <Ui id="symbols-rename" /> para darle nombre.
+
+## Colocar un símbolo en otra textura
+
+1. Abra la textura donde quiere el logotipo.
+2. En la pestaña <Ui id="cmd-tab-resources" />, bajo <Ui id="panel-symbols" />, haga clic en el botón de colocar del símbolo (<Ui id="symbols-place" args={{ name: 'Logo' }} />), o arrastre el símbolo al lienzo.
+3. Mueva, cambie de tamaño y rote la nueva instancia para adaptarla a la disposición de esta textura.
+
+El espacio <Ui id="cmd-space-brand" /> indica cuántas instancias tiene cada símbolo y en cuántas texturas, como «6 instancias · 2 texturas».
+
+## Trabajar con una instancia
+
+Una instancia se comporta como un solo objeto: se selecciona, se mueve, se cambia de tamaño, se rota, se alinea, se duplica y se copia como cualquier otro. Puede cambiar su opacidad, ocultarla o bloquearla.
+
+Sus colores, en cambio, no se pueden cambiar directamente: el inspector indica que el aspecto se edita en el símbolo. Con una instancia seleccionada, la cabecera del inspector ofrece <Ui id="cmd-edit-symbol" /> y <Ui id="cmd-detach-instance" />.
+
+## Editar un símbolo
+
+Abra el símbolo de una de estas formas:
+
+- haga doble clic en una instancia;
+- seleccione una instancia y elija <Ui id="menu-object" /> › <Ui id="cmd-edit-symbol" />, o haga clic en <Ui id="cmd-edit-symbol" /> en el inspector;
+- haga clic en el botón de editar del símbolo (<Ui id="symbols-edit" args={{ name: 'Logo' }} />) en la pestaña <Ui id="cmd-tab-resources" /> o en el espacio <Ui id="cmd-space-brand" />.
+
+El lienzo muestra entonces el símbolo solo, en su propia mesa de trabajo, con una barra encima que indica qué símbolo está editando. Todas las herramientas funcionan como en una textura, y cada cambio se ve al instante en todas las instancias. Haga clic en <Ui id="symbol-bar-done" />, o pulse Esc sin nada seleccionado, para volver a la textura de la que venía.
+
+Mientras hay un símbolo abierto, los comandos que necesitan una textura, como <Ui id="cmd-export-texture" /> y <Ui id="cmd-copy-from-cabin" />, están desactivados. Deshacer y Rehacer funcionan en ambas vistas.
+
+Las muestras y los estilos usados dentro de un símbolo siguen funcionando: cambie el color de «Rojo empresa» en la [paleta](../palette/), y todas las instancias de un logotipo que lo usa adoptan el nuevo color.
+
+## Crear una variante única
+
+- **<Ui id="cmd-detach-instance" />** convierte la instancia seleccionada en un grupo simple con el mismo aspecto. Solo esa copia queda libre para cambiar; el símbolo y sus demás instancias no se tocan.
+- **<Ui id="symbols-duplicate" />** en un símbolo crea «Logo copia» con el mismo contenido y sin instancias. Edítelo sin cambiar el original, por ejemplo para una versión de su logotipo para el remolque.
+
+## Eliminar un símbolo
+
+Elija <Ui id="symbols-delete" />. Si el símbolo tiene instancias, TruckPaint pregunta antes, indicando cuántas. Cada instancia se convierte entonces en un grupo con el mismo aspecto, en el mismo lugar. Deshacer recupera el símbolo y sus instancias.
+
+Para reutilizar un símbolo en otros proyectos, añádalo a su [biblioteca](../library/): sus imágenes, muestras y estilos lo acompañan.

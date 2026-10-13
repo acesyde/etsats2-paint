@@ -1,0 +1,51 @@
+---
+/**
+ * An animation of the app in the page's language: `media/<lang>/<name>.mp4`
+ * and its poster, rendered by `mise run doc:media`. It plays muted and
+ * looped while visible; under reduced motion it stays on its first frame
+ * with a play control. The build fails when a file is missing.
+ */
+import sharp from 'sharp';
+import { mediaFile, pageLanguage } from '~/lib/media';
+
+interface Props {
+	/** Path under the language folder, without extension (`workshop/draw-rectangle`). */
+	name: string;
+	/** What the animation shows, for screen readers. */
+	label: string;
+}
+const { name, label } = Astro.props;
+const language = pageLanguage(Astro);
+const video = mediaFile(language, `${name}.mp4`, Astro.url.pathname);
+const poster = mediaFile(language, `${name}.poster.webp`, Astro.url.pathname);
+const { width, height } = await sharp(poster.path).metadata();
+---
+
+<video
+	class="tp-media"
+	data-tp-clip
+	src={video.url}
+	poster={poster.url}
+	width={width}
+	height={height}
+	aria-label={label}
+	loop
+	muted
+	playsinline
+	preload="metadata"></video>
+
+<script>
+	const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+	const observer = new IntersectionObserver((entries) => {
+		for (const { target, isIntersecting } of entries) {
+			const video = target as HTMLVideoElement;
+			if (reduced.matches) continue;
+			if (isIntersecting) video.play().catch(() => (video.controls = true));
+			else video.pause();
+		}
+	});
+	for (const video of document.querySelectorAll<HTMLVideoElement>('video[data-tp-clip]')) {
+		if (reduced.matches) video.controls = true;
+		observer.observe(video);
+	}
+</script>

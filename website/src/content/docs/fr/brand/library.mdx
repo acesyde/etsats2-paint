@@ -1,0 +1,47 @@
+---
+title: Bibliothèque
+description: Gardez les symboles, nuances et styles de votre entreprise dans une bibliothèque personnelle et importez-les dans n’importe quel projet, dans les deux jeux.
+sidebar:
+  order: 4
+---
+import Ui from '~/components/Ui.astro';
+
+L’identité de votre entreprise ne s’arrête pas à un seul projet. La bibliothèque est votre collection personnelle de symboles, de nuances, de styles graphiques et de styles de texte. Elle est partagée par tous vos projets, dans Euro Truck Simulator 2 comme dans American Truck Simulator, et elle est conservée d’une session à l’autre.
+
+La bibliothèque ne contient aucun placement, seulement des éléments : comme pour le reste de la [Marque](../palette/), chaque texture place ses propres instances et ses propres objets.
+
+## Ajouter un élément à la bibliothèque
+
+Faites un clic droit sur un symbole, une nuance ou un style et choisissez <Ui id="library-add" />. Cette option est proposée partout où l’élément est listé : dans l’onglet <Ui id="cmd-tab-resources" />, dans l’espace <Ui id="cmd-space-brand" /> et, pour les nuances, dans la palette du sélecteur de couleur.
+
+L’élément est copié avec tout ce qu’il utilise :
+
+- un symbole emporte ses images, les nuances auxquelles ses couleurs sont liées, et les styles que suivent ses objets ;
+- un style emporte les nuances de son apparence, y compris celles de son ombre ;
+- une nuance vient seule.
+
+Ajouter à la bibliothèque ne modifie pas votre projet et n’ajoute aucune étape d’annulation.
+
+## Mettre à jour un élément de la bibliothèque
+
+Une fois un élément dans la bibliothèque, son menu propose à la place <Ui id="library-update" />. Après avoir modifié votre logo dans un projet, choisissez cette option pour remplacer la copie de la bibliothèque par la nouvelle.
+
+## Importer depuis la bibliothèque
+
+1. Ouvrez <Ui id="cmd-import-from-library" /> : depuis le menu <Ui id="menu-object" />, l’en-tête de l’espace <Ui id="cmd-space-brand" /> ou l’onglet <Ui id="cmd-tab-resources" />.
+2. Cochez les éléments voulus. Ils sont listés en quatre groupes, <Ui id="library-symbols" />, <Ui id="library-swatches" />, <Ui id="library-graphic-styles" /> et <Ui id="library-text-styles" />, chacun avec un aperçu.
+3. Cliquez sur <Ui id="library-import" />.
+
+Les éléments arrivent avec tout ce qu’ils utilisent, en une seule étape d’annulation. Un élément que le projet possède déjà est marqué <Ui id="library-in-project" /> et ne peut pas être coché.
+
+TruckPaint évite les doublons : une nuance ou un style ayant le même nom et la même valeur que l’un de ceux du projet est réutilisé, pas ajouté une seconde fois. Quand un élément différent porte déjà ce nom, l’élément importé reçoit un numéro, comme « Logo 2 ».
+
+<Ui id="cmd-import-from-library" /> est désactivé pendant la modification d’un symbole.
+
+:::note
+Les éléments importés sont des copies. Modifier votre logo dans un projet ne change pas la bibliothèque tant que vous n’avez pas choisi <Ui id="library-update" />, et mettre à jour la bibliothèque ne change pas les projets qui l’ont importé auparavant.
+:::
+
+## Retirer un élément de la bibliothèque
+
+Dans la boîte de dialogue d’import, faites un clic droit sur un élément et choisissez <Ui id="library-remove" />, puis confirmez. Les projets qui l’ont importé gardent leur copie.

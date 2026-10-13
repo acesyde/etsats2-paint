@@ -1,0 +1,68 @@
+---
+title: Text and images
+description: Write lettering on a texture, style it, turn it into paths, and place your logos as PNG, JPEG or SVG images.
+sidebar:
+  order: 3
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Company names, phone numbers and logos are the heart of most liveries. Texts stay editable on the texture until you export; images keep their original file, and SVG logos stay sharp at any size.
+
+## Write a text
+
+1. Pick the <Ui id="tool-text" /> tool (T).
+2. Click on the texture where the text should start.
+3. Type. Enter starts a new line.
+4. Press Escape, or click outside the text, to finish.
+
+<Clip name="workshop/write-text" label="Picking the Text tool, clicking on the texture, typing ACE Logistics and pressing Escape" />
+
+To change a text later, double-click it with the <Ui id="tool-selection" /> tool, click it with the Text tool, select it and press Enter, or choose <Ui id="menu-object" /> › <Ui id="cmd-edit-text" />. While you type, the usual editing keys work: arrows, Home and End, Shift to select, Ctrl+A (⌘A on macOS) to select all the text, copy and paste. Tool shortcuts are off while you type, so letters go into the text.
+
+A text left empty is deleted when you finish. A whole editing session is one undo step.
+
+## Style a text
+
+When a text is selected, the inspector shows a <Ui id="inspector-text" /> section:
+
+- <Ui id="char-font-family" />: a searchable list where each family is shown in its own font;
+- <Ui id="char-font-weight" /> and <Ui id="char-italic" />;
+- <Ui id="char-size" />, in texture pixels;
+- alignment: <Ui id="char-align-left" />, <Ui id="char-align-center" />, <Ui id="char-align-right" />;
+- <Ui id="char-letter-spacing" /> and <Ui id="char-line-height" />.
+
+The text's color, outline and shadow are set in the <Ui id="inspector-appearance" /> section, as for shapes (see [Color and gradients](../color-and-gradients/)). Dragging a text's handles scales it.
+
+<Shot name="workshop/text-selected" alt="The lettering ACE Logistics selected, with its font, size and spacing in the inspector." />
+
+TruckPaint comes with Inter, Barlow Condensed, Oswald, Bebas Neue and Montserrat, available on every computer, followed by the fonts installed on yours. New texts use Inter Bold at 200 px. To set the style of the next texts, pick the Text tool with nothing selected and change the <Ui id="inspector-text" /> section.
+
+:::caution
+If a project uses a font that isn't installed on this computer, the text is drawn with Inter and its font is flagged with a warning. The font name is kept, so the text looks right again on a computer that has it.
+:::
+
+## Create outlines
+
+<Ui id="menu-object" /> › <Ui id="cmd-create-outlines" /> (Ctrl+Shift+O) turns the selected texts into groups of letter paths that look exactly the same. Use it to reshape letters with the <Ui id="tool-direct-selection" /> tool, to [combine](../tools/#combine-shapes) them with shapes, or to stop depending on a font. The letters can't be edited as text afterwards, except with Undo.
+
+## Place images
+
+Bring in a logo or a picture as a PNG, JPEG or SVG file:
+
+- <Ui id="menu-file" /> › <Ui id="cmd-place" /> (Ctrl+Shift+P), which accepts several files at once;
+- the <Ui id="tool-image" /> tool (Shift+I): click where the image should go, then choose the file;
+- drag files from your file manager onto the window.
+
+The image keeps its proportions and its natural size, scaled down to half the texture if it is larger. You can then move, resize (Shift keeps the proportions), rotate, flip, hide, lock, group and duplicate it like any object, and give it an opacity and a shadow. Images have no fill or stroke.
+
+SVG files stay vector: TruckPaint keeps the SVG itself and redraws it sharply at every zoom.
+
+<Shot name="workshop/text-images" alt="Lettering texts, a PNG logo and an SVG badge on a texture." />
+
+When an image is selected, the inspector's <Ui id="inspector-image" /> section shows its name, its kind and its source size, and <Ui id="undo-reset-size" /> brings it back to its placed size and proportions.
+
+Every image you place is listed in the <Ui id="resources-images" /> section of the <Ui id="cmd-tab-resources" /> tab, so you can drag it onto other textures. Placing the same file twice stores it once. A file that isn't a valid PNG, JPEG or SVG is skipped with a message naming it and the reason; the other files are still placed.
+
+To reuse a logo on every texture and update it in one place, make it a [symbol](../../brand/symbols/).

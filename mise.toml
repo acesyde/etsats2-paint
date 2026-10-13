@@ -61,6 +61,26 @@ for src in */*/; do
 done
 """
 
+[tasks."doc:media"]
+description = "Render the documentation's screenshots and animations (needs a GPU): mise run doc:media [section]"
+tools = { ffmpeg = "8.1.2" }
+usage = 'arg "[section]" help="One section (getting-started, vehicles, fleet, workshop, brand, export, ai-assistant)"'
+run = 'bash scripts/doc-media.sh "${usage_section:-}"'
+
+[tasks."doc:tokens"]
+description = "Write the documentation site's color tokens from tp-ui (website/src/styles/tokens.css)"
+run = "cargo run -q -p tp-ui --example tokens_css"
+
+[tasks."doc:dev"]
+description = "Preview the documentation site locally, with live reload"
+dir = "website"
+run = "pnpm install --frozen-lockfile && pnpm dev"
+
+[tasks."doc:build"]
+description = "Build the documentation site into website/dist (as CI does)"
+dir = "website"
+run = "pnpm install --frozen-lockfile && pnpm build"
+
 [tasks."ci:changes"]
 description = "Print code=true|false: whether BASE..HEAD changes more than docs (CI gating)"
 run = "bash scripts/ci-changes.sh {{arg(name='base', default='')}} {{arg(name='head', default='HEAD')}}"

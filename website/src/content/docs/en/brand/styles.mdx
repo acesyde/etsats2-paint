@@ -1,0 +1,61 @@
+---
+title: Styles
+description: Save a look or a lettering as a style, apply it on every texture, and change it for the whole fleet at once.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+A style is a named look that objects follow. Change the style, and every object that follows it changes too, on every texture of the project. There are two kinds:
+
+- **Graphic styles:** a fill, a stroke (or none), an opacity and a drop shadow (or none). Use them for stripes, bands and panels.
+- **Text styles:** the whole lettering: font, weight, italic, size, alignment, letter spacing and line height, plus the fill, stroke, opacity and shadow. Use them for company names, phone numbers and slogans.
+
+A style's colors can be linked to [palette swatches](../palette/): editing the swatch updates the style, and every object that follows it.
+
+## Create a style
+
+1. Select one object that has the look you want: a shape or a text for a graphic style, a text for a text style.
+2. In the <Ui id="cmd-tab-resources" /> tab, under <Ui id="panel-styles" />, click + next to <Ui id="styles-graphic" /> or <Ui id="styles-text" />. In the <Ui id="cmd-space-brand" /> space, the same button reads <Ui id="brand-new-style" />.
+
+The new style is named "Style 1" or "Text style 1", and the selected object follows it right away. Right-click it and choose <Ui id="styles-rename" /> to give it a better name.
+
+## Apply a style
+
+Select one or more shapes or texts, then click the style in the <Ui id="panel-styles" /> section of the <Ui id="cmd-tab-resources" /> tab. Each object takes the style's look and follows it.
+
+<Clip name="brand/apply-style" label="Clicking the graphic style Band applies its look to the selected panel" />
+
+You can also choose a style in the <Ui id="inspector-style" /> row of the inspector. That row names the style the selection follows, or reads <Ui id="inspector-style-none" />.
+
+A few rules:
+
+- Applying a style to a group applies it to each shape and text inside; the group itself follows nothing.
+- A text style only applies to texts. A text follows either a graphic style or a text style, never both.
+- With a gradient, the style gives the gradient's colors and kind, but each object keeps its own gradient position.
+
+## When an object stops following its style
+
+An object follows its style as long as its look is the style's. It stops following it when you change its own fill, stroke, opacity or shadow, or a text's font settings, or when you give it another swatch, another style or the eyedropper's color. The <Ui id="inspector-style" /> row then reads <Ui id="inspector-style-none" />, and later edits of the style no longer reach it.
+
+Moving, resizing, rotating, flipping, duplicating, grouping or copying an object keeps the link, and so does moving it to another texture.
+
+## Change a style for the whole fleet
+
+Each style's context menu offers two ways to change it everywhere:
+
+- **<Ui id="styles-edit" />** (graphic styles only) opens the before/after editor, as for a swatch: set the fill, stroke and opacity, check the impact and the thumbnails of the textures concerned, then click <Ui id="brand-apply-to-fleet" />. Nothing changes before that.
+- **<Ui id="styles-redefine" />** gives the style the look of the selected object. This is how you change a text style: select a text that follows it, change its font or size, then choose <Ui id="styles-redefine" /> on the style. Every text that follows it changes, on every texture.
+
+Each change is one undo step, which restores the previous look everywhere.
+
+In the <Ui id="cmd-space-brand" /> space, each style also shows its usage, such as "5 textures · 5 objects", or <Ui id="brand-unused" />.
+
+## Other style actions
+
+- **<Ui id="styles-select-users" />** selects the objects of the active texture that follow the style.
+- **<Ui id="styles-delete" />** removes the style. The objects keep their look and simply stop following it.
+
+To use your styles in other projects, add them to your [library](../library/).

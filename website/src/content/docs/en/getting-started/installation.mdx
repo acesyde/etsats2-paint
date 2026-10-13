@@ -1,0 +1,81 @@
+---
+title: Installation
+description: Build TruckPaint from its source code on Windows, macOS or Linux, and get it running.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+TruckPaint runs on Windows, macOS and Linux. It is in early development: **there are no ready-made downloads or installers yet.** They are planned for a coming release. Until then, you build the app yourself from its source code. It takes a few commands, and you only do it once per update.
+
+## Install the prerequisites
+
+You need [Git](https://git-scm.com) to get the source code and [mise](https://mise.jdx.dev), which installs the right version of Rust and runs the build for you. Then add what your system needs to build a desktop app:
+
+- **Windows:** the MSVC toolchain, from Visual Studio Build Tools with the C++ workload.
+- **macOS:** the Xcode Command Line Tools. Run `xcode-select --install` in a terminal.
+- **Linux:** the windowing and graphics libraries. On Debian or Ubuntu:
+
+  ```sh
+  sudo apt-get install libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev \
+    libxrandr-dev libxi-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+    libgl1-mesa-dev
+  ```
+
+  Both X11 and Wayland sessions are supported.
+
+## Build TruckPaint
+
+1. Get the source code:
+
+   ```sh
+   git clone https://github.com/acesyde/etsats2-paint.git
+   cd etsats2-paint
+   ```
+
+2. Install the toolchain the project pins (Rust and its tools):
+
+   ```sh
+   mise install
+   ```
+
+3. Build the app in release mode:
+
+   ```sh
+   mise run build
+   ```
+
+   The first build downloads and compiles every dependency, so it takes a while. Later builds are much faster.
+
+4. Start it. The executable is `truckpaint` (`truckpaint.exe` on Windows), in the `target/release/` folder:
+
+   ```sh
+   ./target/release/truckpaint
+   ```
+
+You can copy the executable anywhere you like, or make a shortcut to it.
+
+:::tip[Update to a newer version]
+Run `git pull` in the project folder, then `mise install` and `mise run build` again. Your preferences, your installed vehicles and your projects are kept: they don't live in the build folder.
+:::
+
+## If the app doesn't start
+
+TruckPaint draws its window with Vulkan, DirectX 12 or Metal. With old graphics drivers or in a virtual machine, it can stop at launch with a graphics adapter error. Force another graphics backend with the `WGPU_BACKEND` variable:
+
+```sh
+WGPU_BACKEND=gl ./target/release/truckpaint      # OpenGL (Linux, Windows)
+WGPU_BACKEND=vulkan ./target/release/truckpaint  # Vulkan
+```
+
+On Windows, in PowerShell, set the variable first: `$env:WGPU_BACKEND="gl"`, then run `.\target\release\truckpaint.exe`.
+
+On Windows and Linux, if the window can't be moved or resized properly, open <Ui id="home-preferences" /> and check <Ui id="prefs-system-title-bar" />: the window then uses your system's frame, with the menus in a row below it.
+
+TruckPaint writes a log of what it does, to the terminal and to a daily file in its data folder (`logs/`). Attach it when you report a problem.
+
+## Next step
+
+TruckPaint is running: [take a tour of the home screen](../first-launch/).

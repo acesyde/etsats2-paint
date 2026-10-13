@@ -1,0 +1,81 @@
+---
+title: Color and gradients
+description: Set the fill, outline, gradients, opacity and drop shadow of shapes and texts, and pick colors from the texture.
+sidebar:
+  order: 4
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Colors are set in the inspector's <Ui id="inspector-appearance" /> section. It edits the selected objects, or, with nothing selected, the look of the next shapes and texts you draw (shown under <Ui id="inspector-new-objects" />).
+
+## Fill and stroke
+
+Shapes and texts have a <Ui id="props-fill" /> and a <Ui id="panel-stroke" /> (an outline). Each has its own row in the inspector, with a swatch of its paint and a summary: the hex code, the name of a palette color, or "Linear" or "Radial" for a gradient.
+
+The row you clicked last is the **target**: the color popover, the eyedropper and the palette act on it. Three keys help:
+
+| Key | Command |
+|---|---|
+| X | <Ui id="cmd-switch-fill-stroke-target" /> |
+| Shift+X | <Ui id="cmd-swap-fill-and-stroke" /> |
+| D | <Ui id="cmd-default-colors" /> (default fill, no stroke) |
+
+## Pick a color
+
+Click a row's swatch to open the color popover beside the inspector. It holds, from top to bottom:
+
+- the <Ui id="colors-solid" /> / <Ui id="colors-linear" /> / <Ui id="colors-radial" /> choice;
+- a color picker with hue and alpha sliders, and RGB, HSV or HSL sliders with their values;
+- a <Ui id="colors-hex" /> field: type `#RRGGBB`, `#RGB` or `#RRGGBBAA` and press Enter;
+- the <Ui id="colors-brand-palette" />, the project's named colors;
+- the <Ui id="colors-recent" /> colors, the last 12 you used.
+
+Changes show live on the texture. Press Escape or click outside to close the popover; closing keeps your changes, and each drag or typed value is one undo step.
+
+Click a palette swatch to apply it: the color is then **linked** to the swatch, its row shows the swatch's name with a link icon, and editing the swatch later updates every linked color on every texture. <Ui id="colors-add-to-palette" /> saves the current color as a new swatch. See [Palette](../../brand/palette/).
+
+## Set up the outline
+
+With the stroke as target, the popover also offers <Ui id="stroke-none" /> to remove the outline; picking any color adds one (4 px by default). Click the summary of the <Ui id="panel-stroke" /> row, such as "6 px · Outside", to open the stroke options:
+
+- <Ui id="stroke-width" />, in texture pixels;
+- alignment: <Ui id="stroke-center" />, <Ui id="stroke-inside" /> or <Ui id="stroke-outside" /> of the edge;
+- <Ui id="line-dashed" />, with <Ui id="line-dash" /> and <Ui id="line-gap" /> lengths and a few presets;
+- <Ui id="line-cap" />, <Ui id="line-join" /> and <Ui id="line-miter-limit" />.
+
+Lines and open paths set their thickness, dashes, caps and joins in their own line settings instead (see [Drawing tools](../tools/#draw-lines)).
+
+## Use gradients
+
+Fills and strokes of shapes, paths and texts can be gradients. In the color popover, choose <Ui id="colors-linear" /> (a fade along a line) or <Ui id="colors-radial" /> (a fade from a center). A new gradient goes from the current color to the same color, transparent.
+
+The gradient bar under that choice shows one marker per color stop:
+
+- click a marker to select its stop, then pick its color as usual;
+- drag a marker, or type its <Ui id="colors-location" />, to move it;
+- click the bar to add a stop (up to sixteen); drag a marker away from the bar, or press Delete on it, to remove it (two stops stay);
+- <Ui id="colors-reverse" /> flips the stops, <Ui id="colors-angle" /> turns the gradient, and <Ui id="colors-aspect" /> stretches a radial gradient into an ellipse.
+
+<Shot name="workshop/gradients" alt="A text with a gradient fill selected, with the gradient bar and its stops in the color popover." />
+
+To place a gradient by hand, pick the <Ui id="tool-gradient" /> tool (Shift+G). On a selected object with a gradient, drag its handles; anywhere else, drag a new line from start to end. Shift keeps the direction at 45° steps. A gradient follows its object when you move, resize, rotate or flip it.
+
+## Opacity
+
+<Ui id="props-opacity" /> (0 to 100%) makes the whole selected object see-through, fill, stroke and shadow together. It works on images and groups too. To make only one color transparent, lower its alpha in the picker instead.
+
+## Drop shadow
+
+A shadow keeps lettering and logos readable on any background. Select shapes, texts or images and click <Ui id="inspector-add-shadow" />: they get a black shadow at 50%, offset 8 px right and down, blurred 8 px. Click the <Ui id="inspector-shadow" /> row to change its color (which can be a palette swatch), <Ui id="shadow-opacity" />, <Ui id="shadow-offset-x" />, <Ui id="shadow-offset-y" /> and <Ui id="shadow-blur" /> (0 for a hard edge). The button at the end of the row removes it.
+
+The shadow looks the same in the exported texture. It isn't part of the object for selecting, snapping or aligning. Groups have no shadow of their own, but the objects inside them can.
+
+## Pick a color from the texture
+
+With the <Ui id="tool-eyedropper" /> tool (I), click an object to copy its fill, or its stroke when the stroke is the target, gradients included, onto the selection. Click an image to take the color of the pixel under the pointer. The template is ignored, so you always pick your own artwork.
+
+:::tip
+Colors used often belong in the palette: the inspector's <Ui id="inspector-off-palette" /> count, shown when nothing is selected, finds the colors of a texture that aren't linked to it.
+:::

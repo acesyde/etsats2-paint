@@ -1,0 +1,57 @@
+---
+title: La Biblioteca de vehículos
+description: Vea los vehículos instalados en TruckPaint, instale otros nuevos, compártalos y elimine las versiones antiguas.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+TruckPaint pinta los vehículos que conoce gracias a los **paquetes de vehículo**. Un paquete (un archivo `.tpv`) describe un camión o un remolque: las plantillas de sus texturas y los datos del juego que necesita un mod, como la ruta del vehículo en el juego, los nombres internos de sus cabinas y los identificadores de sus accesorios. Cada paquete tiene una versión, para que un vehículo pueda seguir las actualizaciones del juego.
+
+Sus vehículos proceden de cuatro fuentes:
+
+- los **vehículos oficiales** del juego, que TruckPaint crea a partir del paquete de plantillas de Carsmaniac: consulte [Vehículos oficiales](../official-vehicles/);
+- los **vehículos de ejemplo** que vienen con TruckPaint, un camión y un remolque dibujados para la aplicación, para probarla sin archivos del juego;
+- los **vehículos personalizados** que crea usted mismo a partir de archivos de plantilla: consulte [Vehículos personalizados](../custom-vehicles/);
+- los archivos `.tpv` que alguien ha compartido con usted.
+
+## Abrir la Biblioteca de vehículos
+
+Elija <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" />. También funciona desde la pantalla de inicio, sin ningún proyecto abierto.
+
+<Shot name="vehicles/library" alt="El diálogo Biblioteca de vehículos, con la lista de vehículos instalados a la izquierda y los detalles del vehículo elegido a la derecha" />
+
+El diálogo tiene dos pestañas: <Ui id="vehicles-section-installed" />, con todos los vehículos instalados, y una segunda pestaña solo con sus vehículos personalizados. Cada pestaña indica cuántos vehículos contiene. Encima de la lista, busque por nombre o marca, y filtre por juego y por tipo.
+
+Cada fila muestra el nombre, la marca, el tipo y el juego del vehículo, su versión instalada más reciente y un estado:
+
+- <Ui id="vehicles-status-custom" />: un vehículo que ha creado con <Ui id="custom-open" />;
+- <Ui id="vehicles-status-update" />: el proyecto abierto usa una versión de este vehículo más antigua que la más reciente instalada;
+- <Ui id="vehicles-status-current" />: todos los demás.
+
+## Consultar los detalles de un vehículo
+
+Haga clic en un vehículo para ver sus detalles a la derecha: una vista previa de su plantilla, su nombre, marca, tipo y juego, las versiones del juego con las que es compatible, y su pintura (los nombres de sus texturas principales y su número de accesorios).
+
+Bajo <Ui id="vehicles-installed-versions" /> se listan todas las versiones instaladas del vehículo. Se pueden instalar varias versiones a la vez: un proyecto conserva la versión con la que se creó hasta que usted lo actualice.
+
+## Instalar un paquete
+
+Haga clic en <Ui id="vehicles-install" /> y elija uno o varios archivos `.tpv`. También puede soltar archivos `.tpv` sobre la pantalla de inicio o sobre un proyecto abierto. Una confirmación indica cada vehículo y versión instalados. Instalar una versión que ya existe la reemplaza.
+
+Sin ningún vehículo instalado, la biblioteca explica qué son los paquetes y ofrece <Ui id="vehicles-install-sample" />.
+
+## Actualizar el vehículo de un proyecto
+
+Cuando el estado de un vehículo es <Ui id="vehicles-status-update" />, sus detalles ofrecen <Ui id="cmd-update-template" />. Esta acción cierra la biblioteca y pasa ese vehículo del proyecto abierto a la versión más reciente: se reemplazan las plantillas y se conserva su diseño. Las texturas cuya disposición ha cambiado quedan marcadas para revisar. También puede iniciarla desde la tarjeta del vehículo en el [espacio Proyecto](../../fleet/project/).
+
+## Compartir o eliminar una versión
+
+Junto a cada versión instalada:
+
+- <Ui id="vehicles-export" /> guarda esa versión como archivo `.tpv`, para dárselo a un amigo o guardarlo como copia de seguridad. Las plantillas tomadas de los juegos base pertenecen a SCS Software: compruebe que puede compartirlas.
+- <Ui id="vehicles-remove" /> elimina esa versión de la biblioteca, tras una confirmación. Sus proyectos nunca se modifican: cada proyecto guarda una copia de sus plantillas.
+
+Un vehículo personalizado también ofrece <Ui id="vehicles-new-version" />, para crear su siguiente versión tras una actualización del juego: consulte [Vehículos personalizados](../custom-vehicles/).

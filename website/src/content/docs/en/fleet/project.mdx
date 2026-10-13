@@ -1,0 +1,56 @@
+---
+title: The Project space
+description: See your whole fleet at a glance, follow what is left to paint, and fill in the mod's information.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+The <Ui id="cmd-space-project" /> space shows what your project paints and what it delivers. A project always opens there. On the left, your fleet: one card per vehicle, with its textures. On the right, the <Ui id="project-mod-information" /> column, with the settings of the mod you will export.
+
+Show it at any time with the top bar, or with <Ui id="menu-view" /> › <Ui id="cmd-space-project" /> (Ctrl+1, ⌘ on macOS).
+
+<Shot name="fleet/project" alt="The Project space of a fleet holding the sample truck with two cabins and the sample trailer, with the Mod information column on the right" />
+
+## Follow your progress
+
+The <Ui id="panel-vehicle" /> header counts the vehicles and textures of the project, and how many are Modified or To check. Each texture is in one of three states:
+
+- <Ui id="texture-state-empty" />: nothing is painted on it yet. An empty texture is exported with the game's color.
+- <Ui id="texture-state-modified" />: it holds artwork.
+- <Ui id="texture-state-to-check" />: a template update changed its layout, or the new version no longer has it. Hover the state to see why.
+
+The filter in the header narrows the list: <Ui id="project-filter-all" />, <Ui id="project-filter-to-do" /> (textures that are empty or to check) or <Ui id="project-filter-to-check" />. It hides textures, never vehicles: a vehicle with nothing left shows <Ui id="project-nothing-to-do" />.
+
+## Read a vehicle card
+
+Each card shows:
+
+- a thumbnail of the vehicle's first painted main texture;
+- its name, its kind and the version of its package. Hover the version to see which game versions it supports;
+- for a truck, the <Ui id="project-cabins" /> it paints. Hover them to see the cabins' internal names in the game;
+- the <Ui id="project-main-texture" /> mode, which comes from the vehicle and can't be changed: <Ui id="project-mode-per-layout" />, <Ui id="project-mode-every-cabin" /> or <Ui id="project-mode-single" /> for a trailer;
+- when a newer version of the vehicle is installed, a notice with <Ui id="cmd-update-template" />;
+- <Ui id="vehicles-textures" />, to choose which textures of the vehicle the project paints, and a ⋯ menu that also holds <Ui id="vehicles-remove-from-project" />;
+- the vehicle's textures, under <Ui id="vehicles-main-textures" /> and <Ui id="vehicles-accessories" />, each with a thumbnail, its kind, its size and its state.
+
+**Click a texture** to open it in the <Ui id="cmd-space-workshop" /> and paint on it.
+
+To add a vehicle, click <Ui id="cmd-add-vehicle" /> in the header. Adding and removing vehicles and textures is explained in [Trucks and trailers](../trucks-and-trailers/).
+
+## Fill in the mod's information
+
+The <Ui id="project-mod-information" /> column holds what the game shows about your mod:
+
+- the <Ui id="mod-icon" /> and the <Ui id="mod-image" />, generated from your first main texture, or chosen with <Ui id="mod-choose-icon" /> and <Ui id="mod-choose-image" />. You can also drop a PNG or JPEG file on a picture;
+- <Ui id="mod-name" />, <Ui id="mod-author" />, <Ui id="mod-version" />, <Ui id="mod-description" />, <Ui id="mod-price" /> and <Ui id="mod-unlock" />;
+- the <Ui id="project-game-versions" /> the mod is made for, such as `1.56.*`. Under them, TruckPaint shows the versions every vehicle of the fleet supports;
+- <Ui id="mod-advanced" />, which holds the internal name of the paint job.
+
+A field takes effect when you press Enter or leave it, and each change can be undone. Escape puts the field back as it was.
+
+At the bottom, <Ui id="project-before-exporting" /> lists what blocks the export, then what deserves a look, such as empty textures. <Ui id="project-show" /> takes you to the field or the vehicle to fix, and <Ui id="project-open" /> opens a texture in the Workshop. When everything is fine, it reads <Ui id="project-nothing-to-check" />.
+
+The game of the project isn't listed: it is set by the first vehicle and shown in the top bar. When the fleet is ready, click <Ui id="top-bar-export" /> in the top bar: see [Export the mod](../../export/mod/).

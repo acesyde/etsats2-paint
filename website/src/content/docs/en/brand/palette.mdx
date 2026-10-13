@@ -1,0 +1,59 @@
+---
+title: Palette
+description: Save your company colors as swatches, link objects to them, and recolor the whole fleet in one step.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+The palette holds your project's named colors, called swatches: "Company red", "Company grey", "Cream"… When an object's color is linked to a swatch, editing the swatch recolors that object, on every texture of the fleet.
+
+## Why the brand is shared by elements
+
+Each vehicle has its own texture layout: the cab, the chassis and the trailer are unfolded differently, so a stripe drawn on one texture can't be copied to the same place on another. What you can share is the look of your company, not where it sits.
+
+That is what the <Ui id="cmd-space-brand" /> space gathers: the palette, the [graphic and text styles](../styles/) and the [symbols](../symbols/). They belong to the project, and each texture places its own objects that use them. Change a swatch, a style or a symbol once, and every texture follows.
+
+## Add a color to the palette
+
+1. Select an object with the color you want to keep, and click the swatch of its Fill or Stroke row in the inspector.
+2. In the color popover, under <Ui id="colors-brand-palette" />, click <Ui id="colors-add-to-palette" /> (+).
+
+The color becomes a new swatch, and the color you picked it from is linked to it. The same color is never added twice. In the <Ui id="cmd-space-brand" /> space, <Ui id="colors-palette" /> also has a <Ui id="brand-new-color" /> button, which adds the current color the same way.
+
+## Apply a swatch
+
+In the Workshop, the <Ui id="cmd-tab-resources" /> tab lists the project's palette, symbols, styles and images. Its <Ui id="colors-palette" /> section works like the palette of the color popover.
+
+<Shot name="brand/resources" alt="The Resources tab of the Workshop, listing a palette of five swatches, graphic and text styles, the symbol Logo and an image" />
+
+Select one or more objects, then click a swatch: its color goes to the fill or the stroke, whichever is the target (press X to switch), and is linked to the swatch. With a gradient, the swatch colors the selected stop.
+
+<Clip name="brand/apply-swatch" label="Clicking the swatches Company red, Company grey, then Company red again changes the fill of the selected panel" />
+
+A linked color shows the swatch's name with a link icon in the Fill or Stroke row, and the swatch has a ring in the color popover. Picking any other color (a recent color, the picker or the eyedropper) unlinks it: the color then shows as a hex code.
+
+Swatches can also color a stroke, a drop shadow, a gradient stop, a style, or an object inside a symbol. All of them follow the swatch.
+
+## Recolor the whole fleet
+
+Open the <Ui id="cmd-space-brand" /> space from the space switcher, or press <kbd>Ctrl</kbd>+<kbd>3</kbd> (<kbd>⌘</kbd> on macOS). Each swatch card shows its color, its hex value and its usage, such as "5 textures · 11 objects", or <Ui id="brand-unused" />.
+
+1. Open the swatch's menu (…) and choose <Ui id="colors-edit-swatch" />.
+2. In the editor on the right, pick the new color or type its hex value. You can also rename the swatch here.
+3. Compare the <Ui id="brand-before" /> and <Ui id="brand-after" /> previews, and check the impact: the number of textures and objects that will change, with a thumbnail of each texture in the new color.
+4. Click <Ui id="brand-apply-to-fleet" />.
+
+<Shot name="brand/brand-space" alt="The Brand space editing the swatch Company red with a new green, with the Before and After previews and the impact on five textures" />
+
+Nothing changes in the project until you click <Ui id="brand-apply-to-fleet" />: <Ui id="button-cancel" /> or Escape closes the editor and leaves everything as it was. Once applied, every linked color takes the new value on every texture and stays linked, and one Undo restores the previous color everywhere.
+
+<Ui id="colors-edit-swatch" /> is also in the swatch's context menu in the color popover and the <Ui id="cmd-tab-resources" /> tab; there, the same editor opens as a dialog over the Workshop.
+
+## Delete a swatch
+
+Choose <Ui id="colors-delete-swatch" /> in the swatch's menu. The objects keep their color, but they are no longer linked, so later edits won't reach them. Like every palette change, it can be undone.
+
+To reuse your swatches in other projects, add them to your [library](../library/).

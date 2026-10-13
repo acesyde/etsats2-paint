@@ -1,0 +1,59 @@
+---
+title: Erster Start
+description: Finden Sie sich auf dem Startbildschirm zurecht, wählen Sie Ihre Sprache und richten Sie TruckPaint nach Ihren Wünschen ein.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Wenn kein Projekt geöffnet ist, zeigt TruckPaint seinen Startbildschirm. Hier beginnen Sie eine neue Lackierung, öffnen eine gespeicherte oder setzen eine kürzlich begonnene Arbeit fort.
+
+## Der Startbildschirm
+
+Der Startbildschirm enthält:
+
+- **<Ui id="home-new-project" />**, die Hauptschaltfläche, die ein neues Projekt beginnt (Strg+N, ⌘ unter macOS);
+- **<Ui id="cmd-open-project" />**, das eine gespeicherte `.truckpaint`-Datei öffnet (Strg+O);
+- **<Ui id="home-recent" />**, eine Karte pro geöffnetem Projekt, das zuletzt geöffnete zuerst;
+- **<Ui id="home-preferences" />**, oben rechts.
+
+<Shot name="getting-started/home" alt="Der Startbildschirm von TruckPaint mit den Schaltflächen Neues Projekt und Projekt öffnen und einer Karte für ein zuletzt verwendetes Projekt" />
+
+Beim ersten Mal ist der Bereich der zuletzt verwendeten Projekte leer und bietet <Ui id="home-recent-empty-create" /> an, was dasselbe tut wie <Ui id="home-new-project" />. Um gleich Ihr erstes Projekt zu erstellen, lesen Sie [Ihr erstes Projekt erstellen](../first-project/).
+
+## Zuletzt verwendete Arbeiten wieder öffnen
+
+Jede Projektkarte zeigt eine Miniatur der ersten Haupttextur des Projekts, seinen Namen, den Speicherort seiner Datei und wann Sie es zuletzt geöffnet haben. Klicken Sie auf eine Karte, um das Projekt zu öffnen.
+
+Wurde die Datei eines Projekts verschoben oder gelöscht, wird seine Karte als nicht verfügbar markiert und lässt sich nicht öffnen. Ihre Entfernen-Schaltfläche (<Ui id="home-remove-recent" /> beim Darüberfahren) nimmt sie aus der Liste.
+
+:::note[Nach einem Absturz]
+Solange ein Projekt nicht gespeicherte Änderungen enthält, legt TruckPaint alle zwei Minuten eine Wiederherstellungskopie an, ohne Ihre eigene Datei anzurühren. Wird die App unerwartet beendet, zeigt der nächste Start <Ui id="home-recovered" /> über den zuletzt verwendeten Projekten. Wählen Sie <Ui id="home-restore" />, um Ihre Arbeit zurückzuholen, oder <Ui id="home-discard" />, um die Kopie zu verwerfen.
+:::
+
+## Sprache wählen
+
+TruckPaint spricht Englisch, Französisch, Spanisch und Deutsch. Zunächst folgt es der Sprache Ihres Systems und verwendet bei jeder anderen Sprache Englisch.
+
+So wählen Sie eine andere:
+
+1. Öffnen Sie die Einstellungen: <Ui id="home-preferences" /> auf dem Startbildschirm, <Ui id="menu-edit" /> › <Ui id="cmd-preferences" /> unter Windows und Linux oder <Ui id="menu-app" /> › <Ui id="app-menu-settings" /> unter macOS (Strg+,).
+2. Wählen Sie unter <Ui id="prefs-language" /> eine Sprache. Die gesamte Oberfläche wechselt sofort, ohne Neustart.
+
+Wählen Sie <Ui id="language-system" />, um wieder der Sprache Ihres Systems zu folgen.
+
+## Die Oberfläche anpassen
+
+Die Einstellungen enthalten außerdem:
+
+- <Ui id="prefs-ui-scale" /> und <Ui id="prefs-text-size" />, um die Oberfläche und ihren Text größer oder kleiner zu machen, mit Live-Vorschau. <Ui id="prefs-reset" /> setzt beide auf 100 % zurück.
+- <Ui id="prefs-template-packs" />, die Ordner der Vorlagenpakete, mit denen die offiziellen Fahrzeuge installiert werden, einer pro Spiel. Sie legen sie fest, wenn Sie zum ersten Mal ein offizielles Fahrzeug wählen: siehe [Offizielle Fahrzeuge](../../vehicles/official-vehicles/).
+- Unter Windows und Linux <Ui id="prefs-system-title-bar" />.
+
+TruckPaint merkt sich Ihre Einstellungen, Größe und Position seines Fensters sowie Ihre zuletzt verwendeten Projekte über Sitzungen hinweg.
+
+## Nächster Schritt
+
+[Ihr erstes Projekt erstellen](../first-project/).

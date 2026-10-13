@@ -1,0 +1,81 @@
+---
+title: Couleurs et dégradés
+description: Réglez le fond, le contour, les dégradés, l’opacité et l’ombre portée des formes et des textes, et prélevez des couleurs sur la texture.
+sidebar:
+  order: 4
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Les couleurs se règlent dans la section <Ui id="inspector-appearance" /> de l’inspecteur. Elle modifie les objets sélectionnés ou, quand rien n’est sélectionné, l’apparence des prochaines formes et des prochains textes que vous dessinerez (affichée sous <Ui id="inspector-new-objects" />).
+
+## Fond et contour
+
+Les formes et les textes ont un <Ui id="props-fill" /> et un <Ui id="panel-stroke" />. Chacun a sa propre ligne dans l’inspecteur, avec une pastille de sa couleur et un résumé : le code hexadécimal, le nom d’une couleur de la palette, ou « Linéaire » ou « Radial » pour un dégradé.
+
+La dernière ligne sur laquelle vous avez cliqué est la **cible** : le sélecteur de couleur, la pipette et la palette agissent sur elle. Trois touches vous aident :
+
+| Touche | Commande |
+|---|---|
+| X | <Ui id="cmd-switch-fill-stroke-target" /> |
+| Maj+X | <Ui id="cmd-swap-fill-and-stroke" /> |
+| D | <Ui id="cmd-default-colors" /> (fond par défaut, aucun contour) |
+
+## Choisir une couleur
+
+Cliquez sur la pastille d’une ligne pour ouvrir le sélecteur de couleur à côté de l’inspecteur. Il contient, de haut en bas :
+
+- le choix <Ui id="colors-solid" /> / <Ui id="colors-linear" /> / <Ui id="colors-radial" /> ;
+- un nuancier avec des curseurs de teinte et d’alpha, et des curseurs RVB, TSV ou TSL avec leurs valeurs ;
+- un champ <Ui id="colors-hex" /> : tapez `#RRGGBB`, `#RGB` ou `#RRGGBBAA` et appuyez sur Entrée ;
+- la <Ui id="colors-brand-palette" />, les couleurs nommées du projet ;
+- les couleurs <Ui id="colors-recent" />, les 12 dernières que vous avez utilisées.
+
+Les modifications s’affichent en direct sur la texture. Appuyez sur Échap ou cliquez à l’extérieur pour fermer le sélecteur ; le fermer conserve vos modifications, et chaque glissement ou valeur saisie compte pour une étape d’annulation.
+
+Cliquez sur une nuance de la palette pour l’appliquer : la couleur est alors **liée** à la nuance, sa ligne affiche le nom de la nuance avec une icône de lien, et modifier la nuance plus tard met à jour toutes les couleurs liées, sur toutes les textures. <Ui id="colors-add-to-palette" /> enregistre la couleur actuelle comme nouvelle nuance. Voir [Palette](../../brand/palette/).
+
+## Régler le contour
+
+Quand le contour est la cible, le sélecteur propose aussi <Ui id="stroke-none" /> pour retirer le contour ; choisir n’importe quelle couleur en ajoute un (4 px par défaut). Cliquez sur le résumé de la ligne <Ui id="panel-stroke" />, par exemple « 6 px · Extérieur », pour ouvrir les options du contour :
+
+- <Ui id="stroke-width" />, en pixels de texture ;
+- l’alignement : <Ui id="stroke-center" />, <Ui id="stroke-inside" /> ou <Ui id="stroke-outside" /> par rapport au bord ;
+- <Ui id="line-dashed" />, avec les longueurs de <Ui id="line-dash" /> et d’<Ui id="line-gap" /> et quelques préréglages ;
+- <Ui id="line-cap" />, <Ui id="line-join" /> et <Ui id="line-miter-limit" />.
+
+Les lignes et les tracés ouverts règlent plutôt leur épaisseur, leurs pointillés, leurs extrémités et leurs angles dans leurs propres réglages de trait (voir [Outils de dessin](../tools/#tracer-des-lignes)).
+
+## Utiliser des dégradés
+
+Le fond et le contour des formes, des tracés et des textes peuvent être des dégradés. Dans le sélecteur de couleur, choisissez <Ui id="colors-linear" /> (un fondu le long d’une ligne) ou <Ui id="colors-radial" /> (un fondu à partir d’un centre). Un nouveau dégradé va de la couleur actuelle à la même couleur, transparente.
+
+La barre de dégradé sous ce choix affiche un repère par point de couleur :
+
+- cliquez sur un repère pour sélectionner son point, puis choisissez sa couleur comme d’habitude ;
+- faites glisser un repère, ou saisissez sa <Ui id="colors-location" />, pour le déplacer ;
+- cliquez sur la barre pour ajouter un point (jusqu’à seize) ; faites glisser un repère hors de la barre, ou appuyez sur Suppr, pour le retirer (il en reste toujours deux) ;
+- <Ui id="colors-reverse" /> inverse les points, <Ui id="colors-angle" /> fait tourner le dégradé, et <Ui id="colors-aspect" /> étire un dégradé radial en ellipse.
+
+<Shot name="workshop/gradients" alt="Un texte avec un fond en dégradé sélectionné, avec la barre de dégradé et ses points dans le sélecteur de couleur." />
+
+Pour placer un dégradé à la main, choisissez l’outil <Ui id="tool-gradient" /> (Maj+G). Sur un objet sélectionné qui a un dégradé, faites glisser ses poignées ; ailleurs, tracez une nouvelle ligne du début à la fin. Maj garde la direction par pas de 45°. Un dégradé suit son objet quand vous le déplacez, le redimensionnez, le faites pivoter ou le retournez.
+
+## Opacité
+
+<Ui id="props-opacity" /> (de 0 à 100 %) rend transparent tout l’objet sélectionné, fond, contour et ombre ensemble. Elle fonctionne aussi sur les images et les groupes. Pour ne rendre transparente qu’une seule couleur, baissez plutôt son alpha dans le nuancier.
+
+## Ombre portée
+
+Une ombre garde le lettrage et les logos lisibles sur n’importe quel fond. Sélectionnez des formes, des textes ou des images et cliquez sur <Ui id="inspector-add-shadow" /> : ils reçoivent une ombre noire à 50 %, décalée de 8 px vers la droite et vers le bas, floutée de 8 px. Cliquez sur la ligne <Ui id="inspector-shadow" /> pour changer sa couleur (qui peut être une nuance de la palette), <Ui id="shadow-opacity" />, <Ui id="shadow-offset-x" />, <Ui id="shadow-offset-y" /> et <Ui id="shadow-blur" /> (0 pour un bord net). Le bouton au bout de la ligne la supprime.
+
+L’ombre a le même aspect dans la texture exportée. Elle ne fait pas partie de l’objet pour la sélection, le magnétisme ou l’alignement. Les groupes n’ont pas d’ombre propre, mais les objets qu’ils contiennent peuvent en avoir une.
+
+## Prélever une couleur sur la texture
+
+Avec l’outil <Ui id="tool-eyedropper" /> (I), cliquez sur un objet pour copier son fond, ou son contour quand le contour est la cible, dégradés compris, sur la sélection. Cliquez sur une image pour prendre la couleur du pixel sous le pointeur. Le gabarit est ignoré : vous prélevez donc toujours votre propre motif.
+
+:::tip
+Les couleurs utilisées souvent ont leur place dans la palette : le compteur <Ui id="inspector-off-palette" /> de l’inspecteur, affiché quand rien n’est sélectionné, trouve les couleurs d’une texture qui ne sont liées à aucune nuance.
+:::

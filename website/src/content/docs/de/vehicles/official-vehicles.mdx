@@ -1,0 +1,55 @@
+---
+title: Offizielle Fahrzeuge
+description: Lackieren Sie die Lkw und Anhänger des Spiels selbst, installiert aus dem kostenlosen Vorlagenpaket von Carsmaniac.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+TruckPaint kennt die Spieldaten der offiziellen Fahrzeuge: ihre Kabinen, ihr Zubehör und ihren Platz in den Dateien des Spiels. Davon müssen Sie nichts eintippen. Was TruckPaint nicht mitliefert, sind die Vorlagen, denn sie gehören SCS Software. Es entnimmt sie dem **Vorlagenpaket** von Carsmaniac, das Sie einmal pro Spiel herunterladen.
+
+## Welche Fahrzeuge verfügbar sind
+
+Die offiziellen Fahrzeuge stehen in <Ui id="home-new-project" /> und in <Ui id="cmd-add-vehicle" /> ganz oben, unter <Ui id="vehicles-section-official" />, ob sie installiert sind oder nicht. Derzeit enthält der Katalog zwei ETS2-Fahrzeuge:
+
+- den **DAF NGD**, einen Lkw mit drei Kabinenlayouts (XG+, XG und XF) und vier Zubehörteilen: Sonnenblende, Seitenverkleidungen, Standardspiegel und Kameraspiegel;
+- den **Krone Cool Liner**, einen Anhänger, dessen Aufbautextur (8192 × 1024) auch sein Aufbauzubehör lackiert, mit vier Fahrgestell-Zubehörteilen. Sein Heckstoßfänger fehlt: Das Paket enthält keine Vorlage dafür.
+
+Weitere Fahrzeuge beider Spiele kommen schubweise hinzu. Die Liste braucht keinen Netzwerkzugang.
+
+## Ihr erstes offizielles Fahrzeug installieren
+
+Wenn Sie zum ersten Mal ein offizielles Fahrzeug eines Spiels markieren, fragt TruckPaint nach dem Vorlagenpaket dieses Spiels.
+
+1. Markieren Sie in <Ui id="home-new-project" /> oder <Ui id="cmd-add-vehicle" /> ein offizielles Fahrzeug, zum Beispiel den DAF NGD. Der Dialog für das Vorlagenpaket öffnet sich.
+2. Klicken Sie auf <Ui id="pack-open-download" />. Ihr Webbrowser öffnet das Thema des Pakets im Forum von SCS Software. Öffnet sich der Browser nicht, klicken Sie auf <Ui id="pack-copy-link" /> und fügen Sie den Link dort ein.
+3. Laden Sie das Paket herunter. Es ist etwa 1,2 GB groß, und ein Paket dient allen Fahrzeugen des Spiels.
+4. Entpacken Sie es an einem beliebigen Ort auf Ihrem Computer.
+5. Klicken Sie zurück in TruckPaint auf <Ui id="pack-choose-folder" /> und wählen Sie den entpackten Ordner, oder ziehen Sie den Ordner auf den Dialog.
+
+<Shot name="vehicles/template-pack" alt="Der Dialog für das Vorlagenpaket nach dem Markieren des DAF NGD, mit den Schritten zum Herunterladen, Entpacken und Wählen des Pakets" />
+
+TruckPaint zeigt „Wird installiert…“, während es das Fahrzeug aus den Dateien des Pakets erstellt, mit einer Schaltfläche <Ui id="button-cancel" />. Danach ist das Fahrzeug wie jedes installierte Fahrzeug markiert: seine erste Haupttextur und alle Zubehörteile sind markiert.
+
+Der gewählte Ordner kann der Ordner des Pakets selbst sein oder der Ordner, in den Sie es entpackt haben. Enthält er nicht das Paket dieses Spiels, sagt TruckPaint das und fragt erneut.
+
+## Nach dem ersten Mal
+
+TruckPaint merkt sich den Paketordner jedes Spiels. Wählen Sie ein weiteres offizielles Fahrzeug, wird es sofort installiert, ohne Nachfrage.
+
+Ein installiertes offizielles Fahrzeug braucht das Paket nicht mehr: Es funktioniert in Ihren Projekten und in den Listen weiter, auch wenn Sie das Paket verschieben oder löschen. Fehlt das Paket, wenn Sie ein weiteres offizielles Fahrzeug installieren, öffnet sich der Dialog für das Vorlagenpaket erneut und meldet, dass der Ordner verschoben oder gelöscht wurde.
+
+Um einen Paketordner zu ändern oder zu vergessen, öffnen Sie <Ui id="home-preferences" /> und gehen Sie zu <Ui id="prefs-template-packs" />: <Ui id="prefs-pack-choose" /> wählt einen anderen Ordner (zum Beispiel das Paket einer neueren Spielversion), und <Ui id="prefs-pack-clear" /> vergisst ihn. Keines von beiden ändert bereits installierte Fahrzeuge oder Ihre Projekte. Ein Ordner, der nicht mehr existiert, zeigt <Ui id="prefs-pack-missing" />.
+
+## Wenn eine Installation fehlschlägt
+
+Es wird nichts installiert, und eine Meldung nennt den Grund, wenn:
+
+- eine Datei, die das Fahrzeug braucht, im Paket fehlt: Die Meldung nennt das Fahrzeug und die Datei;
+- eine Vorlage nicht die erwartete Größe hat: Das Paket ist vielleicht für eine andere Spielversion. Laden Sie das Paket herunter, das zu Ihrem Spiel passt.
+
+:::note[Danksagung]
+Die Spieldaten der offiziellen Fahrzeuge stammen aus Paintjob Packer von Carsmaniac (MIT-Lizenz), die Vorlagenpakete sind von Carsmaniac. Beide werden in <Ui id="cmd-about-truckpaint" /> im Menü <Ui id="menu-help" /> genannt (unter macOS im Menü <Ui id="menu-app" />).
+:::

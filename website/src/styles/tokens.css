@@ -1,0 +1,52 @@
+/* Generated from crates/tp-ui/src/tokens.rs by `mise run doc:tokens`. Do not edit. */
+
+:root,
+:root[data-theme='dark'] {
+	--tp-surface-0: #1c1c1f;
+	--tp-surface-1: #222225;
+	--tp-surface-2: #2e2e33;
+	--tp-surface-3: #3a3a40;
+	--tp-surface-4: #44444a;
+	--tp-control: #28282c;
+	--tp-chip: #34343a;
+	--tp-selected: #3d3d43;
+	--tp-border: #343439;
+	--tp-border-strong: #46464c;
+	--tp-outline: #3e3e43;
+	--tp-text-primary: #ededed;
+	--tp-text-secondary: #a9a9b0;
+	--tp-text-muted: #9a9aa2;
+	--tp-text-disabled: #86868e;
+	--tp-accent-primary: #ececec;
+	--tp-text-on-primary: #1c1c1f;
+	--tp-signal: #f56b6b;
+	--tp-link: #50b9df;
+	--tp-success: #6fc884;
+	--tp-warning: #f0b44c;
+	--tp-error: #ff7a72;
+}
+
+:root[data-theme='light'] {
+	--tp-surface-0: #f6f6f7;
+	--tp-surface-1: #ffffff;
+	--tp-surface-2: #eeeef0;
+	--tp-surface-3: #e4e4e7;
+	--tp-surface-4: #d9d9dd;
+	--tp-control: #f0f0f2;
+	--tp-chip: #e6e6e9;
+	--tp-selected: #e0e0e4;
+	--tp-border: #e2e2e5;
+	--tp-border-strong: #c6c6cc;
+	--tp-outline: #d4d4d8;
+	--tp-text-primary: #1c1c1f;
+	--tp-text-secondary: #525259;
+	--tp-text-muted: #63636b;
+	--tp-text-disabled: #86868e;
+	--tp-accent-primary: #1c1c1f;
+	--tp-text-on-primary: #ffffff;
+	--tp-signal: #c23232;
+	--tp-link: #006a8e;
+	--tp-success: #237a3e;
+	--tp-warning: #8a5800;
+	--tp-error: #bf2f27;
+}

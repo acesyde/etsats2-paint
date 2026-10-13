@@ -1,0 +1,69 @@
+---
+title: El Taller
+description: Oriéntese en el Taller, donde se pinta cada textura de sus vehículos sobre su plantilla.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+El Taller es donde se pinta. TruckPaint es un editor de libreas: siempre trabaja en **una textura** de un vehículo a la vez, en píxeles de textura, sobre la plantilla de esa textura (la disposición UV del vehículo). Todo lo que dibuja en una textura es lo que el juego recibe como esa textura al exportar.
+
+<Shot name="workshop/workshop" alt="El Taller con una librea sencilla: una banda, una placa, una elipse y la rotulación ACE Logistics, dibujadas sobre la plantilla del camión." />
+
+## Los tres espacios
+
+El selector de la barra superior cambia entre los tres espacios de un proyecto. Cambiar de espacio nunca modifica su trabajo, su selección ni su historial de deshacer.
+
+| Espacio | Qué se hace en él | Atajo |
+|---|---|---|
+| <Ui id="cmd-space-project" /> | su flota y la información del mod | Ctrl+1 (⌘1 en macOS) |
+| <Ui id="cmd-space-workshop" /> | pintar la textura activa | Ctrl+2 |
+| <Ui id="cmd-space-brand" /> | la paleta, los estilos, los símbolos y las imágenes de todo el proyecto | Ctrl+3 |
+
+Al abrir un proyecto se muestra el espacio Proyecto; haga clic en una textura allí para pintarla en el Taller. El botón <Ui id="top-bar-export" /> a la derecha de la barra superior siempre está presente: ejecuta <Ui id="cmd-export-mod" /> (consulte [Exportar el mod](../../export/mod/)).
+
+## Las partes del Taller
+
+De izquierda a derecha:
+
+- **La barra de herramientas.** Un icono por herramienta. Pase el puntero sobre una herramienta para ver su nombre y su atajo. Consulte [Herramientas de dibujo](../tools/).
+- **El panel izquierdo**, con tres pestañas:
+  - <Ui id="cmd-tab-textures" /> (tecla 1): su flota como un árbol. Haga clic en una textura para pintarla. Una ruta de navegación en la esquina del lienzo indica siempre en qué vehículo y textura está, y su tamaño.
+  - <Ui id="cmd-tab-layers" /> (tecla 2): los objetos de la textura activa. Consulte [Capas](../layers/).
+  - <Ui id="cmd-tab-resources" /> (tecla 3): la paleta, los símbolos, los estilos y las imágenes del proyecto, listos para arrastrar al lienzo. El espacio [Marca](../../brand/palette/) los gestiona.
+- **El lienzo**, con reglas a lo largo de sus bordes superior e izquierdo, graduadas en píxeles de textura.
+- **El inspector**, a la derecha. Muestra los ajustes de lo que está seleccionado: <Ui id="inspector-layout" />, <Ui id="inspector-text" />, <Ui id="inspector-appearance" /> y más. Sin nada seleccionado, muestra la textura activa (su tipo y su tamaño), un resumen <Ui id="inspector-on-texture" />, y el relleno y el trazo usados para los objetos nuevos.
+
+Encima del lienzo, la barra de opciones de herramienta muestra el nombre de la herramienta activa, y los ajustes de la herramienta Polígono cuando está activa. Puede arrastrar el borde del panel izquierdo o del inspector para cambiar su tamaño.
+
+Para ganar espacio, elija <Ui id="menu-view" /> › <Ui id="cmd-hide-panels" /> (Tab): el panel izquierdo y el inspector desaparecen, y la barra de herramientas y las demás barras se quedan. Pulse Tab de nuevo para recuperarlos. <Ui id="menu-view" /> › <Ui id="cmd-reset-workspace" /> devuelve los paneles a su anchura predeterminada.
+
+## La superposición de la plantilla
+
+La plantilla se dibuja sobre su diseño como una guía bloqueada: no se puede seleccionar ni mover, no está en la pestaña Capas y **nunca se exporta**. Pulse G, o elija <Ui id="menu-view" /> › <Ui id="cmd-show-template" />, para ocultarla o mostrarla. Ajuste su opacidad (60 % por defecto) junto al interruptor <Ui id="status-template" /> de la barra de estado. Ambos ajustes se guardan por textura.
+
+## La barra de estado
+
+Abajo, la barra de estado muestra el nivel de zoom, la posición del puntero en píxeles de textura, los ajustes de la plantilla, los interruptores <Ui id="status-snapping" />, <Ui id="status-grid" /> y <Ui id="status-guides" />, y si el proyecto está <Ui id="status-saved" /> o tiene <Ui id="status-unsaved" />.
+
+## Hacer zoom y desplazarse
+
+| Para | Haga esto |
+|---|---|
+| Hacer zoom hacia el puntero | rueda del ratón, pellizco, o Ctrl + desplazamiento |
+| Desplazar la vista | desplazamiento con dos dedos en un trackpad, Mayús + rueda (en horizontal), mantener pulsada la barra espaciadora y arrastrar, arrastrar con el botón central, o usar la herramienta <Ui id="tool-hand" /> |
+| <Ui id="cmd-zoom-in" /> / <Ui id="cmd-zoom-out" /> | Ctrl+= / Ctrl+- |
+| <Ui id="cmd-fit-to-screen" /> | Mayús+Ctrl+0 |
+| <Ui id="cmd-actual-size-100pct" /> | Ctrl+0 |
+
+Al 100 %, un píxel de textura es un píxel de pantalla. Con la herramienta <Ui id="tool-zoom" />, haga clic para acercar, Alt+clic (Opción+clic en macOS) para alejar, o arrastre un rectángulo para hacer zoom sobre él.
+
+## Deshacer cualquier cosa
+
+Todo cambio en el dibujo se puede deshacer: <Ui id="menu-edit" /> › <Ui id="cmd-undo" /> (Ctrl+Z) y <Ui id="cmd-redo" /> (Ctrl+Mayús+Z o Ctrl+Y). El menú indica el paso, como «Deshacer Cambiar tamaño». Un arrastre completo cuenta como un solo paso. Hacer zoom, desplazar la vista y seleccionar no se registran, así que deshacer nunca mueve su vista.
+
+:::tip
+¿No encuentra un comando? Abra la <Ui id="cmd-command-palette" /> con Ctrl+K y escriba su nombre: también encuentra sus texturas.
+:::

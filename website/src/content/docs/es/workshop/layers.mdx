@@ -1,0 +1,68 @@
+---
+title: Capas
+description: Organice los objetos de una textura en la pestaña Capas, con grupos, orden de apilamiento, visibilidad, bloqueo y nombres.
+sidebar:
+  order: 5
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Cada textura tiene su propia pila de objetos. La pestaña <Ui id="cmd-tab-layers" /> del panel izquierdo (tecla 2, o <Ui id="menu-view" /> › <Ui id="cmd-tab-layers" />) muestra la pila de la textura activa como un árbol, con el objeto superior primero. Cambie de textura y la pestaña la sigue.
+
+<Shot name="workshop/layers" alt="La pestaña Capas con el árbol de una librea: Fondo, un grupo Gráficos con tres franjas y Marca, con una franja seleccionada." />
+
+La cabecera indica el nombre de la textura y cuenta sus objetos de nivel superior. Cada fila muestra el icono del tipo de objeto, su nombre, un interruptor de ojo y uno de candado. Un texto sin nombre propio muestra su primera línea, para que pueda distinguir sus rotulaciones.
+
+## Seleccionar desde la lista
+
+- Haga clic en una fila para seleccionar su objeto, incluso dentro de un grupo.
+- Ctrl+clic (⌘+clic en macOS) añade o quita una fila.
+- Mayús+clic selecciona todas las filas entre la última en la que hizo clic y esta.
+
+Funciona en ambos sentidos: seleccionar en el lienzo resalta las filas y abre los grupos que las contienen.
+
+## Cambiar el orden
+
+Los objetos más arriba en la lista se dibujan encima. Para moverlos:
+
+- arrastre filas hacia arriba o hacia abajo; una línea indica dónde quedarán. Varias filas seleccionadas se mueven juntas;
+- suelte filas en el centro de la fila de un grupo para meterlas en ese grupo, en su parte superior;
+- o use <Ui id="menu-object" /> › <Ui id="cmd-bring-forward" /> (Alt+Ctrl+]) y <Ui id="cmd-send-backward" /> (Alt+Ctrl+[).
+
+## Agrupar objetos
+
+Los grupos mantienen juntas las partes de un diseño: las franjas de una banda, la rotulación de una puerta. Hacer clic en un objeto agrupado en el lienzo selecciona todo el grupo, que se mueve como una sola pieza (Ctrl+clic llega al objeto de dentro).
+
+| Comando | Atajo | Qué hace |
+|---|---|---|
+| <Ui id="cmd-group" /> | Ctrl+G | envuelve los objetos seleccionados en un nuevo grupo |
+| <Ui id="cmd-ungroup" /> | Ctrl+Mayús+G | devuelve los objetos del grupo a su lugar |
+| <Ui id="cmd-new-layer" /> | Ctrl+Mayús+N | añade un grupo vacío arriba, llamado «Capa 1», «Capa 2»… |
+| <Ui id="cmd-duplicate-layer" /> | | duplica las filas seleccionadas |
+| <Ui id="cmd-delete-layer" /> | | elimina las filas seleccionadas |
+
+Agrupar y Desagrupar están en el menú <Ui id="menu-object" />, y los comandos de capa en el menú <Ui id="menu-layer" />. Todos ellos están también en el menú contextual de la pestaña y en los botones de su pie, y el botón + de la cabecera añade una capa.
+
+Las nuevas formas van a la parte superior de la capa activa: el grupo seleccionado, o el grupo que contiene la selección. Seleccione una capa antes de dibujar para dibujar dentro de ella.
+
+Contraiga la fila de un grupo para que una lista larga sea más corta; al seleccionar uno de sus objetos en el lienzo, se vuelve a abrir.
+
+## Ocultar y bloquear
+
+- El **ojo** oculta un objeto, o un grupo y todo su contenido. Un objeto oculto sigue en la lista, pero no se dibuja en el lienzo, no se puede hacer clic en él y **no se exporta**. Una textura cuyos objetos están todos ocultos cuenta como vacía y se exporta con el color del juego.
+- El **candado** impide seleccionar o modificar un objeto en el lienzo, algo práctico para un fondo en el que hace clic sin querer una y otra vez. Los objetos bloqueados se pueden seguir seleccionando en la lista, para desbloquearlos.
+
+Ocultar o bloquear un objeto seleccionado lo deselecciona.
+
+## Cambiar el nombre
+
+Haga doble clic en un nombre, o haga clic derecho en la fila y elija <Ui id="undo-rename" />. Escriba el nuevo nombre y pulse Intro; Esc cancela. Un nombre vacío vuelve al predeterminado, como «Rectángulo» o «Grupo».
+
+Los nombres claros compensan cuando vuelve a una librea meses después.
+
+:::note
+La plantilla no es una capa: nunca aparece en esta lista, no se puede seleccionar y nunca se exporta. Muéstrela u ocúltela con G (consulte [El Taller](../overview/#la-superposición-de-la-plantilla)).
+:::
+
+Reordenar, agrupar, ocultar, bloquear y cambiar el nombre se pueden deshacer, un paso cada uno.

@@ -1,0 +1,47 @@
+---
+title: Exportar una textura
+description: Guarde la textura activa como imagen PNG o DDS, a tamaño completo o reducido, sobre un fondo de color o transparente.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Ui from '~/components/Ui.astro';
+
+Para llevar su pintura al juego, [exporte el mod](../mod/): escribe por usted todas las texturas de la flota. Exporte una sola textura cuando quiera verla en un editor de imágenes, compartir una vista previa o montar un mod a mano.
+
+## Exportar la textura activa
+
+1. Abra la textura que desee en el Taller.
+2. Elija <Ui id="menu-file" /> › <Ui id="cmd-export-texture" />, o pulse <kbd>Mayús</kbd>+<kbd>Ctrl</kbd>+<kbd>E</kbd> (<kbd>⌘</kbd> en macOS).
+3. Elija el formato, el tamaño y el fondo, y revise la vista previa.
+4. Haga clic en <Ui id="export-start" /> y elija dónde guardar el archivo.
+
+<Shot name="export/export-texture" alt="El diálogo Exportar textura con su vista previa, los formatos PNG y DDS, las opciones de tamaño y el fondo" />
+
+El nombre de archivo propuesto es «nombre del proyecto - nombre del vehículo - nombre de la textura», con la extensión del formato.
+
+<kbd>Ctrl</kbd>+<kbd>E</kbd> sin Mayús abre <Ui id="cmd-export-mod" /> en su lugar.
+
+## Elegir los ajustes
+
+- **<Ui id="export-format" />:** PNG, o DDS, el formato que leen los juegos.
+- **<Ui id="export-size" />:** el tamaño completo de la textura por defecto, o la mitad o la cuarta parte, para un archivo más ligero.
+- **<Ui id="export-background" />:** blanco por defecto. Haga clic en el color para elegir otro, o marque <Ui id="export-transparent" /> para dejar transparentes las zonas sin diseño; la vista previa muestra entonces un damero en ellas.
+- **<Ui id="export-dds-encoding" />** (solo DDS): <Ui id="export-dds-bc3" />, comprimido y conservando la transparencia, o <Ui id="export-dds-rgba" />, más grande pero exacto.
+
+La vista previa muestra exactamente lo que se escribirá, con el tamaño en píxeles, el formato y un tamaño de archivo estimado. Se actualiza a medida que cambia los ajustes. El diálogo recuerda sus últimas elecciones hasta que cierre TruckPaint.
+
+## Qué acaba en la imagen
+
+- Todo lo visible en la textura, dibujado como en el lienzo: colores, degradados, trazos, sombras, textos e imágenes. Los logotipos SVG se mantienen nítidos a cualquier tamaño.
+- Los objetos bloqueados se incluyen; los objetos y grupos ocultos, no.
+- La plantilla **nunca** se exporta: solo le sirve de guía mientras pinta.
+- Todo lo que sobresale de la textura se recorta en sus bordes.
+
+Un archivo DDS incluye todos sus mipmaps, las copias más pequeñas que el juego usa para los vehículos lejanos.
+
+## Durante la exportación
+
+Las texturas grandes tardan un momento. El diálogo muestra el progreso con un botón <Ui id="button-cancel" />; cancelar no deja ningún archivo a medias. Cuando termina la exportación, un mensaje indica el nombre del archivo. Exportar nunca modifica su proyecto: si estaba guardado, sigue guardado.
+
+Mientras edita un símbolo, <Ui id="cmd-export-texture" /> está desactivado: haga clic primero en <Ui id="symbol-bar-done" /> para volver a una textura.

@@ -1,0 +1,72 @@
+---
+title: Den Mod exportieren
+description: Füllen Sie die Informationen des Mods aus, exportieren Sie die ganze Flotte als einen .scs-Mod und aktivieren Sie ihn im Spiel.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Mod exportieren verwandelt Ihr Projekt in einen installationsfertigen Mod: eine einzige `.scs`-Datei mit der Lackierung jedes Fahrzeugs der Flotte, mit ihren Texturen, ihrem Shop-Symbol und ihrem Eintrag im Mod-Manager des Spiels.
+
+## Die Informationen des Mods ausfüllen
+
+Die Einstellungen des Mods gehören zum Projekt. Bearbeiten Sie sie im Bereich <Ui id="cmd-space-project" /> (<kbd>Strg</kbd>+<kbd>1</kbd>, <kbd>⌘</kbd> unter macOS), in der Spalte <Ui id="project-mod-information" /> rechts. Jede Änderung wird mit dem Projekt gespeichert und lässt sich rückgängig machen.
+
+<Shot name="export/mod-information" alt="Der Bereich Projekt mit der Spalte Mod-Informationen: das Shop-Symbol, das Bild im Mod-Manager und die Einstellungen des Mods" />
+
+- **<Ui id="mod-icon" />** (256 × 64) und **<Ui id="mod-image" />** (276 × 162): aus Ihrer ersten Haupttextur erzeugt. Um ein eigenes Bild zu verwenden, klicken Sie auf <Ui id="mod-choose-icon" /> oder <Ui id="mod-choose-image" />, oder ziehen Sie eine PNG- oder JPEG-Datei auf die Vorschau. <Ui id="mod-generated-icon" /> und <Ui id="mod-generated-image" /> holen das erzeugte Bild zurück.
+- **<Ui id="mod-name" />:** der Name der Lackierung im Shop und der Name des Mods im Mod-Manager. Anfangs ist es der Projektname.
+- **<Ui id="mod-author" />** und **<Ui id="mod-version" />** (anfangs `1.0`), im Mod-Manager angezeigt.
+- **<Ui id="project-game-versions" />:** die Spielversionen, für die Ihr Mod gedacht ist, so geschrieben, wie das Spiel sie schreibt, etwa `1.56.*`. Klicken Sie auf <Ui id="project-game-versions-add" />, um eine hinzuzufügen, oder mehrere, durch Kommas getrennt. Unter der Liste zeigt TruckPaint die Versionen, die alle Fahrzeuge des Projekts unterstützen.
+- **<Ui id="mod-description" />:** im Mod-Manager angezeigt. TruckPaint ergänzt die Liste der Fahrzeuge, die der Mod lackiert.
+- **<Ui id="mod-price" />** (anfangs 5000) und **<Ui id="mod-unlock" />** (0): was die Lackierung in der Währung des Spiels kostet und ab welcher Spielerstufe sie freigeschaltet wird.
+- **<Ui id="mod-advanced" />** › **<Ui id="mod-internal-name" />:** die Kennung der Lackierung in den Spieldateien, aus dem Namen gebildet (nur a–z, 0–9 und _). Ändern Sie ihn, wenn Sie möchten, aber halten Sie ihn eindeutig, damit Ihre Mods nicht mit anderen kollidieren.
+
+## Beheben, was den Export blockiert
+
+Unter <Ui id="project-before-exporting" /> listet die Spalte auf, was zuerst behoben werden muss, mit <Ui id="project-show" />, um zum richtigen Feld oder zur richtigen Fahrzeugkarte zu springen. Die häufigsten Fälle:
+
+- Der Name ist leer, oder Name, Version oder Autor enthalten `"`, `\` oder einen Zeilenumbruch;
+- der Preis ist 0;
+- der interne Name ist zu lang: höchstens 12 Zeichen, oder 10, wenn ein Lkw des Projekts eine Haupttextur pro Kabinenlayout hat;
+- eine Spielversion ist falsch geschrieben oder wird von einem Ihrer Fahrzeuge nicht unterstützt;
+- die Spieldaten eines Fahrzeugs fehlen, oder zwei Fahrzeuge sind im Spiel dasselbe Fahrzeug.
+
+Dieselbe Liste zeigt auch Warnungen, die den Export nicht blockieren: Leere Texturen werden transparent exportiert, sodass die Grundfarbe des Spiels zu sehen ist; Texturen, die nach einem Vorlagenupdate **Zu prüfen** sind, verdienen einen Blick. Siehe [den Bereich Projekt](../../fleet/project/).
+
+## Den Mod exportieren
+
+1. Klicken Sie in der oberen Leiste auf <Ui id="top-bar-export" />, aus jedem Bereich, oder wählen Sie <Ui id="menu-file" /> › <Ui id="cmd-export-mod" /> (<kbd>Strg</kbd>+<kbd>E</kbd>).
+2. Prüfen Sie die Zusammenfassung: jedes Fahrzeug mit den Texturen, die es lackiert, und die nicht lackierten Kabinen.
+3. Prüfen Sie das <Ui id="mod-destination" />, und klicken Sie auf <Ui id="mod-change-destination" />, um eine andere Datei zu wählen.
+4. Klicken Sie auf <Ui id="mod-export-start" />.
+
+<Shot name="export/export-mod-dialog" alt="Der Dialog Mod exportieren mit der Zusammenfassung des Mods, seinem Ziel mit Ändern…, einer Warnung zu leeren Texturen und den Schaltflächen Abbrechen und Exportieren" />
+
+<Clip name="export/export-mod" label="Ein Klick auf Exportieren… in der oberen Leiste, dann auf Exportieren im Dialog Mod exportieren" />
+
+<Ui id="mod-export-start" /> bleibt deaktiviert, solange ein Problem besteht, und die Probleme werden über den Schaltflächen aufgeführt. Ihre Schaltfläche <Ui id="project-show" /> schließt den Dialog und bringt Sie zum Feld, das korrigiert werden muss. Existiert die Datei bereits, fragt TruckPaint, bevor es sie ersetzt.
+
+Der Export läuft im Hintergrund mit Fortschrittsanzeige; ein Abbruch hinterlässt keine Datei und lässt einen früheren Export unberührt. Er ändert Ihr Projekt nie.
+
+## Wohin der Mod geschrieben wird
+
+Der Dialog schlägt „Name.scs“ im Mod-Ordner des Spiels vor, sofern dieser Ordner existiert:
+
+| | Euro Truck Simulator 2 | American Truck Simulator |
+|---|---|---|
+| Windows | `Documents\Euro Truck Simulator 2\mod` | `Documents\American Truck Simulator\mod` |
+| macOS | `~/Library/Application Support/Euro Truck Simulator 2/mod` | `~/Library/Application Support/American Truck Simulator/mod` |
+| Linux | `~/.local/share/Euro Truck Simulator 2/mod` | `~/.local/share/American Truck Simulator/mod` |
+
+Andernfalls schlägt er Ihren Dokumente-Ordner vor: Verschieben Sie die Datei dann selbst in den Ordner `mod` des Spiels.
+
+## Den Mod im Spiel aktivieren
+
+1. Starten Sie das Spiel und öffnen Sie den **Mod-Manager** über den Profilbildschirm.
+2. Suchen Sie Ihren Mod anhand seines Namens und Bilds, aktivieren Sie ihn und bestätigen Sie.
+3. Laden Sie Ihr Profil und kaufen Sie die Lackierung unter ihrem Namen für Ihren Lkw oder Anhänger.
+
+Die Texturen werden als DDS mit Mipmaps geschrieben, in der vollen Größe jeder Textur. Vorlagen werden nie mitgeliefert.

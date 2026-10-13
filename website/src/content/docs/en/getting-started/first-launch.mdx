@@ -1,0 +1,59 @@
+---
+title: First launch
+description: Find your way around the home screen, choose your language and set TruckPaint up the way you like.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+When no project is open, TruckPaint shows its home screen. It is where you start a new livery, open one you saved, or pick up recent work.
+
+## The home screen
+
+The home screen holds:
+
+- **<Ui id="home-new-project" />**, the main button, which starts a new project (Ctrl+N, ⌘ on macOS);
+- **<Ui id="cmd-open-project" />**, which opens a `.truckpaint` file you saved (Ctrl+O);
+- **<Ui id="home-recent" />**, one card per project you opened, the most recent first;
+- **<Ui id="home-preferences" />**, at the top right.
+
+<Shot name="getting-started/home" alt="The TruckPaint home screen, with the New Project and Open Project buttons and a recent project card" />
+
+The first time, the recent projects area is empty and offers <Ui id="home-recent-empty-create" />, which does the same as <Ui id="home-new-project" />. To create your first project now, go to [Create your first project](../first-project/).
+
+## Reopen recent work
+
+Each recent project card shows a thumbnail of the project's first main texture, its name, where its file is and when you last opened it. Click a card to open the project.
+
+When a project's file was moved or deleted, its card is marked as unavailable and can't be opened. Its remove button (<Ui id="home-remove-recent" /> on hover) takes it off the list.
+
+:::note[After a crash]
+While a project has unsaved changes, TruckPaint keeps a recovery copy of it every two minutes, without touching your own file. If the app closes unexpectedly, the next launch shows <Ui id="home-recovered" /> above the recent projects. Choose <Ui id="home-restore" /> to get your work back, or <Ui id="home-discard" /> to throw the copy away.
+:::
+
+## Choose your language
+
+TruckPaint speaks English, French, Spanish and German. At first it follows your system's language, and falls back to English for any other language.
+
+To pick another one:
+
+1. Open the preferences: <Ui id="home-preferences" /> on the home screen, <Ui id="menu-edit" /> › <Ui id="cmd-preferences" /> on Windows and Linux, or <Ui id="menu-app" /> › <Ui id="app-menu-settings" /> on macOS (Ctrl+,).
+2. Under <Ui id="prefs-language" />, choose a language. The whole interface switches at once, without a restart.
+
+Choose <Ui id="language-system" /> to follow your system's language again.
+
+## Adjust the interface
+
+The preferences also hold:
+
+- <Ui id="prefs-ui-scale" /> and <Ui id="prefs-text-size" />, to make the interface and its text larger or smaller, with a live preview. <Ui id="prefs-reset" /> brings them back to 100%.
+- <Ui id="prefs-template-packs" />, the folders of the template packs used to install the official vehicles, one per game. You set them the first time you pick an official vehicle: see [Official vehicles](../../vehicles/official-vehicles/).
+- On Windows and Linux, <Ui id="prefs-system-title-bar" />.
+
+TruckPaint remembers your preferences, the size and place of its window, and your recent projects between sessions.
+
+## Next step
+
+[Create your first project](../first-project/).

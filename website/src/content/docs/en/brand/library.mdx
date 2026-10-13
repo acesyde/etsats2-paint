@@ -1,0 +1,47 @@
+---
+title: Library
+description: Keep your company's symbols, swatches and styles in a personal library and import them into any project, in both games.
+sidebar:
+  order: 4
+---
+import Ui from '~/components/Ui.astro';
+
+Your company identity doesn't stop at one project. The library is your personal collection of symbols, swatches, graphic styles and text styles. It is shared by every project you make, in Euro Truck Simulator 2 and American Truck Simulator alike, and it is kept between sessions.
+
+The library holds no placement, only elements: as with the rest of the [Brand](../palette/), each texture places its own instances and objects.
+
+## Add an element to the library
+
+Right-click a symbol, a swatch or a style and choose <Ui id="library-add" />. The item is offered wherever the element is listed: in the <Ui id="cmd-tab-resources" /> tab, in the <Ui id="cmd-space-brand" /> space, and, for swatches, in the color popover's palette.
+
+The element is copied with everything it uses:
+
+- a symbol brings its images, the swatches its colors are linked to, and the styles its objects follow;
+- a style brings the swatches of its look, its shadow's included;
+- a swatch comes alone.
+
+Adding to the library doesn't change your project and adds no undo step.
+
+## Update a library element
+
+Once an element is in the library, its menu reads <Ui id="library-update" /> instead. After editing your logo in a project, choose it to replace the library's copy with the new one.
+
+## Import from the library
+
+1. Open <Ui id="cmd-import-from-library" />: from the <Ui id="menu-object" /> menu, the header of the <Ui id="cmd-space-brand" /> space, or the <Ui id="cmd-tab-resources" /> tab.
+2. Check the elements you want. They are listed in four groups, <Ui id="library-symbols" />, <Ui id="library-swatches" />, <Ui id="library-graphic-styles" /> and <Ui id="library-text-styles" />, each with a preview.
+3. Click <Ui id="library-import" />.
+
+The elements arrive with everything they use, as one undo step. An element the project already has is shown as <Ui id="library-in-project" /> and can't be checked.
+
+TruckPaint avoids duplicates: a swatch or style with the same name and value as one of the project's is reused, not added again. When a different element already has the name, the imported one gets a number, such as "Logo 2".
+
+<Ui id="cmd-import-from-library" /> is disabled while you are editing a symbol.
+
+:::note
+Imported elements are copies. Editing your logo in a project doesn't change the library until you choose <Ui id="library-update" />, and updating the library doesn't change projects that imported it earlier.
+:::
+
+## Remove an element from the library
+
+In the import dialog, right-click an element and choose <Ui id="library-remove" />, then confirm. Projects that imported it keep their copy.

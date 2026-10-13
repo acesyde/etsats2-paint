@@ -1,0 +1,47 @@
+---
+title: Exporter une texture
+description: Enregistrez la texture active en image PNG ou DDS, en taille réelle ou plus petite, sur un fond coloré ou transparent.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Ui from '~/components/Ui.astro';
+
+Pour mettre votre peinture dans le jeu, [exportez le mod](../mod/) : il écrit pour vous toutes les textures de la flotte. Exportez une seule texture quand vous voulez la regarder dans un éditeur d’images, partager un aperçu, ou construire un mod à la main.
+
+## Exporter la texture active
+
+1. Ouvrez la texture voulue dans l’Atelier.
+2. Choisissez <Ui id="menu-file" /> › <Ui id="cmd-export-texture" />, ou appuyez sur <kbd>Maj</kbd>+<kbd>Ctrl</kbd>+<kbd>E</kbd> (<kbd>⌘</kbd> sous macOS).
+3. Choisissez le format, la taille et l’arrière-plan, et vérifiez l’aperçu.
+4. Cliquez sur <Ui id="export-start" />, puis choisissez où enregistrer le fichier.
+
+<Shot name="export/export-texture" alt="La boîte de dialogue Exporter la texture avec son aperçu, les formats PNG et DDS, les options de taille et l’arrière-plan" />
+
+Le nom de fichier proposé est de la forme « nom du projet - nom du véhicule - nom de la texture », avec l’extension du format.
+
+<kbd>Ctrl</kbd>+<kbd>E</kbd> sans Maj ouvre plutôt <Ui id="cmd-export-mod" />.
+
+## Choisir les réglages
+
+- **<Ui id="export-format" /> :** PNG, ou DDS, le format que lisent les jeux.
+- **<Ui id="export-size" /> :** la taille réelle de la texture par défaut, ou la moitié ou le quart, pour un fichier plus léger.
+- **<Ui id="export-background" /> :** blanc par défaut. Cliquez sur la couleur pour en choisir une autre, ou cochez <Ui id="export-transparent" /> pour garder transparentes les zones sans motif ; l’aperçu y affiche alors un damier.
+- **<Ui id="export-dds-encoding" />** (DDS uniquement) : <Ui id="export-dds-bc3" />, compressé en conservant la transparence, ou <Ui id="export-dds-rgba" />, plus lourd mais exact.
+
+L’aperçu montre exactement ce qui sera écrit, avec la taille en pixels, le format et une estimation de la taille du fichier. Il se met à jour quand vous changez les réglages. La boîte de dialogue mémorise vos derniers choix jusqu’à ce que vous quittiez TruckPaint.
+
+## Ce qui se retrouve dans l’image
+
+- Tout ce qui est visible sur la texture, dessiné comme dans la zone de travail : couleurs, dégradés, contours, ombres portées, textes et images. Les logos SVG restent nets à toutes les tailles.
+- Les objets verrouillés sont inclus ; les objets et groupes masqués ne le sont pas.
+- Le gabarit n’est **jamais** exporté : il ne sert qu’à vous guider pendant que vous peignez.
+- Tout ce qui dépasse de la texture est coupé à ses bords.
+
+Un fichier DDS est accompagné de toutes ses mipmaps, les copies réduites que le jeu utilise pour les véhicules éloignés.
+
+## Pendant l’export
+
+Les grandes textures prennent un moment. La boîte de dialogue affiche la progression avec un bouton <Ui id="button-cancel" /> ; annuler ne laisse aucun fichier partiel. Une fois l’export terminé, un message nomme le fichier. Exporter ne modifie jamais votre projet : il reste enregistré s’il l’était.
+
+Pendant la modification d’un symbole, <Ui id="cmd-export-texture" /> est désactivé : cliquez d’abord sur <Ui id="symbol-bar-done" /> pour revenir à une texture.

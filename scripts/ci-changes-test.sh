@@ -56,9 +56,16 @@ echo '<svg/>' > docs/diagram.svg
 unknown=$(commit "unknown file kind")
 expect "unknown file kind" true "$mixed" "$unknown"
 
+mkdir -p website/src website/public/media/en
+echo '{}' > website/package.json
+echo 'page' > website/src/page.mdx
+echo 'webp' > website/public/media/en/shot.webp
+site=$(commit "documentation site only")
+expect "documentation site only" false "$unknown" "$site"
+
 git mv crates/app/src/main.rs crates/app/src/app.rs
 renamed=$(commit "rename code")
-expect "renamed code file" true "$unknown" "$renamed"
+expect "renamed code file" true "$site" "$renamed"
 
 git mv docs/guide.md openspec/guide.md
 moved=$(commit "move docs")

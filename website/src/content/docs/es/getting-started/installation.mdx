@@ -1,0 +1,81 @@
+---
+title: Instalación
+description: Compile TruckPaint a partir de su código fuente en Windows, macOS o Linux, y póngalo en marcha.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+TruckPaint funciona en Windows, macOS y Linux. Está en una fase temprana de desarrollo: **aún no hay descargas ni instaladores listos para usar.** Están previstos para una próxima versión. Hasta entonces, usted mismo compila la aplicación a partir de su código fuente. Basta con unos pocos comandos, y solo hay que hacerlo una vez por actualización.
+
+## Instalar los requisitos previos
+
+Necesita [Git](https://git-scm.com) para obtener el código fuente y [mise](https://mise.jdx.dev), que instala la versión correcta de Rust y ejecuta la compilación por usted. Después, añada lo que su sistema necesita para compilar una aplicación de escritorio:
+
+- **Windows:** la cadena de herramientas MSVC, de Visual Studio Build Tools con la carga de trabajo de C++.
+- **macOS:** las Xcode Command Line Tools. Ejecute `xcode-select --install` en un terminal.
+- **Linux:** las bibliotecas de ventanas y gráficos. En Debian o Ubuntu:
+
+  ```sh
+  sudo apt-get install libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev \
+    libxrandr-dev libxi-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+    libgl1-mesa-dev
+  ```
+
+  Se admiten tanto sesiones X11 como Wayland.
+
+## Compilar TruckPaint
+
+1. Obtenga el código fuente:
+
+   ```sh
+   git clone https://github.com/acesyde/etsats2-paint.git
+   cd etsats2-paint
+   ```
+
+2. Instale la cadena de herramientas que fija el proyecto (Rust y sus herramientas):
+
+   ```sh
+   mise install
+   ```
+
+3. Compile la aplicación en modo release:
+
+   ```sh
+   mise run build
+   ```
+
+   La primera compilación descarga y compila todas las dependencias, así que tarda un rato. Las siguientes son mucho más rápidas.
+
+4. Iníciela. El ejecutable es `truckpaint` (`truckpaint.exe` en Windows), en la carpeta `target/release/`:
+
+   ```sh
+   ./target/release/truckpaint
+   ```
+
+Puede copiar el ejecutable donde quiera, o crear un acceso directo a él.
+
+:::tip[Actualizar a una versión más reciente]
+Ejecute `git pull` en la carpeta del proyecto y, después, de nuevo `mise install` y `mise run build`. Sus preferencias, sus vehículos instalados y sus proyectos se conservan: no están en la carpeta de compilación.
+:::
+
+## Si la aplicación no se inicia
+
+TruckPaint dibuja su ventana con Vulkan, DirectX 12 o Metal. Con controladores gráficos antiguos o en una máquina virtual, puede detenerse al iniciar con un error del adaptador gráfico. Fuerce otro backend gráfico con la variable `WGPU_BACKEND`:
+
+```sh
+WGPU_BACKEND=gl ./target/release/truckpaint      # OpenGL (Linux, Windows)
+WGPU_BACKEND=vulkan ./target/release/truckpaint  # Vulkan
+```
+
+En Windows, en PowerShell, defina primero la variable: `$env:WGPU_BACKEND="gl"`, y luego ejecute `.\target\release\truckpaint.exe`.
+
+En Windows y Linux, si la ventana no se puede mover ni cambiar de tamaño correctamente, abra <Ui id="home-preferences" /> y marque <Ui id="prefs-system-title-bar" />: la ventana usa entonces el marco de su sistema, con los menús en una fila debajo.
+
+TruckPaint escribe un registro de lo que hace, en el terminal y en un archivo diario en su carpeta de datos (`logs/`). Adjúntelo cuando informe de un problema.
+
+## Siguiente paso
+
+TruckPaint ya funciona: [recorra la pantalla de inicio](../first-launch/).

@@ -1,0 +1,73 @@
+---
+title: Camiones y remolques
+description: Añada y quite vehículos y texturas, entienda las cabinas y los accesorios, y copie el diseño entre las cabinas de un camión.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Un proyecto es la flota de una empresa: varios camiones, con las cabinas que elija, y varios remolques. Diseña la identidad una vez y exporta toda la flota como un solo mod.
+
+## Un juego por proyecto
+
+Un proyecto pertenece a un solo juego, ETS2 o ATS, fijado por su primer vehículo. Los mods de ETS2 y ATS son independientes, así que solo puede añadir vehículos del juego del proyecto. Si conduce en ambos juegos, cree un proyecto por juego: su [biblioteca personal](../../brand/palette/) lleva sus colores, estilos y símbolos de uno a otro.
+
+## Cómo se compone la pintura de un vehículo
+
+Los juegos dividen una pintura en una **textura principal** y **texturas de accesorio**, y TruckPaint sigue esa división:
+
+- **Un camión** tiene una textura principal por disposición de cabina. Cuando sus cabinas tienen disposiciones distintas (una cabina estándar y un techo alto, por ejemplo), cada disposición tiene su propia textura principal, y usted elige cuáles pintar. Las cabinas que deje fuera simplemente no reciben la pintura. Cuando todas sus cabinas comparten una disposición, una sola textura principal las cubre todas.
+- **Un remolque** tiene una sola textura principal. Sus tipos de carrocería y sus longitudes son accesorios, no variantes: un remolque no tiene variantes.
+- **Los accesorios** (faldones laterales, retrovisores, guardabarros…) pertenecen al vehículo y los comparten todas sus cabinas.
+
+## Añadir vehículos
+
+1. Haga clic en <Ui id="cmd-add-vehicle" /> en el [espacio Proyecto](../project/), o en el botón + de la pestaña <Ui id="cmd-tab-textures" /> en el Taller, o elija <Ui id="menu-vehicle" /> › <Ui id="cmd-add-vehicle" />.
+2. Marque uno o varios vehículos. La lista muestra primero los vehículos oficiales y después sus otros vehículos instalados, todos del juego del proyecto. Busque por nombre o marca, y filtre camiones o remolques.
+3. Bajo cada vehículo marcado, marque las texturas principales y los accesorios que quiere pintar. Al menos una textura principal queda marcada.
+4. Haga clic en <Ui id="add-vehicle-add" />.
+
+<Shot name="fleet/add-vehicle" alt="El diálogo Añadir vehículo con los vehículos del juego del proyecto, un vehículo marcado y sus texturas debajo" />
+
+Los nuevos vehículos se unen a la flota en el orden en que los marcó, y la primera textura nueva pasa a ser la activa. Un solo Deshacer (Ctrl+Z, ⌘ en macOS) los quita todos.
+
+¿No hay paquete para su vehículo? Haga clic en <Ui id="custom-open" /> en el mismo diálogo: consulte [Vehículos personalizados](../../vehicles/custom-vehicles/).
+
+## Pasar de una textura a otra
+
+En el Taller, la pestaña <Ui id="cmd-tab-textures" /> muestra la flota como un árbol: cada vehículo, con sus texturas principales y sus accesorios. Haga clic en una textura para pintar en ella. Su marcador indica su estado: un anillo hueco para Vacía, un punto para Modificada, un icono de aviso para Por revisar.
+
+<Shot name="fleet/textures-tab" alt="El Taller con la pestaña Texturas mostrando el árbol de la flota, un camión y un remolque con sus texturas principales y sus accesorios" />
+
+<Ui id="menu-vehicle" /> › <Ui id="cmd-next-texture" /> (Ctrl+]) y <Ui id="cmd-previous-texture" /> (Ctrl+[) recorren todas las texturas del proyecto. El campo <Ui id="textures-search" /> sobre el árbol abre la paleta de comandos (Ctrl+K) para saltar a una textura por su nombre.
+
+## Cambiar las texturas de un vehículo
+
+Haga clic en <Ui id="vehicles-textures" /> en la tarjeta del vehículo en el espacio Proyecto, o en su menú ⋯ en la pestaña <Ui id="cmd-tab-textures" />. Marque una textura para añadirla, desmarque una para quitarla y haga clic en <Ui id="textures-apply" />.
+
+<Shot name="fleet/textures-dialog" alt="El diálogo Texturas de un vehículo, con sus texturas principales y sus accesorios como casillas" />
+
+Si una textura que quita contiene diseño, TruckPaint la nombra y pregunta antes. Deshacer la recupera con su diseño. Un vehículo siempre conserva al menos una textura principal.
+
+## Quitar un vehículo
+
+Elija <Ui id="vehicles-remove-from-project" /> en el menú ⋯ del vehículo. Si sus texturas contienen diseño, TruckPaint pregunta antes. El último vehículo de un proyecto no se puede quitar.
+
+## Reutilizar su diseño en varios vehículos
+
+Las texturas de cada vehículo se disponen de forma distinta, según su modelo 3D, así que un diseño no se puede copiar al mismo sitio en otro vehículo. Lo que se comparte en la flota son los **elementos**: la paleta de marca, los estilos y los símbolos. Dibuje su logotipo una vez como símbolo y colóquelo en cada textura: al editarlo se actualizan todas. Consulte [el espacio Marca](../../brand/palette/).
+
+### Copiar desde la cabina
+
+Las disposiciones de cabina de un mismo camión comparten la mayor parte de su textura, así que las mismas posiciones encajan. Para empezar una cabina a partir de otra:
+
+1. Abra la textura principal que quiere rellenar, por ejemplo la del techo alto.
+2. Elija <Ui id="menu-vehicle" /> › <Ui id="cmd-copy-from-cabin" />.
+3. Elija la cabina de origen. Cada una indica cuántos objetos contiene.
+4. Haga clic en <Ui id="copy-cabin-copy" />.
+
+Todos los objetos de esa cabina se copian en la textura activa, por encima de sus propios objetos, en las mismas posiciones (escalados si las dos texturas tienen tamaños distintos), y quedan seleccionados para que pueda ajustarlos. Se conservan los vínculos con muestras y estilos. La cabina de origen no cambia, y un solo Deshacer quita las copias.
+
+<Ui id="cmd-copy-from-cabin" /> solo funciona entre texturas principales del mismo camión, cuando el proyecto pinta al menos dos. Los accesorios y los remolques no tienen otra cabina de la que copiar.

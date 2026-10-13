@@ -1,0 +1,59 @@
+---
+title: Paleta
+description: Guarde los colores de su empresa como muestras, vincule objetos a ellas y cambie el color de toda la flota en un solo paso.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+La paleta contiene los colores con nombre de su proyecto, llamados muestras: «Rojo empresa», «Gris empresa», «Crema»… Cuando el color de un objeto está vinculado a una muestra, editar la muestra cambia el color de ese objeto, en todas las texturas de la flota.
+
+## Por qué la marca se comparte mediante elementos
+
+Cada vehículo tiene su propia disposición de textura: la cabina, el chasis y el remolque se despliegan de forma distinta, así que una franja dibujada en una textura no se puede copiar al mismo lugar de otra. Lo que sí puede compartir es el aspecto de su empresa, no su ubicación.
+
+Eso es lo que reúne el espacio <Ui id="cmd-space-brand" />: la paleta, los [estilos gráficos y de texto](../styles/) y los [símbolos](../symbols/). Pertenecen al proyecto, y cada textura coloca sus propios objetos que los usan. Cambie una muestra, un estilo o un símbolo una vez, y todas las texturas lo siguen.
+
+## Añadir un color a la paleta
+
+1. Seleccione un objeto con el color que quiere conservar y haga clic en la muestra de su fila Relleno o Trazo en el inspector.
+2. En el selector de color, bajo <Ui id="colors-brand-palette" />, haga clic en <Ui id="colors-add-to-palette" /> (+).
+
+El color se convierte en una nueva muestra, y el color del que lo tomó queda vinculado a ella. El mismo color nunca se añade dos veces. En el espacio <Ui id="cmd-space-brand" />, <Ui id="colors-palette" /> también tiene un botón <Ui id="brand-new-color" />, que añade el color actual de la misma manera.
+
+## Aplicar una muestra
+
+En el Taller, la pestaña <Ui id="cmd-tab-resources" /> lista la paleta, los símbolos, los estilos y las imágenes del proyecto. Su sección <Ui id="colors-palette" /> funciona como la paleta del selector de color.
+
+<Shot name="brand/resources" alt="La pestaña Recursos del Taller, con una paleta de cinco muestras, estilos gráficos y de texto, el símbolo Logo y una imagen" />
+
+Seleccione uno o varios objetos y haga clic en una muestra: su color va al relleno o al trazo, el que sea el destino (pulse X para alternar), y queda vinculado a la muestra. Con un degradado, la muestra colorea la parada seleccionada.
+
+<Clip name="brand/apply-swatch" label="Al hacer clic en las muestras Rojo empresa, Gris empresa y de nuevo Rojo empresa, cambia el relleno del panel seleccionado" />
+
+Un color vinculado muestra el nombre de la muestra con un icono de enlace en la fila Relleno o Trazo, y la muestra tiene un anillo en el selector de color. Elegir cualquier otro color (un color reciente, el selector o el cuentagotas) lo desvincula: el color se muestra entonces como un código hexadecimal.
+
+Las muestras también pueden colorear un trazo, una sombra, una parada de degradado, un estilo o un objeto dentro de un símbolo. Todos ellos siguen a la muestra.
+
+## Cambiar el color de toda la flota
+
+Abra el espacio <Ui id="cmd-space-brand" /> desde el selector de espacios, o pulse <kbd>Ctrl</kbd>+<kbd>3</kbd> (<kbd>⌘</kbd> en macOS). Cada tarjeta de muestra indica su color, su valor hexadecimal y su uso, como «5 texturas · 11 objetos», o <Ui id="brand-unused" />.
+
+1. Abra el menú de la muestra (…) y elija <Ui id="colors-edit-swatch" />.
+2. En el editor de la derecha, elija el nuevo color o escriba su valor hexadecimal. Aquí también puede cambiar el nombre de la muestra.
+3. Compare las vistas previas <Ui id="brand-before" /> y <Ui id="brand-after" />, y compruebe el impacto: el número de texturas y objetos que cambiarán, con una miniatura de cada textura en el nuevo color.
+4. Haga clic en <Ui id="brand-apply-to-fleet" />.
+
+<Shot name="brand/brand-space" alt="El espacio Marca editando la muestra Rojo empresa con un nuevo verde, con las vistas previas Antes y Después y el impacto en cinco texturas" />
+
+Nada cambia en el proyecto hasta que haga clic en <Ui id="brand-apply-to-fleet" />: <Ui id="button-cancel" /> o Esc cierra el editor y lo deja todo como estaba. Una vez aplicado, cada color vinculado toma el nuevo valor en todas las texturas y sigue vinculado, y un solo Deshacer restaura el color anterior en todas partes.
+
+<Ui id="colors-edit-swatch" /> también está en el menú contextual de la muestra en el selector de color y en la pestaña <Ui id="cmd-tab-resources" />; allí, el mismo editor se abre como un diálogo sobre el Taller.
+
+## Eliminar una muestra
+
+Elija <Ui id="colors-delete-swatch" /> en el menú de la muestra. Los objetos conservan su color, pero ya no están vinculados, así que las ediciones posteriores no les llegarán. Como cualquier cambio en la paleta, se puede deshacer.
+
+Para reutilizar sus muestras en otros proyectos, añádalas a su [biblioteca](../library/).

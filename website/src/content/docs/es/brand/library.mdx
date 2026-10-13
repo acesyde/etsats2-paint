@@ -1,0 +1,47 @@
+---
+title: Biblioteca
+description: Guarde los símbolos, muestras y estilos de su empresa en una biblioteca personal e impórtelos en cualquier proyecto, en ambos juegos.
+sidebar:
+  order: 4
+---
+import Ui from '~/components/Ui.astro';
+
+La identidad de su empresa no se limita a un proyecto. La biblioteca es su colección personal de símbolos, muestras, estilos gráficos y estilos de texto. La comparten todos los proyectos que cree, tanto en Euro Truck Simulator 2 como en American Truck Simulator, y se conserva entre sesiones.
+
+La biblioteca no guarda ninguna colocación, solo elementos: como en el resto de la [Marca](../palette/), cada textura coloca sus propias instancias y objetos.
+
+## Añadir un elemento a la biblioteca
+
+Haga clic derecho en un símbolo, una muestra o un estilo y elija <Ui id="library-add" />. La opción aparece allí donde se lista el elemento: en la pestaña <Ui id="cmd-tab-resources" />, en el espacio <Ui id="cmd-space-brand" /> y, para las muestras, en la paleta del selector de color.
+
+El elemento se copia con todo lo que usa:
+
+- un símbolo se lleva sus imágenes, las muestras a las que están vinculados sus colores y los estilos que siguen sus objetos;
+- un estilo se lleva las muestras de su aspecto, incluidas las de su sombra;
+- una muestra va sola.
+
+Añadir a la biblioteca no modifica su proyecto ni añade ningún paso de deshacer.
+
+## Actualizar un elemento de la biblioteca
+
+Cuando un elemento ya está en la biblioteca, su menú muestra <Ui id="library-update" /> en su lugar. Después de editar su logotipo en un proyecto, elija esta opción para sustituir la copia de la biblioteca por la nueva.
+
+## Importar desde la biblioteca
+
+1. Abra <Ui id="cmd-import-from-library" />: desde el menú <Ui id="menu-object" />, la cabecera del espacio <Ui id="cmd-space-brand" /> o la pestaña <Ui id="cmd-tab-resources" />.
+2. Marque los elementos que desee. Se listan en cuatro grupos, <Ui id="library-symbols" />, <Ui id="library-swatches" />, <Ui id="library-graphic-styles" /> y <Ui id="library-text-styles" />, cada uno con una vista previa.
+3. Haga clic en <Ui id="library-import" />.
+
+Los elementos llegan con todo lo que usan, en un solo paso de deshacer. Un elemento que el proyecto ya tiene aparece como <Ui id="library-in-project" /> y no se puede marcar.
+
+TruckPaint evita los duplicados: una muestra o un estilo con el mismo nombre y valor que uno del proyecto se reutiliza, no se vuelve a añadir. Cuando otro elemento distinto ya tiene ese nombre, el importado recibe un número, como «Logo 2».
+
+<Ui id="cmd-import-from-library" /> está desactivado mientras edita un símbolo.
+
+:::note
+Los elementos importados son copias. Editar su logotipo en un proyecto no cambia la biblioteca hasta que elija <Ui id="library-update" />, y actualizar la biblioteca no cambia los proyectos que lo importaron antes.
+:::
+
+## Quitar un elemento de la biblioteca
+
+En el diálogo de importación, haga clic derecho en un elemento, elija <Ui id="library-remove" /> y confirme. Los proyectos que lo importaron conservan su copia.

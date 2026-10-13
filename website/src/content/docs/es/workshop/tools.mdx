@@ -1,0 +1,97 @@
+---
+title: Herramientas de dibujo
+description: Dibuje formas, estrellas, trazados y líneas en una textura, y luego selecciónelos, muévalos, cambie su tamaño, rótelos, alinéelos y combínelos.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Las herramientas dibujan formas vectoriales en la textura activa. Los tamaños y las posiciones están en píxeles de textura, así que una banda de 512 px son 512 píxeles de la textura exportada, sea cual sea el zoom. Pase el puntero sobre una herramienta en la barra de herramientas para ver su nombre y su atajo.
+
+Las nuevas formas toman el relleno y el trazo que muestra el inspector cuando no hay nada seleccionado (consulte [Color y degradados](../color-and-gradients/)), y van a la parte superior de la capa activa.
+
+## Dibujar rectángulos y elipses
+
+1. Elija la herramienta <Ui id="tool-rectangle" /> o <Ui id="tool-ellipse" />.
+2. Arrastre sobre la textura. Mantenga pulsada Mayús para un cuadrado o un círculo, y Alt (Opción en macOS) para dibujar desde el centro.
+3. Suelte. La forma queda seleccionada y la herramienta sigue activa para la siguiente.
+
+Pulse Esc durante el arrastre para cancelar. Redondee las esquinas de un rectángulo con <Ui id="props-corner-radius" /> en la sección <Ui id="inspector-appearance" /> del inspector.
+
+<Clip name="workshop/draw-rectangle" label="Se elige la herramienta Rectángulo y se arrastra un rectángulo sobre la textura" />
+
+## Dibujar polígonos y estrellas
+
+Con la herramienta <Ui id="tool-polygon" />, arrastre un recuadro: el polígono lo llena, con el primer punto hacia arriba. Mayús lo mantiene regular. Defina <Ui id="props-sides" /> (de 3 a 12), <Ui id="props-star" /> y <Ui id="props-inner-radius" /> en la barra de opciones de herramienta sobre el lienzo, antes de dibujar. Cuando hay polígonos seleccionados, los mismos ajustes aparecen en la sección <Ui id="inspector-polygon" /> del inspector y los modifican directamente.
+
+## Dibujar trazados con la Pluma
+
+1. Elija la herramienta <Ui id="tool-pen" />.
+2. Haga clic para añadir puntos de esquina. Pulse y arrastre para añadir un punto suave con tiradores de curva. Mayús mantiene el nuevo punto y sus tiradores en pasos de 45°.
+3. Haga clic en el primer punto para cerrar la forma, o pulse Intro o Esc para dejar el trazado abierto.
+
+Retroceso, o Ctrl+Z (⌘Z en macOS), quita el último punto mientras dibuja.
+
+<Clip name="workshop/draw-path" label="Se hace clic en cuatro puntos con la herramienta Pluma y luego en el primero para cerrar la forma" />
+
+## Dibujar líneas
+
+Con la herramienta <Ui id="tool-line" />, arrastre de un extremo al otro; Mayús ajusta el ángulo en pasos de 45° y Alt dibuja desde el centro. Las líneas y los trazados abiertos se pintan con el color de relleno. Su grosor es el campo <Ui id="field-width" /> del inspector (8 px al principio); haga clic en él para definir <Ui id="line-dashed" />, <Ui id="line-cap" /> y <Ui id="line-join" />.
+
+<Shot name="workshop/shapes-paths" alt="Estrellas, un polígono, un trazado curvo con un hueco y líneas abiertas en una textura." />
+
+## Seleccionar, mover, cambiar de tamaño y rotar
+
+Con la herramienta <Ui id="tool-selection" />:
+
+- **Haga clic** en un objeto para seleccionarlo; un clic en un objeto dentro de un grupo selecciona el grupo, y Ctrl+clic selecciona el propio objeto. **Mayús+clic** añade o quita. **Arrastre** sobre una zona vacía del lienzo para seleccionar con un marco. <Ui id="cmd-select-all" /> es Ctrl+A, y Esc deselecciona.
+- **Arrastre** la selección para moverla; Mayús mantiene el movimiento recto o a 45°. Las teclas de flecha desplazan 1 px, o 10 px con Mayús.
+- **Arrastre un tirador** para cambiar el tamaño: Mayús conserva las proporciones, Alt cambia el tamaño desde el centro.
+- **Arrastre justo fuera de una esquina** para rotar; Mayús ajusta en pasos de 15°.
+
+<Clip name="workshop/move-resize" label="Se hace clic en la elipse, se arrastra y luego se arrastra un tirador de esquina" />
+
+Para valores exactos, escríbalos en la sección <Ui id="inspector-layout" /> del inspector: <Ui id="transform-x" />, <Ui id="transform-y" />, <Ui id="field-width" />, <Ui id="field-height" />, <Ui id="transform-rotation" /> y <Ui id="transform-scale" />. También puede arrastrar sobre la etiqueta de un campo para cambiar su valor.
+
+<Ui id="cmd-duplicate" /> (Ctrl+D), <Ui id="cmd-copy" />, <Ui id="cmd-paste" /> y <Ui id="cmd-delete" /> están en el menú <Ui id="menu-edit" />. Los objetos copiados se pueden pegar en otra textura o en otro proyecto.
+
+## Editar puntos
+
+La herramienta <Ui id="tool-direct-selection" /> muestra los puntos de un trazado. Haga clic en un punto (Mayús+clic para más) y arrástrelo, o arrastre sus tiradores; Alt+arrastre en un tirador convierte un punto suave en uno de esquina. Haga doble clic en un punto para alternarlo entre esquina y suave, haga doble clic en un segmento para añadir un punto, y pulse Supr para quitar los puntos seleccionados.
+
+Los rectángulos, las elipses y los polígonos no tienen puntos editables hasta que elige <Ui id="menu-object" /> › <Ui id="cmd-convert-to-path" />.
+
+## Alinear elementos
+
+- **El ajuste** atrae lo que mueve o dibuja hacia la cuadrícula, las guías, los bordes y el centro de la textura, y los bordes y centros de otros objetos. Actívelo o desactívelo con <Ui id="menu-view" /> › <Ui id="cmd-snapping" /> o en la barra de estado; mantenga pulsado Ctrl durante un arrastre para ignorarlo.
+- **Guías:** arrastre desde una regla al lienzo. Arrastre una guía de vuelta a una regla para eliminarla. <Ui id="cmd-show-guides" /> y <Ui id="cmd-clear-guides" /> están en el menú <Ui id="menu-view" />.
+- **Cuadrícula:** <Ui id="menu-view" /> › <Ui id="cmd-show-grid" />. Defina su <Ui id="prefs-grid-spacing" /> en <Ui id="cmd-preferences" /> (64 px por defecto).
+
+Las guías y la cuadrícula nunca se exportan.
+
+## Alinear y distribuir
+
+Seleccione objetos y use los botones de la sección <Ui id="inspector-layout" />, o <Ui id="menu-object" /> › <Ui id="menu-align" />. <Ui id="transform-align-to" /> elige la referencia: <Ui id="align-to-selection" />, <Ui id="align-to-artboard" /> (toda la textura, práctico para centrar un logotipo), u <Ui id="align-to-key-object" /> (el último objeto que seleccionó). Para distribuir hacen falta tres objetos o más.
+
+## Combinar formas
+
+Seleccione dos formas o más y elija <Ui id="menu-object" /> › <Ui id="menu-combine" />:
+
+| Comando | Resultado |
+|---|---|
+| <Ui id="op-unite" /> (Ctrl+Mayús+U) | una forma que las cubre todas |
+| <Ui id="op-minus-front" /> (Ctrl+Mayús+-) | la forma inferior, recortada por las formas que tiene encima |
+| <Ui id="op-intersect" /> | solo donde se superponen todas |
+| <Ui id="op-exclude" /> | donde no se superponen |
+
+El resultado es un solo trazado. Los textos deben pasar antes por <Ui id="cmd-create-outlines" />; las imágenes y las líneas abiertas no se pueden combinar.
+
+## Voltear
+
+<Ui id="op-flip-horizontal" /> (Mayús+H) y <Ui id="op-flip-vertical" /> (Mayús+V), en el menú <Ui id="menu-object" /> y en el inspector, reflejan la selección en su sitio.
+
+## Contornos
+
+La fila <Ui id="panel-stroke" /> del inspector añade un contorno a formas y textos, por dentro, por fuera o centrado en el borde. Consulte [Color y degradados](../color-and-gradients/).

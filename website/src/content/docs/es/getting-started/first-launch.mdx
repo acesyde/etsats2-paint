@@ -1,0 +1,59 @@
+---
+title: Primer inicio
+description: Oriéntese en la pantalla de inicio, elija su idioma y configure TruckPaint a su gusto.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Cuando no hay ningún proyecto abierto, TruckPaint muestra su pantalla de inicio. Desde ella se empieza una nueva librea, se abre una guardada o se retoma el trabajo reciente.
+
+## La pantalla de inicio
+
+La pantalla de inicio contiene:
+
+- **<Ui id="home-new-project" />**, el botón principal, que crea un nuevo proyecto (Ctrl+N, ⌘ en macOS);
+- **<Ui id="cmd-open-project" />**, que abre un archivo `.truckpaint` que haya guardado (Ctrl+O);
+- **<Ui id="home-recent" />**, una tarjeta por cada proyecto que haya abierto, el más reciente primero;
+- **<Ui id="home-preferences" />**, arriba a la derecha.
+
+<Shot name="getting-started/home" alt="La pantalla de inicio de TruckPaint, con los botones Nuevo proyecto y Abrir proyecto y una tarjeta de proyecto reciente" />
+
+La primera vez, la zona de proyectos recientes está vacía y ofrece <Ui id="home-recent-empty-create" />, que hace lo mismo que <Ui id="home-new-project" />. Para crear ahora su primer proyecto, vaya a [Crear su primer proyecto](../first-project/).
+
+## Retomar el trabajo reciente
+
+Cada tarjeta de proyecto reciente muestra una miniatura de la primera textura principal del proyecto, su nombre, dónde está su archivo y cuándo lo abrió por última vez. Haga clic en una tarjeta para abrir el proyecto.
+
+Cuando el archivo de un proyecto se ha movido o eliminado, su tarjeta aparece marcada como no disponible y no se puede abrir. Su botón de quitar (<Ui id="home-remove-recent" /> al pasar el puntero) la retira de la lista.
+
+:::note[Tras un cierre inesperado]
+Mientras un proyecto tiene cambios sin guardar, TruckPaint guarda una copia de recuperación cada dos minutos, sin tocar su propio archivo. Si la aplicación se cierra de forma inesperada, el siguiente inicio muestra <Ui id="home-recovered" /> encima de los proyectos recientes. Elija <Ui id="home-restore" /> para recuperar su trabajo, o <Ui id="home-discard" /> para desechar la copia.
+:::
+
+## Elegir su idioma
+
+TruckPaint está disponible en inglés, francés, español y alemán. Al principio sigue el idioma de su sistema, y usa el inglés para cualquier otro idioma.
+
+Para elegir otro:
+
+1. Abra las preferencias: <Ui id="home-preferences" /> en la pantalla de inicio, <Ui id="menu-edit" /> › <Ui id="cmd-preferences" /> en Windows y Linux, o <Ui id="menu-app" /> › <Ui id="app-menu-settings" /> en macOS (Ctrl+,).
+2. En <Ui id="prefs-language" />, elija un idioma. Toda la interfaz cambia al instante, sin reiniciar.
+
+Elija <Ui id="language-system" /> para volver a seguir el idioma de su sistema.
+
+## Ajustar la interfaz
+
+Las preferencias también contienen:
+
+- <Ui id="prefs-ui-scale" /> y <Ui id="prefs-text-size" />, para agrandar o reducir la interfaz y su texto, con una vista previa en directo. <Ui id="prefs-reset" /> los devuelve al 100 %.
+- <Ui id="prefs-template-packs" />, las carpetas de los paquetes de plantillas usados para instalar los vehículos oficiales, una por juego. Se definen la primera vez que elige un vehículo oficial: consulte [Vehículos oficiales](../../vehicles/official-vehicles/).
+- En Windows y Linux, <Ui id="prefs-system-title-bar" />.
+
+TruckPaint recuerda entre sesiones sus preferencias, el tamaño y la posición de su ventana, y sus proyectos recientes.
+
+## Siguiente paso
+
+[Crear su primer proyecto](../first-project/).

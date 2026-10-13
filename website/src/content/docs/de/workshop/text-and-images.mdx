@@ -1,0 +1,68 @@
+---
+title: Text und Bilder
+description: Schreiben Sie Schriftzüge auf eine Textur, gestalten Sie sie, wandeln Sie sie in Pfade um und platzieren Sie Ihre Logos als PNG-, JPEG- oder SVG-Bilder.
+sidebar:
+  order: 3
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Firmennamen, Telefonnummern und Logos sind das Herzstück der meisten Lackierungen. Texte bleiben auf der Textur bis zum Export bearbeitbar; Bilder behalten ihre Originaldatei, und SVG-Logos bleiben in jeder Größe scharf.
+
+## Einen Text schreiben
+
+1. Wählen Sie das Werkzeug <Ui id="tool-text" /> (T).
+2. Klicken Sie auf die Stelle der Textur, an der der Text beginnen soll.
+3. Tippen Sie. Eingabe beginnt eine neue Zeile.
+4. Drücken Sie Esc oder klicken Sie außerhalb des Texts, um abzuschließen.
+
+<Clip name="workshop/write-text" label="Das Text-Werkzeug wird gewählt, auf die Textur geklickt, ACE Logistics getippt und Esc gedrückt" />
+
+Um einen Text später zu ändern, doppelklicken Sie ihn mit dem Werkzeug <Ui id="tool-selection" />, klicken Sie ihn mit dem Text-Werkzeug an, wählen Sie ihn aus und drücken Sie Eingabe, oder wählen Sie <Ui id="menu-object" /> › <Ui id="cmd-edit-text" />. Beim Tippen funktionieren die üblichen Bearbeitungstasten: Pfeiltasten, Pos1 und Ende, Umschalt zum Markieren, Strg+A (⌘A unter macOS), um den ganzen Text zu markieren, Kopieren und Einfügen. Werkzeug-Tastenkombinationen sind beim Tippen deaktiviert, damit die Buchstaben im Text landen.
+
+Ein leer gelassener Text wird beim Abschließen gelöscht. Eine ganze Bearbeitungssitzung ist ein Rückgängig-Schritt.
+
+## Einen Text gestalten
+
+Ist ein Text ausgewählt, zeigt der Inspektor einen Abschnitt <Ui id="inspector-text" />:
+
+- <Ui id="char-font-family" />: eine durchsuchbare Liste, in der jede Familie in ihrer eigenen Schrift angezeigt wird;
+- <Ui id="char-font-weight" /> und <Ui id="char-italic" />;
+- <Ui id="char-size" />, in Texturpixeln;
+- Ausrichtung: <Ui id="char-align-left" />, <Ui id="char-align-center" />, <Ui id="char-align-right" />;
+- <Ui id="char-letter-spacing" /> und <Ui id="char-line-height" />.
+
+Farbe, Kontur und Schatten des Texts stellen Sie wie bei Formen im Abschnitt <Ui id="inspector-appearance" /> ein (siehe [Farbe und Verläufe](../color-and-gradients/)). Das Ziehen an den Griffen eines Texts skaliert ihn.
+
+<Shot name="workshop/text-selected" alt="Der ausgewählte Schriftzug ACE Logistics, mit Schrift, Größe und Abständen im Inspektor." />
+
+TruckPaint bringt Inter, Barlow Condensed, Oswald, Bebas Neue und Montserrat mit, die auf jedem Computer verfügbar sind, gefolgt von den auf Ihrem Computer installierten Schriften. Neue Texte verwenden Inter Bold in 200 px. Um den Stil der nächsten Texte festzulegen, wählen Sie das Text-Werkzeug ohne Auswahl und ändern den Abschnitt <Ui id="inspector-text" />.
+
+:::caution
+Verwendet ein Projekt eine Schrift, die auf diesem Computer nicht installiert ist, wird der Text mit Inter gezeichnet und seine Schrift mit einer Warnung gekennzeichnet. Der Schriftname bleibt erhalten, sodass der Text auf einem Computer, der die Schrift hat, wieder richtig aussieht.
+:::
+
+## Konturen erstellen
+
+<Ui id="menu-object" /> › <Ui id="cmd-create-outlines" /> (Strg+Umschalt+O) verwandelt die ausgewählten Texte in Gruppen von Buchstabenpfaden, die genau gleich aussehen. Nutzen Sie das, um Buchstaben mit dem Werkzeug <Ui id="tool-direct-selection" /> umzuformen, sie mit Formen zu [kombinieren](../tools/#formen-kombinieren) oder um nicht mehr von einer Schrift abzuhängen. Die Buchstaben lassen sich danach nicht mehr als Text bearbeiten, außer über Rückgängig.
+
+## Bilder platzieren
+
+Holen Sie ein Logo oder ein Bild als PNG-, JPEG- oder SVG-Datei herein:
+
+- <Ui id="menu-file" /> › <Ui id="cmd-place" /> (Strg+Umschalt+P), das mehrere Dateien auf einmal annimmt;
+- das Werkzeug <Ui id="tool-image" /> (Umschalt+I): Klicken Sie dorthin, wo das Bild hin soll, und wählen Sie dann die Datei;
+- Dateien aus Ihrem Dateimanager in das Fenster ziehen.
+
+Das Bild behält seine Proportionen und seine natürliche Größe und wird auf die halbe Textur verkleinert, wenn es größer ist. Danach können Sie es wie jedes Objekt verschieben, skalieren (Umschalt behält die Proportionen bei), drehen, spiegeln, ausblenden, sperren, gruppieren und duplizieren und ihm eine Deckkraft und einen Schatten geben. Bilder haben weder Fläche noch Kontur.
+
+SVG-Dateien bleiben Vektoren: TruckPaint behält das SVG selbst und zeichnet es bei jedem Zoom scharf neu.
+
+<Shot name="workshop/text-images" alt="Schriftzüge, ein PNG-Logo und ein SVG-Abzeichen auf einer Textur." />
+
+Ist ein Bild ausgewählt, zeigt der Abschnitt <Ui id="inspector-image" /> des Inspektors seinen Namen, seine Art und seine Quellgröße, und <Ui id="undo-reset-size" /> stellt seine platzierte Größe und Proportionen wieder her.
+
+Jedes platzierte Bild ist im Abschnitt <Ui id="resources-images" /> der Registerkarte <Ui id="cmd-tab-resources" /> aufgeführt, sodass Sie es auf andere Texturen ziehen können. Wird dieselbe Datei zweimal platziert, wird sie nur einmal gespeichert. Eine Datei, die kein gültiges PNG, JPEG oder SVG ist, wird übersprungen, mit einer Meldung, die sie und den Grund nennt; die übrigen Dateien werden trotzdem platziert.
+
+Um ein Logo auf jeder Textur wiederzuverwenden und an einer Stelle zu aktualisieren, machen Sie es zu einem [Symbol](../../brand/symbols/).
