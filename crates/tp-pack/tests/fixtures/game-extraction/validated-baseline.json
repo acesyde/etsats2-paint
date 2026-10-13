@@ -1,0 +1,538 @@
+{
+  "source": "Historical MAN/DAF probes; user-confirmed in docs/game-extraction-plan.md, not an exhaustive configuration matrix.",
+  "limits": [
+    "Additional tuning DLC not mounted",
+    "Ordinary truckpaint shader; alternate UVs unsupported",
+    "No extra vertical flip",
+    "Accessory sizes from crop names"
+  ],
+  "vehicles": [
+    {
+      "vehicle": "man.tgx_2020",
+      "game_version": "1.61.1.1",
+      "archives": [
+        "base.scs",
+        "base_share.scs",
+        "base_vehicle.scs",
+        "def.scs",
+        "dlc_man_tgx_2020.scs",
+        "version.scs"
+      ],
+      "models_converted": 195,
+      "painted_definitions": 42,
+      "parts": [
+        {
+          "id": "gx",
+          "game_ids": [
+            "gx"
+          ],
+          "size": [
+            4096,
+            4096
+          ],
+          "edges": 50246
+        },
+        {
+          "id": "gm",
+          "game_ids": [
+            "gm"
+          ],
+          "size": [
+            4096,
+            4096
+          ],
+          "edges": 45573
+        },
+        {
+          "id": "gn",
+          "game_ids": [
+            "gn"
+          ],
+          "size": [
+            4096,
+            4096
+          ],
+          "edges": 47393
+        },
+        {
+          "id": "f_bumper_pnt_pla_duty",
+          "game_ids": [
+            "f_bumper.pnt_pla_duty"
+          ],
+          "size": [
+            1024,
+            1024
+          ],
+          "edges": 6429
+        },
+        {
+          "id": "f_fender_chs_pnt_duty",
+          "game_ids": [
+            "f_fender_chs.pnt_duty"
+          ],
+          "size": [
+            1024,
+            1024
+          ],
+          "edges": 2827
+        },
+        {
+          "id": "mirror_cam_pnt",
+          "game_ids": [
+            "mirror.cam_pnt"
+          ],
+          "size": [
+            256,
+            256
+          ],
+          "edges": 3540
+        },
+        {
+          "id": "mirror_cam_pnt_gn",
+          "game_ids": [
+            "mirror.cam_pnt_gn"
+          ],
+          "size": [
+            256,
+            256
+          ],
+          "edges": 3540
+        },
+        {
+          "id": "mirror_pnt_pla",
+          "game_ids": [
+            "mirror.pnt_pla"
+          ],
+          "size": [
+            512,
+            512
+          ],
+          "edges": 698
+        },
+        {
+          "id": "mirror_pnt_pla_bs",
+          "game_ids": [
+            "mirror.pnt_pla_bs"
+          ],
+          "size": [
+            512,
+            512
+          ],
+          "edges": 698
+        },
+        {
+          "id": "r_deflector_gm",
+          "game_ids": [
+            "r_deflector.gm"
+          ],
+          "size": [
+            1024,
+            1024
+          ],
+          "edges": 6491
+        },
+        {
+          "id": "r_deflector_gm_2024",
+          "game_ids": [
+            "r_deflector.gm_2024"
+          ],
+          "size": [
+            1024,
+            1024
+          ],
+          "edges": 6491
+        },
+        {
+          "id": "r_deflector_gn",
+          "game_ids": [
+            "r_deflector.gn"
+          ],
+          "size": [
+            1024,
+            1024
+          ],
+          "edges": 8399
+        },
+        {
+          "id": "r_fender_pnt_4x2",
+          "game_ids": [
+            "r_fender.pnt_4x2"
+          ],
+          "size": [
+            2048,
+            1024
+          ],
+          "edges": 5730
+        },
+        {
+          "id": "r_fender_pnt_6x22",
+          "game_ids": [
+            "r_fender.pnt_6x22"
+          ],
+          "size": [
+            2048,
+            1024
+          ],
+          "edges": 10510
+        },
+        {
+          "id": "r_fender_pnt_6x4",
+          "game_ids": [
+            "r_fender.pnt_6x4"
+          ],
+          "size": [
+            2048,
+            1024
+          ],
+          "edges": 10742
+        },
+        {
+          "id": "r_fender_pnt_8x4",
+          "game_ids": [
+            "r_fender.pnt_8x4"
+          ],
+          "size": [
+            2048,
+            1024
+          ],
+          "edges": 15444
+        },
+        {
+          "id": "r_fendr_top_pnt_4x2",
+          "game_ids": [
+            "r_fendr_top.pnt_4x2"
+          ],
+          "size": [
+            2048,
+            1024
+          ],
+          "edges": 2930
+        },
+        {
+          "id": "r_fendr_top_pnt_6x22",
+          "game_ids": [
+            "r_fendr_top.pnt_6x22"
+          ],
+          "size": [
+            2048,
+            1024
+          ],
+          "edges": 5860
+        },
+        {
+          "id": "r_fendr_top_pnt_6x4",
+          "game_ids": [
+            "r_fendr_top.pnt_6x4"
+          ],
+          "size": [
+            2048,
+            1024
+          ],
+          "edges": 5860
+        },
+        {
+          "id": "r_fendr_top_pnt_8x4",
+          "game_ids": [
+            "r_fendr_top.pnt_8x4"
+          ],
+          "size": [
+            2048,
+            1024
+          ],
+          "edges": 8790
+        },
+        {
+          "id": "r_light_led_pnt",
+          "game_ids": [
+            "r_light.led_pnt"
+          ],
+          "size": [
+            2048,
+            1024
+          ],
+          "edges": 434
+        },
+        {
+          "id": "r_light_old_pnt",
+          "game_ids": [
+            "r_light.old_pnt"
+          ],
+          "size": [
+            2048,
+            1024
+          ],
+          "edges": 434
+        },
+        {
+          "id": "sideskirt_4x2",
+          "game_ids": [
+            "sideskirt.4x2"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 2202
+        },
+        {
+          "id": "sideskirt_4x2_e",
+          "game_ids": [
+            "sideskirt.4x2_e"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 2202
+        },
+        {
+          "id": "sideskirt_4x2_p",
+          "game_ids": [
+            "sideskirt.4x2_p"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 3971
+        },
+        {
+          "id": "sideskirt_4x2_p_e",
+          "game_ids": [
+            "sideskirt.4x2_p_e"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 3971
+        },
+        {
+          "id": "sideskirt_fender_p",
+          "game_ids": [
+            "sideskirt.fender_p"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 1836
+        },
+        {
+          "id": "sideskirt_fender_p_e",
+          "game_ids": [
+            "sideskirt.fender_p_e"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 1836
+        },
+        {
+          "id": "sideskirt_fender_s",
+          "game_ids": [
+            "sideskirt.fender_s"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 1000
+        },
+        {
+          "id": "sideskirt_fender_s_e",
+          "game_ids": [
+            "sideskirt.fender_s_e"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 1000
+        }
+      ]
+    },
+    {
+      "vehicle": "daf.2021",
+      "game_version": "1.61.1.1",
+      "archives": [
+        "base.scs",
+        "base_share.scs",
+        "base_vehicle.scs",
+        "def.scs",
+        "dlc_daf_2021.scs",
+        "version.scs"
+      ],
+      "models_converted": 172,
+      "painted_definitions": 53,
+      "parts": [
+        {
+          "id": "xg_plus",
+          "game_ids": [
+            "xg_plus"
+          ],
+          "size": [
+            4096,
+            4096
+          ],
+          "edges": 58218
+        },
+        {
+          "id": "xg",
+          "game_ids": [
+            "xg"
+          ],
+          "size": [
+            4096,
+            4096
+          ],
+          "edges": 56352
+        },
+        {
+          "id": "xf",
+          "game_ids": [
+            "xf"
+          ],
+          "size": [
+            4096,
+            4096
+          ],
+          "edges": 63642
+        },
+        {
+          "id": "mirror_cam_semi",
+          "game_ids": [
+            "mirror.cam_semi"
+          ],
+          "size": [
+            256,
+            128
+          ],
+          "edges": 656
+        },
+        {
+          "id": "mirror_plast",
+          "game_ids": [
+            "mirror.plast"
+          ],
+          "size": [
+            256,
+            256
+          ],
+          "edges": 624
+        },
+        {
+          "id": "mirror_semi",
+          "game_ids": [
+            "mirror.semi"
+          ],
+          "size": [
+            256,
+            256
+          ],
+          "edges": 1933
+        },
+        {
+          "id": "sideskirt_pnt_4x2",
+          "game_ids": [
+            "sideskirt.pnt_4x2"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 7304
+        },
+        {
+          "id": "sideskirt_pnt_4x2_xf",
+          "game_ids": [
+            "sideskirt.pnt_4x2_xf"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 7304
+        },
+        {
+          "id": "sideskirt_slv2_4x2",
+          "game_ids": [
+            "sideskirt.slv2_4x2"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 5470
+        },
+        {
+          "id": "sideskirt_slv2_4x2_xf",
+          "game_ids": [
+            "sideskirt.slv2_4x2_xf"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 5470
+        },
+        {
+          "id": "sideskirt_slv_4x2",
+          "game_ids": [
+            "sideskirt.slv_4x2"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 6308
+        },
+        {
+          "id": "sideskirt_slv_4x2_xf",
+          "game_ids": [
+            "sideskirt.slv_4x2_xf"
+          ],
+          "size": [
+            1024,
+            512
+          ],
+          "edges": 6308
+        },
+        {
+          "id": "sunshield_paint_xf",
+          "game_ids": [
+            "sunshield.paint_xf"
+          ],
+          "size": [
+            1024,
+            128
+          ],
+          "edges": 1338
+        },
+        {
+          "id": "sunshield_paint_xg",
+          "game_ids": [
+            "sunshield.paint_xg"
+          ],
+          "size": [
+            1024,
+            128
+          ],
+          "edges": 1338
+        },
+        {
+          "id": "sunshield_paint_xgp",
+          "game_ids": [
+            "sunshield.paint_xgp"
+          ],
+          "size": [
+            1024,
+            128
+          ],
+          "edges": 1338
+        }
+      ]
+    }
+  ]
+}

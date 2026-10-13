@@ -161,9 +161,11 @@ mise run pack <folder> [-o file.tpv]   # pack a folder (PNG, SVG or DDS template
 mise run sample-vehicles               # rebuild the sample packages
 ```
 
-The official vehicles are described in `catalog/`, from the game data of
-[Paintjob Packer](https://github.com/Carsmaniac/paintjob-packer) and a mapping checked
-by hand.
+Official ETS2 truck packages are generated from an installed game with `tpv extract`
+and an external ConverterPIX executable. Supply an explicit package SemVer;
+each batch writes validated packages and a JSON report into a unique `dist/`
+subdirectory, with intermediate files under `target/`. See the official vehicle
+documentation for the command and manual installation workflow.
 
 ## Code layout
 

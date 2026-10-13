@@ -1,55 +1,41 @@
 ---
 title: Vehículos oficiales
-description: Pinte los camiones y remolques propios del juego, instalados a partir del paquete de plantillas gratuito de Carsmaniac.
+description: Generar paquetes de camiones ETS2 desde el juego instalado.
 sidebar:
   order: 2
 ---
 import Shot from '~/components/Shot.astro';
-import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-TruckPaint conoce los datos del juego de los vehículos oficiales: sus cabinas, sus accesorios y su ubicación en los archivos del juego. No tiene que escribir nada de eso. Lo que TruckPaint no incluye son las plantillas, que pertenecen a SCS Software. Las toma del **paquete de plantillas** creado por Carsmaniac, que se descarga una vez por juego.
+Los camiones oficiales se usan mediante paquetes `.tpv` instalados manualmente. <Ui id="home-new-project" /> y <Ui id="cmd-add-vehicle" /> muestran solo los vehículos instalados. Un paquete contiene sus plantillas y datos: después de generarlo, la instalación, la creación de proyectos y la exportación de mods no necesitan el juego ni ConverterPIX.
 
-## Qué vehículos están disponibles
+## Generar paquetes
 
-Los vehículos oficiales aparecen primero en <Ui id="home-new-project" /> y en <Ui id="cmd-add-vehicle" />, bajo <Ui id="vehicles-section-official" />, estén instalados o no. Por ahora, el catálogo contiene dos vehículos de ETS2:
+Los autores de paquetes pueden usar el comando Rust `tpv` con [ConverterPIX](https://github.com/mwl4/ConverterPIX), un ejecutable externo:
 
-- el **DAF NGD**, un camión con tres disposiciones de cabina (XG+, XG y XF) y cuatro accesorios: visera parasol, faldones laterales, retrovisores estándar y retrovisores de cámara;
-- el **Krone Cool Liner**, un remolque cuya textura de carrocería (8192 × 1024) también pinta sus accesorios de carrocería, con cuatro accesorios de chasis. Su parachoques trasero queda fuera: el paquete no tiene plantilla para él.
+```sh
+mise exec -- cargo run -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
+  --converter "/path/to/converter_pix" --package-version 2.0.0
+```
 
-Se añadirán más vehículos de ambos juegos por tandas. La lista no necesita conexión a la red.
+Sustituya las rutas por su instalación de ETS2 y el ejecutable del convertidor. La versión SemVer del paquete es obligatoria. Añada `--vehicle man.tgx_2020` o `--vehicle daf.2021` para un camión; sin el filtro se procesan todos los descubiertos. `--output <directorio>` cambia el directorio principal de los lotes.
 
-## Instalar su primer vehículo oficial
+La herramienta descubre los camiones oficiales de ETS2, incluidos los DLC de vehículos y tuning instalados. Excluye mods de usuario, ATS y remolques. Cada paquete reúne todas las cabinas y accesorios pintados compatibles. Las cabinas usan 4096 × 4096; las dimensiones de accesorios proceden de las definiciones de pintura del juego. Las plantillas principales superponen las opciones pintadas compatibles.
 
-La primera vez que marca un vehículo oficial de un juego, TruckPaint le pide el paquete de plantillas de ese juego.
+Cada ejecución crea un subdirectorio único en `dist/` por defecto, con paquetes válidos y `report.json`. Los archivos intermedios y registros quedan en `target/`. Se rechazan vehículos incompletos o ambiguos, shaders y UV no compatibles. Los demás continúan; cualquier fallo produce un código de salida distinto de cero. No se publica ningún paquete parcial.
 
-1. En <Ui id="home-new-project" /> o <Ui id="cmd-add-vehicle" />, marque un vehículo oficial, por ejemplo el DAF NGD. Se abre el diálogo del paquete de plantillas.
-2. Haga clic en <Ui id="pack-open-download" />. Su navegador web abre el hilo del paquete en el foro de SCS Software. Si el navegador no se abre, haga clic en <Ui id="pack-copy-link" /> y pegue el enlace en él.
-3. Descargue el paquete. Ocupa unos 1,2 GB, y un solo paquete sirve para todos los vehículos del juego.
-4. Descomprímalo donde quiera en su ordenador.
-5. De vuelta en TruckPaint, haga clic en <Ui id="pack-choose-folder" /> y elija la carpeta descomprimida, o suelte la carpeta sobre el diálogo.
+El informe recoge fuentes, versiones, cobertura de texturas, resultados y límites. La validación técnica no demuestra el funcionamiento en el juego: los nuevos vehículos y configuraciones aún deben comprobarse.
 
-<Shot name="vehicles/template-pack" alt="El diálogo del paquete de plantillas que aparece tras marcar el DAF NGD, con los pasos para descargar, descomprimir y elegir el paquete" />
+## Instalar y pintar
 
-TruckPaint muestra «Instalando…» mientras crea el vehículo a partir de los archivos del paquete, con un botón <Ui id="button-cancel" />. Después, el vehículo queda marcado como cualquier vehículo instalado: su primera textura principal y todos sus accesorios quedan marcados.
+1. Abra la [biblioteca de vehículos](../library/) y use <Ui id="vehicles-install" /> para elegir un `.tpv` generado.
+2. En <Ui id="home-new-project" />, marque el vehículo instalado, elija cabinas y accesorios y use <Ui id="new-project-create" />.
+3. Pinte y guarde el proyecto, y siga [Exportar un mod](../../export/mod/).
 
-La carpeta que elija puede ser la propia carpeta del paquete o la carpeta en la que lo descomprimió. Si no contiene el paquete de ese juego, TruckPaint lo indica y vuelve a preguntar.
+<Shot name="vehicles/library" alt="La biblioteca de vehículos con paquetes instalados y el botón de instalación" />
 
-## Después de la primera vez
+Conserve los paquetes para futuras instalaciones. El juego y el convertidor se necesitan solo para generarlos. Los vehículos personalizados y de ejemplo siguen disponibles.
 
-TruckPaint recuerda la carpeta del paquete de cada juego. Al elegir otro vehículo oficial, se instala directamente, sin preguntar.
+## Paquetes antiguos
 
-Un vehículo oficial instalado ya no necesita el paquete: sigue funcionando en sus proyectos y en las listas aunque mueva o elimine el paquete. Si el paquete ya no está cuando instala otro vehículo oficial, el diálogo del paquete de plantillas se vuelve a abrir e indica que la carpeta se ha movido o eliminado.
-
-Para cambiar u olvidar una carpeta de paquete, abra <Ui id="home-preferences" /> y vaya a <Ui id="prefs-template-packs" />: <Ui id="prefs-pack-choose" /> elige otra carpeta (por ejemplo el paquete de una versión más reciente del juego) y <Ui id="prefs-pack-clear" /> la olvida. Ninguna de las dos opciones modifica los vehículos ya instalados ni sus proyectos. Una carpeta que ya no existe muestra <Ui id="prefs-pack-missing" />.
-
-## Cuando falla una instalación
-
-No se instala nada, y un mensaje indica el motivo, cuando:
-
-- falta en el paquete un archivo que necesita el vehículo: el mensaje indica el vehículo y el archivo;
-- una plantilla no tiene el tamaño esperado: puede que el paquete sea de otra versión del juego. Descargue el paquete que corresponde a su juego.
-
-:::note[Créditos]
-Los datos del juego de los vehículos oficiales proceden de Paintjob Packer de Carsmaniac (licencia MIT), y los paquetes de plantillas son de Carsmaniac. Ambos aparecen en los créditos de <Ui id="cmd-about-truckpaint" />, en el menú <Ui id="menu-help" /> (el menú <Ui id="menu-app" /> en macOS).
-:::
+Se han retirado el catálogo Carsmaniac y la instalación desde su paquete de plantillas. Se mantienen los identificadores `official.ets2.<vehículo>`, incluido `official.ets2.daf.2021`. Retire manualmente los paquetes de prueba antiguos antes de instalar los nuevos. No se migran las posiciones. Instalar el mismo identificador y versión reemplaza esa versión instalada; otra versión se conserva junto a ella. Los proyectos existentes no se reescriben automáticamente.

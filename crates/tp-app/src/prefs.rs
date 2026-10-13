@@ -1,7 +1,6 @@
 //! User preferences: versioned, stored as RON in the config directory, written
 //! atomically, and robust to missing or corrupted files.
 
-use std::collections::BTreeMap;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -73,9 +72,6 @@ pub struct Prefs {
     /// Use the system title bar instead of the drawn one (Windows and
     /// Linux; Reset to defaults keeps it).
     pub system_title_bar: bool,
-    /// The template pack folder of each game, by game code (`ets2`), for
-    /// official vehicles (Reset to defaults keeps them).
-    pub template_packs: BTreeMap<String, PathBuf>,
     /// The local MCP server is on (Reset to defaults keeps it).
     pub mcp_enabled: bool,
     /// The port of the local MCP server (Reset to defaults keeps it).
@@ -97,7 +93,6 @@ impl Default for Prefs {
             view_aids: ViewAids::default(),
             language: None,
             system_title_bar: false,
-            template_packs: BTreeMap::new(),
             mcp_enabled: false,
             mcp_port: tp_mcp::DEFAULT_PORT,
         }
@@ -114,19 +109,6 @@ impl Prefs {
 
     pub fn set_language(&mut self, language: Option<tp_i18n::Language>) {
         self.language = language.map(|l| l.code().to_owned());
-    }
-
-    /// The remembered template pack folder of `game`.
-    pub fn template_pack(&self, game: tp_vehicles::Game) -> Option<&Path> {
-        self.template_packs.get(game.code()).map(PathBuf::as_path)
-    }
-
-    /// Remembers `folder` as the template pack of `game`, or forgets it.
-    pub fn set_template_pack(&mut self, game: tp_vehicles::Game, folder: Option<PathBuf>) {
-        match folder {
-            Some(folder) => self.template_packs.insert(game.code().to_owned(), folder),
-            None => self.template_packs.remove(game.code()),
-        };
     }
 
     pub fn theme(&self) -> ThemeSettings {
@@ -456,35 +438,24 @@ mod tests {
     }
 
     #[test]
-    fn template_pack_folders_round_trip_and_survive_a_reset() {
+    fn retired_template_pack_fields_are_ignored() {
         let dir = tempfile::tempdir().unwrap();
         let store = PrefsStore::new(dir.path());
-        // A file written before pack folders existed loads unchanged.
-        fs::write(store.path(), "(version: 1, ui_scale: 1.25)").unwrap();
+        fs::write(
+            store.path(),
+            r#"(version: 1, ui_scale: 1.25, template_packs: {"ets2": "/packs/old"})"#,
+        )
+        .unwrap();
         let loaded = store.load();
         assert!(loaded.issue.is_none());
         assert!(loaded.backup.is_none());
         assert_eq!(loaded.prefs.ui_scale, 1.25);
-        assert!(loaded.prefs.template_packs.is_empty());
-        let mut prefs = loaded.prefs;
-        let folder = PathBuf::from("/packs/ETS2 templates");
-        prefs.set_template_pack(tp_vehicles::Game::Ets2, Some(folder.clone()));
-        store.save(&prefs).unwrap();
-        let reloaded = store.load().prefs;
-        assert_eq!(reloaded, prefs);
-        assert_eq!(
-            reloaded.template_pack(tp_vehicles::Game::Ets2),
-            Some(folder.as_path())
+        store.save(&loaded.prefs).unwrap();
+        assert!(
+            !fs::read_to_string(store.path())
+                .unwrap()
+                .contains("template_packs")
         );
-        assert_eq!(reloaded.template_pack(tp_vehicles::Game::Ats), None);
-        // Reset to defaults keeps it; Clear forgets it.
-        prefs.reset_scaling();
-        assert_eq!(
-            prefs.template_pack(tp_vehicles::Game::Ets2),
-            Some(folder.as_path())
-        );
-        prefs.set_template_pack(tp_vehicles::Game::Ets2, None);
-        assert!(prefs.template_packs.is_empty());
     }
 
     #[test]

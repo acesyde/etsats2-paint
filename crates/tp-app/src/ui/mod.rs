@@ -12,7 +12,6 @@ pub mod mod_export_dialog;
 pub mod new_project;
 pub mod origin;
 pub mod palette;
-pub mod template_pack;
 pub mod title_bar;
 pub mod vehicle_dialogs;
 pub mod workspace;

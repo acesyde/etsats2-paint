@@ -1,5 +1,5 @@
 //! The New Project dialog, on one page: the project's name and game on
-//! top; the official and installed vehicles of that game on the left, with
+//! top; the installed vehicles of that game on the left, with
 //! Custom Vehicle… and Install…, each vehicle with a checkbox; "Your fleet"
 //! on the right, one card per checked vehicle (the open one with its
 //! textures to tick), and the textures that will be created.
@@ -13,15 +13,13 @@ use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, radius, space, typography};
 use tp_ui::widgets::{SegmentedControl, paint_focus_ring, primary_button, secondary_button};
-use tp_vehicles::catalog::Entry;
 use tp_vehicles::{Game, Kind, Manifest};
 
 use super::dialogs::{field_label, footer, labelled, messages, modal, title};
 use super::vehicle_dialogs::{
-    VehicleChoice, VehicleFilter, all_complete, game_name, kind_label, load_choices, summary,
-    textures_to_paint, vehicle_rows,
+    VehicleChoice, all_complete, game_name, kind_label, load_choices, summary, textures_to_paint,
+    vehicle_rows,
 };
-use crate::official::Finished;
 use crate::state::{AppState, Modal, NewProjectDraft};
 use crate::vehicles::{SAMPLE_ID, VehicleLibrary};
 
@@ -72,10 +70,6 @@ enum Outcome {
     InstallSample,
     /// Open the Custom Vehicle dialog, then come back.
     CustomVehicle,
-    /// Choose an official vehicle, installing it first when needed.
-    PickOfficial(&'static Entry),
-    /// Stop installing the official vehicle.
-    CancelInstall,
 }
 
 /// Shows the New Project dialog held in `state.modal` and runs what it
@@ -84,33 +78,8 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
     let Some(Modal::NewProject(draft)) = state.modal.as_mut() else {
         return;
     };
-    // The official vehicle installed: checked, or why it wasn't.
-    if let Some(finished) = super::template_pack::poll(&mut draft.installing, &mut state.vehicles) {
-        match finished {
-            Finished::Installed(choice, message) => {
-                if let Some(m) = choice.manifest(&state.vehicles) {
-                    draft.set_game(m.game.id, &state.vehicles);
-                }
-                draft.messages = vec![Ok(message)];
-                draft.check(choice);
-            }
-            Finished::Refused(message) => draft.messages = vec![Err(message)],
-            Finished::Cancelled => {}
-        }
-    }
     match show(ctx, draft, &state.vehicles) {
         Outcome::Pending => {}
-        Outcome::CancelInstall => super::template_pack::cancel(&mut draft.installing),
-        Outcome::PickOfficial(entry) => {
-            if let Some(Modal::NewProject(draft)) = state.modal.take() {
-                super::template_pack::pick(
-                    ctx,
-                    state,
-                    super::origin::Origin::NewProject(draft),
-                    entry,
-                );
-            }
-        }
         Outcome::Cancel => state.modal = None,
         Outcome::Install => {
             let paths = state.dialogs.pick_packages();
@@ -229,10 +198,6 @@ fn show(ctx: &egui::Context, draft: &mut NewProjectDraft, library: &VehicleLibra
     let escape = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::Escape));
     if cancel || escape {
         Outcome::Cancel
-    } else if wanted.cancel_install {
-        Outcome::CancelInstall
-    } else if let Some(entry) = wanted.official {
-        Outcome::PickOfficial(entry)
     } else if wanted.install {
         Outcome::Install
     } else if wanted.sample {
@@ -263,14 +228,11 @@ struct Wanted {
     install: bool,
     sample: bool,
     custom: bool,
-    /// The official vehicle clicked.
-    official: Option<&'static Entry>,
-    cancel_install: bool,
 }
 
 impl Wanted {
     fn any(&self) -> bool {
-        self.install || self.sample || self.custom || self.official.is_some() || self.cancel_install
+        self.install || self.sample || self.custom
     }
 }
 
@@ -333,8 +295,7 @@ fn vehicle_column(
     wanted: &mut Wanted,
 ) {
     let top = ui.cursor().top();
-    let installing = draft.installing.clone();
-    let enabled = installing.is_none();
+    let enabled = true;
     ui.add_enabled_ui(enabled, |ui| {
         ui.horizontal(|ui| {
             let search = ui.add(
@@ -366,26 +327,9 @@ fn vehicle_column(
     });
     ui.add_space(space::SM);
     messages(ui, &draft.messages);
-    if let Some(job) = &installing {
-        wanted.cancel_install |= super::template_pack::installing_bar(ui, job);
-    }
-
-    // The game's official vehicles, whatever the search and filter.
-    let game_filter = VehicleFilter {
-        game: Some(draft.game()),
-        ..Default::default()
-    };
-    let has_official = !vehicle_rows(library, &game_filter, &[]).official.is_empty();
-    let none_installed = library.vehicles().is_empty();
     // The entry under the list keeps its place: the list takes the rest.
     let entry_height = 78.0;
-    let sample_height = if none_installed && has_official {
-        ui.spacing().interact_size.y.max(30.0) + space::MD + ui.spacing().item_spacing.y
-    } else {
-        0.0
-    };
-    let list_height =
-        (height - (ui.cursor().top() - top) - entry_height - sample_height - space::MD).max(120.0);
+    let list_height = (height - (ui.cursor().top() - top) - entry_height - space::MD).max(120.0);
     ui.add_enabled_ui(enabled, |ui| {
         Frame::new()
             .fill(color::SURFACE_1)
@@ -394,27 +338,16 @@ fn vehicle_column(
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 ui.set_height(list_height);
-                if none_installed && !has_official {
+                if library
+                    .vehicles()
+                    .iter()
+                    .all(|v| v.newest().manifest.game.id != draft.game())
+                {
                     no_vehicle(ui, wanted);
                 } else {
-                    list(ui, draft, library, list_height, wanted);
+                    list(ui, draft, library, list_height);
                 }
             });
-        if sample_height > 0.0 {
-            ui.add_space(space::MD);
-            ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new(tr("new-project-sample-hint"))
-                        .small()
-                        .color(color::TEXT_SECONDARY),
-                );
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    wanted.sample |= ui
-                        .add(secondary_button(&tr("vehicles-install-sample")))
-                        .clicked();
-                });
-            });
-        }
     });
     ui.add_space(space::MD);
     custom_entry(ui, wanted);
@@ -444,15 +377,8 @@ fn no_vehicle(ui: &mut Ui, wanted: &mut Wanted) {
 }
 
 /// The vehicles of the chosen game passing the search and kind filter, one
-/// row each: the official ones under Official, then the other installed
-/// ones under Installed (the headers only when both have rows).
-fn list(
-    ui: &mut Ui,
-    draft: &mut NewProjectDraft,
-    library: &VehicleLibrary,
-    height: f32,
-    wanted: &mut Wanted,
-) {
+/// row per installed vehicle.
+fn list(ui: &mut Ui, draft: &mut NewProjectDraft, library: &VehicleLibrary, height: f32) {
     let rows = vehicle_rows(library, &draft.filter, &[]);
     if rows.is_empty() {
         ui.add_space(space::LG);
@@ -477,32 +403,7 @@ fn list(
         .auto_shrink([false, false])
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
-            if !rows.official.is_empty() {
-                section_header(ui, &tr("vehicles-section-official"));
-            }
-            for row in &rows.official {
-                let e = row.entry;
-                let id = e.package_id();
-                let on = checked(draft, &id);
-                let cells = Row {
-                    name: &e.name,
-                    kind: e.kind,
-                    package: format!("{} · {}", e.brand, row.package()),
-                    tip: row.summary(),
-                };
-                if vehicle_row(ui, &cells, on) {
-                    if on {
-                        draft.uncheck(&id);
-                    } else {
-                        // Checked once installed.
-                        wanted.official = Some(e);
-                    }
-                }
-            }
-            if !rows.installed.is_empty() {
-                section_header(ui, &tr("vehicles-section-installed"));
-            }
-            for vehicle in rows.installed {
+            for vehicle in rows {
                 let m = &vehicle.newest().manifest;
                 let cells = Row {
                     name: &m.name,
@@ -515,25 +416,6 @@ fn list(
                 }
             }
         });
-}
-
-/// A section's header in the list ("Official", "Installed"): small muted
-/// capitals.
-pub(super) fn section_header(ui: &mut Ui, text: &str) {
-    let (rect, response) = ui.allocate_exact_size(
-        Vec2::new(ui.available_width(), HEADER_HEIGHT - 4.0),
-        Sense::hover(),
-    );
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
-    let columns = Columns::of(rect);
-    let font = egui::FontId::new(typography::CAPTION, tp_ui::fonts::semibold_family());
-    ui.painter().text(
-        egui::pos2(columns.mark - 8.0, rect.center().y + 2.0),
-        Align2::LEFT_CENTER,
-        text.to_uppercase(),
-        font,
-        color::TEXT_SECONDARY,
-    );
 }
 
 /// The headers of the list's columns: Vehicle, Type and Package, in small

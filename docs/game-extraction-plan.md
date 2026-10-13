@@ -1,155 +1,74 @@
-# Générer les véhicules TruckPaint depuis le jeu
+# Extraction des véhicules depuis ETS2
 
-Notes de décision et prochaines étapes — 12 octobre 2026.
+La chaîne maintenue est la commande Rust `tpv extract` dans `tp-pack`.
+Elle utilise les archives de l’installation ETS2 et ConverterPIX comme
+exécutable externe, puis la construction et la validation natives des `.tpv`.
+Le catalogue, l’import Carsmaniac et Paintjob Packer sont retirés. Les paquets
+s’installent manuellement dans la bibliothèque ; aucun parcours marketplace
+ou extraction intégrée à l’application n’est ajouté.
 
-## Objectif
+```sh
+mise exec -- cargo run -p tp-pack --bin tpv -- extract "/chemin/vers/ETS2" \
+  --converter "/chemin/vers/converter_pix" --package-version 2.0.0
+```
 
-Construire les packages `.tpv` des camions et remorques directement depuis
-l'installation ETS2 ou ATS du joueur. Chaque package contient la description
-du véhicule, ses variantes et les gabarits des textures à peindre.
+Ajouter `--vehicle man.tgx_2020` ou `--vehicle daf.2021` limite le lot.
+Chaque lot a son propre sous-dossier de `dist/`, avec les paquets validés
+et `report.json` ; les intermédiaires et journaux restent sous `target/`.
+La validation technique et la vérification en jeu sont distinctes. Un lot
+incomplet continue les autres véhicules et retourne un code d’échec.
 
-Le format `.tpv` reste pertinent : une fois construit, le package est autonome
-et les projets embarquent leurs gabarits. C'est sa chaîne de fabrication que
-l'on veut rendre indépendante de Carsmaniac et de Paintjob Packer.
+## Références historiques MAN/DAF
 
-## Pourquoi changer la source
+Les premiers essais utilisaient ETS2 **1.61.1.1**, les archives de base et
+le seul DLC du véhicule, sans les autres DLC de tuning ou de peintures.
 
-Le catalogue actuel décrit les véhicules avec des données de Paintjob Packer
-et un mapping vers les dossiers et images du pack Carsmaniac. La branche
-`origin/feat/official-vehicles-ets2` étend cette approche à 66 véhicules ETS2
-et ajoute `tpv catalog match` pour proposer les correspondances.
-
-Ce travail est utile pour couvrir rapidement les véhicules, mais dépend des
-choix d'organisation, des mises à jour et de la disponibilité d'un tiers.
-Un changement de noms ou de regroupements dans le pack peut casser l'import
-sans que le véhicule ait changé dans le jeu.
-
-Direction retenue : utiliser les données du jeu comme référence. Le JSON
-décrivant un véhicule doit devenir, autant que possible, un résultat généré
-et versionné. Le mapping Carsmaniac peut rester un adaptateur d'import
-facultatif. Le travail de la branche reste utile pour comparer les résultats
-et pour les parcours de sélection, d'installation et d'export existants.
-
-## Ce que les essais ont démontré
-
-Les essais utilisent une installation ETS2 **1.61.1.1**. Le pack Carsmaniac
-local porte la version **1.59** : la comparaison visuelle ne porte donc pas
-sur la même version du jeu.
-
-| Véhicule | Chemin du jeu | Cabines | Accessoires indépendants | Modèles convertis |
+| Véhicule | Chemin | Cabines | Accessoires indépendants | Modèles convertis |
 |---|---|---|---:|---:|
 | MAN TGX récent | `man.tgx_2020` | GX, GM, GN | 27 | 195 |
 | DAF NGD | `daf.2021` | XG+, XG, XF | 12 | 172 |
 
-Pour chacun, le prototype a :
+La génération ne lisait ni Paintjob Packer ni les images Carsmaniac.
+Ces dernières servaient uniquement à une comparaison visuelle, avec un
+pack 1.59 différent du jeu 1.61. Les contrôles techniques avaient réussi :
+validation des paquets, sauvegarde/relecture des projets (30 surfaces MAN,
+15 DAF), export des mods, dimensions et pixels DDS, identifiants
+d’accessoires et références TOBJ. Les rapports initiaux indiquaient une
+validation en jeu en attente. L’utilisateur a ensuite confirmé les
+configurations vérifiées pour MAN puis DAF ; aucune matrice exhaustive de
+toutes les configurations n’a été enregistrée.
 
-1. extrait les définitions du jeu et les identifiants de cabines/accessoires ;
-2. suivi les références des modèles, looks et variantes ;
-3. converti les modèles avec ConverterPIX ;
-4. sélectionné les faces visibles portant les matériaux de peinture ;
-5. généré des gabarits SVG depuis leurs UV et un `vehicle.json` ;
-6. construit le `.tpv`, un projet `.truckpaint` avec grilles numérotées et
-   un mod `.scs` de contrôle avec l'exporteur existant de TruckPaint.
+Les métadonnées de régression sans ressources du jeu sont conservées dans
+`crates/tp-pack/tests/fixtures/game-extraction/validated-baseline.json`,
+avec l’inventaire des hypothèses dans le README voisin. Les anciens SVG,
+paquets, projets, mods et rapports restent localement sous
+`target/prototypes/{man-tgx-game,daf-ngd-game}/run-1/`. Les premières
+confirmations ne valident pas automatiquement les nouvelles contributions
+DLC ou les différences dues aux variantes UK.
 
-**La génération ne lit ni les données Paintjob Packer ni les images
-Carsmaniac.** Les images Carsmaniac ont uniquement servi à comparer
-visuellement les résultats après extraction.
+## Règles issues des essais
 
-Les tests ciblés, la validation native des packages, la sauvegarde/relecture
-des projets et les vérifications des textures et références des mods ont
-réussi. L'utilisateur a ensuite testé les véhicules en jeu et confirmé que
-les configurations vérifiées étaient bonnes, pour le MAN puis pour le DAF.
-Cela valide la faisabilité sur deux modèles distincts ; aucune matrice
-exhaustive de toutes les configurations n'a été enregistrée.
+- Sélection du look et de la variante demandés, puis des pièces visibles
+  avec matériau de peinture ordinaire.
+- Choix du flux par l’alias `_TEXCOORD1`, sans retournement vertical
+  supplémentaire des coordonnées d’image de ConverterPIX.
+- Refus des UV alternatifs et shaders non pris en charge.
+- Gabarits principaux superposant les options peintes compatibles.
+- Cabines en 4096 × 4096 ; dimensions des accessoires déduites des noms
+  de découpe des masques, avec refus des tailles absentes ou ambiguës.
+- Les listes d’accessoires réglant uniquement les paillettes n’affectent
+  pas de texture indépendante : une affectation exige `paint_job_mask`.
 
-La lecture directe du MAN a aussi révélé des écarts avec le catalogue de la
-branche : des identifiants de jupes inversés (`4x2_p.sideskirt` contre
-`sideskirt.4x2_p` dans les définitions installées) et la variante caméra GN
-`mirror.cam_pnt_gn` absente. Une comparaison avec le jeu est donc utile même
-si l'on conserve un import de templates externes.
+Les identités extraites sont `official.ets2.<véhicule>`, dont
+`official.ets2.daf.2021`. Les anciens paquets Carsmaniac sont retirés
+manuellement, sans migration des placements ni suppression automatique
+de bibliothèques ou de projets.
 
-## Limites du prototype
+## Cas rencontré pendant la généralisation
 
-- Seuls les deux profils MAN et DAF sont décrits ; ce n'est pas encore un
-  extracteur universel ni une fonctionnalité intégrée à l'application.
-- Les modèles extérieurs sont couverts. Les autres DLC et les mods qui
-  remplacent les véhicules ne sont pas montés par ces essais.
-- Les matériaux examinés utilisent le shader de peinture ordinaire
-  `eut2.truckpaint.tsnmapuv`. Le flux portant l'alias `_TEXCOORD1` a fonctionné
-  sur les deux véhicules. Ne pas généraliser cette règle à tous les shaders.
-- Les UV alternatifs sont actuellement refusés.
-- Les coordonnées produites par ConverterPIX sont déjà en coordonnées
-  d'image : le prototype n'ajoute pas de retournement vertical.
-- Les gabarits principaux superposent les options peintes compatibles ;
-  certains traits se chevauchent.
-- Un accessoire indépendant correspond à une surface distincte, sans
-  regroupement ergonomique ; les noms restent techniques.
-- Les cabines sont proposées en 4096 × 4096, par choix de résolution de
-  sortie. Les dimensions des accessoires sont déduites des noms des textures
-  découpées des peintures SCS ; cette méthode reste à vérifier sur les
-  prochains véhicules.
-- ConverterPIX reste une dépendance technique pour lire les formats binaires.
-  L'indépendance visée porte sur la source des données et des gabarits.
-
-## Suite proposée, dans l'ordre
-
-### 1. Couvrir les cas encore différents
-
-Prochain essai recommandé : **une remorque avec plusieurs carrosseries ou
-longueurs**. Vérifier les textures principales, les corps et les accessoires,
-en conservant le format `.tpv` existant si possible.
-
-Ensuite, tester **un camion avec UV alternatifs**, notamment un cas ATS.
-Identifier le mapping utilisé par le jeu, produire les gabarits correspondants
-et vérifier que l'export choisit le même jeu d'UV.
-
-Pour chaque essai : package, projet de contrôle, mod numéroté, vérifications
-des fichiers et validation en jeu. Corriger les règles à partir des écarts
-observés avant de traiter une flotte entière.
-
-### 2. Fiabiliser l'extracteur
-
-À partir des cas validés, rendre la chaîne reproductible : installation du
-jeu → définitions et modèles → gabarits et manifeste → `.tpv` validé.
-
-Remplacer les hypothèses propres aux profils par des informations du jeu
-lorsqu'elles sont disponibles. Signaler les modèles, shaders, dimensions ou
-correspondances non pris en charge, avec leurs sources, plutôt que produire
-silencieusement un package incomplet. Conserver la version du jeu et les
-sources de chaque texture pour pouvoir comprendre une mise à jour.
-
-### 3. Étendre les véhicules officiels par lots
-
-Traiter les véhicules ETS2 puis ATS par familles de cas déjà validés.
-Comparer avec le catalogue existant pour repérer les oublis et différences,
-mais sans en faire une dépendance de génération. Produire un mod de contrôle
-par lot et enregistrer les configurations testées ainsi que les limites.
-
-### 4. Intégrer dans TruckPaint
-
-Le joueur indique son installation du jeu, choisit les véhicules à préparer,
-et l'application construit et installe les `.tpv` localement. Réutiliser les
-parcours existants de bibliothèque, de projets et d'export.
-
-Après une mise à jour du jeu, comparer les layouts générés, signaler les
-textures qui ont changé et réutiliser le mécanisme de version et de mise à
-jour des templates. Carsmaniac reste une source d'import possible, sans
-conditionner cette génération locale.
-
-## Où retrouver les essais
-
-- [Extracteur partagé](../experiments/man-tgx-game/extract.py).
-- [Tests ciblés](../experiments/man-tgx-game/test_extract.py).
-- [Construction des projets et mods avec le code TruckPaint](../crates/tp-app/examples/man_tgx_game_probe.rs).
-- [Procédure et fichiers MAN](../experiments/man-tgx-game/README.md).
-- [Procédure et fichiers DAF](../experiments/man-tgx-game/DAF-NGD.md).
-
-Les rapports et fichiers générés sont sous
-`target/prototypes/man-tgx-game/run-1/` et
-`target/prototypes/daf-ngd-game/run-1/`. Ils sont locaux et ignorés par Git.
-Les mentions « validation en jeu en attente » des documents et rapports
-initiaux décrivent leur état à la génération ; les confirmations utilisateur
-ultérieures sont consignées dans la présente note.
-
-**Prochaine action : choisir une remorque à plusieurs carrosseries et refaire
-le même essai complet.**
+Le DLC de peintures hongroises installé (`dlc_flags_hu.scs`) référence,
+pour le MAN récent, des accessoires tels que `sideskirt.6x24` dans
+`paint_job/accessory/hu_sml_m20_a.sii`, sans définition correspondante
+dans les archives installées. La règle stricte refuse actuellement ce
+véhicule. Le traitement des références orphelines reste à décider ; aucune
+exception silencieuse n’est appliquée.

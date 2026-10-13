@@ -29,7 +29,7 @@ Everything goes through [mise](https://mise.jdx.dev) (`mise.toml` pins the tools
 
 ## Code layout
 
-Cargo workspace in `crates/`: `tp-core` (domain types, no UI/files/threads), `tp-text`, `tp-render`, `tp-file` (`.truckpaint`), `tp-i18n`, `tp-ui` (design system), `tp-vehicles` (`.tpv` packages), `tp-pack` (`tpv` command), `tp-mcp` (local MCP server), `tp-app` (the desktop app). Official vehicles are described in `catalog/`, sample packages in `examples/vehicles/`.
+Cargo workspace in `crates/`: `tp-core` (domain types, no UI/files/threads), `tp-text`, `tp-render`, `tp-file` (`.truckpaint`), `tp-i18n`, `tp-ui` (design system), `tp-vehicles` (`.tpv` packages), `tp-pack` (`tpv` command), `tp-mcp` (local MCP server), `tp-app` (the desktop app). Official ETS2 trucks are extracted with `tpv extract`; sample packages are in `examples/vehicles/`.
 
 ## How a change is made
 

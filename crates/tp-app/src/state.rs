@@ -48,8 +48,6 @@ pub struct NewProjectDraft {
     pub filter: crate::ui::vehicle_dialogs::VehicleFilter,
     /// Results of installing packages from the dialog.
     pub messages: Vec<Result<String, String>>,
-    /// The official vehicle being installed from the template pack.
-    pub installing: Option<crate::official::Installing>,
 }
 
 impl NewProjectDraft {
@@ -151,9 +149,6 @@ pub enum Modal {
     /// Custom Vehicle dialog (or New Version…), over the dialog it came
     /// from.
     CustomVehicle(Box<crate::ui::custom_vehicle::CustomVehicleDialog>),
-    /// The template pack dialog, asking for the pack folder of an official
-    /// vehicle's game, over the dialog it came from.
-    TemplatePack(Box<crate::ui::template_pack::TemplatePackDialog>),
     /// Confirmation before removing a vehicle with artwork from the project.
     RemoveVehicle {
         package_id: String,
@@ -273,9 +268,6 @@ pub struct AppState {
     /// The title bar mode of the last frame, to switch the window's frame
     /// when it changes.
     shown_title_bar_mode: Option<TitleBarMode>,
-    /// Why the pack folder last chosen in Preferences was refused (shown
-    /// in the dialog until it closes).
-    pub preferences_refusal: Option<String>,
     /// The local MCP server and its calls.
     pub mcp: crate::mcp::McpHost,
     /// Preferences should scroll to the AI assistant (MCP) section when
@@ -350,7 +342,6 @@ impl AppState {
             native_menu_installed: false,
             double_click: Default::default(),
             shown_title_bar_mode: None,
-            preferences_refusal: None,
             mcp: Default::default(),
             reveal_mcp_preferences: false,
         };
@@ -1124,15 +1115,6 @@ impl AppState {
             .map(named)
             .collect();
         dropped.retain(|f| !is_package(f));
-        // A folder dropped on the template pack dialog is the pack; nothing
-        // else is placed while it is open.
-        if matches!(self.modal, Some(Modal::TemplatePack(_))) {
-            if let Some(folder) = dropped.iter().map(|f| f.path()).find(|p| p.is_dir()) {
-                let folder = folder.to_path_buf();
-                crate::ui::template_pack::dropped(ctx, self, &folder);
-            }
-            dropped.clear();
-        }
         // Other files dropped on the Custom Vehicle dialog are templates.
         if let Some(Modal::CustomVehicle(dialog)) = &mut self.modal {
             if !dropped.is_empty() {
