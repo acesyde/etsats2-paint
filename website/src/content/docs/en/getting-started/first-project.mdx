@@ -1,0 +1,58 @@
+---
+title: Your first project
+description: Create a project on TruckPaint's sample truck, look around, and save it.
+sidebar:
+  order: 3
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+In TruckPaint, a project is the paint job of a fleet: one or more trucks and trailers of **one game**, ETS2 or ATS, exported together as one mod. Every project starts from a vehicle, because a livery has to fit a vehicle's textures: there is no blank project.
+
+This page uses the **TruckPaint Sample Truck**, which comes with the app and needs no game files. It works the same with any other vehicle.
+
+<Clip name="getting-started/create-project" label="From the home screen, New Project opens, the sample truck is checked in the list, and Create Project opens the new project" />
+
+## Create your first project
+
+1. On the home screen, click <Ui id="home-new-project" /> (Ctrl+N, ⌘ on macOS).
+2. Under <Ui id="vehicles-game-filter" />, keep **ETS2**: the sample vehicles are made for it. The list only shows the vehicles of the game you choose.
+3. If no vehicle is installed yet, click <Ui id="vehicles-install-sample" /> under the list. It installs the sample truck and the sample trailer, without any download.
+4. Click the **TruckPaint Sample Truck** row to check it. Its card opens on the right, under <Ui id="new-project-fleet" />.
+5. Check what you want to paint on the card:
+   - under <Ui id="new-project-cabins" />, one chip per cabin layout of the truck. The first one is checked; click another to paint it too;
+   - under <Ui id="vehicles-accessories" />, the accessories, all checked at first.
+
+   <Ui id="new-project-created" /> lists every texture the project will get, with its size.
+6. Type a <Ui id="new-project-name" />, or leave it empty to name the project after the vehicle.
+7. Click <Ui id="new-project-create" />.
+
+<Shot name="getting-started/new-project" alt="The New Project dialog with the sample truck checked in the vehicle list and its card open under Your fleet" />
+
+You can check several vehicles at once, trucks and trailers, and you can add more later: nothing you choose here is final. See [Trucks and trailers](../../fleet/trucks-and-trailers/).
+
+:::tip[Not the vehicle you want?]
+The list also shows the **official** vehicles of the game, built from a free template pack: see [Official vehicles](../../vehicles/official-vehicles/). For a vehicle that has no package, such as a mod truck, use <Ui id="custom-open" /> under the list: see [Custom vehicles](../../vehicles/custom-vehicles/).
+:::
+
+## Look around
+
+The project opens in the <Ui id="cmd-space-project" /> space: your fleet on the left, with one card per vehicle and a row per texture, and the information of the mod on the right.
+
+<Shot name="getting-started/first-project" alt="The Project space of the new project, with the sample truck's card listing its textures, all Empty" />
+
+Every texture starts **Empty**. Click one to open it in the <Ui id="cmd-space-workshop" />, where you paint on it over the vehicle's template. The top bar switches between the three spaces at any time: <Ui id="cmd-space-project" /> (Ctrl+1), <Ui id="cmd-space-workshop" /> (Ctrl+2) and <Ui id="cmd-space-brand" /> (Ctrl+3). The game of the project is shown next to its name, and can't be changed.
+
+## Save your project
+
+Choose <Ui id="menu-file" /> › <Ui id="cmd-save" /> (Ctrl+S). The first time, TruckPaint asks where to save, and proposes the project's name. A project is one `.truckpaint` file that holds everything, templates included: you can open it on another computer even if its vehicles aren't installed there.
+
+The status bar shows <Ui id="status-saved" /> or <Ui id="status-unsaved" />. If you close the project or quit with unsaved changes, TruckPaint asks whether to save them first.
+
+## Next steps
+
+- [The Project space](../../fleet/project/), to understand what it shows.
+- [Vector tools](../../workshop/tools/), to start painting.
+- [The brand palette](../../brand/palette/), to share your company colors across the fleet.
+- [Export the mod](../../export/mod/), when the livery is ready.

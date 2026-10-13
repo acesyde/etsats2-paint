@@ -3,6 +3,9 @@
 A livery editor for **Euro Truck Simulator 2** and **American Truck Simulator**: pick a
 vehicle, design its paint job with vector tools, and export a ready-to-install mod.
 
+**Player documentation** (English, French, Spanish, German):
+<https://acesyde.github.io/etsats2-paint/>
+
 > Early development. The current build designs the paint jobs of a fleet: vehicle
 > packages with their templates, projects holding several trucks and trailers of one
 > game, vector editing (shapes, paths, text, images, gradients), texture export to
@@ -16,7 +19,9 @@ Windows and macOS.
 TruckPaint can let an AI assistant draw on the open project through a local
 [MCP](https://modelcontextprotocol.io) server: recreate a livery from a reference
 image, or place a logo you give it. The assistant runs in your own MCP client;
-TruckPaint holds no API key.
+TruckPaint holds no API key. See also the
+[AI assistant page](https://acesyde.github.io/etsats2-paint/en/ai-assistant/setup/) of
+the documentation.
 
 1. In **Preferences › AI assistant (MCP)**, check **Let an AI assistant draw on the
    open project**. The server listens on `http://127.0.0.1:7373/mcp` (loopback only;
@@ -101,6 +106,24 @@ screens for visual review (needs a GPU), run:
 ```sh
 mise run screenshots   # images in target/screenshots/
 ```
+
+### Documentation site
+
+The player documentation lives in [website/](website/) (Astro Starlight, in the app's
+four languages) and is deployed to GitHub Pages by the Documentation workflow when
+`main` changes it. Its screenshots and animations are rendered from the app, in every
+language, by `tests/doc_media.rs`, then committed:
+
+```sh
+mise run doc:dev               # preview the site with live reload
+mise run doc:build             # build it as CI does (fails on a missing medium or label)
+mise run doc:media [section]   # render the media (needs a GPU; installs ffmpeg)
+mise run doc:tokens            # the site's colors, from tp-ui's tokens
+```
+
+A change to a documented screen should regenerate its section (`mise run doc:media
+workshop`), so the screenshots follow the app. Interface labels in the pages come from
+the app's `.ftl` files and the colors from `tp-ui`, so they can't drift.
 
 Logs are written to stderr and to a daily file in the application data directory
 (`logs/`). Set `RUST_LOG=debug` for more detail.

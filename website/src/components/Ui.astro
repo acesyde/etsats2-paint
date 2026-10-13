@@ -1,0 +1,20 @@
+---
+/**
+ * An interface label quoted in the text, in the app's own wording for the
+ * page's language (from crates/tp-i18n/locales). The build fails on an
+ * unknown id.
+ */
+import type { FluentVariable } from '@fluent/bundle';
+import { label } from '~/lib/labels';
+import { pageLanguage } from '~/lib/media';
+
+interface Props {
+	/** The Fluent message id, as in the app (`menu-file`). */
+	id: string;
+	args?: Record<string, FluentVariable>;
+}
+const { id, args } = Astro.props;
+const text = label(pageLanguage(Astro), id, Astro.url.pathname, args);
+---
+
+<span class="tp-ui">{text}</span>

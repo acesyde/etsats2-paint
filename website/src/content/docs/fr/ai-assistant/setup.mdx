@@ -1,0 +1,64 @@
+---
+title: Configurer un assistant IA
+description: Activez le serveur MCP local de TruckPaint et connectez Claude Code, Claude Desktop ou un autre client MCP pour qu’un assistant IA puisse dessiner sur votre projet.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Ui from '~/components/Ui.astro';
+
+TruckPaint peut laisser un assistant IA dessiner sur le projet ouvert, grâce à un serveur [MCP](https://modelcontextprotocol.io) local. Demandez-lui de recréer une livrée à partir d’une photo de référence, ou de placer un logo que vous lui donnez. L’assistant tourne dans votre propre client MCP, comme Claude Code ou Claude Desktop : TruckPaint ne détient aucune clé d’API et n’embarque aucune IA.
+
+## Activer le serveur
+
+1. Ouvrez <Ui id="cmd-preferences" /> : <Ui id="menu-edit" /> › <Ui id="cmd-preferences" /> sous Windows et Linux, <Ui id="menu-app" /> › <Ui id="app-menu-settings" /> sous macOS.
+2. Dans la section <Ui id="prefs-mcp" />, activez <Ui id="prefs-mcp-enable" />.
+3. Cliquez sur <Ui id="prefs-mcp-copy" /> à côté de l’<Ui id="prefs-mcp-url" /> : `http://127.0.0.1:7373/mcp`.
+
+<Shot name="ai-assistant/preferences" alt="La boîte de dialogue Préférences avec la section Assistant IA (MCP) : le serveur activé, son port et son adresse avec le bouton Copier" />
+
+Le serveur est désactivé par défaut, et reste activé d’un redémarrage à l’autre une fois que vous l’avez activé. Il ne fonctionne que tant que TruckPaint est ouvert.
+
+Le <Ui id="prefs-mcp-port" /> est 7373. Si un autre programme l’utilise déjà, les préférences vous le signalent : désactivez le serveur, choisissez un autre port, et réactivez-le. Pensez à utiliser aussi le nouveau port dans votre client.
+
+## L’ajouter à votre client
+
+**Claude Code :**
+
+```sh
+claude mcp add --transport http truckpaint http://127.0.0.1:7373/mcp
+```
+
+**Claude Desktop**, ou tout client qui ne parle que stdio : passez par [mcp-remote](https://www.npmjs.com/package/mcp-remote), dans `claude_desktop_config.json` :
+
+```json
+{ "mcpServers": { "truckpaint": { "command": "npx", "args": ["mcp-remote", "http://127.0.0.1:7373/mcp"] } } }
+```
+
+**Tout autre client :** utilisez le transport Streamable HTTP à l’adresse `http://127.0.0.1:7373/mcp`.
+
+## Lui demander de peindre
+
+Ouvrez un projet dans TruckPaint, puis demandez à votre assistant, par exemple :
+
+- *« Peins la cabine Standard comme sur cette photo. »*
+- *« Ajoute une bande rouge en bas du Châssis, avec la nuance Rouge société. »*
+- *« Place mon logo, à partir de ce fichier, au centre des Jupes latérales. »*
+
+L’assistant lit le projet, regarde le gabarit de chaque texture, dessine des formes, des tracés SVG, des textes et des images en pixels de texture, et effectue le rendu de la texture pour comparer son travail à votre référence.
+
+## Ce qu’il peut faire et ne peut pas faire
+
+Il **peut** lire le projet (véhicules, textures, palette, styles et symboles), lister et inspecter les objets, voir le gabarit et le motif d’une texture, ajouter des formes, des tracés, des textes et des images, modifier, disposer, combiner et supprimer des objets, ajouter des nuances, appliquer des styles et placer des symboles.
+
+Il **ne peut pas** enregistrer, exporter ni ouvrir de fichiers, ouvrir ou fermer un projet, ni modifier vos préférences. L’enregistrement et l’export restent entre vos mains : ses modifications marquent le projet comme non enregistré, comme les vôtres.
+
+Chaque modification qu’il fait est une étape d’annulation intitulée « IA : … », que <Ui id="cmd-undo" /> annule. Votre travail passe en premier : une requête qui arrive pendant que vous faites glisser, dessinez ou tapez attend que vous ayez terminé. Pendant que vous modifiez un symbole, il peut seulement lire.
+
+Tant que le serveur est activé, la barre d’état affiche <Ui id="status-mcp" />, et le nombre de modifications faites par l’assistant au cours de la dernière minute. Cliquez dessus pour ouvrir ses réglages.
+
+## Confidentialité
+
+- Le serveur n’écoute que sur votre propre ordinateur (`127.0.0.1`), et refuse les requêtes provenant de pages web.
+- Il reste désactivé tant que vous ne l’activez pas, et vous pouvez le désactiver à tout moment.
+- TruckPaint n’envoie rien nulle part : ce que votre assistant fait du contenu du projet dépend du client et du service d’IA que vous utilisez.

@@ -1,0 +1,56 @@
+---
+title: El espacio Proyecto
+description: Vea toda su flota de un vistazo, siga lo que queda por pintar y rellene la información del mod.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+El espacio <Ui id="cmd-space-project" /> muestra lo que pinta su proyecto y lo que entrega. Un proyecto siempre se abre ahí. A la izquierda, su flota: una tarjeta por vehículo, con sus texturas. A la derecha, la columna <Ui id="project-mod-information" />, con los ajustes del mod que exportará.
+
+Muéstrelo en cualquier momento con la barra superior, o con <Ui id="menu-view" /> › <Ui id="cmd-space-project" /> (Ctrl+1, ⌘ en macOS).
+
+<Shot name="fleet/project" alt="El espacio Proyecto de una flota con el camión de ejemplo con dos cabinas y el remolque de ejemplo, con la columna Información del mod a la derecha" />
+
+## Seguir su progreso
+
+La cabecera <Ui id="panel-vehicle" /> cuenta los vehículos y las texturas del proyecto, y cuántas están Modificadas o Por revisar. Cada textura está en uno de tres estados:
+
+- <Ui id="texture-state-empty" />: aún no hay nada pintado en ella. Una textura vacía se exporta con el color del juego.
+- <Ui id="texture-state-modified" />: contiene diseño.
+- <Ui id="texture-state-to-check" />: una actualización de plantilla cambió su disposición, o la nueva versión ya no la tiene. Pase el puntero sobre el estado para ver el motivo.
+
+El filtro de la cabecera acota la lista: <Ui id="project-filter-all" />, <Ui id="project-filter-to-do" /> (texturas vacías o por revisar) o <Ui id="project-filter-to-check" />. Oculta texturas, nunca vehículos: un vehículo sin nada pendiente muestra <Ui id="project-nothing-to-do" />.
+
+## Leer una tarjeta de vehículo
+
+Cada tarjeta muestra:
+
+- una miniatura de la primera textura principal pintada del vehículo;
+- su nombre, su tipo y la versión de su paquete. Pase el puntero sobre la versión para ver con qué versiones del juego es compatible;
+- en un camión, las <Ui id="project-cabins" /> que pinta. Pase el puntero sobre ellas para ver los nombres internos de las cabinas en el juego;
+- el modo <Ui id="project-main-texture" />, que viene del vehículo y no se puede cambiar: <Ui id="project-mode-per-layout" />, <Ui id="project-mode-every-cabin" /> o <Ui id="project-mode-single" /> para un remolque;
+- cuando hay instalada una versión más reciente del vehículo, un aviso con <Ui id="cmd-update-template" />;
+- <Ui id="vehicles-textures" />, para elegir qué texturas del vehículo pinta el proyecto, y un menú ⋯ que también contiene <Ui id="vehicles-remove-from-project" />;
+- las texturas del vehículo, bajo <Ui id="vehicles-main-textures" /> y <Ui id="vehicles-accessories" />, cada una con una miniatura, su tipo, su tamaño y su estado.
+
+**Haga clic en una textura** para abrirla en el <Ui id="cmd-space-workshop" /> y pintar en ella.
+
+Para añadir un vehículo, haga clic en <Ui id="cmd-add-vehicle" /> en la cabecera. Cómo añadir y quitar vehículos y texturas se explica en [Camiones y remolques](../trucks-and-trailers/).
+
+## Rellenar la información del mod
+
+La columna <Ui id="project-mod-information" /> contiene lo que el juego muestra sobre su mod:
+
+- el <Ui id="mod-icon" /> y la <Ui id="mod-image" />, generados a partir de su primera textura principal, o elegidos con <Ui id="mod-choose-icon" /> y <Ui id="mod-choose-image" />. También puede soltar un archivo PNG o JPEG sobre una imagen;
+- <Ui id="mod-name" />, <Ui id="mod-author" />, <Ui id="mod-version" />, <Ui id="mod-description" />, <Ui id="mod-price" /> y <Ui id="mod-unlock" />;
+- las <Ui id="project-game-versions" /> para las que está hecho el mod, como `1.56.*`. Debajo, TruckPaint muestra las versiones compatibles con todos los vehículos de la flota;
+- <Ui id="mod-advanced" />, que contiene el nombre interno de la pintura.
+
+Un campo surte efecto cuando pulsa Intro o sale de él, y cada cambio se puede deshacer. Esc devuelve el campo a como estaba.
+
+Abajo, <Ui id="project-before-exporting" /> lista lo que bloquea la exportación y después lo que merece un vistazo, como las texturas vacías. <Ui id="project-show" /> le lleva al campo o al vehículo que hay que corregir, y <Ui id="project-open" /> abre una textura en el Taller. Cuando todo está bien, muestra <Ui id="project-nothing-to-check" />.
+
+El juego del proyecto no aparece en la lista: lo fija el primer vehículo y se muestra en la barra superior. Cuando la flota esté lista, haga clic en <Ui id="top-bar-export" /> en la barra superior: consulte [Exportar el mod](../../export/mod/).

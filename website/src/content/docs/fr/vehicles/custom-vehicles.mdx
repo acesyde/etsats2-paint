@@ -1,0 +1,72 @@
+---
+title: Véhicules personnalisés
+description: Créez un paquet de véhicule à partir des fichiers de gabarit du jeu quand aucun paquet n’existe pour votre camion ou votre remorque.
+sidebar:
+  order: 3
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Chaque projet part d’un véhicule. Quand celui que vous voulez n’a pas de paquet, par exemple un camion sorti avec la dernière mise à jour du jeu ou un véhicule issu d’un mod de la communauté, créez-le vous-même avec <Ui id="custom-open" />. Vous donnez à TruckPaint les fichiers de gabarit et les données de jeu, et il crée et installe un paquet, vérifié exactement comme n’importe quel autre.
+
+## Ouvrir la boîte de dialogue Véhicule personnalisé
+
+<Ui id="custom-open" /> est proposé à trois endroits :
+
+- sous la liste des véhicules de <Ui id="home-new-project" /> ;
+- dans <Ui id="cmd-add-vehicle" />, où le jeu est celui du projet et ne peut pas être changé ;
+- dans la [bibliothèque de véhicules](../library/).
+
+## Décrire le véhicule
+
+Renseignez :
+
+- <Ui id="custom-name" /> et <Ui id="custom-brand" />, tous deux obligatoires ;
+- <Ui id="custom-kind" /> : camion ou remorque ;
+- <Ui id="custom-game" /> : ETS2 ou ATS ;
+- <Ui id="custom-game-path" /> : le chemin du véhicule dans les définitions du jeu, comme `scania.r_2016` ;
+- <Ui id="custom-game-versions" />, facultatif : laissez vide pour toutes les versions, ou saisissez une plage comme `>=1.53` ;
+- <Ui id="custom-alt-uv" /> et <Ui id="custom-colour-picker" />, décochés sauf si les peintures du véhicule les utilisent (certains camions ATS utilisent le jeu d’UV alternatif).
+
+## Ajouter les gabarits
+
+Déposez les fichiers de gabarit du jeu sur la boîte de dialogue, ou cliquez sur <Ui id="custom-add-templates" />. TruckPaint lit les fichiers PNG, SVG et DDS (BC1, BC2, BC3, ou RGB et RGBA non compressés). Chaque fichier devient une ligne de texture avec :
+
+- son nom, tiré du nom du fichier, que vous pouvez modifier ;
+- son rôle, <Ui id="custom-role-main" /> ou <Ui id="custom-role-accessory" />. Le premier fichier devient la texture principale, les suivants des accessoires ; changez le rôle si besoin ;
+- ses identifiants de jeu ;
+- sa taille, tirée de l’image et arrondie à une puissance de deux entre 64 et 8192. La ligne vous prévient quand le gabarit sera mis à l’échelle.
+
+<Ui id="custom-row-replace" /> choisit un autre fichier pour une ligne, et le bouton de suppression retire la ligne. Un fichier illisible n’est pas ajouté, et la boîte de dialogue en donne la raison.
+
+<Shot name="vehicles/custom-vehicle" alt="La boîte de dialogue Véhicule personnalisé remplie avec un nom, une marque, un chemin dans le jeu et deux gabarits PNG" />
+
+## Indiquer les identifiants de jeu
+
+Les identifiants de jeu indiquent au jeu ce que peint chaque texture, pour que le mod fonctionne :
+
+- **Un camion dont les cabines partagent une même disposition** a une seule texture principale. Laissez ses identifiants de jeu vides : elle est peinte sur toutes les cabines.
+- **Un camion dont les cabines ont des dispositions différentes** a une texture principale par disposition. Chacune a besoin des noms internes des cabines qui l’utilisent.
+- **Une remorque** a exactement une texture principale.
+- **Chaque accessoire** a besoin des identifiants d’accessoires qu’il couvre, comme `mirror.painted`.
+
+La boîte de dialogue vérifie le formulaire pendant la saisie et affiche chaque problème à côté de son champ. <Ui id="custom-create" /> est activé dès qu’il n’y en a plus.
+
+## Le créer
+
+Cliquez sur <Ui id="custom-create" />. TruckPaint crée le paquet, en version 1.0.0, en convertissant les gabarits DDS en PNG, et l’installe dans votre bibliothèque. Vous revenez à la boîte de dialogue d’où vous veniez : dans <Ui id="home-new-project" /> et <Ui id="cmd-add-vehicle" />, le nouveau véhicule est coché, avec sa première texture principale et ses accessoires ; dans la bibliothèque de véhicules, il est listé.
+
+L’identifiant du paquet est formé à partir de la marque et du nom : « R 2024 » de « Scania » donne `custom.scania.r_2024`. Si cet identifiant est déjà installé, TruckPaint refuse de le créer à nouveau : créez plutôt une nouvelle version.
+
+:::caution
+Les gabarits des jeux de base appartiennent à SCS Software. Utilisez-les pour vos propres livrées, et vérifiez leur licence avant de partager un paquet.
+:::
+
+## Créer une nouvelle version après une mise à jour du jeu
+
+Quand une mise à jour du jeu modifie votre véhicule, ouvrez la [bibliothèque de véhicules](../library/), choisissez le véhicule et cliquez sur <Ui id="vehicles-new-version" />. La boîte de dialogue Véhicule personnalisé s’ouvre, remplie d’après la version la plus récente, avec un champ <Ui id="custom-version" /> qui propose la suivante (1.0.0 donne 1.1.0).
+
+Remplacez les gabarits qui ont changé, ajoutez ou supprimez des lignes, puis cliquez sur <Ui id="custom-create" />. La nouvelle version est installée à côté de l’ancienne. Une texture dont vous avez remplacé le gabarit est marquée comme ayant une nouvelle disposition : dans vos projets, <Ui id="cmd-update-template" /> passe alors le véhicule à la nouvelle version et vous indique quelles textures vérifier.
+
+Pour partager un véhicule personnalisé, utilisez <Ui id="vehicles-export" /> dans la bibliothèque de véhicules : cela enregistre un fichier `.tpv` que n’importe qui peut installer.

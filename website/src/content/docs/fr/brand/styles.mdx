@@ -1,0 +1,61 @@
+---
+title: Styles
+description: Enregistrez une apparence ou un lettrage comme style, appliquez-le sur chaque texture, et modifiez-le pour toute la flotte d’un coup.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Un style est une apparence nommée que des objets suivent. Modifiez le style, et chaque objet qui le suit change aussi, sur toutes les textures du projet. Il en existe deux sortes :
+
+- **Les styles graphiques :** un fond, un contour (ou aucun), une opacité et une ombre portée (ou aucune). Utilisez-les pour les bandes, les bandeaux et les panneaux.
+- **Les styles de texte :** tout le lettrage : police, graisse, italique, taille, alignement, espacement des lettres et hauteur de ligne, plus le fond, le contour, l’opacité et l’ombre. Utilisez-les pour les noms d’entreprise, les numéros de téléphone et les slogans.
+
+Les couleurs d’un style peuvent être liées à des [nuances de la palette](../palette/) : modifier la nuance met à jour le style, et tous les objets qui le suivent.
+
+## Créer un style
+
+1. Sélectionnez un objet qui a l’apparence voulue : une forme ou un texte pour un style graphique, un texte pour un style de texte.
+2. Dans l’onglet <Ui id="cmd-tab-resources" />, sous <Ui id="panel-styles" />, cliquez sur + à côté de <Ui id="styles-graphic" /> ou <Ui id="styles-text" />. Dans l’espace <Ui id="cmd-space-brand" />, le même bouton s’appelle <Ui id="brand-new-style" />.
+
+Le nouveau style s’appelle « Style 1 » ou « Style de texte 1 », et l’objet sélectionné le suit aussitôt. Faites un clic droit dessus et choisissez <Ui id="styles-rename" /> pour lui donner un meilleur nom.
+
+## Appliquer un style
+
+Sélectionnez une ou plusieurs formes ou textes, puis cliquez sur le style dans la section <Ui id="panel-styles" /> de l’onglet <Ui id="cmd-tab-resources" />. Chaque objet prend l’apparence du style et le suit.
+
+<Clip name="brand/apply-style" label="Un clic sur le style graphique Band applique son apparence au panneau sélectionné" />
+
+Vous pouvez aussi choisir un style dans la ligne <Ui id="inspector-style" /> de l’inspecteur. Cette ligne nomme le style que suit la sélection, ou indique <Ui id="inspector-style-none" />.
+
+Quelques règles :
+
+- Appliquer un style à un groupe l’applique à chaque forme et texte qu’il contient ; le groupe lui-même ne suit rien.
+- Un style de texte ne s’applique qu’aux textes. Un texte suit soit un style graphique, soit un style de texte, jamais les deux.
+- Avec un dégradé, le style donne les couleurs et le type du dégradé, mais chaque objet garde sa propre position de dégradé.
+
+## Quand un objet cesse de suivre son style
+
+Un objet suit son style tant que son apparence est celle du style. Il cesse de le suivre quand vous changez son propre fond, son contour, son opacité ou son ombre, ou les réglages de police d’un texte, ou quand vous lui donnez une autre nuance, un autre style ou la couleur de la pipette. La ligne <Ui id="inspector-style" /> indique alors <Ui id="inspector-style-none" />, et les modifications ultérieures du style ne l’atteignent plus.
+
+Déplacer, redimensionner, faire pivoter, retourner, dupliquer, grouper ou copier un objet conserve le lien, tout comme le déplacer sur une autre texture.
+
+## Modifier un style pour toute la flotte
+
+Le menu contextuel de chaque style propose deux façons de le modifier partout :
+
+- **<Ui id="styles-edit" />** (styles graphiques uniquement) ouvre l’éditeur avant/après, comme pour une nuance : réglez le fond, le contour et l’opacité, vérifiez l’impact et les vignettes des textures concernées, puis cliquez sur <Ui id="brand-apply-to-fleet" />. Rien ne change avant cela.
+- **<Ui id="styles-redefine" />** donne au style l’apparence de l’objet sélectionné. C’est ainsi que l’on modifie un style de texte : sélectionnez un texte qui le suit, changez sa police ou sa taille, puis choisissez <Ui id="styles-redefine" /> sur le style. Chaque texte qui le suit change, sur toutes les textures.
+
+Chaque modification compte pour une étape d’annulation, qui rétablit partout l’apparence précédente.
+
+Dans l’espace <Ui id="cmd-space-brand" />, chaque style affiche aussi son utilisation, par exemple « 5 textures · 5 objets », ou <Ui id="brand-unused" />.
+
+## Autres actions sur les styles
+
+- **<Ui id="styles-select-users" />** sélectionne les objets de la texture active qui suivent le style.
+- **<Ui id="styles-delete" />** supprime le style. Les objets gardent leur apparence et cessent simplement de le suivre.
+
+Pour utiliser vos styles dans d’autres projets, ajoutez-les à votre [bibliothèque](../library/).

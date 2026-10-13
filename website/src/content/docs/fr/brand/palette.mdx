@@ -1,0 +1,59 @@
+---
+title: Palette
+description: Enregistrez les couleurs de votre entreprise comme nuances, liez-leur des objets, et recolorez toute la flotte en une seule étape.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+La palette contient les couleurs nommées de votre projet, appelées nuances : « Rouge société », « Gris société », « Crème »… Quand la couleur d’un objet est liée à une nuance, modifier la nuance recolore cet objet, sur toutes les textures de la flotte.
+
+## Pourquoi la marque se partage par éléments
+
+Chaque véhicule a sa propre disposition de texture : la cabine, le châssis et la remorque sont dépliés différemment, si bien qu’une bande dessinée sur une texture ne peut pas être copiée au même endroit sur une autre. Ce que vous pouvez partager, c’est l’identité visuelle de votre entreprise, pas son emplacement.
+
+C’est ce que rassemble l’espace <Ui id="cmd-space-brand" /> : la palette, les [styles graphiques et de texte](../styles/) et les [symboles](../symbols/). Ils appartiennent au projet, et chaque texture place ses propres objets qui les utilisent. Changez une nuance, un style ou un symbole une seule fois, et toutes les textures suivent.
+
+## Ajouter une couleur à la palette
+
+1. Sélectionnez un objet qui a la couleur à garder, et cliquez sur la pastille de sa ligne Fond ou Contour dans l’inspecteur.
+2. Dans le sélecteur de couleur, sous <Ui id="colors-brand-palette" />, cliquez sur <Ui id="colors-add-to-palette" /> (+).
+
+La couleur devient une nouvelle nuance, et la couleur d’où vous l’avez prise y est liée. Une même couleur n’est jamais ajoutée deux fois. Dans l’espace <Ui id="cmd-space-brand" />, la section <Ui id="colors-palette" /> a aussi un bouton <Ui id="brand-new-color" />, qui ajoute la couleur actuelle de la même façon.
+
+## Appliquer une nuance
+
+Dans l’Atelier, l’onglet <Ui id="cmd-tab-resources" /> liste la palette, les symboles, les styles et les images du projet. Sa section <Ui id="colors-palette" /> fonctionne comme la palette du sélecteur de couleur.
+
+<Shot name="brand/resources" alt="L’onglet Ressources de l’Atelier, listant une palette de cinq nuances, des styles graphiques et de texte, le symbole Logo et une image" />
+
+Sélectionnez un ou plusieurs objets, puis cliquez sur une nuance : sa couleur va au fond ou au contour, selon celui qui est la cible (appuyez sur X pour basculer), et y est liée. Avec un dégradé, la nuance colore le point sélectionné.
+
+<Clip name="brand/apply-swatch" label="Un clic sur les nuances Company red, Company grey, puis à nouveau Company red change le fond du panneau sélectionné" />
+
+Une couleur liée affiche le nom de la nuance avec une icône de lien dans la ligne Fond ou Contour, et la nuance est entourée d’un anneau dans le sélecteur de couleur. Choisir n’importe quelle autre couleur (une couleur récente, le nuancier ou la pipette) rompt le lien : la couleur s’affiche alors sous forme de code hexadécimal.
+
+Les nuances peuvent aussi colorer un contour, une ombre portée, un point de dégradé, un style, ou un objet à l’intérieur d’un symbole. Tous suivent la nuance.
+
+## Recolorer toute la flotte
+
+Ouvrez l’espace <Ui id="cmd-space-brand" /> depuis le sélecteur d’espaces, ou appuyez sur <kbd>Ctrl</kbd>+<kbd>3</kbd> (<kbd>⌘</kbd> sous macOS). Chaque carte de nuance affiche sa couleur, sa valeur hexadécimale et son utilisation, par exemple « 5 textures · 11 objets », ou <Ui id="brand-unused" />.
+
+1. Ouvrez le menu de la nuance (…) et choisissez <Ui id="colors-edit-swatch" />.
+2. Dans l’éditeur à droite, choisissez la nouvelle couleur ou saisissez sa valeur hexadécimale. Vous pouvez aussi renommer la nuance ici.
+3. Comparez les aperçus <Ui id="brand-before" /> et <Ui id="brand-after" />, et vérifiez l’impact : le nombre de textures et d’objets qui vont changer, avec une vignette de chaque texture dans la nouvelle couleur.
+4. Cliquez sur <Ui id="brand-apply-to-fleet" />.
+
+<Shot name="brand/brand-space" alt="L’espace Marque en train de modifier la nuance Company red avec un nouveau vert, avec les aperçus Avant et Après et l’impact sur cinq textures" />
+
+Rien ne change dans le projet tant que vous n’avez pas cliqué sur <Ui id="brand-apply-to-fleet" /> : <Ui id="button-cancel" /> ou Échap ferme l’éditeur et laisse tout en l’état. Une fois la modification appliquée, chaque couleur liée prend la nouvelle valeur sur toutes les textures et reste liée, et une seule annulation rétablit partout la couleur précédente.
+
+<Ui id="colors-edit-swatch" /> se trouve aussi dans le menu contextuel de la nuance, dans le sélecteur de couleur et dans l’onglet <Ui id="cmd-tab-resources" /> ; là, le même éditeur s’ouvre dans une boîte de dialogue par-dessus l’Atelier.
+
+## Supprimer une nuance
+
+Choisissez <Ui id="colors-delete-swatch" /> dans le menu de la nuance. Les objets gardent leur couleur, mais ne sont plus liés : les modifications ultérieures ne les atteindront plus. Comme toute modification de la palette, cela peut être annulé.
+
+Pour réutiliser vos nuances dans d’autres projets, ajoutez-les à votre [bibliothèque](../library/).

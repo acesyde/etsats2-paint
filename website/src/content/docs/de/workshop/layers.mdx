@@ -1,0 +1,68 @@
+---
+title: Ebenen
+description: Ordnen Sie die Objekte einer Textur auf der Registerkarte Ebenen, mit Gruppen, Stapelreihenfolge, Sichtbarkeit, Sperren und Namen.
+sidebar:
+  order: 5
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Jede Textur hat ihren eigenen Stapel von Objekten. Die Registerkarte <Ui id="cmd-tab-layers" /> des linken Bedienfelds (Taste 2, oder <Ui id="menu-view" /> › <Ui id="cmd-tab-layers" />) zeigt den Stapel der aktiven Textur als Baum, das oberste Objekt zuerst. Wechseln Sie die Textur, folgt die Registerkarte.
+
+<Shot name="workshop/layers" alt="Die Registerkarte Ebenen mit dem Baum einer Lackierung: Hintergrund, eine Gruppe Grafik mit drei Streifen und Branding, ein Streifen ist ausgewählt." />
+
+Die Kopfzeile nennt die Textur und zählt ihre Objekte der obersten Ebene. Jede Zeile zeigt das Symbol der Objektart, seinen Namen, einen Augen-Schalter und einen Schloss-Schalter. Ein Text ohne eigenen Namen zeigt seine erste Zeile, damit Sie Ihre Schriftzüge auseinanderhalten können.
+
+## In der Liste auswählen
+
+- Klicken Sie auf eine Zeile, um ihr Objekt auszuwählen, auch innerhalb einer Gruppe.
+- Strg-Klick (⌘-Klick unter macOS) fügt eine Zeile hinzu oder entfernt sie.
+- Umschalt-Klick wählt alle Zeilen zwischen der zuletzt angeklickten und dieser aus.
+
+Das funktioniert in beide Richtungen: Eine Auswahl auf der Arbeitsfläche hebt die Zeilen hervor und öffnet die Gruppen, die sie enthalten.
+
+## Die Reihenfolge ändern
+
+Weiter oben in der Liste stehende Objekte werden darüber gezeichnet. So verschieben Sie sie:
+
+- Ziehen Sie Zeilen nach oben oder unten; eine Linie zeigt, wo sie landen. Mehrere ausgewählte Zeilen bewegen sich gemeinsam;
+- legen Sie Zeilen auf der Mitte einer Gruppenzeile ab, um sie oben in diese Gruppe zu setzen;
+- oder verwenden Sie <Ui id="menu-object" /> › <Ui id="cmd-bring-forward" /> (Alt+Strg+]) und <Ui id="cmd-send-backward" /> (Alt+Strg+[).
+
+## Objekte gruppieren
+
+Gruppen halten die Teile eines Designs zusammen: die Streifen eines Bands, den Schriftzug einer Tür. Ein Klick auf ein gruppiertes Objekt auf der Arbeitsfläche wählt die ganze Gruppe aus, sodass sie sich als Einheit bewegt (Strg-Klick erreicht das Objekt darin).
+
+| Befehl | Tastenkombination | Funktion |
+|---|---|---|
+| <Ui id="cmd-group" /> | Strg+G | fasst die ausgewählten Objekte in einer neuen Gruppe zusammen |
+| <Ui id="cmd-ungroup" /> | Strg+Umschalt+G | setzt die Objekte der Gruppe an ihre Stelle zurück |
+| <Ui id="cmd-new-layer" /> | Strg+Umschalt+N | fügt oben eine leere Gruppe hinzu, benannt „Ebene 1“, „Ebene 2“… |
+| <Ui id="cmd-duplicate-layer" /> | | dupliziert die ausgewählten Zeilen |
+| <Ui id="cmd-delete-layer" /> | | löscht die ausgewählten Zeilen |
+
+Gruppieren und Gruppierung aufheben stehen im Menü <Ui id="menu-object" />, die Ebenenbefehle im Menü <Ui id="menu-layer" />. Alle sind außerdem im Kontextmenü der Registerkarte und in ihren Schaltflächen in der Fußzeile, und die Schaltfläche + in der Kopfzeile fügt eine Ebene hinzu.
+
+Neue Formen kommen oben in die aktive Ebene: die ausgewählte Gruppe oder die Gruppe, die die Auswahl enthält. Wählen Sie vor dem Zeichnen eine Ebene aus, um in sie zu zeichnen.
+
+Klappen Sie eine Gruppenzeile ein, um eine lange Liste kurz zu halten; wählen Sie eines ihrer Objekte auf der Arbeitsfläche aus, öffnet sie sich wieder.
+
+## Ausblenden und sperren
+
+- Das **Auge** blendet ein Objekt aus, oder eine Gruppe mit allem, was darin ist. Ein ausgeblendetes Objekt bleibt in der Liste, wird aber nicht auf der Arbeitsfläche gezeichnet, lässt sich nicht anklicken und **wird nicht exportiert**. Eine Textur, deren Objekte alle ausgeblendet sind, gilt als leer und wird in der Farbe des Spiels exportiert.
+- Das **Schloss** verhindert, dass ein Objekt auf der Arbeitsfläche ausgewählt oder verändert wird, praktisch bei einem Hintergrund, den Sie immer wieder versehentlich anklicken. Gesperrte Objekte lassen sich in der Liste weiterhin auswählen, um sie zu entsperren.
+
+Wird ein ausgewähltes Objekt ausgeblendet oder gesperrt, wird seine Auswahl aufgehoben.
+
+## Umbenennen
+
+Doppelklicken Sie auf einen Namen, oder klicken Sie mit der rechten Maustaste auf die Zeile und wählen Sie <Ui id="undo-rename" />. Geben Sie den neuen Namen ein und drücken Sie Eingabe; Esc bricht ab. Ein leerer Name wird auf den Standardnamen zurückgesetzt, etwa „Rechteck“ oder „Gruppe“.
+
+Klare Namen zahlen sich aus, wenn Sie Monate später zu einer Lackierung zurückkehren.
+
+:::note
+Die Vorlage ist keine Ebene: Sie erscheint nie in dieser Liste, lässt sich nicht auswählen und wird nie exportiert. Blenden Sie sie mit G ein oder aus (siehe [Die Werkstatt](../overview/#die-vorlagenüberlagerung)).
+:::
+
+Umordnen, Gruppieren, Ausblenden, Sperren und Umbenennen lassen sich alle rückgängig machen, jeweils in einem Schritt.

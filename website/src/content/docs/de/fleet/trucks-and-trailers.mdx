@@ -1,0 +1,73 @@
+---
+title: Lkw und Anhänger
+description: Fahrzeuge und Texturen hinzufügen und entfernen, Kabinen und Zubehör verstehen und Grafik zwischen den Kabinen eines Lkw kopieren.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Ein Projekt ist die Flotte eines Unternehmens: mehrere Lkw mit den Kabinen Ihrer Wahl und mehrere Anhänger. Sie gestalten den Auftritt einmal und exportieren die ganze Flotte als einen Mod.
+
+## Ein Spiel pro Projekt
+
+Ein Projekt gehört zu einem Spiel, ETS2 oder ATS, das durch sein erstes Fahrzeug festgelegt wird. Mods für ETS2 und ATS sind getrennt, deshalb können Sie nur Fahrzeuge aus dem Spiel des Projekts hinzufügen. Wenn Sie in beiden Spielen fahren, legen Sie ein Projekt pro Spiel an: Ihre [persönliche Bibliothek](../../brand/palette/) trägt Ihre Farben, Stile und Symbole von einem zum anderen.
+
+## Wie die Lackierung eines Fahrzeugs aufgebaut ist
+
+Die Spiele teilen eine Lackierung in eine **Haupttextur** und **Zubehörtexturen** auf, und TruckPaint folgt ihnen:
+
+- **Ein Lkw** hat eine Haupttextur pro Kabinenlayout. Haben seine Kabinen unterschiedliche Layouts (zum Beispiel ein Standardfahrerhaus und ein Hochdach), hat jedes Layout seine eigene Haupttextur, und Sie wählen, welche Sie lackieren. Kabinen, die Sie weglassen, erhalten die Lackierung einfach nicht. Teilen sich alle Kabinen ein Layout, deckt eine einzige Haupttextur sie alle ab.
+- **Ein Anhänger** hat eine einzige Haupttextur. Seine Aufbauarten und Längen sind Zubehör, keine Varianten: Ein Anhänger hat keine Varianten.
+- **Zubehörteile** (Seitenverkleidungen, Spiegel, Schmutzfänger…) gehören zum Fahrzeug und werden von all seinen Kabinen geteilt.
+
+## Fahrzeuge hinzufügen
+
+1. Klicken Sie im [Bereich Projekt](../project/) auf <Ui id="cmd-add-vehicle" />, oder in der Werkstatt auf die Schaltfläche + der Registerkarte <Ui id="cmd-tab-textures" />, oder wählen Sie <Ui id="menu-vehicle" /> › <Ui id="cmd-add-vehicle" />.
+2. Markieren Sie ein oder mehrere Fahrzeuge. Die Liste zeigt zuerst die offiziellen Fahrzeuge, dann Ihre übrigen installierten Fahrzeuge, alle aus dem Spiel des Projekts. Suchen Sie nach Name oder Marke, und filtern Sie nach Lkw oder Anhängern.
+3. Markieren Sie unter jedem markierten Fahrzeug die Haupttexturen und Zubehörteile, die lackiert werden sollen. Mindestens eine Haupttextur bleibt markiert.
+4. Klicken Sie auf <Ui id="add-vehicle-add" />.
+
+<Shot name="fleet/add-vehicle" alt="Der Dialog Fahrzeug hinzufügen mit den Fahrzeugen aus dem Spiel des Projekts, einem markierten Fahrzeug und seinen Texturen darunter" />
+
+Die neuen Fahrzeuge kommen in der Reihenfolge zur Flotte, in der Sie sie markiert haben, und die erste neue Textur wird aktiv. Ein einziges Rückgängig (Strg+Z, ⌘ unter macOS) entfernt sie alle.
+
+Kein Paket für Ihr Fahrzeug? Klicken Sie im selben Dialog auf <Ui id="custom-open" />: siehe [Eigene Fahrzeuge](../../vehicles/custom-vehicles/).
+
+## Zwischen Texturen wechseln
+
+In der Werkstatt zeigt die Registerkarte <Ui id="cmd-tab-textures" /> die Flotte als Baum: jedes Fahrzeug mit seinen Haupttexturen und seinem Zubehör. Klicken Sie auf eine Textur, um darauf zu malen. Ihre Markierung zeigt ihren Zustand: ein leerer Ring für Leer, ein Punkt für Geändert, ein Warnsymbol für Zu prüfen.
+
+<Shot name="fleet/textures-tab" alt="Die Werkstatt mit der Registerkarte Texturen, die den Flottenbaum zeigt: ein Lkw und ein Anhänger mit ihren Haupttexturen und ihrem Zubehör" />
+
+<Ui id="menu-vehicle" /> › <Ui id="cmd-next-texture" /> (Strg+]) und <Ui id="cmd-previous-texture" /> (Strg+[) gehen alle Texturen des Projekts durch. Das Feld <Ui id="textures-search" /> über dem Baum öffnet die Befehlspalette (Strg+K), um per Name zu einer Textur zu springen.
+
+## Die Texturen eines Fahrzeugs ändern
+
+Klicken Sie auf <Ui id="vehicles-textures" /> auf der Karte des Fahrzeugs im Bereich Projekt oder in seinem ⋯-Menü auf der Registerkarte <Ui id="cmd-tab-textures" />. Markieren Sie eine Textur, um sie hinzuzufügen, heben Sie die Markierung auf, um sie zu entfernen, und klicken Sie dann auf <Ui id="textures-apply" />.
+
+<Shot name="fleet/textures-dialog" alt="Der Dialog Texturen eines Fahrzeugs mit seinen Haupttexturen und Zubehörteilen als Kontrollkästchen" />
+
+Enthält eine Textur, die Sie entfernen, Grafik, nennt TruckPaint sie und fragt zuerst nach. Rückgängig holt sie mit ihrer Grafik zurück. Ein Fahrzeug behält immer mindestens eine Haupttextur.
+
+## Ein Fahrzeug entfernen
+
+Wählen Sie <Ui id="vehicles-remove-from-project" /> im ⋯-Menü des Fahrzeugs. Enthalten seine Texturen Grafik, fragt TruckPaint zuerst nach. Das letzte Fahrzeug eines Projekts lässt sich nicht entfernen.
+
+## Ihr Design auf mehreren Fahrzeugen wiederverwenden
+
+Die Texturen jedes Fahrzeugs sind durch sein 3D-Modell unterschiedlich angeordnet, deshalb lässt sich ein Design nicht an dieselbe Stelle eines anderen Fahrzeugs kopieren. Was Sie in der Flotte teilen, sind die **Elemente**: die Markenpalette, die Stile und die Symbole. Zeichnen Sie Ihr Logo einmal als Symbol und platzieren Sie es auf jeder Textur: Bearbeiten Sie es, werden alle aktualisiert. Siehe [den Bereich Marke](../../brand/palette/).
+
+### Von Kabine kopieren
+
+Die Kabinenlayouts eines Lkw teilen den Großteil ihrer Textur, deshalb passen dieselben Positionen. So beginnen Sie eine Kabine auf Basis einer anderen:
+
+1. Öffnen Sie die Haupttextur, die Sie füllen möchten, zum Beispiel das Hochdach.
+2. Wählen Sie <Ui id="menu-vehicle" /> › <Ui id="cmd-copy-from-cabin" />.
+3. Wählen Sie die Kabine, von der kopiert werden soll. Jede zeigt, wie viele Objekte sie enthält.
+4. Klicken Sie auf <Ui id="copy-cabin-copy" />.
+
+Jedes Objekt dieser Kabine wird auf die aktive Textur kopiert, über deren eigene Objekte, an dieselben Positionen (skaliert, wenn die beiden Texturen unterschiedlich groß sind), und ausgewählt, damit Sie es anpassen können. Verknüpfungen zu Farbfeldern und Stilen bleiben erhalten. Die Quellkabine bleibt unverändert, und ein einziges Rückgängig entfernt die Kopien.
+
+<Ui id="cmd-copy-from-cabin" /> funktioniert nur zwischen Haupttexturen desselben Lkw, wenn das Projekt mindestens zwei davon lackiert. Zubehör und Anhänger haben keine andere Kabine, von der kopiert werden könnte.

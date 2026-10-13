@@ -1,0 +1,68 @@
+---
+title: Texte et images
+description: Écrivez un lettrage sur une texture, mettez-le en forme, transformez-le en tracés, et placez vos logos en images PNG, JPEG ou SVG.
+sidebar:
+  order: 3
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Les noms d’entreprise, les numéros de téléphone et les logos sont au cœur de la plupart des livrées. Les textes restent modifiables sur la texture jusqu’à l’export ; les images gardent leur fichier d’origine, et les logos SVG restent nets à toutes les tailles.
+
+## Écrire un texte
+
+1. Choisissez l’outil <Ui id="tool-text" /> (T).
+2. Cliquez sur la texture, là où le texte doit commencer.
+3. Tapez. Entrée commence une nouvelle ligne.
+4. Appuyez sur Échap, ou cliquez en dehors du texte, pour terminer.
+
+<Clip name="workshop/write-text" label="Choix de l’outil Texte, clic sur la texture, saisie de ACE Logistics et appui sur Échap" />
+
+Pour modifier un texte plus tard, double-cliquez dessus avec l’outil <Ui id="tool-selection" />, cliquez dessus avec l’outil Texte, sélectionnez-le et appuyez sur Entrée, ou choisissez <Ui id="menu-object" /> › <Ui id="cmd-edit-text" />. Pendant la saisie, les touches d’édition habituelles fonctionnent : flèches, Origine et Fin, Maj pour sélectionner, Ctrl+A (⌘A sous macOS) pour sélectionner tout le texte, copier et coller. Les raccourcis des outils sont désactivés pendant la saisie : les lettres vont donc dans le texte.
+
+Un texte laissé vide est supprimé quand vous terminez. Toute une session d’édition compte pour une seule étape d’annulation.
+
+## Mettre en forme un texte
+
+Quand un texte est sélectionné, l’inspecteur affiche une section <Ui id="inspector-text" /> :
+
+- <Ui id="char-font-family" /> : une liste avec recherche où chaque famille est affichée dans sa propre police ;
+- <Ui id="char-font-weight" /> et <Ui id="char-italic" /> ;
+- <Ui id="char-size" />, en pixels de texture ;
+- l’alignement : <Ui id="char-align-left" />, <Ui id="char-align-center" />, <Ui id="char-align-right" /> ;
+- <Ui id="char-letter-spacing" /> et <Ui id="char-line-height" />.
+
+La couleur, le contour et l’ombre du texte se règlent dans la section <Ui id="inspector-appearance" />, comme pour les formes (voir [Couleurs et dégradés](../color-and-gradients/)). Faire glisser les poignées d’un texte le met à l’échelle.
+
+<Shot name="workshop/text-selected" alt="Le lettrage ACE Logistics sélectionné, avec sa police, sa taille et son espacement dans l’inspecteur." />
+
+TruckPaint est fourni avec Inter, Barlow Condensed, Oswald, Bebas Neue et Montserrat, disponibles sur tous les ordinateurs, suivies des polices installées sur le vôtre. Les nouveaux textes utilisent Inter Bold à 200 px. Pour régler le style des prochains textes, choisissez l’outil Texte sans rien sélectionner et modifiez la section <Ui id="inspector-text" />.
+
+:::caution
+Si un projet utilise une police qui n’est pas installée sur cet ordinateur, le texte est dessiné avec Inter et sa police est signalée par un avertissement. Le nom de la police est conservé : le texte retrouve donc son aspect sur un ordinateur qui l’a.
+:::
+
+## Vectoriser le texte
+
+<Ui id="menu-object" /> › <Ui id="cmd-create-outlines" /> (Ctrl+Maj+O) transforme les textes sélectionnés en groupes de tracés de lettres exactement identiques. Utilisez-le pour remodeler des lettres avec l’outil <Ui id="tool-direct-selection" />, pour les [combiner](../tools/#combiner-des-formes) avec des formes, ou pour ne plus dépendre d’une police. Les lettres ne peuvent plus être modifiées comme du texte ensuite, sauf avec Annuler.
+
+## Placer des images
+
+Importez un logo ou une image sous forme de fichier PNG, JPEG ou SVG :
+
+- <Ui id="menu-file" /> › <Ui id="cmd-place" /> (Ctrl+Maj+P), qui accepte plusieurs fichiers à la fois ;
+- l’outil <Ui id="tool-image" /> (Maj+I) : cliquez là où l’image doit aller, puis choisissez le fichier ;
+- faites glisser des fichiers depuis votre gestionnaire de fichiers sur la fenêtre.
+
+L’image garde ses proportions et sa taille naturelle, réduite à la moitié de la texture si elle est plus grande. Vous pouvez ensuite la déplacer, la redimensionner (Maj garde les proportions), la faire pivoter, la retourner, la masquer, la verrouiller, la grouper et la dupliquer comme n’importe quel objet, et lui donner une opacité et une ombre. Les images n’ont ni fond ni contour.
+
+Les fichiers SVG restent vectoriels : TruckPaint conserve le SVG lui-même et le redessine nettement à chaque niveau de zoom.
+
+<Shot name="workshop/text-images" alt="Des textes de lettrage, un logo PNG et un badge SVG sur une texture." />
+
+Quand une image est sélectionnée, la section <Ui id="inspector-image" /> de l’inspecteur affiche son nom, son type et sa taille d’origine, et <Ui id="undo-reset-size" /> lui rend sa taille et ses proportions au moment de l’import.
+
+Chaque image importée est listée dans la section <Ui id="resources-images" /> de l’onglet <Ui id="cmd-tab-resources" />, pour que vous puissiez la glisser sur d’autres textures. Importer deux fois le même fichier ne le stocke qu’une fois. Un fichier qui n’est pas un PNG, JPEG ou SVG valide est ignoré, avec un message qui le nomme et en donne la raison ; les autres fichiers sont tout de même importés.
+
+Pour réutiliser un logo sur chaque texture et le mettre à jour à un seul endroit, faites-en un [symbole](../../brand/symbols/).

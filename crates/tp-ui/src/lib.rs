@@ -8,6 +8,7 @@ pub mod fonts;
 pub mod icons;
 pub mod theme;
 pub mod tokens;
+pub mod web;
 pub mod widgets;
 
 pub use theme::ThemeSettings;

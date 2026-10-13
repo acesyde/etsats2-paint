@@ -1,0 +1,93 @@
+## Purpose
+
+The player documentation site: how to use TruckPaint, in the app's four languages, illustrated with screenshots and animations generated from the app itself, styled like the app in dark and light themes, and published on GitHub Pages.
+
+## ADDED Requirements
+
+### Requirement: Languages and fallback
+The documentation SHALL be available in English, French, Spanish and German, the languages of the app, under one URL prefix per language (`/en/`, `/fr/`, `/es/`, `/de/`), with English as the default language. Every page SHALL offer a language picker that leads to the same page in the chosen language. When a page has no translation in a language, that language's URL SHALL show the English page with a notice saying it is not translated yet.
+
+#### Scenario: Switching language
+- **WHEN** a reader on the French page about mod export picks "Deutsch"
+- **THEN** the German page about mod export opens
+
+#### Scenario: Missing translation
+- **WHEN** the Spanish version of a page does not exist and a reader opens its `/es/` URL
+- **THEN** the English content is shown with a notice that the page is not translated yet
+
+#### Scenario: Site root
+- **WHEN** a reader opens the site's root URL
+- **THEN** the English home page opens
+
+### Requirement: Interface labels match the app
+Each page SHALL quote menu items, buttons, dialog titles and settings with the exact wording the app shows in the page's language. A quoted label that has no translation in a language SHALL fail the site build rather than show a wrong or English label.
+
+#### Scenario: French label
+- **WHEN** the French page about mod export names the export command
+- **THEN** the label is the one the French interface shows for that command
+
+#### Scenario: Unknown label
+- **WHEN** a page quotes a label that does not exist in the app's strings for its language
+- **THEN** the site build fails and names the page and the label
+
+### Requirement: Content sections
+The documentation SHALL be organized in these sections, in this order, in every language: Getting started (installation, first launch, first project); Vehicles (Vehicle Library, official vehicles and template pack, custom vehicles); Project and fleet (trucks, variants, trailers); Workshop (vector tools, text, images, gradients, layers); Brand (palette, symbols, styles); Export (textures, mod); AI assistant (MCP). Its wording SHALL follow the product's rules and vocabulary (a project is a fleet of one game; sharing across vehicles is by elements, never by copied placement).
+
+#### Scenario: Sidebar
+- **WHEN** a reader opens any page
+- **THEN** the sidebar lists the seven sections in the order above, titled in the page's language
+
+### Requirement: Generated screenshots per language
+Every screenshot in the documentation SHALL be rendered from the app by a local command, not captured by hand, once per documentation language with the app's interface in that language. The command SHALL render all screenshots in one run, from fixed scenes, so that running it twice without app changes gives the same images. Screenshots SHALL be WebP images at a single scale.
+
+#### Scenario: Same screen, four languages
+- **WHEN** the documentation media are generated
+- **THEN** the Workshop screenshot exists four times, each showing the interface in English, French, Spanish or German
+
+#### Scenario: Page shows its language's screenshot
+- **WHEN** a reader opens the German Workshop page
+- **THEN** its screenshots show the German interface
+
+### Requirement: Animated features
+Gestures that a still image cannot explain SHALL be shown as short looping animations rendered from the app by the same local command, in each language: at least creating a new project, drawing a shape, editing a text, applying a palette swatch or style, and exporting the mod. Animations SHALL show a pointer that moves and clicks where the gesture happens. They SHALL play muted, looped and without controls by default, SHALL be video files (not GIF), and SHALL show a still first frame and a pause control when the reader asks the system for reduced motion.
+
+#### Scenario: Drawing a rectangle
+- **WHEN** a reader opens the Workshop page about shapes
+- **THEN** an animation shows the pointer picking the Rectangle tool, dragging on the texture and a rectangle appearing
+
+#### Scenario: Reduced motion
+- **WHEN** the reader's system asks for reduced motion
+- **THEN** animations do not autoplay and show their first frame with a play control
+
+### Requirement: Complete media
+The site build SHALL fail when a page references a screenshot or animation that does not exist for the page's language. The media command SHALL record, with the media, the app version and commit they were generated from.
+
+#### Scenario: Missing medium
+- **WHEN** a French page references an animation that was only generated in English
+- **THEN** the site build fails and names the page and the missing file
+
+### Requirement: App look in dark and light themes
+The documentation SHALL use the app's fonts (Geist for text, JetBrains Mono for code and values) served by the site itself, and colors taken from the app's design tokens. It SHALL have a dark theme using the app's palette and a light theme derived from it that keeps each accent's meaning (primary action, signal, link to the brand) and meets WCAG AA contrast for text. The theme SHALL follow the reader's system preference by default and SHALL be switchable, the choice being remembered. Screenshots and animations SHALL show the app as it is (dark) in both themes.
+
+#### Scenario: Dark system
+- **WHEN** a reader whose system is in dark mode opens the site for the first time
+- **THEN** the site uses the dark theme with the app's surface colors
+
+#### Scenario: Switching theme
+- **WHEN** the reader switches to the light theme and opens another page
+- **THEN** the other page is in the light theme
+
+#### Scenario: Tokens follow the app
+- **WHEN** a color token of the app changes and the documentation media are regenerated
+- **THEN** the site's matching color changes with no hand edit
+
+### Requirement: Build and deployment
+The site SHALL build with a single command from a clean checkout using only the committed sources and media (no Rust build, no GPU). It SHALL be published to GitHub Pages at the repository's Pages URL when a push to `main` changes the site, and its links and assets SHALL work under that URL's path.
+
+#### Scenario: Publishing a page change
+- **WHEN** a pull request that edits a page under `website/` is merged into `main`
+- **THEN** the updated page is online at the repository's Pages URL, with its images and styles loading
+
+#### Scenario: Local preview
+- **WHEN** a contributor runs the documentation preview command
+- **THEN** the site is served locally in all four languages with live reload

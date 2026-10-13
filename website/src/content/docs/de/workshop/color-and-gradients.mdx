@@ -1,0 +1,81 @@
+---
+title: Farbe und Verläufe
+description: Legen Sie Fläche, Kontur, Verläufe, Deckkraft und Schlagschatten von Formen und Texten fest und nehmen Sie Farben von der Textur auf.
+sidebar:
+  order: 4
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Farben werden im Abschnitt <Ui id="inspector-appearance" /> des Inspektors eingestellt. Er bearbeitet die ausgewählten Objekte oder, ohne Auswahl, das Aussehen der nächsten Formen und Texte, die Sie zeichnen (angezeigt unter <Ui id="inspector-new-objects" />).
+
+## Fläche und Kontur
+
+Formen und Texte haben eine <Ui id="props-fill" /> und eine <Ui id="panel-stroke" /> (einen Umriss). Jede hat ihre eigene Zeile im Inspektor, mit einem Farbfeld ihrer Farbe und einer Zusammenfassung: dem Hex-Code, dem Namen einer Palettenfarbe oder „Linear“ bzw. „Radial“ bei einem Verlauf.
+
+Die zuletzt angeklickte Zeile ist das **Ziel**: Das Farb-Popover, die Pipette und die Palette wirken darauf. Drei Tasten helfen:
+
+| Taste | Befehl |
+|---|---|
+| X | <Ui id="cmd-switch-fill-stroke-target" /> |
+| Umschalt+X | <Ui id="cmd-swap-fill-and-stroke" /> |
+| D | <Ui id="cmd-default-colors" /> (Standardfläche, keine Kontur) |
+
+## Eine Farbe wählen
+
+Klicken Sie auf das Farbfeld einer Zeile, um das Farb-Popover neben dem Inspektor zu öffnen. Es enthält von oben nach unten:
+
+- die Wahl <Ui id="colors-solid" /> / <Ui id="colors-linear" /> / <Ui id="colors-radial" />;
+- einen Farbwähler mit Reglern für Farbton und Alpha sowie RGB-, HSV- oder HSL-Regler mit ihren Werten;
+- ein Feld <Ui id="colors-hex" />: Geben Sie `#RRGGBB`, `#RGB` oder `#RRGGBBAA` ein und drücken Sie Eingabe;
+- die <Ui id="colors-brand-palette" />, die benannten Farben des Projekts;
+- die Farben unter <Ui id="colors-recent" />, die letzten 12, die Sie verwendet haben.
+
+Änderungen erscheinen sofort auf der Textur. Drücken Sie Esc oder klicken Sie daneben, um das Popover zu schließen; beim Schließen bleiben Ihre Änderungen erhalten, und jedes Ziehen oder jeder eingegebene Wert ist ein Rückgängig-Schritt.
+
+Klicken Sie auf ein Farbfeld der Palette, um es anzuwenden: Die Farbe ist dann mit dem Farbfeld **verknüpft**, ihre Zeile zeigt den Namen des Farbfelds mit einem Verknüpfungssymbol, und eine spätere Bearbeitung des Farbfelds aktualisiert jede verknüpfte Farbe auf jeder Textur. <Ui id="colors-add-to-palette" /> speichert die aktuelle Farbe als neues Farbfeld. Siehe [Palette](../../brand/palette/).
+
+## Die Kontur einrichten
+
+Ist die Kontur das Ziel, bietet das Popover auch <Ui id="stroke-none" /> an, um die Kontur zu entfernen; jede gewählte Farbe fügt eine hinzu (standardmäßig 4 px). Klicken Sie auf die Zusammenfassung der Zeile <Ui id="panel-stroke" />, etwa „6 px · Außen“, um die Konturoptionen zu öffnen:
+
+- <Ui id="stroke-width" />, in Texturpixeln;
+- Ausrichtung: <Ui id="stroke-center" />, <Ui id="stroke-inside" /> oder <Ui id="stroke-outside" /> der Kante;
+- <Ui id="line-dashed" />, mit den Längen <Ui id="line-dash" /> und <Ui id="line-gap" /> und einigen Vorgaben;
+- <Ui id="line-cap" />, <Ui id="line-join" /> und <Ui id="line-miter-limit" />.
+
+Linien und offene Pfade legen Stärke, Striche, Abschlüsse und Ecken stattdessen in ihren eigenen Linieneinstellungen fest (siehe [Zeichenwerkzeuge](../tools/#linien-zeichnen)).
+
+## Verläufe verwenden
+
+Flächen und Konturen von Formen, Pfaden und Texten können Verläufe sein. Wählen Sie im Farb-Popover <Ui id="colors-linear" /> (ein Übergang entlang einer Linie) oder <Ui id="colors-radial" /> (ein Übergang von einem Mittelpunkt aus). Ein neuer Verlauf geht von der aktuellen Farbe zur selben Farbe, transparent.
+
+Die Verlaufsleiste unter dieser Wahl zeigt eine Markierung pro Farbregler:
+
+- Klicken Sie auf eine Markierung, um ihren Farbregler auszuwählen, und wählen Sie dann wie gewohnt seine Farbe;
+- ziehen Sie eine Markierung oder geben Sie ihre <Ui id="colors-location" /> ein, um sie zu verschieben;
+- klicken Sie auf die Leiste, um einen Farbregler hinzuzufügen (bis zu sechzehn); ziehen Sie eine Markierung von der Leiste weg oder drücken Sie darauf Entf, um sie zu entfernen (zwei Farbregler bleiben);
+- <Ui id="colors-reverse" /> kehrt die Farbregler um, <Ui id="colors-angle" /> dreht den Verlauf, und <Ui id="colors-aspect" /> streckt einen radialen Verlauf zu einer Ellipse.
+
+<Shot name="workshop/gradients" alt="Ein ausgewählter Text mit Verlaufsfläche, mit der Verlaufsleiste und ihren Farbreglern im Farb-Popover." />
+
+Um einen Verlauf von Hand zu platzieren, wählen Sie das Werkzeug <Ui id="tool-gradient" /> (Umschalt+G). Auf einem ausgewählten Objekt mit Verlauf ziehen Sie dessen Griffe; an jeder anderen Stelle ziehen Sie eine neue Linie vom Anfang zum Ende. Umschalt hält die Richtung in 45°-Schritten. Ein Verlauf folgt seinem Objekt, wenn Sie es verschieben, skalieren, drehen oder spiegeln.
+
+## Deckkraft
+
+<Ui id="props-opacity" /> (0 bis 100 %) macht das ganze ausgewählte Objekt durchscheinend, Fläche, Kontur und Schatten zusammen. Das funktioniert auch bei Bildern und Gruppen. Um nur eine Farbe transparent zu machen, verringern Sie stattdessen ihren Alpha-Wert im Farbwähler.
+
+## Schlagschatten
+
+Ein Schatten hält Schriftzüge und Logos auf jedem Hintergrund lesbar. Wählen Sie Formen, Texte oder Bilder aus und klicken Sie auf <Ui id="inspector-add-shadow" />: Sie erhalten einen schwarzen Schatten mit 50 %, um 8 px nach rechts und unten versetzt, mit 8 px Unschärfe. Klicken Sie auf die Zeile <Ui id="inspector-shadow" />, um seine Farbe (die ein Farbfeld der Palette sein kann), <Ui id="shadow-opacity" />, <Ui id="shadow-offset-x" />, <Ui id="shadow-offset-y" /> und <Ui id="shadow-blur" /> (0 für eine harte Kante) zu ändern. Die Schaltfläche am Ende der Zeile entfernt ihn.
+
+Der Schatten sieht in der exportierten Textur genauso aus. Beim Auswählen, Einrasten und Ausrichten gehört er nicht zum Objekt. Gruppen haben keinen eigenen Schatten, die Objekte darin aber schon.
+
+## Eine Farbe von der Textur aufnehmen
+
+Klicken Sie mit dem Werkzeug <Ui id="tool-eyedropper" /> (I) auf ein Objekt, um seine Fläche, oder seine Kontur, wenn die Kontur das Ziel ist, einschließlich Verläufen, auf die Auswahl zu übertragen. Klicken Sie auf ein Bild, um die Farbe des Pixels unter dem Zeiger zu übernehmen. Die Vorlage wird ignoriert, sodass Sie immer Ihre eigene Grafik aufnehmen.
+
+:::tip
+Häufig verwendete Farben gehören in die Palette: Die Zahl <Ui id="inspector-off-palette" /> im Inspektor, die ohne Auswahl angezeigt wird, findet die Farben einer Textur, die nicht mit der Palette verknüpft sind.
+:::

@@ -1,0 +1,97 @@
+---
+title: Drawing tools
+description: Draw shapes, stars, paths and lines on a texture, then select, move, resize, rotate, align and combine them.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+The tools draw vector shapes on the active texture. Sizes and positions are in texture pixels, so a 512 px band is 512 pixels of the exported texture, whatever the zoom. Hover a tool in the tool rail to see its name and shortcut.
+
+New shapes take the fill and stroke shown in the inspector when nothing is selected (see [Color and gradients](../color-and-gradients/)), and go at the top of the active layer.
+
+## Draw rectangles and ellipses
+
+1. Pick the <Ui id="tool-rectangle" /> or <Ui id="tool-ellipse" /> tool.
+2. Drag on the texture. Hold Shift for a square or a circle, and Alt (Option on macOS) to draw from the center.
+3. Release. The shape is selected and the tool stays active for the next one.
+
+Press Escape during the drag to cancel. Round the corners of a rectangle with <Ui id="props-corner-radius" /> in the inspector's <Ui id="inspector-appearance" /> section.
+
+<Clip name="workshop/draw-rectangle" label="Picking the Rectangle tool and dragging a rectangle on the texture" />
+
+## Draw polygons and stars
+
+With the <Ui id="tool-polygon" /> tool, drag a box: the polygon fills it, first point up. Shift keeps it regular. Set <Ui id="props-sides" /> (3 to 12), <Ui id="props-star" /> and <Ui id="props-inner-radius" /> in the tool options bar above the canvas, before you draw. When polygons are selected, the same settings appear in the inspector's <Ui id="inspector-polygon" /> section and change them in place.
+
+## Draw paths with the Pen
+
+1. Pick the <Ui id="tool-pen" /> tool.
+2. Click to add corner points. Press and drag to add a smooth point with curve handles. Shift keeps the new point and handles at 45° steps.
+3. Click the first point to close the shape, or press Enter or Escape to leave the path open.
+
+Backspace, or Ctrl+Z (⌘Z on macOS), removes the last point while you draw.
+
+<Clip name="workshop/draw-path" label="Clicking four points with the Pen tool and clicking the first one to close the shape" />
+
+## Draw lines
+
+With the <Ui id="tool-line" /> tool, drag from one end to the other; Shift snaps the angle to 45° steps and Alt draws from the middle. Lines and open paths are painted with the fill color. Their thickness is the <Ui id="field-width" /> field of the inspector (8 px at first); click it to set <Ui id="line-dashed" />, <Ui id="line-cap" /> and <Ui id="line-join" />.
+
+<Shot name="workshop/shapes-paths" alt="Stars, a polygon, a swoosh path with a hole and open lines on a texture." />
+
+## Select, move, resize and rotate
+
+With the <Ui id="tool-selection" /> tool:
+
+- **Click** an object to select it; a click on an object inside a group selects the group, and Ctrl-click selects the object itself. **Shift-click** adds or removes. **Drag** on empty canvas to select with a marquee. <Ui id="cmd-select-all" /> is Ctrl+A, Escape deselects.
+- **Drag** the selection to move it; Shift keeps the move straight or at 45°. The arrow keys nudge by 1 px, by 10 px with Shift.
+- **Drag a handle** to resize: Shift keeps the proportions, Alt resizes from the center.
+- **Drag just outside a corner** to rotate; Shift snaps to 15° steps.
+
+<Clip name="workshop/move-resize" label="Clicking the ellipse, dragging it, then dragging a corner handle" />
+
+For exact values, type them in the inspector's <Ui id="inspector-layout" /> section: <Ui id="transform-x" />, <Ui id="transform-y" />, <Ui id="field-width" />, <Ui id="field-height" />, <Ui id="transform-rotation" /> and <Ui id="transform-scale" />. You can also drag on a field's label to change its value.
+
+<Ui id="cmd-duplicate" /> (Ctrl+D), <Ui id="cmd-copy" />, <Ui id="cmd-paste" /> and <Ui id="cmd-delete" /> are in the <Ui id="menu-edit" /> menu. Copied objects can be pasted on another texture or into another project.
+
+## Edit points
+
+The <Ui id="tool-direct-selection" /> tool shows a path's points. Click a point (Shift-click for more) and drag it, or drag its handles; Alt-drag a handle to break a smooth point into a corner. Double-click a point to switch it between corner and smooth, double-click a segment to add a point, and press Delete to remove the selected points.
+
+Rectangles, ellipses and polygons have no editable points until you choose <Ui id="menu-object" /> › <Ui id="cmd-convert-to-path" />.
+
+## Line things up
+
+- **Snapping** pulls what you move or draw onto the grid, guides, the texture's edges and center, and other objects' edges and centers. Toggle it with <Ui id="menu-view" /> › <Ui id="cmd-snapping" /> or in the status bar; hold Ctrl during a drag to ignore it.
+- **Guides:** drag from a ruler onto the canvas. Drag a guide back onto a ruler to delete it. <Ui id="cmd-show-guides" /> and <Ui id="cmd-clear-guides" /> are in the <Ui id="menu-view" /> menu.
+- **Grid:** <Ui id="menu-view" /> › <Ui id="cmd-show-grid" />. Set its <Ui id="prefs-grid-spacing" /> in <Ui id="cmd-preferences" /> (64 px by default).
+
+Guides and the grid are never exported.
+
+## Align and distribute
+
+Select objects and use the buttons of the <Ui id="inspector-layout" /> section, or <Ui id="menu-object" /> › <Ui id="menu-align" />. <Ui id="transform-align-to" /> picks the reference: <Ui id="align-to-selection" />, <Ui id="align-to-artboard" /> (the whole texture, handy to center a logo), or <Ui id="align-to-key-object" /> (the last object you selected). Distributing needs three objects or more.
+
+## Combine shapes
+
+Select two shapes or more and choose <Ui id="menu-object" /> › <Ui id="menu-combine" />:
+
+| Command | Result |
+|---|---|
+| <Ui id="op-unite" /> (Ctrl+Shift+U) | one shape covering them all |
+| <Ui id="op-minus-front" /> (Ctrl+Shift+-) | the bottom shape, cut by the shapes above it |
+| <Ui id="op-intersect" /> | only where they all overlap |
+| <Ui id="op-exclude" /> | where they don't overlap |
+
+The result is one path. Texts must go through <Ui id="cmd-create-outlines" /> first; images and open lines can't be combined.
+
+## Flip
+
+<Ui id="op-flip-horizontal" /> (Shift+H) and <Ui id="op-flip-vertical" /> (Shift+V), in the <Ui id="menu-object" /> menu and the inspector, mirror the selection in place.
+
+## Outlines
+
+The <Ui id="panel-stroke" /> row of the inspector adds an outline to shapes and texts, inside, outside or centered on the edge. See [Color and gradients](../color-and-gradients/).

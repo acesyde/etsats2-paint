@@ -1,0 +1,5 @@
+# Same rule as mise.toml: no package version younger than 30 days.
+minimumReleaseAge: 43200
+allowBuilds:
+  esbuild: true
+  sharp: true

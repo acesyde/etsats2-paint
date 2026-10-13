@@ -1,0 +1,58 @@
+---
+title: Ihr erstes Projekt
+description: Erstellen Sie ein Projekt mit dem Beispiel-Lkw von TruckPaint, sehen Sie sich um und speichern Sie es.
+sidebar:
+  order: 3
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+In TruckPaint ist ein Projekt die Lackierung einer Flotte: ein oder mehrere Lkw und Anhänger **eines Spiels**, ETS2 oder ATS, die gemeinsam als ein Mod exportiert werden. Jedes Projekt beginnt mit einem Fahrzeug, denn eine Lackierung muss zu den Texturen eines Fahrzeugs passen: Ein leeres Projekt gibt es nicht.
+
+Diese Seite verwendet den **TruckPaint Sample Truck**, der mit der App geliefert wird und keine Spieldateien braucht. Mit jedem anderen Fahrzeug funktioniert es genauso.
+
+<Clip name="getting-started/create-project" label="Auf dem Startbildschirm öffnet sich Neues Projekt, der Beispiel-Lkw wird in der Liste markiert, und Projekt erstellen öffnet das neue Projekt" />
+
+## Ihr erstes Projekt erstellen
+
+1. Klicken Sie auf dem Startbildschirm auf <Ui id="home-new-project" /> (Strg+N, ⌘ unter macOS).
+2. Lassen Sie unter <Ui id="vehicles-game-filter" /> **ETS2** stehen: Die Beispielfahrzeuge sind dafür gemacht. Die Liste zeigt nur die Fahrzeuge des gewählten Spiels.
+3. Ist noch kein Fahrzeug installiert, klicken Sie unter der Liste auf <Ui id="vehicles-install-sample" />. Damit werden der Beispiel-Lkw und der Beispielanhänger installiert, ganz ohne Download.
+4. Klicken Sie auf die Zeile **TruckPaint Sample Truck**, um sie zu markieren. Rechts öffnet sich seine Karte unter <Ui id="new-project-fleet" />.
+5. Markieren Sie auf der Karte, was Sie lackieren möchten:
+   - unter <Ui id="new-project-cabins" /> ein Chip pro Kabinenlayout des Lkw. Der erste ist markiert; klicken Sie auf einen weiteren, um ihn ebenfalls zu lackieren;
+   - unter <Ui id="vehicles-accessories" /> die Zubehörteile, die zunächst alle markiert sind.
+
+   <Ui id="new-project-created" /> listet jede Textur auf, die das Projekt erhält, mit ihrer Größe.
+6. Geben Sie einen <Ui id="new-project-name" /> ein, oder lassen Sie ihn leer, um das Projekt nach dem Fahrzeug zu benennen.
+7. Klicken Sie auf <Ui id="new-project-create" />.
+
+<Shot name="getting-started/new-project" alt="Der Dialog Neues Projekt mit dem markierten Beispiel-Lkw in der Fahrzeugliste und seiner geöffneten Karte unter Ihre Flotte" />
+
+Sie können mehrere Fahrzeuge auf einmal markieren, Lkw und Anhänger, und später weitere hinzufügen: Nichts, was Sie hier wählen, ist endgültig. Siehe [Lkw und Anhänger](../../fleet/trucks-and-trailers/).
+
+:::tip[Nicht das gewünschte Fahrzeug?]
+Die Liste zeigt auch die **offiziellen** Fahrzeuge des Spiels, die aus einem kostenlosen Vorlagenpaket erstellt werden: siehe [Offizielle Fahrzeuge](../../vehicles/official-vehicles/). Für ein Fahrzeug ohne Paket, etwa einen Mod-Lkw, verwenden Sie <Ui id="custom-open" /> unter der Liste: siehe [Eigene Fahrzeuge](../../vehicles/custom-vehicles/).
+:::
+
+## Umsehen
+
+Das Projekt öffnet sich im Bereich <Ui id="cmd-space-project" />: links Ihre Flotte, mit einer Karte pro Fahrzeug und einer Zeile pro Textur, rechts die Informationen des Mods.
+
+<Shot name="getting-started/first-project" alt="Der Bereich Projekt des neuen Projekts, mit der Karte des Beispiel-Lkw und seinen Texturen, alle Leer" />
+
+Jede Textur beginnt **Leer**. Klicken Sie auf eine, um sie in der <Ui id="cmd-space-workshop" /> zu öffnen, wo Sie über der Vorlage des Fahrzeugs darauf malen. Die obere Leiste wechselt jederzeit zwischen den drei Bereichen: <Ui id="cmd-space-project" /> (Strg+1), <Ui id="cmd-space-workshop" /> (Strg+2) und <Ui id="cmd-space-brand" /> (Strg+3). Das Spiel des Projekts wird neben seinem Namen angezeigt und lässt sich nicht ändern.
+
+## Projekt speichern
+
+Wählen Sie <Ui id="menu-file" /> › <Ui id="cmd-save" /> (Strg+S). Beim ersten Mal fragt TruckPaint nach dem Speicherort und schlägt den Namen des Projekts vor. Ein Projekt ist eine einzige `.truckpaint`-Datei, die alles enthält, auch die Vorlagen: Sie können es auf einem anderen Computer öffnen, selbst wenn seine Fahrzeuge dort nicht installiert sind.
+
+Die Statusleiste zeigt <Ui id="status-saved" /> oder <Ui id="status-unsaved" />. Wenn Sie das Projekt mit nicht gespeicherten Änderungen schließen oder die App beenden, fragt TruckPaint, ob sie zuvor gespeichert werden sollen.
+
+## Nächste Schritte
+
+- [Der Bereich Projekt](../../fleet/project/), um zu verstehen, was er zeigt.
+- [Zeichenwerkzeuge](../../workshop/tools/), um mit dem Malen zu beginnen.
+- [Die Markenpalette](../../brand/palette/), um Ihre Firmenfarben in der ganzen Flotte zu teilen.
+- [Den Mod exportieren](../../export/mod/), wenn die Lackierung fertig ist.

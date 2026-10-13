@@ -1,0 +1,69 @@
+---
+title: L’Atelier
+description: Repérez-vous dans l’Atelier, où vous peignez chaque texture de vos véhicules par-dessus son gabarit.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+L’Atelier est l’endroit où vous peignez. TruckPaint est un éditeur de livrées : vous travaillez toujours sur **une seule texture** d’un véhicule à la fois, en pixels de texture, par-dessus le gabarit de cette texture (la disposition UV du véhicule). Tout ce que vous dessinez sur une texture est exactement ce que le jeu reçoit comme texture à l’export.
+
+<Shot name="workshop/workshop" alt="L’Atelier avec une livrée simple : un bandeau, une plaque, une ellipse et le lettrage ACE Logistics, dessinés par-dessus le gabarit du camion." />
+
+## Les trois espaces
+
+Le sélecteur de la barre du haut permet de passer d’un des trois espaces du projet à l’autre. Changer d’espace ne modifie jamais votre travail, votre sélection ni votre historique d’annulation.
+
+| Espace | Ce que vous y faites | Raccourci |
+|---|---|---|
+| <Ui id="cmd-space-project" /> | votre flotte et les informations du mod | Ctrl+1 (⌘1 sous macOS) |
+| <Ui id="cmd-space-workshop" /> | peindre la texture active | Ctrl+2 |
+| <Ui id="cmd-space-brand" /> | la palette, les styles, les symboles et les images de tout le projet | Ctrl+3 |
+
+Ouvrir un projet affiche l’espace Projet ; cliquez-y sur une texture pour la peindre dans l’Atelier. Le bouton <Ui id="top-bar-export" />, à droite de la barre du haut, est toujours là : il lance <Ui id="cmd-export-mod" /> (voir [Exporter le mod](../../export/mod/)).
+
+## Les parties de l’Atelier
+
+De gauche à droite :
+
+- **La barre d’outils.** Une icône par outil. Survolez un outil pour voir son nom et son raccourci. Voir [Outils de dessin](../tools/).
+- **Le panneau de gauche**, avec trois onglets :
+  - <Ui id="cmd-tab-textures" /> (touche 1) : votre flotte sous forme d’arborescence. Cliquez sur une texture pour la peindre. Un fil d’Ariane dans le coin de la zone de travail vous indique toujours sur quel véhicule et quelle texture vous êtes, et sa taille.
+  - <Ui id="cmd-tab-layers" /> (touche 2) : les objets de la texture active. Voir [Calques](../layers/).
+  - <Ui id="cmd-tab-resources" /> (touche 3) : la palette, les symboles, les styles et les images du projet, prêts à être glissés sur la zone de travail. L’espace [Marque](../../brand/palette/) permet de les gérer.
+- **La zone de travail**, avec des règles le long de ses bords supérieur et gauche, graduées en pixels de texture.
+- **L’inspecteur**, à droite. Il affiche les réglages de la sélection : <Ui id="inspector-layout" />, <Ui id="inspector-text" />, <Ui id="inspector-appearance" /> et plus encore. Quand rien n’est sélectionné, il affiche la texture active (son type et sa taille), un résumé <Ui id="inspector-on-texture" />, et le fond et le contour utilisés pour les nouveaux objets.
+
+Au-dessus de la zone de travail, la barre d’options de l’outil affiche le nom de l’outil actif, et les réglages de l’outil Polygone quand il est actif. Vous pouvez faire glisser le bord du panneau de gauche ou de l’inspecteur pour les redimensionner.
+
+Pour gagner de la place, choisissez <Ui id="menu-view" /> › <Ui id="cmd-hide-panels" /> (Tab) : le panneau de gauche et l’inspecteur disparaissent, la barre d’outils et les barres restent. Appuyez à nouveau sur Tab pour les faire revenir. <Ui id="menu-view" /> › <Ui id="cmd-reset-workspace" /> remet les panneaux à leur largeur par défaut.
+
+## Le gabarit en surimpression
+
+Le gabarit est dessiné par-dessus votre motif comme un guide verrouillé : vous ne pouvez ni le sélectionner ni le déplacer, il n’apparaît pas dans l’onglet Calques, et il n’est **jamais exporté**. Appuyez sur G, ou choisissez <Ui id="menu-view" /> › <Ui id="cmd-show-template" />, pour le masquer ou l’afficher. Réglez son opacité (60 % par défaut) à côté du bouton <Ui id="status-template" /> de la barre d’état. Ces deux réglages sont conservés pour chaque texture.
+
+## La barre d’état
+
+En bas, la barre d’état affiche le niveau de zoom, la position du pointeur en pixels de texture, les réglages du gabarit, les boutons <Ui id="status-snapping" />, <Ui id="status-grid" /> et <Ui id="status-guides" />, et si le projet est <Ui id="status-saved" /> ou a des <Ui id="status-unsaved" />.
+
+## Zoomer et se déplacer
+
+| Pour | Faites ceci |
+|---|---|
+| Zoomer vers le pointeur | molette de la souris, pincement, ou Ctrl + défilement |
+| Faire défiler la vue | défilement à deux doigts sur un pavé tactile, Maj + molette (horizontalement), maintenir Espace et faire glisser, faire glisser avec le bouton du milieu, ou utiliser l’outil <Ui id="tool-hand" /> |
+| <Ui id="cmd-zoom-in" /> / <Ui id="cmd-zoom-out" /> | Ctrl+= / Ctrl+- |
+| <Ui id="cmd-fit-to-screen" /> | Maj+Ctrl+0 |
+| <Ui id="cmd-actual-size-100pct" /> | Ctrl+0 |
+
+À 100 %, un pixel de texture correspond à un pixel d’écran. Avec l’outil <Ui id="tool-zoom" />, cliquez pour zoomer, Alt-clic (Option-clic sous macOS) pour dézoomer, ou tracez un rectangle pour zoomer dessus.
+
+## Tout annuler
+
+Chaque modification du dessin peut être annulée : <Ui id="menu-edit" /> › <Ui id="cmd-undo" /> (Ctrl+Z) et <Ui id="cmd-redo" /> (Ctrl+Maj+Z ou Ctrl+Y). Le menu nomme l’étape, par exemple « Annuler Redimensionner ». Un glissement entier compte pour une seule étape. Le zoom, le défilement et la sélection ne sont pas enregistrés : annuler ne déplace donc jamais votre vue.
+
+:::tip
+Vous ne trouvez plus une commande ? Ouvrez la <Ui id="cmd-command-palette" /> avec Ctrl+K et tapez son nom : elle trouve aussi vos textures.
+:::

@@ -1,0 +1,68 @@
+---
+title: Layers
+description: Organize the objects of a texture in the Layers tab, with groups, stacking order, visibility, locking and names.
+sidebar:
+  order: 5
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Each texture has its own stack of objects. The <Ui id="cmd-tab-layers" /> tab of the left panel (key 2, or <Ui id="menu-view" /> › <Ui id="cmd-tab-layers" />) shows the stack of the active texture as a tree, topmost object first. Switch texture and the tab follows.
+
+<Shot name="workshop/layers" alt="The Layers tab with a livery tree: Background, a Graphics group holding three stripes, and Branding, with one stripe selected." />
+
+The header names the texture and counts its top-level objects. Each row shows the object's kind icon, its name, an eye toggle and a lock toggle. A text without a name of its own shows its first line, so you can tell your lettering apart.
+
+## Select from the list
+
+- Click a row to select its object, even inside a group.
+- Ctrl-click (⌘-click on macOS) adds or removes a row.
+- Shift-click selects every row between the last clicked one and this one.
+
+It works both ways: selecting on the canvas highlights the rows, and opens the groups that hold them.
+
+## Change the order
+
+Objects higher in the list are drawn on top. To move them:
+
+- drag rows up or down; a line shows where they will land. Several selected rows move together;
+- drop rows onto the middle of a group row to put them inside that group, at its top;
+- or use <Ui id="menu-object" /> › <Ui id="cmd-bring-forward" /> (Alt+Ctrl+]) and <Ui id="cmd-send-backward" /> (Alt+Ctrl+[).
+
+## Group objects
+
+Groups keep the parts of a design together: the stripes of a band, the lettering of a door. Clicking a grouped object on the canvas selects the whole group, so it moves as one (Ctrl-click reaches the object inside).
+
+| Command | Shortcut | What it does |
+|---|---|---|
+| <Ui id="cmd-group" /> | Ctrl+G | wraps the selected objects in a new group |
+| <Ui id="cmd-ungroup" /> | Ctrl+Shift+G | puts the group's objects back in its place |
+| <Ui id="cmd-new-layer" /> | Ctrl+Shift+N | adds an empty group at the top, named "Layer 1", "Layer 2"… |
+| <Ui id="cmd-duplicate-layer" /> | | duplicates the selected rows |
+| <Ui id="cmd-delete-layer" /> | | deletes the selected rows |
+
+Group and Ungroup are in the <Ui id="menu-object" /> menu, the layer commands in the <Ui id="menu-layer" /> menu. All of them are also in the tab's right-click menu and its footer buttons, and the + button of the header adds a layer.
+
+New shapes go at the top of the active layer: the selected group, or the group holding the selection. Select a layer before drawing to draw into it.
+
+Collapse a group row to keep a long list short; selecting one of its objects on the canvas opens it again.
+
+## Hide and lock
+
+- The **eye** hides an object, or a group and everything in it. A hidden object stays in the list but isn't drawn on the canvas, can't be clicked, and **isn't exported**. A texture whose objects are all hidden counts as empty, and is exported with the game's color.
+- The **lock** keeps an object from being selected or changed on the canvas, which is handy for a background you keep clicking by mistake. Locked objects can still be selected in the list, to unlock them.
+
+Hiding or locking a selected object deselects it.
+
+## Rename
+
+Double-click a name, or right-click the row and choose <Ui id="undo-rename" />. Type the new name and press Enter; Escape cancels. An empty name goes back to the default one, such as "Rectangle" or "Group".
+
+Clear names pay off when you come back to a livery months later.
+
+:::note
+The template is not a layer: it never appears in this list, can't be selected, and is never exported. Show or hide it with G (see [The Workshop](../overview/#the-template-overlay)).
+:::
+
+Reordering, grouping, hiding, locking and renaming can all be undone, one step each.

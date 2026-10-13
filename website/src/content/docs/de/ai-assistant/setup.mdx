@@ -1,0 +1,64 @@
+---
+title: Einen KI-Assistenten einrichten
+description: Schalten Sie den lokalen MCP-Server von TruckPaint ein und verbinden Sie Claude Code, Claude Desktop oder einen anderen MCP-Client, damit ein KI-Assistent in Ihrem Projekt zeichnen kann.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Ui from '~/components/Ui.astro';
+
+TruckPaint kann einen KI-Assistenten über einen lokalen [MCP](https://modelcontextprotocol.io)-Server im geöffneten Projekt zeichnen lassen. Bitten Sie ihn, eine Lackierung nach einem Referenzfoto nachzubauen oder ein Logo zu platzieren, das Sie ihm geben. Der Assistent läuft in Ihrem eigenen MCP-Client, etwa Claude Code oder Claude Desktop: TruckPaint speichert keinen API-Schlüssel und enthält keine KI.
+
+## Den Server einschalten
+
+1. Öffnen Sie <Ui id="cmd-preferences" />: <Ui id="menu-edit" /> › <Ui id="cmd-preferences" /> unter Windows und Linux, <Ui id="menu-app" /> › <Ui id="app-menu-settings" /> unter macOS.
+2. Schalten Sie im Abschnitt <Ui id="prefs-mcp" /> die Option <Ui id="prefs-mcp-enable" /> ein.
+3. Klicken Sie neben der <Ui id="prefs-mcp-url" /> auf <Ui id="prefs-mcp-copy" />: `http://127.0.0.1:7373/mcp`.
+
+<Shot name="ai-assistant/preferences" alt="Der Dialog Einstellungen mit dem Abschnitt KI-Assistent (MCP): der eingeschaltete Server, sein Port und seine Adresse mit der Schaltfläche Kopieren" />
+
+Der Server ist standardmäßig aus und bleibt nach dem Einschalten auch über Neustarts hinweg an. Er läuft nur, solange TruckPaint geöffnet ist.
+
+Der <Ui id="prefs-mcp-port" /> ist 7373. Verwendet bereits ein anderes Programm diesen Port, weisen die Einstellungen darauf hin: Schalten Sie den Server aus, wählen Sie einen anderen Port und schalten Sie ihn wieder ein. Denken Sie daran, den neuen Port auch in Ihrem Client zu verwenden.
+
+## Zu Ihrem Client hinzufügen
+
+**Claude Code:**
+
+```sh
+claude mcp add --transport http truckpaint http://127.0.0.1:7373/mcp
+```
+
+**Claude Desktop** oder jeder Client, der nur stdio spricht: Gehen Sie über [mcp-remote](https://www.npmjs.com/package/mcp-remote), in `claude_desktop_config.json`:
+
+```json
+{ "mcpServers": { "truckpaint": { "command": "npx", "args": ["mcp-remote", "http://127.0.0.1:7373/mcp"] } } }
+```
+
+**Jeder andere Client:** Verwenden Sie den Streamable-HTTP-Transport unter `http://127.0.0.1:7373/mcp`.
+
+## Ihn malen lassen
+
+Öffnen Sie ein Projekt in TruckPaint und bitten Sie Ihren Assistenten dann zum Beispiel:
+
+- *„Lackiere das Standardfahrerhaus wie auf diesem Foto.“*
+- *„Füge unten am Fahrgestell einen roten Streifen hinzu, mit dem Farbfeld Firmenrot.“*
+- *„Platziere mein Logo aus dieser Datei zentriert auf den Seitenverkleidungen.“*
+
+Der Assistent liest das Projekt, sieht sich die Vorlage jeder Textur an, zeichnet Formen, SVG-Pfade, Texte und Bilder in Texturpixeln und rendert die Textur, um seine Arbeit mit Ihrer Referenz abzugleichen.
+
+## Was er kann und was nicht
+
+Er **kann** das Projekt lesen (Fahrzeuge, Texturen, Palette, Stile und Symbole), Objekte auflisten und untersuchen, die Vorlage und die Grafik einer Textur sehen, Formen, Pfade, Texte und Bilder hinzufügen, Objekte ändern, anordnen, kombinieren und löschen, Farbfelder hinzufügen, Stile anwenden und Symbole platzieren.
+
+Er **kann nicht** speichern, exportieren oder Dateien öffnen, ein Projekt öffnen oder schließen oder Ihre Einstellungen ändern. Speichern und Exportieren bleiben Ihnen vorbehalten: Seine Änderungen markieren das Projekt als nicht gespeichert, wie Ihre eigenen.
+
+Jede seiner Änderungen ist ein Rückgängig-Schritt mit der Bezeichnung „KI: …“, sodass <Ui id="cmd-undo" /> sie zurücknimmt. Ihre Arbeit hat Vorrang: Ein Aufruf, der eintrifft, während Sie ziehen, zeichnen oder tippen, wartet, bis Sie fertig sind. Während Sie ein Symbol bearbeiten, kann er nur lesen.
+
+Solange der Server an ist, zeigt die Statusleiste <Ui id="status-mcp" /> und wie viele Änderungen der Assistent in der letzten Minute vorgenommen hat. Klicken Sie darauf, um seine Einstellungen zu öffnen.
+
+## Datenschutz
+
+- Der Server lauscht nur auf Ihrem eigenen Computer (`127.0.0.1`) und lehnt Anfragen von Webseiten ab.
+- Er ist aus, bis Sie ihn einschalten, und Sie können ihn jederzeit ausschalten.
+- TruckPaint sendet nichts irgendwohin: Was Ihr Assistent mit dem Inhalt des Projekts macht, hängt vom Client und vom KI-Dienst ab, den Sie verwenden.

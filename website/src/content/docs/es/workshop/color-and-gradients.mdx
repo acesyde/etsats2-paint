@@ -1,0 +1,81 @@
+---
+title: Color y degradados
+description: Defina el relleno, el contorno, los degradados, la opacidad y la sombra de formas y textos, y tome colores de la textura.
+sidebar:
+  order: 4
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Los colores se definen en la sección <Ui id="inspector-appearance" /> del inspector. Edita los objetos seleccionados o, sin nada seleccionado, el aspecto de las próximas formas y textos que dibuje (se muestra bajo <Ui id="inspector-new-objects" />).
+
+## Relleno y trazo
+
+Las formas y los textos tienen un <Ui id="props-fill" /> y un <Ui id="panel-stroke" /> (un contorno). Cada uno tiene su propia fila en el inspector, con una muestra de su pintura y un resumen: el código hexadecimal, el nombre de un color de la paleta, o «Lineal» o «Radial» para un degradado.
+
+La última fila en la que hizo clic es el **destino**: el selector de color, el cuentagotas y la paleta actúan sobre ella. Tres teclas ayudan:
+
+| Tecla | Comando |
+|---|---|
+| X | <Ui id="cmd-switch-fill-stroke-target" /> |
+| Mayús+X | <Ui id="cmd-swap-fill-and-stroke" /> |
+| D | <Ui id="cmd-default-colors" /> (relleno predeterminado, sin trazo) |
+
+## Elegir un color
+
+Haga clic en la muestra de una fila para abrir el selector de color junto al inspector. Contiene, de arriba abajo:
+
+- la elección <Ui id="colors-solid" /> / <Ui id="colors-linear" /> / <Ui id="colors-radial" />;
+- un selector de color con controles de tono y alfa, y controles RGB, HSV o HSL con sus valores;
+- un campo <Ui id="colors-hex" />: escriba `#RRGGBB`, `#RGB` o `#RRGGBBAA` y pulse Intro;
+- la <Ui id="colors-brand-palette" />, los colores con nombre del proyecto;
+- los colores <Ui id="colors-recent" />, los últimos 12 que ha usado.
+
+Los cambios se ven en directo en la textura. Pulse Esc o haga clic fuera para cerrar el selector; al cerrarlo se conservan sus cambios, y cada arrastre o valor escrito es un paso de deshacer.
+
+Haga clic en una muestra de la paleta para aplicarla: el color queda entonces **vinculado** a la muestra, su fila muestra el nombre de la muestra con un icono de enlace, y editar la muestra más adelante actualiza todos los colores vinculados en todas las texturas. <Ui id="colors-add-to-palette" /> guarda el color actual como una nueva muestra. Consulte [Paleta](../../brand/palette/).
+
+## Configurar el contorno
+
+Con el trazo como destino, el selector también ofrece <Ui id="stroke-none" /> para quitar el contorno; elegir cualquier color añade uno (4 px por defecto). Haga clic en el resumen de la fila <Ui id="panel-stroke" />, como «6 px · Exterior», para abrir las opciones del trazo:
+
+- <Ui id="stroke-width" />, en píxeles de textura;
+- alineación: <Ui id="stroke-center" />, <Ui id="stroke-inside" /> o <Ui id="stroke-outside" /> del borde;
+- <Ui id="line-dashed" />, con longitudes de <Ui id="line-dash" /> y <Ui id="line-gap" /> y algunos ajustes preestablecidos;
+- <Ui id="line-cap" />, <Ui id="line-join" /> y <Ui id="line-miter-limit" />.
+
+Las líneas y los trazados abiertos definen su grosor, guiones, extremos y uniones en sus propios ajustes de línea (consulte [Herramientas de dibujo](../tools/#dibujar-líneas)).
+
+## Usar degradados
+
+Los rellenos y trazos de formas, trazados y textos pueden ser degradados. En el selector de color, elija <Ui id="colors-linear" /> (una transición a lo largo de una línea) o <Ui id="colors-radial" /> (una transición desde un centro). Un degradado nuevo va del color actual al mismo color, transparente.
+
+La barra de degradado bajo esa elección muestra un marcador por cada parada de color:
+
+- haga clic en un marcador para seleccionar su parada y elija su color como de costumbre;
+- arrastre un marcador, o escriba su <Ui id="colors-location" />, para moverlo;
+- haga clic en la barra para añadir una parada (hasta dieciséis); arrastre un marcador fuera de la barra, o pulse Supr sobre él, para quitarlo (quedan dos paradas como mínimo);
+- <Ui id="colors-reverse" /> invierte las paradas, <Ui id="colors-angle" /> gira el degradado y <Ui id="colors-aspect" /> estira un degradado radial en una elipse.
+
+<Shot name="workshop/gradients" alt="Un texto con un relleno degradado seleccionado, con la barra de degradado y sus paradas en el selector de color." />
+
+Para colocar un degradado a mano, elija la herramienta <Ui id="tool-gradient" /> (Mayús+G). Sobre un objeto seleccionado con un degradado, arrastre sus tiradores; en cualquier otro lugar, arrastre una nueva línea del inicio al final. Mayús mantiene la dirección en pasos de 45°. Un degradado sigue a su objeto cuando lo mueve, cambia de tamaño, rota o voltea.
+
+## Opacidad
+
+<Ui id="props-opacity" /> (de 0 a 100 %) vuelve translúcido todo el objeto seleccionado, relleno, trazo y sombra a la vez. También funciona con imágenes y grupos. Para hacer transparente un solo color, baje su alfa en el selector.
+
+## Sombra
+
+Una sombra mantiene legibles las rotulaciones y los logotipos sobre cualquier fondo. Seleccione formas, textos o imágenes y haga clic en <Ui id="inspector-add-shadow" />: reciben una sombra negra al 50 %, desplazada 8 px a la derecha y hacia abajo, con un desenfoque de 8 px. Haga clic en la fila <Ui id="inspector-shadow" /> para cambiar su color (que puede ser una muestra de la paleta), <Ui id="shadow-opacity" />, <Ui id="shadow-offset-x" />, <Ui id="shadow-offset-y" /> y <Ui id="shadow-blur" /> (0 para un borde nítido). El botón al final de la fila la quita.
+
+La sombra se ve igual en la textura exportada. No forma parte del objeto a la hora de seleccionar, ajustar o alinear. Los grupos no tienen sombra propia, pero los objetos de su interior sí pueden tenerla.
+
+## Tomar un color de la textura
+
+Con la herramienta <Ui id="tool-eyedropper" /> (I), haga clic en un objeto para copiar su relleno, o su trazo cuando el trazo es el destino, degradados incluidos, a la selección. Haga clic en una imagen para tomar el color del píxel bajo el puntero. La plantilla se ignora, así que siempre toma su propio diseño.
+
+:::tip
+Los colores que se usan a menudo deben estar en la paleta: el recuento <Ui id="inspector-off-palette" /> del inspector, que se muestra cuando no hay nada seleccionado, encuentra los colores de una textura que no están vinculados a ella.
+:::

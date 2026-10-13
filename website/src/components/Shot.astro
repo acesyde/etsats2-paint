@@ -1,0 +1,19 @@
+---
+/**
+ * A screenshot of the app in the page's language: `media/<lang>/<name>.webp`,
+ * rendered by `mise run doc:media`. The build fails when it is missing.
+ */
+import sharp from 'sharp';
+import { mediaFile, pageLanguage } from '~/lib/media';
+
+interface Props {
+	/** Path under the language folder, without extension (`workshop/workshop`). */
+	name: string;
+	alt: string;
+}
+const { name, alt } = Astro.props;
+const { path, url } = mediaFile(pageLanguage(Astro), `${name}.webp`, Astro.url.pathname);
+const { width, height } = await sharp(path).metadata();
+---
+
+<img class="tp-media" src={url} alt={alt} width={width} height={height} loading="lazy" decoding="async" />

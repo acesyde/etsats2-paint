@@ -25,7 +25,8 @@ defaults:
     shell: bash
 
 jobs:
-  # Documentation-only changes (*.md, openspec/, .claude/) skip the Rust jobs.
+  # Documentation-only changes (*.md, openspec/, .claude/, website/) skip the
+  # Rust jobs; the documentation site has its own workflow (docs.yml).
   # Fails safe: whenever the changed files are unknown, everything runs.
   changes:
     name: Changed files

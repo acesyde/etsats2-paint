@@ -1,0 +1,55 @@
+---
+title: Vehículos oficiales
+description: Pinte los camiones y remolques propios del juego, instalados a partir del paquete de plantillas gratuito de Carsmaniac.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+TruckPaint conoce los datos del juego de los vehículos oficiales: sus cabinas, sus accesorios y su ubicación en los archivos del juego. No tiene que escribir nada de eso. Lo que TruckPaint no incluye son las plantillas, que pertenecen a SCS Software. Las toma del **paquete de plantillas** creado por Carsmaniac, que se descarga una vez por juego.
+
+## Qué vehículos están disponibles
+
+Los vehículos oficiales aparecen primero en <Ui id="home-new-project" /> y en <Ui id="cmd-add-vehicle" />, bajo <Ui id="vehicles-section-official" />, estén instalados o no. Por ahora, el catálogo contiene dos vehículos de ETS2:
+
+- el **DAF NGD**, un camión con tres disposiciones de cabina (XG+, XG y XF) y cuatro accesorios: visera parasol, faldones laterales, retrovisores estándar y retrovisores de cámara;
+- el **Krone Cool Liner**, un remolque cuya textura de carrocería (8192 × 1024) también pinta sus accesorios de carrocería, con cuatro accesorios de chasis. Su parachoques trasero queda fuera: el paquete no tiene plantilla para él.
+
+Se añadirán más vehículos de ambos juegos por tandas. La lista no necesita conexión a la red.
+
+## Instalar su primer vehículo oficial
+
+La primera vez que marca un vehículo oficial de un juego, TruckPaint le pide el paquete de plantillas de ese juego.
+
+1. En <Ui id="home-new-project" /> o <Ui id="cmd-add-vehicle" />, marque un vehículo oficial, por ejemplo el DAF NGD. Se abre el diálogo del paquete de plantillas.
+2. Haga clic en <Ui id="pack-open-download" />. Su navegador web abre el hilo del paquete en el foro de SCS Software. Si el navegador no se abre, haga clic en <Ui id="pack-copy-link" /> y pegue el enlace en él.
+3. Descargue el paquete. Ocupa unos 1,2 GB, y un solo paquete sirve para todos los vehículos del juego.
+4. Descomprímalo donde quiera en su ordenador.
+5. De vuelta en TruckPaint, haga clic en <Ui id="pack-choose-folder" /> y elija la carpeta descomprimida, o suelte la carpeta sobre el diálogo.
+
+<Shot name="vehicles/template-pack" alt="El diálogo del paquete de plantillas que aparece tras marcar el DAF NGD, con los pasos para descargar, descomprimir y elegir el paquete" />
+
+TruckPaint muestra «Instalando…» mientras crea el vehículo a partir de los archivos del paquete, con un botón <Ui id="button-cancel" />. Después, el vehículo queda marcado como cualquier vehículo instalado: su primera textura principal y todos sus accesorios quedan marcados.
+
+La carpeta que elija puede ser la propia carpeta del paquete o la carpeta en la que lo descomprimió. Si no contiene el paquete de ese juego, TruckPaint lo indica y vuelve a preguntar.
+
+## Después de la primera vez
+
+TruckPaint recuerda la carpeta del paquete de cada juego. Al elegir otro vehículo oficial, se instala directamente, sin preguntar.
+
+Un vehículo oficial instalado ya no necesita el paquete: sigue funcionando en sus proyectos y en las listas aunque mueva o elimine el paquete. Si el paquete ya no está cuando instala otro vehículo oficial, el diálogo del paquete de plantillas se vuelve a abrir e indica que la carpeta se ha movido o eliminado.
+
+Para cambiar u olvidar una carpeta de paquete, abra <Ui id="home-preferences" /> y vaya a <Ui id="prefs-template-packs" />: <Ui id="prefs-pack-choose" /> elige otra carpeta (por ejemplo el paquete de una versión más reciente del juego) y <Ui id="prefs-pack-clear" /> la olvida. Ninguna de las dos opciones modifica los vehículos ya instalados ni sus proyectos. Una carpeta que ya no existe muestra <Ui id="prefs-pack-missing" />.
+
+## Cuando falla una instalación
+
+No se instala nada, y un mensaje indica el motivo, cuando:
+
+- falta en el paquete un archivo que necesita el vehículo: el mensaje indica el vehículo y el archivo;
+- una plantilla no tiene el tamaño esperado: puede que el paquete sea de otra versión del juego. Descargue el paquete que corresponde a su juego.
+
+:::note[Créditos]
+Los datos del juego de los vehículos oficiales proceden de Paintjob Packer de Carsmaniac (licencia MIT), y los paquetes de plantillas son de Carsmaniac. Ambos aparecen en los créditos de <Ui id="cmd-about-truckpaint" />, en el menú <Ui id="menu-help" /> (el menú <Ui id="menu-app" /> en macOS).
+:::

@@ -1,0 +1,57 @@
+---
+title: Symbole
+description: Zeichnen Sie ein Logo einmal als Symbol, platzieren Sie es auf jeder Textur und bearbeiten Sie es einmal für alle seine Instanzen.
+sidebar:
+  order: 3
+---
+import Ui from '~/components/Ui.astro';
+
+Ein Symbol ist eine Zeichnung, die Sie in der ganzen Flotte wiederverwenden: ein Logo, ein Schriftzug, eine Reihe von Streifen. Sie zeichnen es einmal und platzieren es dann als **Instanz** auf jeder Textur.
+
+Jede Instanz hat ihre eigene Position, Größe, Drehung und Spiegelung, denn jede Textur hat ein anderes Layout: Das Logo sitzt auf der einen Textur an der Fahrertür, auf einer anderen an der Seite des Anhängers. Ihr Aussehen dagegen kommt immer vom Symbol. Bearbeiten Sie das Symbol, ändert sich jede Instanz, auf jeder Textur.
+
+## Ein Symbol erstellen
+
+1. Zeichnen Sie das Logo auf eine Textur und wählen Sie dann alle seine Teile aus.
+2. Wählen Sie <Ui id="menu-object" /> › <Ui id="cmd-convert-to-symbol" />. Im Bereich <Ui id="cmd-space-brand" /> tut <Ui id="brand-create-from-selection" /> im Abschnitt <Ui id="panel-symbols" /> dasselbe.
+
+Die ausgewählten Objekte werden zum Symbol „Symbol 1“, und eine Instanz nimmt ihren Platz ein, genau dort, wo sie waren. Klicken Sie mit der rechten Maustaste auf das Symbol und wählen Sie <Ui id="symbols-rename" />, um es zu benennen.
+
+## Ein Symbol auf einer anderen Textur platzieren
+
+1. Öffnen Sie die Textur, auf der das Logo erscheinen soll.
+2. Klicken Sie auf der Registerkarte <Ui id="cmd-tab-resources" /> unter <Ui id="panel-symbols" /> auf die Platzieren-Schaltfläche des Symbols (<Ui id="symbols-place" args={{ name: 'Logo' }} />), oder ziehen Sie das Symbol auf die Arbeitsfläche.
+3. Verschieben, skalieren und drehen Sie die neue Instanz, damit sie zum Layout dieser Textur passt.
+
+Der Bereich <Ui id="cmd-space-brand" /> zeigt, wie viele Instanzen jedes Symbol hat und auf wie vielen Texturen, etwa „6 Instanzen · 2 Texturen“.
+
+## Mit einer Instanz arbeiten
+
+Eine Instanz verhält sich wie ein einzelnes Objekt: Sie wählen sie aus, verschieben, skalieren, drehen, richten sie aus, duplizieren und kopieren sie wie jedes andere. Sie können ihre Deckkraft ändern, sie ausblenden oder sperren.
+
+Ihre Farben lassen sich jedoch nicht direkt ändern: Der Inspektor weist darauf hin, dass das Aussehen im Symbol bearbeitet wird. Ist eine Instanz ausgewählt, bietet die Kopfzeile des Inspektors <Ui id="cmd-edit-symbol" /> und <Ui id="cmd-detach-instance" /> an.
+
+## Ein Symbol bearbeiten
+
+Öffnen Sie das Symbol auf einem dieser Wege:
+
+- Doppelklicken Sie auf eine Instanz;
+- wählen Sie eine Instanz aus und wählen Sie <Ui id="menu-object" /> › <Ui id="cmd-edit-symbol" />, oder klicken Sie im Inspektor auf <Ui id="cmd-edit-symbol" />;
+- klicken Sie auf der Registerkarte <Ui id="cmd-tab-resources" /> oder im Bereich <Ui id="cmd-space-brand" /> auf die Bearbeiten-Schaltfläche des Symbols (<Ui id="symbols-edit" args={{ name: 'Logo' }} />).
+
+Die Arbeitsfläche zeigt dann das Symbol allein, auf seiner eigenen Zeichenfläche, mit einer Leiste darüber, die sagt, welches Symbol Sie bearbeiten. Jedes Werkzeug funktioniert wie auf einer Textur, und jede Änderung erscheint sofort auf jeder Instanz. Klicken Sie auf <Ui id="symbol-bar-done" /> oder drücken Sie ohne Auswahl Esc, um zur Textur zurückzukehren, von der Sie kamen.
+
+Solange ein Symbol geöffnet ist, sind Befehle deaktiviert, die eine Textur brauchen, etwa <Ui id="cmd-export-texture" /> und <Ui id="cmd-copy-from-cabin" />. Rückgängig und Wiederholen funktionieren über beide Ansichten hinweg.
+
+Farbfelder und Stile, die in einem Symbol verwendet werden, funktionieren weiter: Färben Sie „Firmenrot“ in der [Palette](../palette/) um, und jede Instanz eines Logos, das es verwendet, nimmt die neue Farbe an.
+
+## Eine einmalige Variante erstellen
+
+- **<Ui id="cmd-detach-instance" />** verwandelt die ausgewählte Instanz in eine einfache Gruppe, die gleich aussieht. Nur diese Kopie lässt sich dann frei ändern; das Symbol und seine anderen Instanzen bleiben unberührt.
+- **<Ui id="symbols-duplicate" />** auf einem Symbol erstellt „Logo Kopie“ mit demselben Inhalt und ohne Instanz. Bearbeiten Sie es, ohne das Original zu ändern, zum Beispiel für eine Anhänger-Version Ihres Logos.
+
+## Ein Symbol löschen
+
+Wählen Sie <Ui id="symbols-delete" />. Hat das Symbol Instanzen, fragt TruckPaint zuerst nach und nennt ihre Anzahl. Jede Instanz wird dann zu einer Gruppe, die gleich aussieht, an derselben Stelle. Rückgängig holt das Symbol und seine Instanzen zurück.
+
+Um ein Symbol in anderen Projekten wiederzuverwenden, fügen Sie es Ihrer [Bibliothek](../library/) hinzu: Seine Bilder, Farbfelder und Stile kommen mit.

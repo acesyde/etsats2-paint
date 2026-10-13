@@ -1,0 +1,72 @@
+---
+title: Exportar el mod
+description: Rellene la información del mod, exporte toda la flota como un único mod .scs y actívelo en el juego.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Exportar mod convierte su proyecto en un mod listo para instalar: un único archivo `.scs` que contiene la pintura de cada vehículo de la flota, con sus texturas, su icono de la tienda y su entrada en el Gestor de mods del juego.
+
+## Rellenar la información del mod
+
+Los ajustes del mod pertenecen al proyecto. Edítelos en el espacio <Ui id="cmd-space-project" /> (<kbd>Ctrl</kbd>+<kbd>1</kbd>, <kbd>⌘</kbd> en macOS), en la columna <Ui id="project-mod-information" /> de la derecha. Cada cambio se guarda con el proyecto y se puede deshacer.
+
+<Shot name="export/mod-information" alt="El espacio Proyecto con la columna Información del mod: el icono de la tienda, la imagen del Gestor de mods y los ajustes del mod" />
+
+- **<Ui id="mod-icon" />** (256 × 64) e **<Ui id="mod-image" />** (276 × 162): se generan a partir de su primera textura principal. Para usar una imagen propia, haga clic en <Ui id="mod-choose-icon" /> o <Ui id="mod-choose-image" />, o suelte un archivo PNG o JPEG sobre la vista previa. <Ui id="mod-generated-icon" /> y <Ui id="mod-generated-image" /> recuperan la imagen generada.
+- **<Ui id="mod-name" />:** el nombre de la pintura en la tienda y el nombre del mod en el Gestor de mods. Al principio es el nombre del proyecto.
+- **<Ui id="mod-author" />** y **<Ui id="mod-version" />** (`1.0` al principio), que se muestran en el Gestor de mods.
+- **<Ui id="project-game-versions" />:** las versiones del juego para las que está hecho su mod, escritas como las escribe el juego, por ejemplo `1.56.*`. Haga clic en <Ui id="project-game-versions-add" /> para añadir una, o varias separadas por comas. Debajo de la lista, TruckPaint muestra las versiones compatibles con todos los vehículos del proyecto.
+- **<Ui id="mod-description" />:** se muestra en el Gestor de mods. TruckPaint añade la lista de vehículos que pinta el mod.
+- **<Ui id="mod-price" />** (5000 al principio) y **<Ui id="mod-unlock" />** (0): lo que cuesta la pintura en la moneda del juego y el nivel de jugador que la desbloquea.
+- **<Ui id="mod-advanced" />** › **<Ui id="mod-internal-name" />:** el identificador de la pintura en los archivos del juego, creado a partir del Nombre (solo a–z, 0–9 y _). Cámbielo si quiere, manteniéndolo exclusivo suyo, para que sus mods no choquen con otros.
+
+## Corregir lo que bloquea la exportación
+
+Bajo <Ui id="project-before-exporting" />, la columna lista lo que hay que corregir primero, con <Ui id="project-show" /> para ir al campo o a la tarjeta de vehículo correspondiente. Los casos más habituales:
+
+- el Nombre está vacío, o el Nombre, la Versión o el Autor contienen `"`, `\` o un salto de línea;
+- el Precio es 0;
+- el nombre interno es demasiado largo: como máximo 12 caracteres, o 10 cuando un camión del proyecto tiene una textura principal por disposición de cabina;
+- una versión del juego está mal escrita, o no es compatible con uno de sus vehículos;
+- faltan los datos del juego de un vehículo, o dos vehículos son el mismo vehículo en el juego.
+
+La misma lista también muestra avisos que no bloquean la exportación: las texturas vacías se exportan transparentes, de modo que se ve el color base del juego; las texturas **Por revisar** tras una actualización de plantilla merecen un vistazo. Consulte [el espacio Proyecto](../../fleet/project/).
+
+## Exportar el mod
+
+1. Haga clic en <Ui id="top-bar-export" /> en la barra superior, desde cualquier espacio, o elija <Ui id="menu-file" /> › <Ui id="cmd-export-mod" /> (<kbd>Ctrl</kbd>+<kbd>E</kbd>).
+2. Compruebe el resumen: cada vehículo con las texturas que pinta, y las cabinas que quedan sin pintar.
+3. Compruebe el <Ui id="mod-destination" />, y haga clic en <Ui id="mod-change-destination" /> para elegir otro archivo.
+4. Haga clic en <Ui id="mod-export-start" />.
+
+<Shot name="export/export-mod-dialog" alt="El diálogo Exportar mod con el resumen del mod, su destino con Cambiar…, un aviso sobre texturas vacías y los botones Cancelar y Exportar" />
+
+<Clip name="export/export-mod" label="Clic en Exportar… en la barra superior y luego en Exportar en el diálogo Exportar mod" />
+
+<Ui id="mod-export-start" /> permanece desactivado mientras quede algún problema, y los problemas se listan encima de los botones. Su botón <Ui id="project-show" /> cierra el diálogo y le lleva al campo que hay que corregir. Si el archivo ya existe, TruckPaint pregunta antes de reemplazarlo.
+
+La exportación se ejecuta en segundo plano mostrando su progreso; cancelarla no deja ningún archivo y no toca una exportación anterior. Nunca modifica su proyecto.
+
+## Dónde va el mod
+
+El diálogo propone «Nombre.scs» en la carpeta de mods del juego, cuando esa carpeta existe:
+
+| | Euro Truck Simulator 2 | American Truck Simulator |
+|---|---|---|
+| Windows | `Documents\Euro Truck Simulator 2\mod` | `Documents\American Truck Simulator\mod` |
+| macOS | `~/Library/Application Support/Euro Truck Simulator 2/mod` | `~/Library/Application Support/American Truck Simulator/mod` |
+| Linux | `~/.local/share/Euro Truck Simulator 2/mod` | `~/.local/share/American Truck Simulator/mod` |
+
+Si no, propone su carpeta Documentos: mueva usted mismo el archivo a la carpeta `mod` del juego.
+
+## Activar el mod en el juego
+
+1. Inicie el juego y abra el **Gestor de mods** desde la pantalla de perfil.
+2. Busque su mod por su nombre y su imagen, actívelo y confirme.
+3. Cargue su perfil y compre la pintura, con su Nombre, para su camión o remolque.
+
+Las texturas se escriben en DDS con mipmaps, al tamaño completo de cada textura. Las plantillas nunca se incluyen.

@@ -1,0 +1,72 @@
+---
+title: Custom vehicles
+description: Make a vehicle package from the game's template files when no package exists for your truck or trailer.
+sidebar:
+  order: 3
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Every project starts from a vehicle. When the one you want has no package, for example a truck released in the last game update or a vehicle from a community mod, make it yourself with <Ui id="custom-open" />. You give TruckPaint the template files and the game data, and it builds and installs a package, checked exactly like any other.
+
+## Open the Custom Vehicle dialog
+
+<Ui id="custom-open" /> is offered in three places:
+
+- under the vehicle list of <Ui id="home-new-project" />;
+- in <Ui id="cmd-add-vehicle" />, where the game is the project's game and can't be changed;
+- in the [Vehicle Library](../library/).
+
+## Describe the vehicle
+
+Fill in:
+
+- <Ui id="custom-name" /> and <Ui id="custom-brand" />, both required;
+- <Ui id="custom-kind" />: truck or trailer;
+- <Ui id="custom-game" />: ETS2 or ATS;
+- <Ui id="custom-game-path" />: the vehicle's path in the game's definitions, such as `scania.r_2016`;
+- <Ui id="custom-game-versions" />, optional: leave it empty for any version, or type a range such as `>=1.53`;
+- <Ui id="custom-alt-uv" /> and <Ui id="custom-colour-picker" />, unchecked unless the vehicle's paint jobs use them (some ATS trucks use the alternate UV set).
+
+## Add the templates
+
+Drop the game's template files on the dialog, or click <Ui id="custom-add-templates" />. TruckPaint reads PNG, SVG and DDS files (BC1, BC2, BC3, or uncompressed RGB and RGBA). Each file becomes one texture row with:
+
+- its name, taken from the file name, which you can edit;
+- its role, <Ui id="custom-role-main" /> or <Ui id="custom-role-accessory" />. The first file becomes the main texture, the next ones accessories; change the role if needed;
+- its game ids;
+- its size, taken from the image and rounded to a power of two from 64 to 8192. The row warns you when the template will be scaled.
+
+<Ui id="custom-row-replace" /> picks another file for a row, and the remove button takes the row away. A file that can't be read is not added, and the dialog says why.
+
+<Shot name="vehicles/custom-vehicle" alt="The Custom Vehicle dialog filled in with a name, a brand, a game path and two PNG templates" />
+
+## Give the game ids
+
+The game ids tell the game what each texture paints, so the mod can work:
+
+- **A truck whose cabins share one layout** has one main texture. Leave its game ids empty: it is painted on every cabin.
+- **A truck whose cabins have different layouts** has one main texture per layout. Each one needs the internal names of the cabins that use it.
+- **A trailer** has exactly one main texture.
+- **Every accessory** needs the accessory ids it covers, such as `mirror.painted`.
+
+The dialog checks the form as you type and shows each problem next to its field. <Ui id="custom-create" /> is enabled once there is none.
+
+## Create it
+
+Click <Ui id="custom-create" />. TruckPaint builds the package, version 1.0.0, converting DDS templates to PNG, and installs it in your library. You are back in the dialog you came from: in <Ui id="home-new-project" /> and <Ui id="cmd-add-vehicle" />, the new vehicle is checked, with its first main texture and its accessories; in the Vehicle Library, it is listed.
+
+The package's id is made from the brand and the name: "R 2024" by "Scania" gives `custom.scania.r_2024`. If that id is already installed, TruckPaint refuses to create it again: make a new version instead.
+
+:::caution
+Templates from the base games belong to SCS Software. Use them for your own liveries, and check their license before you share a package.
+:::
+
+## Make a new version after a game update
+
+When a game update changes your vehicle, open the [Vehicle Library](../library/), choose the vehicle and click <Ui id="vehicles-new-version" />. The Custom Vehicle dialog opens, filled in from the newest version, with a <Ui id="custom-version" /> field that proposes the next one (1.0.0 gives 1.1.0).
+
+Replace the templates that changed, add or remove rows, then click <Ui id="custom-create" />. The new version is installed next to the old one. A texture whose template you replaced is marked as having a new layout, so in your projects <Ui id="cmd-update-template" /> moves the vehicle to the new version and tells you which textures to check.
+
+To share a custom vehicle, use <Ui id="vehicles-export" /> in the Vehicle Library: it saves a `.tpv` file that anyone can install.

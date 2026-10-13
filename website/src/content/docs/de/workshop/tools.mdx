@@ -1,0 +1,97 @@
+---
+title: Zeichenwerkzeuge
+description: Zeichnen Sie Formen, Sterne, Pfade und Linien auf eine Textur und wählen Sie sie aus, verschieben, skalieren, drehen, ausrichten und kombinieren Sie sie.
+sidebar:
+  order: 2
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Die Werkzeuge zeichnen Vektorformen auf die aktive Textur. Größen und Positionen werden in Texturpixeln angegeben: Ein 512 px breites Band ist 512 Pixel der exportierten Textur, unabhängig vom Zoom. Fahren Sie in der Werkzeugleiste über ein Werkzeug, um seinen Namen und seine Tastenkombination zu sehen.
+
+Neue Formen übernehmen Fläche und Kontur, die der Inspektor ohne Auswahl anzeigt (siehe [Farbe und Verläufe](../color-and-gradients/)), und landen oben in der aktiven Ebene.
+
+## Rechtecke und Ellipsen zeichnen
+
+1. Wählen Sie das Werkzeug <Ui id="tool-rectangle" /> oder <Ui id="tool-ellipse" />.
+2. Ziehen Sie auf der Textur. Halten Sie Umschalt für ein Quadrat oder einen Kreis und Alt (Wahltaste unter macOS), um von der Mitte aus zu zeichnen.
+3. Lassen Sie los. Die Form ist ausgewählt, und das Werkzeug bleibt für die nächste aktiv.
+
+Drücken Sie während des Ziehens Esc, um abzubrechen. Die Ecken eines Rechtecks runden Sie mit <Ui id="props-corner-radius" /> im Abschnitt <Ui id="inspector-appearance" /> des Inspektors ab.
+
+<Clip name="workshop/draw-rectangle" label="Das Rechteck-Werkzeug wird gewählt und ein Rechteck auf der Textur aufgezogen" />
+
+## Polygone und Sterne zeichnen
+
+Ziehen Sie mit dem Werkzeug <Ui id="tool-polygon" /> einen Rahmen auf: Das Polygon füllt ihn aus, mit dem ersten Punkt oben. Umschalt hält es regelmäßig. Stellen Sie <Ui id="props-sides" /> (3 bis 12), <Ui id="props-star" /> und <Ui id="props-inner-radius" /> vor dem Zeichnen in der Werkzeugoptionsleiste über der Arbeitsfläche ein. Sind Polygone ausgewählt, erscheinen dieselben Einstellungen im Abschnitt <Ui id="inspector-polygon" /> des Inspektors und ändern sie direkt.
+
+## Pfade mit dem Zeichenstift zeichnen
+
+1. Wählen Sie das Werkzeug <Ui id="tool-pen" />.
+2. Klicken Sie, um Eckpunkte hinzuzufügen. Klicken und ziehen Sie, um einen Übergangspunkt mit Kurvengriffen hinzuzufügen. Umschalt hält den neuen Punkt und seine Griffe in 45°-Schritten.
+3. Klicken Sie auf den ersten Punkt, um die Form zu schließen, oder drücken Sie Eingabe oder Esc, um den Pfad offen zu lassen.
+
+Rücktaste oder Strg+Z (⌘Z unter macOS) entfernt beim Zeichnen den letzten Punkt.
+
+<Clip name="workshop/draw-path" label="Mit dem Zeichenstift werden vier Punkte gesetzt und dann der erste angeklickt, um die Form zu schließen" />
+
+## Linien zeichnen
+
+Ziehen Sie mit dem Werkzeug <Ui id="tool-line" /> von einem Ende zum anderen; Umschalt rastet den Winkel in 45°-Schritten ein, und Alt zeichnet von der Mitte aus. Linien und offene Pfade werden mit der Flächenfarbe gemalt. Ihre Stärke ist das Feld <Ui id="field-width" /> im Inspektor (anfangs 8 px); klicken Sie darauf, um <Ui id="line-dashed" />, <Ui id="line-cap" /> und <Ui id="line-join" /> einzustellen.
+
+<Shot name="workshop/shapes-paths" alt="Sterne, ein Polygon, ein geschwungener Pfad mit einem Loch und offene Linien auf einer Textur." />
+
+## Auswählen, verschieben, skalieren und drehen
+
+Mit dem Werkzeug <Ui id="tool-selection" />:
+
+- **Klicken** Sie auf ein Objekt, um es auszuwählen; ein Klick auf ein Objekt in einer Gruppe wählt die Gruppe aus, Strg-Klick das Objekt selbst. **Umschalt-Klick** fügt hinzu oder entfernt. **Ziehen** Sie auf einer leeren Stelle der Arbeitsfläche, um mit einem Auswahlrahmen auszuwählen. <Ui id="cmd-select-all" /> ist Strg+A, Esc hebt die Auswahl auf.
+- **Ziehen** Sie die Auswahl, um sie zu verschieben; Umschalt hält die Bewegung gerade oder in 45°-Schritten. Die Pfeiltasten verschieben um 1 px, mit Umschalt um 10 px.
+- **Ziehen Sie einen Griff**, um die Größe zu ändern: Umschalt behält die Proportionen bei, Alt skaliert von der Mitte aus.
+- **Ziehen Sie knapp außerhalb einer Ecke**, um zu drehen; Umschalt rastet in 15°-Schritten ein.
+
+<Clip name="workshop/move-resize" label="Die Ellipse wird angeklickt, verschoben und dann an einem Eckgriff gezogen" />
+
+Für genaue Werte geben Sie diese im Abschnitt <Ui id="inspector-layout" /> des Inspektors ein: <Ui id="transform-x" />, <Ui id="transform-y" />, <Ui id="field-width" />, <Ui id="field-height" />, <Ui id="transform-rotation" /> und <Ui id="transform-scale" />. Sie können auch auf der Beschriftung eines Felds ziehen, um seinen Wert zu ändern.
+
+<Ui id="cmd-duplicate" /> (Strg+D), <Ui id="cmd-copy" />, <Ui id="cmd-paste" /> und <Ui id="cmd-delete" /> finden Sie im Menü <Ui id="menu-edit" />. Kopierte Objekte lassen sich auf einer anderen Textur oder in einem anderen Projekt einfügen.
+
+## Punkte bearbeiten
+
+Das Werkzeug <Ui id="tool-direct-selection" /> zeigt die Punkte eines Pfads. Klicken Sie auf einen Punkt (Umschalt-Klick für weitere) und ziehen Sie ihn oder seine Griffe; Alt-Ziehen an einem Griff macht aus einem Übergangspunkt einen Eckpunkt. Ein Doppelklick auf einen Punkt wechselt zwischen Eck- und Übergangspunkt, ein Doppelklick auf ein Segment fügt einen Punkt hinzu, und Entf entfernt die ausgewählten Punkte.
+
+Rechtecke, Ellipsen und Polygone haben keine bearbeitbaren Punkte, bis Sie <Ui id="menu-object" /> › <Ui id="cmd-convert-to-path" /> wählen.
+
+## Elemente ausrichten
+
+- **Einrasten** zieht, was Sie verschieben oder zeichnen, an das Raster, an Hilfslinien, an Ränder und Mitte der Textur sowie an Kanten und Mitten anderer Objekte. Schalten Sie es mit <Ui id="menu-view" /> › <Ui id="cmd-snapping" /> oder in der Statusleiste um; halten Sie beim Ziehen Strg, um es zu ignorieren.
+- **Hilfslinien:** Ziehen Sie aus einem Lineal auf die Arbeitsfläche. Ziehen Sie eine Hilfslinie zurück auf ein Lineal, um sie zu löschen. <Ui id="cmd-show-guides" /> und <Ui id="cmd-clear-guides" /> stehen im Menü <Ui id="menu-view" />.
+- **Raster:** <Ui id="menu-view" /> › <Ui id="cmd-show-grid" />. Den <Ui id="prefs-grid-spacing" /> legen Sie in <Ui id="cmd-preferences" /> fest (standardmäßig 64 px).
+
+Hilfslinien und Raster werden nie exportiert.
+
+## Ausrichten und verteilen
+
+Wählen Sie Objekte aus und verwenden Sie die Schaltflächen im Abschnitt <Ui id="inspector-layout" /> oder <Ui id="menu-object" /> › <Ui id="menu-align" />. <Ui id="transform-align-to" /> wählt die Referenz: <Ui id="align-to-selection" />, <Ui id="align-to-artboard" /> (die ganze Textur, praktisch, um ein Logo zu zentrieren) oder <Ui id="align-to-key-object" /> (das zuletzt ausgewählte Objekt). Zum Verteilen braucht es drei oder mehr Objekte.
+
+## Formen kombinieren
+
+Wählen Sie zwei oder mehr Formen aus und wählen Sie <Ui id="menu-object" /> › <Ui id="menu-combine" />:
+
+| Befehl | Ergebnis |
+|---|---|
+| <Ui id="op-unite" /> (Strg+Umschalt+U) | eine Form, die alle abdeckt |
+| <Ui id="op-minus-front" /> (Strg+Umschalt+-) | die unterste Form, beschnitten durch die Formen darüber |
+| <Ui id="op-intersect" /> | nur dort, wo sich alle überlappen |
+| <Ui id="op-exclude" /> | dort, wo sie sich nicht überlappen |
+
+Das Ergebnis ist ein Pfad. Texte müssen zuerst durch <Ui id="cmd-create-outlines" />; Bilder und offene Linien lassen sich nicht kombinieren.
+
+## Spiegeln
+
+<Ui id="op-flip-horizontal" /> (Umschalt+H) und <Ui id="op-flip-vertical" /> (Umschalt+V), im Menü <Ui id="menu-object" /> und im Inspektor, spiegeln die Auswahl an Ort und Stelle.
+
+## Konturen
+
+Die Zeile <Ui id="panel-stroke" /> im Inspektor fügt Formen und Texten eine Kontur hinzu, innen, außen oder mittig auf der Kante. Siehe [Farbe und Verläufe](../color-and-gradients/).

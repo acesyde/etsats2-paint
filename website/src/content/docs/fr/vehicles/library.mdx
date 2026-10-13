@@ -1,0 +1,57 @@
+---
+title: La bibliothèque de véhicules
+description: Consultez les véhicules installés dans TruckPaint, installez-en de nouveaux, partagez-les et supprimez les anciennes versions.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+TruckPaint peint les véhicules qu’il connaît grâce aux **paquets de véhicules**. Un paquet (un fichier `.tpv`) décrit un camion ou une remorque : les gabarits de ses textures, et les données de jeu dont un mod a besoin, comme le chemin du véhicule dans le jeu, les noms internes de ses cabines et les identifiants de ses accessoires. Chaque paquet a une version, pour qu’un véhicule puisse suivre les mises à jour du jeu.
+
+Vos véhicules viennent de quatre sources :
+
+- les **véhicules officiels** du jeu, que TruckPaint crée à partir du pack de gabarits de Carsmaniac : voir [Véhicules officiels](../official-vehicles/) ;
+- les **véhicules d’exemple** fournis avec TruckPaint, un camion et une remorque dessinés pour lui, pour essayer l’application sans fichiers du jeu ;
+- les **véhicules personnalisés** que vous créez vous-même à partir de fichiers de gabarit : voir [Véhicules personnalisés](../custom-vehicles/) ;
+- les fichiers `.tpv` que quelqu’un a partagés avec vous.
+
+## Ouvrir la bibliothèque de véhicules
+
+Choisissez <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" />. Cela fonctionne aussi depuis l’écran d’accueil, sans projet ouvert.
+
+<Shot name="vehicles/library" alt="La boîte de dialogue Bibliothèque de véhicules, avec la liste des véhicules installés à gauche et les détails du véhicule choisi à droite" />
+
+La boîte de dialogue a deux onglets : <Ui id="vehicles-section-installed" />, avec tous les véhicules installés, et un second onglet avec uniquement vos véhicules personnalisés. Chaque onglet indique combien de véhicules il contient. Au-dessus de la liste, recherchez par nom ou par marque, et filtrez par jeu et par type.
+
+Chaque ligne affiche le nom du véhicule, sa marque, son type et son jeu, sa version installée la plus récente, et un statut :
+
+- <Ui id="vehicles-status-custom" /> : un véhicule que vous avez créé avec <Ui id="custom-open" /> ;
+- <Ui id="vehicles-status-update" /> : le projet ouvert utilise une version de ce véhicule plus ancienne que la plus récente installée ;
+- <Ui id="vehicles-status-current" /> : tous les autres cas.
+
+## Lire les détails d’un véhicule
+
+Cliquez sur un véhicule pour voir ses détails à droite : un aperçu de son gabarit, son nom, sa marque, son type et son jeu, les versions du jeu qu’il prend en charge, et sa peinture (les noms de ses textures principales et son nombre d’accessoires).
+
+Sous <Ui id="vehicles-installed-versions" />, toutes les versions installées du véhicule sont listées. Plusieurs versions peuvent être installées côte à côte : un projet garde la version avec laquelle il a été créé jusqu’à ce que vous le mettiez à jour.
+
+## Installer un paquet
+
+Cliquez sur <Ui id="vehicles-install" /> et choisissez un ou plusieurs fichiers `.tpv`. Vous pouvez aussi déposer des fichiers `.tpv` sur l’écran d’accueil ou sur un projet ouvert. Une confirmation nomme chaque véhicule et chaque version installés. Installer une version déjà présente la remplace.
+
+Quand aucun véhicule n’est installé, la bibliothèque explique ce que sont les paquets et propose <Ui id="vehicles-install-sample" />.
+
+## Mettre à jour le véhicule d’un projet
+
+Quand le statut d’un véhicule indique <Ui id="vehicles-status-update" />, ses détails proposent <Ui id="cmd-update-template" />. Cela ferme la bibliothèque et passe ce véhicule du projet ouvert à la version plus récente : les gabarits sont remplacés et votre motif est conservé. Les textures dont la disposition a changé sont marquées à vérifier. Vous pouvez aussi lancer la mise à jour depuis la carte du véhicule dans l’[espace Projet](../../fleet/project/).
+
+## Partager ou supprimer une version
+
+À côté de chaque version installée :
+
+- <Ui id="vehicles-export" /> enregistre cette version dans un fichier `.tpv`, à donner à un ami ou à garder en sauvegarde. Les gabarits issus des jeux de base appartiennent à SCS Software : vérifiez que vous avez le droit de les partager.
+- <Ui id="vehicles-remove" /> supprime cette version de la bibliothèque, après confirmation. Vos projets ne sont jamais modifiés : chaque projet garde une copie de ses gabarits.
+
+Un véhicule personnalisé propose aussi <Ui id="vehicles-new-version" />, pour créer sa version suivante après une mise à jour du jeu : voir [Véhicules personnalisés](../custom-vehicles/).

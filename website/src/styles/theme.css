@@ -1,0 +1,116 @@
+/*
+ * The app's look on Starlight: fonts from assets/fonts and the --tp-*
+ * color tokens (tokens.css, generated from tp-ui) mapped to Starlight's
+ * variables. This is the only place where the two meet.
+ */
+
+@font-face {
+	font-family: 'Geist';
+	src: url('../fonts/Geist-Regular.ttf') format('truetype');
+	font-weight: 400;
+	font-display: swap;
+}
+@font-face {
+	font-family: 'Geist';
+	src: url('../fonts/Geist-Medium.ttf') format('truetype');
+	font-weight: 500;
+	font-display: swap;
+}
+@font-face {
+	font-family: 'Geist';
+	src: url('../fonts/Geist-SemiBold.ttf') format('truetype');
+	font-weight: 600 700;
+	font-display: swap;
+}
+@font-face {
+	font-family: 'JetBrains Mono';
+	src: url('../fonts/JetBrainsMono-Regular.ttf') format('truetype');
+	font-weight: 400;
+	font-display: swap;
+}
+@font-face {
+	font-family: 'JetBrains Mono';
+	src: url('../fonts/JetBrainsMono-Medium.ttf') format('truetype');
+	font-weight: 500 700;
+	font-display: swap;
+}
+
+:root,
+:root[data-theme='light'] {
+	--sl-font: 'Geist', system-ui, sans-serif;
+	--sl-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+	/* Text levels, from strongest to faintest. */
+	--sl-color-white: var(--tp-text-primary);
+	--sl-color-gray-1: var(--tp-text-primary);
+	--sl-color-gray-2: var(--tp-text-secondary);
+	--sl-color-gray-3: var(--tp-text-muted);
+	--sl-color-gray-4: var(--tp-text-disabled);
+	--sl-color-gray-5: var(--tp-border-strong);
+	--sl-color-gray-6: var(--tp-surface-2);
+	--sl-color-gray-7: var(--tp-surface-0);
+	--sl-color-black: var(--tp-surface-1);
+
+	/* The primary accent marks the current page and primary buttons, as the
+	   active segment and primary button do in the app; links use the link
+	   accent. */
+	--sl-color-accent-low: var(--tp-chip);
+	--sl-color-accent: var(--tp-accent-primary);
+	--sl-color-accent-high: var(--tp-text-primary);
+	--sl-color-text-accent: var(--tp-link);
+	--sl-color-text-invert: var(--tp-text-on-primary);
+
+	--sl-color-bg: var(--tp-surface-0);
+	--sl-color-bg-nav: var(--tp-surface-1);
+	--sl-color-bg-sidebar: var(--tp-surface-1);
+	--sl-color-bg-inline-code: var(--tp-control);
+	--sl-color-bg-accent: var(--tp-accent-primary);
+	--sl-color-hairline-light: var(--tp-border);
+	--sl-color-hairline: var(--tp-border);
+	--sl-color-hairline-shade: var(--tp-border-strong);
+
+	--sl-color-red: var(--tp-error);
+	--sl-color-red-high: var(--tp-error);
+	--sl-color-orange: var(--tp-warning);
+	--sl-color-orange-high: var(--tp-warning);
+	--sl-color-green: var(--tp-success);
+	--sl-color-green-high: var(--tp-success);
+	--sl-color-blue: var(--tp-link);
+	--sl-color-blue-high: var(--tp-link);
+}
+
+/* Screenshots and animations show the app as it is, dark. */
+.tp-media {
+	display: block;
+	width: 100%;
+	height: auto;
+	border-radius: 10px;
+	border: 1px solid var(--tp-outline);
+	background: #1c1c1f;
+}
+:root[data-theme='light'] .tp-media {
+	box-shadow: 0 4px 18px rgb(0 0 0 / 0.12);
+}
+
+/* An interface label quoted in the text, like the app's controls. */
+.tp-ui {
+	font-weight: 500;
+	white-space: nowrap;
+	padding: 0.05em 0.4em;
+	border-radius: 4px;
+	background: var(--tp-control);
+	border: 1px solid var(--tp-border-strong);
+	color: var(--tp-text-primary);
+}
+
+/* The current page is marked like the app's active segment: the primary
+   accent with its own text color, not the link blue. */
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover,
+.sidebar-content a[aria-current='page']:focus {
+	background-color: var(--tp-accent-primary);
+	color: var(--tp-text-on-primary);
+}
+.site-title {
+	color: var(--tp-text-primary);
+}

@@ -1,0 +1,57 @@
+---
+title: Die Fahrzeugbibliothek
+description: Sehen Sie die in TruckPaint installierten Fahrzeuge, installieren Sie neue, teilen Sie sie und entfernen Sie alte Versionen.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+TruckPaint lackiert Fahrzeuge, die es über **Fahrzeugpakete** kennt. Ein Paket (eine `.tpv`-Datei) beschreibt einen Lkw oder Anhänger: die Vorlagen seiner Texturen und die Spieldaten, die ein Mod braucht, etwa den Pfad des Fahrzeugs im Spiel, die internen Namen seiner Kabinen und die Kennungen seiner Zubehörteile. Jedes Paket hat eine Version, damit ein Fahrzeug den Updates des Spiels folgen kann.
+
+Ihre Fahrzeuge stammen aus vier Quellen:
+
+- die **offiziellen Fahrzeuge** des Spiels, die TruckPaint aus dem Vorlagenpaket von Carsmaniac erstellt: siehe [Offizielle Fahrzeuge](../official-vehicles/);
+- die **Beispielfahrzeuge**, die mit TruckPaint geliefert werden, ein eigens dafür gezeichneter Lkw und Anhänger, um die App ohne Spieldateien auszuprobieren;
+- **eigene Fahrzeuge**, die Sie selbst aus Vorlagendateien erstellen: siehe [Eigene Fahrzeuge](../custom-vehicles/);
+- `.tpv`-Dateien, die jemand mit Ihnen geteilt hat.
+
+## Die Fahrzeugbibliothek öffnen
+
+Wählen Sie <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" />. Das funktioniert auch auf dem Startbildschirm, ohne geöffnetes Projekt.
+
+<Shot name="vehicles/library" alt="Der Dialog Fahrzeugbibliothek, links die Liste der installierten Fahrzeuge, rechts die Details des gewählten Fahrzeugs" />
+
+Der Dialog hat zwei Registerkarten: <Ui id="vehicles-section-installed" /> mit allen installierten Fahrzeugen und eine zweite nur mit Ihren eigenen Fahrzeugen. Jede Registerkarte zeigt, wie viele Fahrzeuge sie enthält. Über der Liste suchen Sie nach Name oder Marke und filtern nach Spiel und Art.
+
+Jede Zeile zeigt Name, Marke, Art und Spiel des Fahrzeugs, seine neueste installierte Version und einen Status:
+
+- <Ui id="vehicles-status-custom" />: ein Fahrzeug, das Sie mit <Ui id="custom-open" /> erstellt haben;
+- <Ui id="vehicles-status-update" />: Das geöffnete Projekt verwendet eine ältere Version dieses Fahrzeugs als die neueste installierte;
+- <Ui id="vehicles-status-current" />: alle übrigen.
+
+## Die Details eines Fahrzeugs lesen
+
+Klicken Sie auf ein Fahrzeug, um rechts seine Details zu sehen: eine Vorschau seiner Vorlage, Name, Marke, Art und Spiel, die unterstützten Spielversionen und seine Lackierung (die Namen seiner Haupttexturen und die Anzahl seiner Zubehörteile).
+
+Unter <Ui id="vehicles-installed-versions" /> ist jede installierte Version des Fahrzeugs aufgeführt. Mehrere Versionen können nebeneinander installiert sein: Ein Projekt behält die Version, mit der es erstellt wurde, bis Sie es aktualisieren.
+
+## Ein Paket installieren
+
+Klicken Sie auf <Ui id="vehicles-install" /> und wählen Sie eine oder mehrere `.tpv`-Dateien. Sie können `.tpv`-Dateien auch auf den Startbildschirm oder auf ein geöffnetes Projekt ziehen. Eine Bestätigung nennt jedes installierte Fahrzeug und seine Version. Wird eine bereits vorhandene Version installiert, ersetzt sie die alte.
+
+Ist kein Fahrzeug installiert, erklärt die Bibliothek, was Pakete sind, und bietet <Ui id="vehicles-install-sample" /> an.
+
+## Das Fahrzeug eines Projekts aktualisieren
+
+Lautet der Status eines Fahrzeugs <Ui id="vehicles-status-update" />, bieten seine Details <Ui id="cmd-update-template" /> an. Damit schließt sich die Bibliothek, und dieses Fahrzeug des geöffneten Projekts wechselt zur neueren Version: Die Vorlagen werden ersetzt, Ihre Grafik bleibt erhalten. Texturen, deren Layout sich geändert hat, werden zur Prüfung markiert. Sie können die Aktualisierung auch über die Karte des Fahrzeugs im [Bereich Projekt](../../fleet/project/) starten.
+
+## Eine Version teilen oder entfernen
+
+Neben jeder installierten Version:
+
+- <Ui id="vehicles-export" /> speichert diese Version als `.tpv`-Datei, um sie einem Freund zu geben oder als Sicherung aufzubewahren. Vorlagen aus den Basisspielen gehören SCS Software: Prüfen Sie, ob Sie sie weitergeben dürfen.
+- <Ui id="vehicles-remove" /> löscht diese Version nach einer Bestätigung aus der Bibliothek. Ihre Projekte werden nie verändert: Jedes Projekt behält eine Kopie seiner Vorlagen.
+
+Ein eigenes Fahrzeug bietet außerdem <Ui id="vehicles-new-version" />, um nach einem Spielupdate seine nächste Version zu erstellen: siehe [Eigene Fahrzeuge](../custom-vehicles/).

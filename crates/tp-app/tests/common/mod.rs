@@ -2,6 +2,8 @@
 
 #![allow(dead_code)]
 
+pub mod scenes;
+
 use egui::Vec2;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -60,6 +62,23 @@ pub fn harness() -> Harness<'static, AppState> {
 pub fn wgpu_harness_with(prefs: Prefs, size: Vec2) -> Harness<'static, AppState> {
     builder()
         .with_size(size)
+        .wgpu()
+        .build_ui_state(|ui, state: &mut AppState| state.show(ui), state(prefs))
+}
+
+/// Same, at `pixels_per_point`, with each step advancing time by `step_dt`
+/// seconds (documentation media: sharp images, animations at a fixed frame
+/// rate).
+pub fn wgpu_harness_hidpi(
+    prefs: Prefs,
+    size: Vec2,
+    pixels_per_point: f32,
+    step_dt: f32,
+) -> Harness<'static, AppState> {
+    builder()
+        .with_size(size)
+        .with_pixels_per_point(pixels_per_point)
+        .with_step_dt(step_dt)
         .wgpu()
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state(prefs))
 }

@@ -1,0 +1,47 @@
+---
+title: Export a texture
+description: Save the active texture as a PNG or DDS image, at full size or smaller, on a colored or transparent background.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Ui from '~/components/Ui.astro';
+
+To put your paint job in the game, [export the mod](../mod/): it writes every texture of the fleet for you. Export a single texture when you want to look at it in an image editor, share a preview, or build a mod by hand.
+
+## Export the active texture
+
+1. Open the texture you want in the Workshop.
+2. Choose <Ui id="menu-file" /> › <Ui id="cmd-export-texture" />, or press <kbd>Shift</kbd>+<kbd>Ctrl</kbd>+<kbd>E</kbd> (<kbd>⌘</kbd> on macOS).
+3. Pick the format, size and background, and check the preview.
+4. Click <Ui id="export-start" />, then choose where to save the file.
+
+<Shot name="export/export-texture" alt="The Export Texture dialog with its preview, the PNG and DDS formats, the size options and the background" />
+
+The proposed file name reads "project name - vehicle name - texture name", with the format's extension.
+
+<kbd>Ctrl</kbd>+<kbd>E</kbd> without Shift opens <Ui id="cmd-export-mod" /> instead.
+
+## Choose the settings
+
+- **<Ui id="export-format" />:** PNG, or DDS, the format the games read.
+- **<Ui id="export-size" />:** the texture's full size by default, or half or a quarter of it, for a lighter file.
+- **<Ui id="export-background" />:** white by default. Click the color to choose another one, or check <Ui id="export-transparent" /> to keep the areas without artwork transparent; the preview then shows a checkerboard there.
+- **<Ui id="export-dds-encoding" />** (DDS only): <Ui id="export-dds-bc3" />, compressed with transparency kept, or <Ui id="export-dds-rgba" />, larger but exact.
+
+The preview shows exactly what will be written, with the pixel size, the format and an estimated file size. It updates as you change the settings. The dialog remembers your last choices until you quit TruckPaint.
+
+## What ends up in the image
+
+- Everything visible on the texture, drawn as on the canvas: colors, gradients, strokes, drop shadows, texts and images. SVG logos stay sharp at any size.
+- Locked objects are included; hidden objects and hidden groups are not.
+- The template is **never** exported: it only guides you while you paint.
+- Anything that sticks out of the texture is cut at its edges.
+
+A DDS file comes with all its mipmaps, the smaller copies the game uses for distant vehicles.
+
+## While it exports
+
+Large textures take a moment. The dialog shows the progress with a <Ui id="button-cancel" /> button; cancelling leaves no partial file behind. When the export is done, a message names the file. Exporting never changes your project: it stays saved if it was saved.
+
+While you are editing a symbol, <Ui id="cmd-export-texture" /> is disabled: click <Ui id="symbol-bar-done" /> first to go back to a texture.

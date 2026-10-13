@@ -1,0 +1,34 @@
+---
+title: TruckPaint
+description: Design the paint jobs of your fleet for Euro Truck Simulator 2 and American Truck Simulator, and export them as a ready-to-install mod.
+template: splash
+hero:
+  tagline: Design the paint jobs of your fleet for Euro Truck Simulator 2 and American Truck Simulator, and export them as a ready-to-install mod.
+  actions:
+    - text: Get started
+      link: getting-started/installation/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/acesyde/etsats2-paint
+      icon: external
+      variant: minimal
+---
+import { Card, CardGrid } from '@astrojs/starlight/components';
+import Clip from '~/components/Clip.astro';
+
+<Clip name="workshop/draw-rectangle" label="Drawing a rectangle on a truck's texture in the Workshop" />
+
+<CardGrid>
+	<Card title="Pick your vehicles" icon="rocket">
+		Start from an official truck or trailer, or bring your own templates. A project is a fleet of one game.
+	</Card>
+	<Card title="Paint on the template" icon="pencil">
+		Shapes, paths, text, images and gradients, drawn on each texture over the vehicle's template.
+	</Card>
+	<Card title="Share your brand" icon="star">
+		A palette, styles and symbols shared by the whole fleet: change a color once, every texture follows.
+	</Card>
+	<Card title="Export the mod" icon="document">
+		One click writes the whole fleet as a ready-to-install mod for the game's Mod Manager.
+	</Card>
+</CardGrid>

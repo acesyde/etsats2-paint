@@ -1,0 +1,58 @@
+---
+title: Votre premier projet
+description: Créez un projet sur le camion d’exemple de TruckPaint, faites le tour de l’interface et enregistrez-le.
+sidebar:
+  order: 3
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Dans TruckPaint, un projet est la peinture d’une flotte : un ou plusieurs camions et remorques d’**un seul jeu**, ETS2 ou ATS, exportés ensemble en un seul mod. Chaque projet part d’un véhicule, car une livrée doit correspondre aux textures d’un véhicule : il n’existe pas de projet vierge.
+
+Cette page utilise le **TruckPaint Sample Truck**, fourni avec l’application et qui ne nécessite aucun fichier du jeu. Tout fonctionne de la même façon avec n’importe quel autre véhicule.
+
+<Clip name="getting-started/create-project" label="Depuis l’écran d’accueil, Nouveau projet s’ouvre, le camion d’exemple est coché dans la liste, et Créer le projet ouvre le nouveau projet" />
+
+## Créer votre premier projet
+
+1. Sur l’écran d’accueil, cliquez sur <Ui id="home-new-project" /> (Ctrl+N, ⌘ sous macOS).
+2. Sous <Ui id="vehicles-game-filter" />, gardez **ETS2** : les véhicules d’exemple sont faits pour lui. La liste n’affiche que les véhicules du jeu choisi.
+3. Si aucun véhicule n’est encore installé, cliquez sur <Ui id="vehicles-install-sample" /> sous la liste. Cela installe le camion et la remorque d’exemple, sans aucun téléchargement.
+4. Cliquez sur la ligne **TruckPaint Sample Truck** pour la cocher. Sa carte s’ouvre à droite, sous <Ui id="new-project-fleet" />.
+5. Cochez sur la carte ce que vous voulez peindre :
+   - sous <Ui id="new-project-cabins" />, une puce par disposition de cabine du camion. La première est cochée ; cliquez sur une autre pour la peindre aussi ;
+   - sous <Ui id="vehicles-accessories" />, les accessoires, tous cochés au départ.
+
+   <Ui id="new-project-created" /> liste toutes les textures que le projet recevra, avec leur taille.
+6. Saisissez un <Ui id="new-project-name" />, ou laissez-le vide pour nommer le projet d’après le véhicule.
+7. Cliquez sur <Ui id="new-project-create" />.
+
+<Shot name="getting-started/new-project" alt="La boîte de dialogue Nouveau projet, avec le camion d’exemple coché dans la liste des véhicules et sa carte ouverte sous Votre flotte" />
+
+Vous pouvez cocher plusieurs véhicules à la fois, camions et remorques, et en ajouter d’autres plus tard : rien de ce que vous choisissez ici n’est définitif. Voir [Camions et remorques](../../fleet/trucks-and-trailers/).
+
+:::tip[Ce n’est pas le véhicule que vous voulez ?]
+La liste affiche aussi les véhicules **officiels** du jeu, créés à partir d’un pack de gabarits gratuit : voir [Véhicules officiels](../../vehicles/official-vehicles/). Pour un véhicule qui n’a pas de paquet, comme un camion issu d’un mod, utilisez <Ui id="custom-open" /> sous la liste : voir [Véhicules personnalisés](../../vehicles/custom-vehicles/).
+:::
+
+## Faire le tour
+
+Le projet s’ouvre dans l’espace <Ui id="cmd-space-project" /> : votre flotte à gauche, avec une carte par véhicule et une ligne par texture, et les informations du mod à droite.
+
+<Shot name="getting-started/first-project" alt="L’espace Projet du nouveau projet, avec la carte du camion d’exemple listant ses textures, toutes vides" />
+
+Chaque texture commence **Vide**. Cliquez sur l’une d’elles pour l’ouvrir dans l’<Ui id="cmd-space-workshop" />, où vous peignez par-dessus le gabarit du véhicule. La barre du haut permet de passer à tout moment d’un des trois espaces à l’autre : <Ui id="cmd-space-project" /> (Ctrl+1), <Ui id="cmd-space-workshop" /> (Ctrl+2) et <Ui id="cmd-space-brand" /> (Ctrl+3). Le jeu du projet est affiché à côté de son nom, et ne peut pas être changé.
+
+## Enregistrer votre projet
+
+Choisissez <Ui id="menu-file" /> › <Ui id="cmd-save" /> (Ctrl+S). La première fois, TruckPaint vous demande où enregistrer, et propose le nom du projet. Un projet est un seul fichier `.truckpaint` qui contient tout, gabarits compris : vous pouvez l’ouvrir sur un autre ordinateur même si ses véhicules n’y sont pas installés.
+
+La barre d’état affiche <Ui id="status-saved" /> ou <Ui id="status-unsaved" />. Si vous fermez le projet ou quittez avec des modifications non enregistrées, TruckPaint vous demande s’il faut d’abord les enregistrer.
+
+## Étapes suivantes
+
+- [L’espace Projet](../../fleet/project/), pour comprendre ce qu’il affiche.
+- [Outils de dessin](../../workshop/tools/), pour commencer à peindre.
+- [La palette de marque](../../brand/palette/), pour partager les couleurs de votre entreprise dans toute la flotte.
+- [Exporter le mod](../../export/mod/), quand la livrée est prête.

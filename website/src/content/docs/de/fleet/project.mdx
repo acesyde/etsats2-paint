@@ -1,0 +1,56 @@
+---
+title: Der Bereich Projekt
+description: Behalten Sie Ihre ganze Flotte im Blick, verfolgen Sie, was noch zu lackieren ist, und füllen Sie die Informationen des Mods aus.
+sidebar:
+  order: 1
+---
+import Shot from '~/components/Shot.astro';
+import Clip from '~/components/Clip.astro';
+import Ui from '~/components/Ui.astro';
+
+Der Bereich <Ui id="cmd-space-project" /> zeigt, was Ihr Projekt lackiert und was es liefert. Ein Projekt öffnet sich immer hier. Links Ihre Flotte: eine Karte pro Fahrzeug, mit seinen Texturen. Rechts die Spalte <Ui id="project-mod-information" /> mit den Einstellungen des Mods, den Sie exportieren werden.
+
+Rufen Sie ihn jederzeit über die obere Leiste auf, oder mit <Ui id="menu-view" /> › <Ui id="cmd-space-project" /> (Strg+1, ⌘ unter macOS).
+
+<Shot name="fleet/project" alt="Der Bereich Projekt einer Flotte mit dem Beispiel-Lkw mit zwei Kabinen und dem Beispielanhänger, rechts die Spalte Mod-Informationen" />
+
+## Den Fortschritt verfolgen
+
+Die Kopfzeile <Ui id="panel-vehicle" /> zählt die Fahrzeuge und Texturen des Projekts und wie viele davon Geändert oder Zu prüfen sind. Jede Textur hat einen von drei Zuständen:
+
+- <Ui id="texture-state-empty" />: Es ist noch nichts darauf gemalt. Eine leere Textur wird in der Farbe des Spiels exportiert.
+- <Ui id="texture-state-modified" />: Sie enthält Grafik.
+- <Ui id="texture-state-to-check" />: Ein Vorlagenupdate hat ihr Layout geändert, oder die neue Version enthält sie nicht mehr. Fahren Sie über den Zustand, um den Grund zu sehen.
+
+Der Filter in der Kopfzeile grenzt die Liste ein: <Ui id="project-filter-all" />, <Ui id="project-filter-to-do" /> (leere oder zu prüfende Texturen) oder <Ui id="project-filter-to-check" />. Er blendet Texturen aus, nie Fahrzeuge: Ein Fahrzeug, bei dem nichts mehr offen ist, zeigt <Ui id="project-nothing-to-do" />.
+
+## Eine Fahrzeugkarte lesen
+
+Jede Karte zeigt:
+
+- eine Miniatur der ersten lackierten Haupttextur des Fahrzeugs;
+- seinen Namen, seine Art und die Version seines Pakets. Fahren Sie über die Version, um zu sehen, welche Spielversionen es unterstützt;
+- bei einem Lkw die <Ui id="project-cabins" />, die es lackiert. Fahren Sie darüber, um die internen Namen der Kabinen im Spiel zu sehen;
+- den Modus <Ui id="project-main-texture" />, der vom Fahrzeug vorgegeben ist und sich nicht ändern lässt: <Ui id="project-mode-per-layout" />, <Ui id="project-mode-every-cabin" /> oder <Ui id="project-mode-single" /> bei einem Anhänger;
+- wenn eine neuere Version des Fahrzeugs installiert ist, einen Hinweis mit <Ui id="cmd-update-template" />;
+- <Ui id="vehicles-textures" />, um zu wählen, welche Texturen des Fahrzeugs das Projekt lackiert, und ein ⋯-Menü, das auch <Ui id="vehicles-remove-from-project" /> enthält;
+- die Texturen des Fahrzeugs unter <Ui id="vehicles-main-textures" /> und <Ui id="vehicles-accessories" />, jede mit Miniatur, Art, Größe und Zustand.
+
+**Klicken Sie auf eine Textur**, um sie in der <Ui id="cmd-space-workshop" /> zu öffnen und darauf zu malen.
+
+Um ein Fahrzeug hinzuzufügen, klicken Sie in der Kopfzeile auf <Ui id="cmd-add-vehicle" />. Wie Sie Fahrzeuge und Texturen hinzufügen und entfernen, erklärt [Lkw und Anhänger](../trucks-and-trailers/).
+
+## Die Informationen des Mods ausfüllen
+
+Die Spalte <Ui id="project-mod-information" /> enthält, was das Spiel über Ihren Mod anzeigt:
+
+- <Ui id="mod-icon" /> und <Ui id="mod-image" />, aus Ihrer ersten Haupttextur erzeugt oder mit <Ui id="mod-choose-icon" /> und <Ui id="mod-choose-image" /> gewählt. Sie können auch eine PNG- oder JPEG-Datei auf ein Bild ziehen;
+- <Ui id="mod-name" />, <Ui id="mod-author" />, <Ui id="mod-version" />, <Ui id="mod-description" />, <Ui id="mod-price" /> und <Ui id="mod-unlock" />;
+- die <Ui id="project-game-versions" />, für die der Mod gedacht ist, etwa `1.56.*`. Darunter zeigt TruckPaint die Versionen, die alle Fahrzeuge der Flotte unterstützen;
+- <Ui id="mod-advanced" />, mit dem internen Namen der Lackierung.
+
+Ein Feld wird übernommen, wenn Sie Eingabe drücken oder es verlassen, und jede Änderung lässt sich rückgängig machen. Esc setzt das Feld auf seinen vorherigen Wert zurück.
+
+Ganz unten listet <Ui id="project-before-exporting" /> zuerst auf, was den Export blockiert, dann, was einen Blick verdient, etwa leere Texturen. <Ui id="project-show" /> bringt Sie zum Feld oder Fahrzeug, das korrigiert werden muss, und <Ui id="project-open" /> öffnet eine Textur in der Werkstatt. Ist alles in Ordnung, steht dort <Ui id="project-nothing-to-check" />.
+
+Das Spiel des Projekts ist nicht aufgeführt: Es wird durch das erste Fahrzeug festgelegt und in der oberen Leiste angezeigt. Ist die Flotte fertig, klicken Sie in der oberen Leiste auf <Ui id="top-bar-export" />: siehe [Den Mod exportieren](../../export/mod/).

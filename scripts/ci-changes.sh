@@ -9,7 +9,8 @@
 #
 # Prints `code=true` or `code=false` (also appended to $GITHUB_OUTPUT when
 # set). Documentation files are `*.md` anywhere and everything under
-# `openspec/` and `.claude/`; any other file counts as code. Fails safe:
+# `openspec/`, `.claude/` and `website/` (the documentation site, built and
+# deployed by its own workflow); any other file counts as code. Fails safe:
 # whenever the changed files cannot be determined, it reports code=true.
 
 set -uo pipefail
@@ -59,7 +60,7 @@ fi
 code=false
 while IFS= read -r file; do
     case "$file" in
-        *.md | openspec/* | .claude/*) ;;
+        *.md | openspec/* | .claude/* | website/*) ;;
         *)
             code=true
             break
