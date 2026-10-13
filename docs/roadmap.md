@@ -289,7 +289,6 @@ None at the moment.
 | 4 | `distribution` | Release builds and installers. Includes a macOS `.app` bundle (so the app menu's bold name reads "TruckPaint", not the binary's name), and the manual checks of the drawn title bar on Windows, Linux X11 and Wayland (moving, double-click, resize grips, window controls, menus, the system title bar option and `TRUCKPAINT_SYSTEM_TITLE_BAR=1`). | A player can go from vehicle to mod without building the app. |
 | 5 | `template-update-impact` | A template update says what it changes and which projects it touches; affected textures become "to check" and affected objects are flagged. Nothing moves automatically. Works with local packages too; builds on the To check state of `texture-status` (shipped). | Each game update brings a new template pack: `tpv catalog check` tells which official vehicles changed, and the player's projects get the To check flow. |
 | 5a | `first-run` | A three-step first launch: language and game, vehicles to install from the official catalog, first project. | The official catalog (`official-vehicles`) gives it vehicles to offer; it no longer waits for the marketplace. |
-| 6 | `user-docs` | A player documentation site (Astro Starlight in `website/`, on GitHub Pages) in the app's four languages, with screenshots and animations rendered from the app per language by a local command and committed, and the app's fonts and colors in dark and a derived light theme. | Players need a guide before `distribution` puts builds in their hands; the headless screenshot harness makes media in four languages cheap to keep current. |
 
 The `marketplace` (browsing and installing community packages from a
 GitHub-hosted index) is postponed with no date: it needs hosting,
@@ -300,6 +299,15 @@ moderation and a release first, and the official vehicles come from
 
 The changes already merged are archived in `openspec/changes/archive/`, and
 their requirements are in `openspec/specs/`. The most recent ones are:
+- `user-docs`: a player documentation site at
+  `https://truckpaint.ace-dev.me/` (Astro Starlight in `website/`, deployed
+  to GitHub Pages by the Documentation workflow), in English, French,
+  Spanish and German, in seven sections from Getting started to the AI
+  assistant. Its screenshots and animations are rendered from the app in
+  every language by `mise run doc:media` and committed; interface labels
+  come from the app's `.ftl` files and colors from `tp-ui`'s tokens, with
+  a dark theme and a derived light one, and the build fails on a missing
+  medium or label. Changes under `website/` skip the Rust checks;
 - `mcp-server`: a local MCP server lets an AI assistant draw on the open
   project, from the player's own MCP client (Claude Code, Claude Desktop…);
   TruckPaint embeds no LLM and stores no API key. Off by default, it is
