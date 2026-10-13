@@ -137,11 +137,11 @@ fn pack_refuses_a_single_size() {
     assert!(!dir.path().join("out.tpv").exists());
 }
 
-/// Every example manifest of docs/vehicle-package-format.md packs and
+/// Every example manifest of the package format page (website/…/package-format.mdx) packs and
 /// passes `tpv check`.
 #[test]
 fn documented_examples_pass_check() {
-    let doc = include_str!("../../../docs/vehicle-package-format.md");
+    let doc = include_str!("../../../website/src/content/docs/en/vehicles/package-format.mdx");
     let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"/>"#;
     let mut count = 0;
     for (i, block) in doc.split("```json\n").skip(1).enumerate() {

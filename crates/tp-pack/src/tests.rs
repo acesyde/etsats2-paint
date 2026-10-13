@@ -286,7 +286,7 @@ fn packs_from_memory() {
 
 #[test]
 fn documented_also_paints_example_packs() {
-    let doc = include_str!("../../../docs/vehicle-package-format.md");
+    let doc = include_str!("../../../website/src/content/docs/en/vehicles/package-format.mdx");
     let block = doc
         .split("```json\n")
         .skip(1)

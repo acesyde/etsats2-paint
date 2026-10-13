@@ -152,7 +152,7 @@ mise run doc:tokens            # update the site's colors from the app
 ## Vehicle packages
 
 Vehicles come as packages (`.tpv`), described in
-[docs/vehicle-package-format.md](docs/vehicle-package-format.md). The repository ships
+[the package format page](https://truckpaint.ace-dev.me/en/vehicles/package-format/) of the documentation (`website/src/content/docs/en/vehicles/package-format.mdx`). The repository ships
 sample vehicles in [examples/vehicles/](examples/vehicles/): a truck (versions 1.0.0 and
 1.1.0, to try Update Template) and a trailer.
 

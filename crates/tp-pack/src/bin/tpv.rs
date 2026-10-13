@@ -24,7 +24,7 @@ Usage:
 Each texture's size is [width, height] in pixels, each side a power of two
 from 64 to 8192: [4096, 4096], [8192, 1024]. A single number is refused.
 
-See docs/vehicle-package-format.md.";
+See https://truckpaint.ace-dev.me/en/vehicles/package-format/.";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();

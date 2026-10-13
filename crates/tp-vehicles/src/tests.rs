@@ -433,7 +433,7 @@ fn ids() {
 
 #[test]
 fn documented_example_manifests_are_valid() {
-    let doc = include_str!("../../../docs/vehicle-package-format.md");
+    let doc = include_str!("../../../website/src/content/docs/en/vehicles/package-format.mdx");
     let mut count = 0;
     for block in doc.split("```json\n").skip(1) {
         let json = &block[..block.find("```").expect("end of example")];
