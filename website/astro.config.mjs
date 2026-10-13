@@ -29,7 +29,7 @@ export default defineConfig({
 				de: { label: 'Deutsch' },
 			},
 			social: [
-				{ icon: 'github', label: 'GitHub', href: 'https://github.com/acesyde/etsats2-paint' },
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/acesyde/truckpaint' },
 			],
 			sidebar: sections.map(([directory, en, fr, es, de]) => ({
 				label: en,
