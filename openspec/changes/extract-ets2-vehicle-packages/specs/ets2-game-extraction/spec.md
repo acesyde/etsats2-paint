@@ -78,3 +78,8 @@ Every completed or recoverably failed batch SHALL publish `report.json` beside i
 #### Scenario: Explain a failed vehicle
 - **WHEN** a vehicle fails because an accessory size is ambiguous
 - **THEN** its report identifies the accessory, relevant definitions, conflicting dimensions and failure stage
+
+#### Scenario: Missing reference with unknown DLC ownership
+- **WHEN** a paint definition references an absent accessory or a required game file is missing
+- **THEN** the vehicle is refused and its `missing_dependencies` entries identify the missing reference, its kind and the referencing definitions and source archives when available
+- **AND** `expected_dlc` is null and `dlc_origin` is `unknown` when the installed definitions do not establish which DLC supplies the missing data; the archive containing a reference is not presented as the missing DLC

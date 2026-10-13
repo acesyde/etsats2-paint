@@ -267,3 +267,48 @@ fn ambiguous_masks_and_missing_model_outputs_refuse_whole_vehicle() {
         1
     );
 }
+
+#[test]
+fn missing_dependencies_are_reported_without_guessing_a_dlc() {
+    let orphan_fixture = fixture();
+    let root = orphan_fixture.path();
+    write(
+        &root.join("game/version.scs.files"),
+        "def/vehicle/truck/example.good/paint_job/accessory/orphan.sii",
+        "SiiNunit\n{\nsimple_paint_job_data : .orphan {\nacc_list[]: \"sideskirt.missing\"\nacc_list[]: \"mirror.missing\"\npaint_job_mask: \"/mask_size_256x64\"\n}\n}\n",
+    );
+    assert!(!run(root, Some("example.good")).status.success());
+    let batch = batches(root).pop().unwrap();
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
+    let missing = report["results"][0]["missing_dependencies"]
+        .as_array()
+        .unwrap();
+    assert_eq!(missing.len(), 2);
+    assert_eq!(missing[0]["kind"], "accessory_definition");
+    assert_eq!(missing[0]["reference"], "mirror.missing");
+    assert_eq!(missing[0]["referenced_by"][0]["source"], "version.scs");
+    assert!(
+        missing
+            .iter()
+            .all(|d| d["expected_dlc"].is_null() && d["dlc_origin"] == "unknown")
+    );
+    assert_eq!(std::fs::read_dir(&batch).unwrap().count(), 1);
+
+    let fixture = fixture();
+    let root = fixture.path();
+    std::fs::remove_file(root.join("game/version.scs.files/vehicle/shared/example.good.pmd"))
+        .unwrap();
+    assert!(!run(root, Some("example.good")).status.success());
+    let batch = batches(root).pop().unwrap();
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
+    assert_eq!(
+        report["results"][0]["missing_dependencies"][0]["kind"],
+        "game_file"
+    );
+    assert_eq!(
+        report["results"][0]["missing_dependencies"][0]["reference"],
+        "/vehicle/shared/example.good.pmd"
+    );
+}

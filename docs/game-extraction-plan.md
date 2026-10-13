@@ -17,6 +17,10 @@ Chaque lot a son propre sous-dossier de `dist/`, avec les paquets validés
 et `report.json` ; les intermédiaires et journaux restent sous `target/`.
 La validation technique et la vérification en jeu sont distinctes. Un lot
 incomplet continue les autres véhicules et retourne un code d’échec.
+Les références manquantes sont détaillées dans `missing_dependencies` du
+rapport, avec les définitions et archives qui les mentionnent lorsque connues.
+`expected_dlc: null` et `dlc_origin: "unknown"` signalent une origine DLC
+indéterminée : une référence orpheline ne prouve pas qu’un DLC manque.
 
 ## Références historiques MAN/DAF
 

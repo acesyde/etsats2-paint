@@ -26,6 +26,8 @@ Each run writes a unique subdirectory under `dist/` by default, holding valid pa
 
 The report records sources, versions, texture coverage, successes, failures and limits. Technical package validation does not prove correctness in game: new vehicles and new configurations still need game checks.
 
+`missing_dependencies` lists missing references and their source definitions when available. `expected_dlc: null` with `dlc_origin: "unknown"` means the required DLC cannot be identified; the archive mentioning a reference does not establish which DLC supplies it.
+
 ## Install and paint
 
 1. Open the [Vehicle Library](../library/) and use <Ui id="vehicles-install" /> to choose a generated `.tpv`.

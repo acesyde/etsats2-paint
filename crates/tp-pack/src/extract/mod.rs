@@ -133,6 +133,7 @@ fn build_vehicle(
     package_version: &semver::Version,
     evidence: &mut BTreeSet<String>,
     stage: &mut &'static str,
+    missing_dependencies: &mut Vec<Value>,
 ) -> Result<(crate::Packed, Value), String> {
     *stage = "definitions";
     let root = format!("/def/vehicle/truck/{vehicle}/");
@@ -160,6 +161,7 @@ fn build_vehicle(
         .collect::<Vec<_>>();
     let mut sizes: BTreeMap<String, BTreeSet<[u32; 2]>> = BTreeMap::new();
     let mut independent = BTreeSet::new();
+    let mut assignments: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for path in paths
         .iter()
         .filter(|p| p.starts_with(&format!("{root}paint_job/accessory/")))
@@ -176,6 +178,10 @@ fn build_vehicle(
             let ids = array(unit, "acc_list[]");
             for id in ids {
                 independent.insert(id.clone());
+                assignments
+                    .entry(id.clone())
+                    .or_default()
+                    .insert(path.clone());
                 let mask = unit.field("paint_job_mask")?;
                 if let Some(size) = crop_size(mask) {
                     sizes.entry(id).or_default().insert(size);
@@ -248,8 +254,8 @@ fn build_vehicle(
                     continue;
                 }
                 // Read the PMD to resolve and record its binary source; conversion uses the same mount order.
-                sources.locate(&model)?;
                 evidence.insert(model.clone());
+                sources.locate(&model)?;
                 let local = model_export
                     .join(model.trim_start_matches('/'))
                     .with_extension("pim");
@@ -327,12 +333,23 @@ fn build_vehicle(
     if cabins.is_empty() {
         return Err("truck has no cabins".into());
     }
-    for id in &independent {
-        if !painted.contains_key(id) {
-            return Err(format!(
-                "paint override has no painted exterior model: {id}"
-            ));
-        }
+    let uncovered = independent
+        .iter()
+        .filter(|id| !painted.contains_key(*id))
+        .collect::<Vec<_>>();
+    for id in &uncovered {
+        missing_dependencies.push(json!({
+            "kind": if seen_units.contains(*id) { "painted_exterior_surface" } else { "accessory_definition" },
+            "reference": id,
+            "referenced_by": sources.provenance(&assignments[*id]),
+            "expected_dlc": null,
+            "dlc_origin": "unknown",
+        }));
+    }
+    if let Some(id) = uncovered.first() {
+        return Err(format!(
+            "paint override has no painted exterior model: {id}"
+        ));
     }
     let mut main = Vec::new();
     let mut accessories = Vec::new();
@@ -451,6 +468,7 @@ pub fn run(options: &Options) -> Result<Batch, String> {
         eprintln!("extracting {vehicle}");
         let mut evidence = BTreeSet::new();
         let mut stage = "definitions";
+        let mut missing_dependencies = Vec::new();
         let result = build_vehicle(
             &mut sources,
             vehicle,
@@ -458,6 +476,7 @@ pub fn run(options: &Options) -> Result<Batch, String> {
             &options.package_version,
             &mut evidence,
             &mut stage,
+            &mut missing_dependencies,
         )
         .and_then(|(packed, coverage)| {
             stage = "publication";
@@ -467,7 +486,13 @@ pub fn run(options: &Options) -> Result<Batch, String> {
         });
         match result {
             Ok((filename, coverage)) => results.push(json!({"vehicle":vehicle,"status":"success","package":filename,"technical_validation":"passed","in_game_validation":"required","textures":coverage,"sources":sources.provenance(&evidence)})),
-            Err(error) => { failed += 1; results.push(json!({"vehicle":vehicle,"status":"failure","stage":stage,"error":error,"sources":sources.provenance(&evidence)})); }
+            Err(error) => {
+                if let Some(path) = error.strip_prefix("missing game file ") {
+                    missing_dependencies.push(json!({"kind":"game_file","reference":path,"expected_dlc":null,"dlc_origin":"unknown"}));
+                }
+                failed += 1;
+                results.push(json!({"vehicle":vehicle,"status":"failure","stage":stage,"error":error,"missing_dependencies":missing_dependencies,"sources":sources.provenance(&evidence)}));
+            }
         }
     }
     let report = json!({"format":1,"installation":options.installation,"converter":{"executable":sources.converter,"version":null,"version_status":"not exposed by CLI"},"tool_version":env!("CARGO_PKG_VERSION"),"game_version":game_version,"package_version":options.package_version,"archives":sources.archives,"archive_precedence":"last mounted wins; base source order and sorted DLC as observed in ETS2 mount log","requested_vehicle":options.vehicle,"discovered_vehicles":discovered,"processed_vehicles":vehicles,"work_directory":preliminary,"results":results,"failed":failed,"limits":["Ordinary eut2.truckpaint.tsnmapuv exterior models only","Alternate UV mappings are refused","Main templates union compatible painted options","Cabin size 4096 square; accessory dimensions from crop names","Package validation does not establish correctness in game"]});

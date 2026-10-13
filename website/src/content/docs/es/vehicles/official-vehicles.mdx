@@ -26,6 +26,8 @@ Cada ejecución crea un subdirectorio único en `dist/` por defecto, con paquete
 
 El informe recoge fuentes, versiones, cobertura de texturas, resultados y límites. La validación técnica no demuestra el funcionamiento en el juego: los nuevos vehículos y configuraciones aún deben comprobarse.
 
+`missing_dependencies` enumera las referencias ausentes y sus definiciones de origen cuando están disponibles. `expected_dlc: null` con `dlc_origin: "unknown"` indica que no se puede identificar el DLC necesario; el archivo que menciona una referencia no determina qué DLC la proporciona.
+
 ## Instalar y pintar
 
 1. Abra la [biblioteca de vehículos](../library/) y use <Ui id="vehicles-install" /> para elegir un `.tpv` generado.

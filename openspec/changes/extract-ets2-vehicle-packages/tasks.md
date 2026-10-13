@@ -24,6 +24,8 @@
 - [ ] 4.2 Continue after per-vehicle failures and compute the final exit result; verify fake-converter batches preserve successful packages, refuse failed vehicles and return nonzero for any incomplete batch or report/publication failure.
 - [ ] 4.3 Publish structured JSON reports with source precedence, versions, per-texture contributors/coverage, errors and limits; verify report fixtures distinguish technical validation from game evidence and explicitly mark unknown converter metadata and vehicles needing game checks.
 
+- [x] 4.4 Record missing accessory definitions, painted surfaces and game files in `report.json`, with referencing sources when available and explicit unknown DLC ownership; verify that diagnostics preserve refusal and publish no Markdown or partial package.
+
 ## 5. Remove the catalog chain and preserve manual workflows
 
 - [x] 5.1 Remove `catalog/`, vehicle/packer catalog modules and catalog CLI commands, updating exports and dependent tests; verify reference searches contain no live source-chain dependency and pack/check/custom/sample tests still pass.
