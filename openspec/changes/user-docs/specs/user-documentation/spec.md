@@ -82,11 +82,11 @@ The documentation SHALL use the app's fonts (Geist for text, JetBrains Mono for 
 - **THEN** the site's matching color changes with no hand edit
 
 ### Requirement: Build and deployment
-The site SHALL build with a single command from a clean checkout using only the committed sources and media (no Rust build, no GPU). It SHALL be published to GitHub Pages at the repository's Pages URL when a push to `main` changes the site, and its links and assets SHALL work under that URL's path.
+The site SHALL build with a single command from a clean checkout using only the committed sources and media (no Rust build, no GPU). It SHALL be published to GitHub Pages, at its own domain `https://truckpaint.ace-dev.me/`, when a push to `main` changes the site, and its links and assets SHALL work at that address.
 
 #### Scenario: Publishing a page change
 - **WHEN** a pull request that edits a page under `website/` is merged into `main`
-- **THEN** the updated page is online at the repository's Pages URL, with its images and styles loading
+- **THEN** the updated page is online at the site's domain, with its images and styles loading
 
 #### Scenario: Local preview
 - **WHEN** a contributor runs the documentation preview command

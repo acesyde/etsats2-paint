@@ -7,7 +7,7 @@ See proposal.md for the why. The facts in the repository that shape the approach
 - **The app has one theme, dark.** `tp-ui/src/theme.rs` forces `ThemePreference::Dark`, and `tp-ui/src/tokens.rs` holds the palette by meaning: surfaces `SURFACE_0..4` (`#1C1C1F` to `#44444A`), text levels, and three accents with one meaning each (`ACCENT_PRIMARY` white, `SIGNAL` red, `LINK` blue). `tp-ui/src/contrast.rs` computes WCAG luminance and ratios.
 - **Fonts are bundled** in `assets/fonts/`: Geist (interface) and JetBrains Mono (values), both under the SIL OFL, which allows redistribution with the license.
 - **mise already pins Node 24 and pnpm**, and CI installs tools with `jdx/mise-action`. CI runs on `ubuntu-latest` without a GPU, and `scripts/ci-changes.sh` skips the Rust jobs when only documentation changed (`*.md`, `openspec/`, `.claude/`).
-- **The repository is `acesyde/etsats2-paint`**, so its Pages URL is `https://acesyde.github.io/etsats2-paint/`.
+- **The site has its own domain, `https://truckpaint.ace-dev.me/`.** The owner's user site (`acesyde.github.io`) has a custom domain, and GitHub then serves every project site of the account under it (`acesyde.github.io/etsats2-paint/` redirects to the blog's domain). A custom domain on the project's Pages settings avoids that.
 
 ## Goals / Non-Goals
 
@@ -29,7 +29,7 @@ See proposal.md for the why. The facts in the repository that shape the approach
 Starlight gives what the site needs out of the box: locales under `/en/`, `/fr/`, `/es/`, `/de/`, a language picker, fallback to the default locale with a "not translated yet" notice, a dark/light/auto theme switch remembered per reader, built-in search (Pagefind), and MDX for custom components. Node and pnpm are already pinned in `mise.toml`.
 
 - Content: `website/src/content/docs/<lang>/<section>/<page>.mdx`. English is the default locale; the root URL redirects to `/en/`.
-- Config: `site: "https://acesyde.github.io"`, `base: "/etsats2-paint"`. Every link and asset goes through Starlight or `import.meta.env.BASE_URL` so the base path holds.
+- Config: `site: "https://truckpaint.ace-dev.me"`, no `base` (the site is at the domain's root). Every link and asset goes through Starlight or `import.meta.env.BASE_URL` so the base path holds.
 - *Alternative: mdBook.* It matches the Rust stack, but multilingual books need gettext tooling and one book per language, with no shared picker or fallback.
 - *Alternative: Zola.* It has native multilingual support, but no documentation theme with search, sidebar and theme switch as complete as Starlight's, so more would be built by hand.
 
