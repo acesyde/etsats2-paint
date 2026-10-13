@@ -5,9 +5,12 @@ repository works, and how a change goes from an idea to `main`.
 
 ## Before you start
 
-- TruckPaint is a livery editor for ETS2 and ATS, not a general vector editor.
-  Product decisions, the rules every change must follow and the order of the next
-  changes are in [docs/roadmap.md](docs/roadmap.md). Read it first.
+- TruckPaint is a livery editor for ETS2 and ATS, not a general vector editor. A few
+  rules shape every feature:
+  - every project has a vehicle, and you always paint on the vehicle's template;
+  - a project is a fleet of one game (ETS2 or ATS), exported as one mod;
+  - texture layouts differ between vehicles, so the fleet shares elements (palette,
+    styles, symbols), never a position copied from one vehicle to another.
 - For a bug or a small fix, open an issue or a pull request.
 - For a new feature, open an issue first, so we can agree on it before you write code.
 
@@ -89,7 +92,6 @@ in `openspec/`:
   spec changes and a task list.
 - When a change is merged, it is archived in `openspec/changes/archive/` and its specs
   are merged into `openspec/specs/`, in a separate pull request.
-- Update [docs/roadmap.md](docs/roadmap.md) when a decision is taken or a change ships.
 
 Small fixes don't need an OpenSpec change.
 
@@ -109,9 +111,15 @@ The app is in English, French, Spanish and German. Every string is in
 `crates/tp-i18n/locales/<language>/*.ftl` ([Fluent](https://projectfluent.org/) format).
 
 - A new string goes into all four languages, with the same message id.
-- Follow the **Wording** rules in [docs/roadmap.md](docs/roadmap.md): American English,
-  Title Case for commands, menu items, buttons and dialog titles, sentence case for
-  labels; other languages follow their own usage and the game's own terms.
+- **English casing:** commands, menu items, buttons and dialog titles use Title Case,
+  with small words (a, an, the, and, or, of, to, from, in, on, for, by, with, as, at)
+  in lowercase unless they come first: "Custom Vehicle…", "Copy from Cabin…",
+  "Import from Library…". Labels, hints, messages and tooltips use sentence case:
+  "Color picker". The undo history names an action like its command, without "…".
+- **Spelling:** American English ("color", not "colour").
+- **Other languages** follow their own usage (sentence case in French, Spanish and
+  German, except German nouns), use the game's own terms when it has them, and keep
+  the names of two commands clearly different.
 - German texts are the longest: check that the screens still fit, for example with
   `mise run screenshots`.
 
