@@ -9,7 +9,7 @@
     "TruckPaint contributors"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/acesyde/etsats2-paint",
+  "homepage": "https://github.com/acesyde/truckpaint",
   "description": "A fictional curtainsider trailer with original templates, to try TruckPaint and as an example for package authors. Not a game vehicle.",
   "game": {
     "id": "ets2",

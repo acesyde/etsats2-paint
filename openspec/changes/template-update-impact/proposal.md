@@ -51,4 +51,4 @@ Open questions (to settle in design):
   - `vehicle_project.rs`: `UpdatePlan` gains the changelog and object counts, `TextureChange::Replaced` its count, and the update records flagged objects;
   - `vehicle_dialogs.rs`, `custom_vehicle.rs`, the Layers list;
   - strings in en/fr/es/de.
-- **Docs:** `docs/vehicle-package-format.md` documents `changelog`; `docs/roadmap.md` records the decision under `marketplace`.
+- **Docs:** the package format page (`website/src/content/docs/en/vehicles/package-format.mdx`) documents `changelog`.

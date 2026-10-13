@@ -2,9 +2,6 @@ schema: spec-driven
 
 context: |
   TruckPaint is a livery editor for ETS2 and ATS, not a general vector editor.
-  Product decisions and the order of upcoming changes are in docs/roadmap.md:
-  read it before proposing a change, and update it when a decision is taken
-  or a change ships.
   Product rules every change must respect:
   - Every project has a vehicle. There is no blank-texture project; vehicles
     without a package go through Custom vehicle (templates packed locally).

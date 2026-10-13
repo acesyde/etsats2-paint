@@ -46,4 +46,4 @@ After editing a source, rebuild the packages:
 mise run sample-vehicles
 ```
 
-The test suite fails if a committed package no longer matches its sources. See [the package format](../../docs/vehicle-package-format.md) to make your own.
+The test suite fails if a committed package no longer matches its sources. See [the package format](https://truckpaint.ace-dev.me/en/vehicles/package-format/) to make your own.
