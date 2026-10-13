@@ -14,10 +14,9 @@ const sections = [
 ];
 
 export default defineConfig({
-	site: 'https://acesyde.github.io',
-	base: '/etsats2-paint',
+	site: 'https://truckpaint.ace-dev.me',
 	trailingSlash: 'always',
-	redirects: { '/': '/etsats2-paint/en/' },
+	redirects: { '/': '/en/' },
 	integrations: [
 		starlight({
 			title: 'TruckPaint',

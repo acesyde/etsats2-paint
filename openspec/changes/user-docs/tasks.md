@@ -1,6 +1,6 @@
 ## 1. Site skeleton (website/)
 
-- [x] 1.1 Create the Astro Starlight project in `website/` with pnpm (lockfile committed), locales en (default), fr, es, de, `site`/`base` for `https://acesyde.github.io/etsats2-paint/`, and a root redirect to `/en/` (design Decision 1); verify `pnpm build` succeeds and `dist/` has `en/`, `fr/`, `es/`, `de/` and a root page redirecting to `/en/`.
+- [x] 1.1 Create the Astro Starlight project in `website/` with pnpm (lockfile committed), locales en (default), fr, es, de, `site` for `https://truckpaint.ace-dev.me/`, and a root redirect to `/en/` (design Decision 1); verify `pnpm build` succeeds and `dist/` has `en/`, `fr/`, `es/`, `de/` and a root page redirecting to `/en/`.
 - [x] 1.2 Add the sidebar with the seven sections in order and their labels in the four languages, with one placeholder page per section in English only; verify user-documentation "Sidebar" in each locale and "Missing translation" (the `/es/` URL of a placeholder shows English with Starlight's notice).
 - [x] 1.3 Add the mise tasks `doc:dev` and `doc:build` (design Decision 9); verify user-documentation "Local preview" (`mise run doc:dev` serves all four locales with live reload) and that `mise run doc:build` gives the same `dist/` as `pnpm build`.
 
@@ -44,7 +44,7 @@ Each task writes the section's scenarios in `doc_media.rs`, runs `mise run doc:m
 
 - [x] 7.1 Add `website/*` to the documentation patterns of `scripts/ci-changes.sh` (and its header comment), with a case in `scripts/ci-changes-test.sh`; verify `mise run ci:changes:test` passes and continuous-integration "Documentation site change" and "Unknown file kind" hold.
 - [ ] 7.2 Add `.github/workflows/docs.yml` (paths `website/**`, `crates/tp-i18n/locales/**`, the workflow itself; mise-action for Node and pnpm; build on pull requests; build and deploy to Pages on `main` with `upload-pages-artifact` and `deploy-pages`; actions pinned by SHA; concurrency group `pages`) (design Decision 8); verify on a pull request that the build job runs and fails when a medium is removed (continuous-integration "Broken page in a pull request"), and that a Rust-only change doesn't trigger it ("No site change").
-- [ ] 7.3 Set the repository's Pages source to "GitHub Actions", merge, and check continuous-integration "Deploy on merge" and user-documentation "Publishing a page change": the site is online at `https://acesyde.github.io/etsats2-paint/` in four languages, with images, videos, fonts and styles loading under the base path.
+- [ ] 7.3 Set the repository's Pages source to "GitHub Actions" and its custom domain to `truckpaint.ace-dev.me` (DNS: a CNAME from `truckpaint.ace-dev.me` to `acesyde.github.io`, HTTPS enforced), merge, and check continuous-integration "Deploy on merge" and user-documentation "Publishing a page change": the site is online at `https://truckpaint.ace-dev.me/` in four languages, with images, videos, fonts and styles loading.
 
 ## 8. Wrap-up
 

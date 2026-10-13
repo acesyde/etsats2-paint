@@ -4,7 +4,7 @@ A livery editor for **Euro Truck Simulator 2** and **American Truck Simulator**:
 vehicle, design its paint job with vector tools, and export a ready-to-install mod.
 
 **Player documentation** (English, French, Spanish, German):
-<https://acesyde.github.io/etsats2-paint/>
+<https://truckpaint.ace-dev.me/>
 
 > Early development. The current build designs the paint jobs of a fleet: vehicle
 > packages with their templates, projects holding several trucks and trailers of one
@@ -20,7 +20,7 @@ TruckPaint can let an AI assistant draw on the open project through a local
 [MCP](https://modelcontextprotocol.io) server: recreate a livery from a reference
 image, or place a logo you give it. The assistant runs in your own MCP client;
 TruckPaint holds no API key. See also the
-[AI assistant page](https://acesyde.github.io/etsats2-paint/en/ai-assistant/setup/) of
+[AI assistant page](https://truckpaint.ace-dev.me/en/ai-assistant/setup/) of
 the documentation.
 
 1. In **Preferences › AI assistant (MCP)**, check **Let an AI assistant draw on the

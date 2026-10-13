@@ -6,7 +6,7 @@ The app already has the pieces to make this cheap to keep current: a headless ha
 
 ## What Changes
 
-- **A player documentation site**, built with Astro Starlight in a new `website/` folder and deployed to GitHub Pages (`https://acesyde.github.io/etsats2-paint/`). It is separate from the developer documents in `docs/`.
+- **A player documentation site**, built with Astro Starlight in a new `website/` folder and deployed to GitHub Pages on its own domain (`https://truckpaint.ace-dev.me/`). It is separate from the developer documents in `docs/`.
 - **Four languages**, the app's own: English (default), French, Spanish and German, with a language picker. A page not yet translated falls back to English with a notice. Interface labels quoted in the pages match the app's wording in each language.
 - **First version content**, in seven sections:
   - Getting started: installation, first launch, first project;
