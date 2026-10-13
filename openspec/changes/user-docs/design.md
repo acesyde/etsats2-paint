@@ -112,7 +112,6 @@ Screenshots and animations stay dark in the light theme, since that is how the a
 - `doc:tokens`: `tokens.css` only (no GPU).
 - `doc:dev`: `pnpm dev` in `website/` (local preview with live reload).
 - `doc:build`: `pnpm build` in `website/`, the same command as CI.
-- `doc:preview`: `doc:build`, then `pnpm preview` (the built site, served locally under its base path).
 
 ## Risks / Trade-offs
 

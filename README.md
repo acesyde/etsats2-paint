@@ -117,7 +117,6 @@ language, by `tests/doc_media.rs`, then committed:
 ```sh
 mise run doc:dev               # preview the site with live reload
 mise run doc:build             # build it as CI does (fails on a missing medium or label)
-mise run doc:preview           # build it, then serve the result as it will be deployed
 mise run doc:media [section]   # render the media (needs a GPU; installs ffmpeg)
 mise run doc:tokens            # the site's colors, from tp-ui's tokens
 ```
