@@ -81,6 +81,12 @@ description = "Build the documentation site into website/dist (as CI does)"
 dir = "website"
 run = "pnpm install --frozen-lockfile && pnpm build"
 
+[tasks."doc:preview"]
+description = "Build the documentation site and serve the result locally, as it will be deployed"
+depends = ["doc:build"]
+dir = "website"
+run = "pnpm preview"
+
 [tasks."ci:changes"]
 description = "Print code=true|false: whether BASE..HEAD changes more than docs (CI gating)"
 run = "bash scripts/ci-changes.sh {{arg(name='base', default='')}} {{arg(name='head', default='HEAD')}}"
