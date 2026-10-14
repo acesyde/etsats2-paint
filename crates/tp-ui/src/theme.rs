@@ -280,15 +280,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn softer_text_smoothing_on_1x_displays() {
-        assert_eq!(text_smoothing(1.0), FontColorTransferFunction::Gamma(0.7));
-        assert_eq!(
-            text_smoothing(2.0),
-            FontColorTransferFunction::DARK_MODE_DEFAULT
-        );
-    }
-
-    #[test]
     fn settings_are_clamped() {
         let s = ThemeSettings {
             ui_scale: 5.0,

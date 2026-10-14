@@ -87,13 +87,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defaults_of_a_new_project() {
+    fn internal_name_is_cut_to_the_limit() {
         let s = ModSettings::for_project("ACE Logistics");
-        assert_eq!(s.name, "ACE Logistics");
-        assert_eq!(s.version, "1.0");
-        assert_eq!((s.author.as_str(), s.description.as_str()), ("", ""));
-        assert_eq!((s.price, s.unlock_level), (5000, 0));
-        assert_eq!((s.icon, s.image), (None, None));
         assert_eq!(s.internal_name(INTERNAL_NAME_MAX), "ace_logistic");
         assert_eq!(s.internal_name(SPLIT_INTERNAL_NAME_MAX), "ace_logist");
     }

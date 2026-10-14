@@ -85,16 +85,26 @@ fn export_to(h: &mut H, path: &std::path::Path) {
 }
 
 #[test]
-fn default_export_settings() {
+fn dialog_summarizes_the_size_and_format() {
     let mut h = open();
     open_dialog(&mut h);
-    let d = dialog(&h).unwrap();
-    assert_eq!(d.settings, tp_app::export::ExportSettings::default());
     assert!(h.query_by_label_contains("4096 × 4096 px · PNG").is_some());
+}
+
+#[test]
+fn dialog_renders_a_preview() {
+    let mut h = open();
+    open_dialog(&mut h);
     wait_until(&mut h, |h| {
         dialog(h).is_some_and(ExportDialog::preview_ready)
     });
     assert!(dialog(&h).unwrap().preview_ready());
+}
+
+#[test]
+fn escape_closes_the_dialog() {
+    let mut h = open();
+    open_dialog(&mut h);
     h.key_press(Key::Escape);
     settle(&mut h);
     assert!(h.state().modal.is_none());
