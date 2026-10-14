@@ -56,17 +56,6 @@ pub fn existing_mod_folder(
     mod_folder_in(game, documents, data).filter(|p| p.is_dir())
 }
 
-/// The mod folder of game `game`, when it exists on this computer.
-pub fn game_mod_folder(game: &str) -> Option<PathBuf> {
-    let user = directories::UserDirs::new();
-    let base = directories::BaseDirs::new();
-    existing_mod_folder(
-        game,
-        user.as_ref().and_then(|u| u.document_dir()),
-        base.as_ref().map(|b| b.data_dir()),
-    )
-}
-
 /// The file name proposed for a mod named `name`.
 pub fn suggested_name(name: &str) -> String {
     let stem = crate::export::file_stem_safe(name);

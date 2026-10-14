@@ -47,17 +47,6 @@ impl std::fmt::Debug for LibraryDialog {
     }
 }
 
-impl LibraryDialog {
-    /// Whether every symbol's thumbnail is shown.
-    pub fn thumbnails_ready(&self, library: &Project) -> bool {
-        library
-            .symbols
-            .iter()
-            .filter_map(|s| s.origin.as_ref())
-            .all(|k| self.thumbnails.contains_key(k))
-    }
-}
-
 /// The message about an unreadable library.
 pub fn issue_message(issue: &crate::library::LibraryIssue) -> String {
     match &issue.backup {

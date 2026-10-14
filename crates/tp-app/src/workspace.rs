@@ -563,12 +563,6 @@ impl Workspace {
         self.project.selected_objects(&self.selection)
     }
 
-    /// Keeps only selected ids that still exist on the active surface.
-    pub fn prune_selection(&mut self) {
-        let surface = self.project.surface();
-        self.selection.retain(|id| surface.get(*id).is_some());
-    }
-
     /// Removes ids that are gone or have a selected ancestor.
     pub fn normalize_selection(&mut self) {
         self.selection =
