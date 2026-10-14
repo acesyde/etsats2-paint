@@ -3,6 +3,15 @@
     "truckpaint": {
       "type": "http",
       "url": "http://127.0.0.1:7373/mcp"
+    },
+    "code-review-graph": {
+      "command": "uvx",
+      "args": [
+        "code-review-graph",
+        "serve"
+      ],
+      "type": "stdio"
     }
   }
 }
+
