@@ -14,7 +14,7 @@ Los camiones oficiales se usan mediante paquetes `.tpv` instalados manualmente. 
 Los autores de paquetes pueden usar el comando Rust `tpv` con [ConverterPIX](https://github.com/mwl4/ConverterPIX), un ejecutable externo:
 
 ```sh
-mise exec -- cargo run -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
+mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
   --converter "/path/to/converter_pix" --package-version 2.0.0
 ```
 
@@ -27,6 +27,14 @@ Cada ejecución crea un subdirectorio único en `dist/` por defecto, con paquete
 El informe recoge fuentes, versiones, cobertura de texturas, resultados y límites. La validación técnica no demuestra el funcionamiento en el juego: los nuevos vehículos y configuraciones aún deben comprobarse.
 
 `missing_dependencies` enumera las referencias ausentes y sus definiciones de origen cuando están disponibles. `expected_dlc: null` con `dlc_origin: "unknown"` indica que no se puede identificar el DLC necesario; el archivo que menciona una referencia no determina qué DLC la proporciona.
+
+Las asignaciones de pintura que apuntan a accesorios sin definición instalada se excluyen y se indican con `disposition: "ignored_reference"`; no impiden generar el paquete. Los accesorios definidos con geometría o dimensiones inutilizables y los archivos necesarios ausentes siguen bloqueando la extracción (`disposition: "blocking"`).
+
+Los shaders de pintura compatibles son `truckpaint`, `truckpaint.tsnmap` y `truckpaint.tsnmapuv`, con las opciones `airbrush`, `flipflake` y `altuv` y los sufijos de prueba alfa `.a` o `.asafew.a`. Las plantillas trazan los UV de la malla; no reproducen máscaras de opacidad píxel a píxel. Los materiales pintados visibles de las cabinas deben indicar un único modo UV. El extractor aplica ese modo a todos los accesorios y lo guarda en el paquete para exportar el mod. Se rechazan los UV seleccionados ausentes o ambiguos y los modos de cabina contradictorios. Los materiales teñidos solo por el color base no definen un mapeado UV de la pintura; una asignación dirigida a un accesorio definido de este tipo sigue siendo un fallo de cobertura.
+
+Las coordenadas UV finitas fuera de [0, 1] se conservan, sin repetición, ajuste de valores ni cambio de canal. El área del SVG limita la malla visible a la textura. El informe indica `uv_bounds` y `out_of_bounds_vertices`; estas superficies requieren especial atención en el juego. Las coordenadas no finitas o no representables siguen siendo inválidas.
+
+`dimension_diagnostics` enumera todos los accesorios con dimensiones de recorte ausentes o contradictorias, los tamaños candidatos, las máscaras y las definiciones y archivos de origen. Las máscaras de relleno compartidas no determinan una resolución útil de plantilla. Estos casos siguen bloqueando la extracción; la herramienta no inventa dimensiones.
 
 ## Instalar y pintar
 

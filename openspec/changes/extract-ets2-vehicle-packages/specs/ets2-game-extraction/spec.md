@@ -24,7 +24,7 @@ The tool SHALL expose `tpv extract <installation> --converter <executable> [--ve
 - **THEN** the command fails and produces no package for that request
 
 ### Requirement: Definition-driven selection
-The extractor SHALL derive vehicle metadata, cabins, accessory game ids, model references and compatibility from game definitions rather than per-vehicle profiles. It SHALL resolve referenced inclusions and archive overrides with recorded provenance. It SHALL select each model's requested look and variant, retain only visible painted faces, and choose the UV stream by its semantic alias. Missing references, inclusion cycles, conflicting unresolved definitions, unsupported paint shaders or UV mappings, and ambiguous looks, variants or UV streams SHALL refuse the affected vehicle. Unsupported data SHALL NOT be silently omitted.
+The extractor SHALL derive vehicle metadata, cabins, accessory game ids, model references and compatibility from game definitions rather than per-vehicle profiles. It SHALL resolve referenced inclusions and archive overrides with recorded provenance. It SHALL select each model's requested look and variant, retain only visible painted faces, and choose the UV stream by its semantic alias. Missing required files, inclusion cycles, conflicting unresolved definitions, unsupported paint shaders or UV mappings, and ambiguous looks, variants or UV streams SHALL refuse the affected vehicle. Unsupported data SHALL NOT be silently omitted. Paint overrides referencing accessory ids with no definition in the installed source view SHALL be excluded from texture assignments and reported as ignored references, without refusing the vehicle. A defined accessory with missing or unusable painted coverage SHALL still refuse the vehicle.
 
 #### Scenario: Included shared model
 - **WHEN** an accessory definition includes a file that references a shared model outside the truck's model directory
@@ -38,8 +38,39 @@ The extractor SHALL derive vehicle metadata, cabins, accessory game ids, model r
 - **WHEN** a definition has an unresolved include or its painted model has ambiguous look, variant or UV data, or an unsupported alternate UV mapping
 - **THEN** the vehicle fails with the concerned definition or model identified
 
+### Requirement: Shared shader and UV rules
+The extractor SHALL recognize the `eut2.truckpaint`, `eut2.truckpaint.tsnmap` and `eut2.truckpaint.tsnmapuv` families with optional `airbrush`, `flipflake` and `altuv` flavors and optional `.a` or `.asafew.a` alpha-test suffixes, without vehicle-specific profiles. Alpha-tested material geometry SHALL contribute its UV wireframe without attempting pixel-level opacity-mask clipping. Other flavors and conflicting normal-map flavors SHALL remain unsupported. Only visible painted materials of the selected cabin looks/variants SHALL establish the package UV mode: all such cabin materials SHALL agree on ordinary or alternate mapping. Ordinary mapping SHALL use `_TEXCOORD1`, alternate mapping SHALL use `_TEXCOORD2`. Every painted accessory SHALL use the package mode, independently of its source material's paint-job flavor. The package's existing `game.alt_uv` flag SHALL match that mode so mod export selects the same layout. Missing or ambiguous selected UV aliases, invalid selected geometry and conflicting cabin modes SHALL refuse the vehicle. Reports SHALL identify selected shaders, UV aliases, coordinate bounds and out-of-bounds vertex counts. Finite coordinates outside [0, 1] SHALL be preserved without wrapping, coordinate clamping or automatic UV-channel changes; the SVG viewport SHALL bound the visible wireframe. Non-finite coordinates and coordinates that cannot be represented by SVG edge quantization SHALL refuse the vehicle. Definition-driven exterior model resolution SHALL include `detail_model`, including UK variants reusing that model.
+
+#### Scenario: Ordinary family without normal maps
+- **WHEN** a visible painted face uses `eut2.truckpaint` and its cabin establishes ordinary UV mapping
+- **THEN** extraction selects `_TEXCOORD1` by alias and writes `game.alt_uv: false`
+
+#### Scenario: Alternate cabin and shared accessory mapping
+- **WHEN** cabin paint materials consistently use an `altuv` flavor and a painted accessory has a different source flavor
+- **THEN** all painted contributions use `_TEXCOORD2`, the package records `game.alt_uv: true` and native mod export can emit `alternate_uvset: true`
+
+#### Scenario: Conflicting cabin modes
+- **WHEN** visible painted cabin materials disagree about ordinary versus alternate UV mapping
+- **THEN** the vehicle is refused with the relevant cabin definition identified
+
+#### Scenario: Missing selected mapping
+- **WHEN** the chosen package mode requires an absent or ambiguous UV alias on a painted accessory
+- **THEN** extraction refuses the vehicle rather than falling back to another UV stream
+
+#### Scenario: Metallic paint flavor
+- **WHEN** a selected painted material uses `flipflake`, optionally with airbrush, a normal map and alternate UVs
+- **THEN** its geometry contributes using the same semantic UV rules, while duplicate or unknown flavors remain invalid
+
+#### Scenario: Finite out-of-bounds coordinates
+- **WHEN** selected painted geometry has finite representable UV coordinates outside [0, 1]
+- **THEN** its original coordinates and selected alias are retained, its bounds and overflow count are reported, and no wrapping or alternate-channel fallback is applied
+
+#### Scenario: Detailed cabin model
+- **WHEN** a cabin references `detail_model` and a UK variant reuses it
+- **THEN** both selected variants contribute to its template with recorded provenance
+
 ### Requirement: Complete autonomous vehicle package
-Each successful vehicle SHALL produce one `.tpv` containing its SVG templates and manifest, with id `official.ets2.<vehicle>` and the supplied package version. It SHALL record the game path, supported game version range and paint/export metadata. Every cabin SHALL be covered exactly once by a main texture, and every supported painted accessory assignment SHALL be covered by its independent texture or the appropriate main texture. Main templates SHALL superpose compatible painted options. Cabin textures SHALL be 4096 × 4096. Accessory dimensions SHALL come from game paint job definitions using the validated crop-name method; missing or conflicting dimensions SHALL refuse the vehicle. Empty templates, invalid geometry and incomplete coverage SHALL refuse the vehicle. Successful packages SHALL pass the same validation as manual application installation and SHALL require neither the game nor ConverterPIX for installation and use.
+Each successful vehicle SHALL produce one `.tpv` containing its SVG templates and manifest, with id `official.ets2.<vehicle>` and the supplied package version. It SHALL record the game path, supported game version range and paint/export metadata. Every cabin SHALL be covered exactly once by a main texture, and every supported painted accessory assignment SHALL be covered by its independent texture or the appropriate main texture. Main templates SHALL superpose compatible painted options. Cabin textures SHALL be 4096 × 4096. Accessory dimensions SHALL come from game paint job definitions using the validated crop-name method; missing or conflicting dimensions SHALL refuse the vehicle. All such accessory failures SHALL appear in `dimension_diagnostics`, with candidate sizes and mask references tied to their source definitions/archives. Shared fill masks without usable crop dimensions SHALL NOT supply an inferred template size. Empty templates, invalid geometry and incomplete coverage SHALL refuse the vehicle. Successful packages SHALL pass the same validation as manual application installation and SHALL require neither the game nor ConverterPIX for installation and use.
 
 #### Scenario: Complete MAN or DAF
 - **WHEN** extraction succeeds for MAN TGX or DAF NGD
@@ -80,6 +111,15 @@ Every completed or recoverably failed batch SHALL publish `report.json` beside i
 - **THEN** its report identifies the accessory, relevant definitions, conflicting dimensions and failure stage
 
 #### Scenario: Missing reference with unknown DLC ownership
-- **WHEN** a paint definition references an absent accessory or a required game file is missing
-- **THEN** the vehicle is refused and its `missing_dependencies` entries identify the missing reference, its kind and the referencing definitions and source archives when available
+- **WHEN** a required game file is missing
+- **THEN** the vehicle is refused and its `missing_dependencies` entries identify the missing reference, its kind and a `blocking` disposition
 - **AND** `expected_dlc` is null and `dlc_origin` is `unknown` when the installed definitions do not establish which DLC supplies the missing data; the archive containing a reference is not presented as the missing DLC
+
+#### Scenario: Orphan paint override does not prevent extraction
+- **WHEN** a paint override references accessory ids with no corresponding installed definition and all defined painted content can be covered
+- **THEN** the vehicle package is generated with the same templates as without those references
+- **AND** `missing_dependencies` records each excluded id, referencing definitions and archives, an `ignored_reference` disposition and unknown DLC ownership rather than an asserted missing DLC
+
+#### Scenario: Defined accessory is still required
+- **WHEN** a paint override references an installed accessory definition whose painted geometry cannot be extracted
+- **THEN** extraction refuses the vehicle and records a `blocking` disposition rather than treating the definition as an orphan reference

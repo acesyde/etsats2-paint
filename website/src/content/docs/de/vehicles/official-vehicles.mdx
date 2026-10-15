@@ -14,7 +14,7 @@ Offizielle Lkw werden über manuell installierte `.tpv`-Pakete verwendet. <Ui id
 Paketautoren verwenden den Rust-Befehl `tpv` mit [ConverterPIX](https://github.com/mwl4/ConverterPIX), einem externen Programm:
 
 ```sh
-mise exec -- cargo run -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
+mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
   --converter "/path/to/converter_pix" --package-version 2.0.0
 ```
 
@@ -27,6 +27,14 @@ Jeder Durchlauf erstellt standardmäßig ein eigenes Unterverzeichnis in `dist/`
 Der Bericht enthält Quellen, Versionen, Texturabdeckung, Ergebnisse und Grenzen. Technische Paketprüfung beweist keine korrekte Darstellung im Spiel: Neue Fahrzeuge und Konfigurationen müssen noch im Spiel geprüft werden.
 
 `missing_dependencies` führt fehlende Referenzen und, soweit verfügbar, ihre Quelldefinitionen auf. `expected_dlc: null` mit `dlc_origin: "unknown"` bedeutet, dass sich der benötigte DLC nicht bestimmen lässt; das Archiv mit der Referenz belegt nicht, welcher DLC sie bereitstellt.
+
+Lackierungszuweisungen für Zubehör ohne installierte Definition werden ausgeschlossen und mit `disposition: "ignored_reference"` gemeldet; sie verhindern die Paketerstellung nicht. Definiertes Zubehör mit unbrauchbarer Geometrie oder unbrauchbaren Abmessungen sowie fehlende erforderliche Dateien blockieren die Extraktion weiterhin (`disposition: "blocking"`).
+
+Unterstützte Lackierungs-Shader sind `truckpaint`, `truckpaint.tsnmap` und `truckpaint.tsnmapuv`, optional mit `airbrush`, `flipflake` und `altuv` sowie den Alpha-Test-Suffixen `.a` oder `.asafew.a`. Die Vorlagen zeichnen die UV-Kanten des Meshs nach; sie bilden keine pixelweisen Deckkraftmasken ab. Die sichtbaren lackierten Kabinenmaterialien müssen einen einheitlichen UV-Modus vorgeben. Der Extraktor verwendet diesen Modus für sämtliches Zubehör und speichert ihn für den Mod-Export im Paket. Fehlende oder mehrdeutige ausgewählte UV-Zuordnungen und widersprüchliche Kabinenmodi werden abgelehnt. Materialien, die nur mit der Grundlackfarbe eingefärbt werden, legen keine UV-Zuordnung für eine Lackierungstextur fest; eine Zuweisung an solches definiertes Zubehör bleibt ein Abdeckungsfehler.
+
+Endliche UV-Koordinaten außerhalb von [0, 1] bleiben erhalten, ohne Wiederholung, Begrenzung der Werte oder Kanalwechsel. Der SVG-Anzeigebereich begrenzt das sichtbare Drahtgitter auf die Textur. Der Bericht enthält `uv_bounds` und `out_of_bounds_vertices`; diese Flächen erfordern besondere Aufmerksamkeit im Spiel. Nicht endliche oder nicht darstellbare Koordinaten bleiben ungültig.
+
+`dimension_diagnostics` führt sämtliches Zubehör mit fehlenden oder widersprüchlichen Zuschnittmaßen sowie mögliche Größen, Masken und referenzierende Definitionen und Archive auf. Gemeinsam genutzte Füllmasken bestimmen keine brauchbare Vorlagenauflösung. Diese Fälle blockieren die Extraktion weiterhin; der Extraktor erfindet keine Abmessungen.
 
 ## Installieren und lackieren
 

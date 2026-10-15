@@ -222,7 +222,7 @@ fn invalid_version_and_excluded_vehicle_publish_nothing() {
 #[test]
 fn ambiguous_masks_and_missing_model_outputs_refuse_whole_vehicle() {
     for (name, mask) in [
-        ("missing-dimension", "/mask"),
+        ("missing-dimension", "/electric/shared_a4cfe8ff.tobj"),
         ("ambiguous-dimension", "/mask_size_128x64"),
     ] {
         let fixture = fixture();
@@ -247,12 +247,53 @@ fn ambiguous_masks_and_missing_model_outputs_refuse_whole_vehicle() {
                 "SiiNunit\n{\nsimple_paint_job_data : .second {\nacc_list[]: \"mirror.high\"\npaint_job_mask: \"/mask_size_256x64\"\n}\n}\n",
             );
         }
+        write(
+            &source,
+            "def/vehicle/truck/example.good/accessory/mirror/other.sii",
+            "SiiNunit\n{\naccessory_addon_data : other.example.good.mirror {\nmodel: \"/vehicle/shared/example.good.pmd\"\n}\n}\n",
+        );
+        write(
+            &source,
+            "def/vehicle/truck/example.good/paint_job/accessory/fill.sii",
+            "SiiNunit\n{\nsimple_paint_job_data : .fill {\nacc_list[]: \"mirror.other\"\npaint_job_mask: \"/shared_00000000.tobj\"\n}\n}\n",
+        );
         let result = run(root, Some("example.good"));
         assert!(!result.status.success());
         let batch = batches(root).pop().unwrap();
         let report: Value =
             serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
         assert_eq!(report["results"][0]["stage"], "coverage");
+        assert_eq!(
+            report["results"][0]["dimension_diagnostics"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            report["results"][0]["dimension_diagnostics"][1]["reference"],
+            "mirror.other"
+        );
+        let problem = &report["results"][0]["dimension_diagnostics"][0];
+        assert_eq!(problem["reference"], "mirror.high");
+        assert_eq!(problem["disposition"], "blocking");
+        assert_eq!(problem["masks"][0]["path"], mask);
+        assert_eq!(
+            problem["masks"][0]["referenced_by"][0]["source"],
+            "version.scs"
+        );
+        if name == "ambiguous-dimension" {
+            assert_eq!(problem["reason"], "conflicting_crop_dimensions");
+            assert_eq!(
+                problem["candidates"],
+                serde_json::json!([[128, 64], [256, 64]])
+            );
+            assert_eq!(problem["masks"].as_array().unwrap().len(), 2);
+        } else {
+            assert_eq!(problem["reason"], "missing_crop_dimensions");
+            assert_eq!(problem["candidates"], serde_json::json!([]));
+            assert!(problem["masks"][0]["crop_size"].is_null());
+        }
         assert_eq!(std::fs::read_dir(batch).unwrap().count(), 1);
     }
     let fixture = fixture();
@@ -277,7 +318,7 @@ fn missing_dependencies_are_reported_without_guessing_a_dlc() {
         "def/vehicle/truck/example.good/paint_job/accessory/orphan.sii",
         "SiiNunit\n{\nsimple_paint_job_data : .orphan {\nacc_list[]: \"sideskirt.missing\"\nacc_list[]: \"mirror.missing\"\npaint_job_mask: \"/mask_size_256x64\"\n}\n}\n",
     );
-    assert!(!run(root, Some("example.good")).status.success());
+    assert!(run(root, Some("example.good")).status.success());
     let batch = batches(root).pop().unwrap();
     let report: Value =
         serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
@@ -288,11 +329,36 @@ fn missing_dependencies_are_reported_without_guessing_a_dlc() {
     assert_eq!(missing[0]["kind"], "accessory_definition");
     assert_eq!(missing[0]["reference"], "mirror.missing");
     assert_eq!(missing[0]["referenced_by"][0]["source"], "version.scs");
+    assert!(missing.iter().all(|d| d["expected_dlc"].is_null()
+        && d["dlc_origin"] == "unknown"
+        && d["disposition"] == "ignored_reference"));
+    assert_eq!(report["results"][0]["status"], "success");
+    assert_eq!(std::fs::read_dir(&batch).unwrap().count(), 2);
+    let clean_fixture = fixture();
     assert!(
-        missing
-            .iter()
-            .all(|d| d["expected_dlc"].is_null() && d["dlc_origin"] == "unknown")
+        run(clean_fixture.path(), Some("example.good"))
+            .status
+            .success()
     );
+    let filename = report["results"][0]["package"].as_str().unwrap();
+    assert_eq!(
+        std::fs::read(batch.join(filename)).unwrap(),
+        std::fs::read(batches(clean_fixture.path()).pop().unwrap().join(filename)).unwrap()
+    );
+
+    write(
+        &root.join("game/version.scs.files"),
+        "def/vehicle/truck/example.good/accessory/mirror/missing.sii",
+        "SiiNunit\n{\naccessory_addon_data : missing.example.good.mirror {\n}\n}\n",
+    );
+    assert!(!run(root, Some("example.good")).status.success());
+    let batch = batches(root).pop().unwrap();
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
+    let missing = &report["results"][0]["missing_dependencies"][0];
+    assert_eq!(missing["reference"], "mirror.missing");
+    assert_eq!(missing["kind"], "painted_exterior_surface");
+    assert_eq!(missing["disposition"], "blocking");
     assert_eq!(std::fs::read_dir(&batch).unwrap().count(), 1);
 
     let fixture = fixture();
@@ -311,4 +377,213 @@ fn missing_dependencies_are_reported_without_guessing_a_dlc() {
         report["results"][0]["missing_dependencies"][0]["reference"],
         "/vehicle/shared/example.good.pmd"
     );
+    assert_eq!(
+        report["results"][0]["missing_dependencies"][0]["disposition"],
+        "blocking"
+    );
+}
+
+#[test]
+fn cabin_uv_mode_drives_accessories_and_package_metadata() {
+    for alternate in [false, true] {
+        let fixture = fixture();
+        let root = fixture.path();
+        let source = root.join("game/version.scs.files");
+        let pim = PIM.replace("Triangles {", "Stream {\nTag: \"_UV7\"\nAliases: \"_TEXCOORD2\"\n0 ( 0.25 0.25 )\n1 ( 0.75 0.25 )\n2 ( 0.25 0.75 )\n}\nTriangles {");
+        let cabin_shader = if alternate {
+            "eut2.truckpaint.tsnmapuv.altuv"
+        } else {
+            "eut2.truckpaint"
+        };
+        let accessory_shader = if alternate {
+            "eut2.truckpaint.tsnmap"
+        } else {
+            "eut2.truckpaint.tsnmap.airbrush.altuv"
+        };
+        for (model, shader) in [("example.good", cabin_shader), ("mirror", accessory_shader)] {
+            write(&source, &format!("vehicle/shared/{model}.pmd"), "binary");
+            write(&source, &format!("vehicle/shared/{model}.pim"), &pim);
+            write(
+                &source,
+                &format!("vehicle/shared/{model}.pit"),
+                &PIT.replace("eut2.truckpaint.tsnmapuv", shader),
+            );
+        }
+        write(
+            &source,
+            "def/vehicle/truck/example.good/common.sui",
+            "detail_model: \"/vehicle/shared/example.good.pmd\"\nvariant_uk: default\n",
+        );
+        write(
+            &source,
+            "def/vehicle/truck/example.good/accessory/mirror/paint.sii",
+            "SiiNunit\n{\naccessory_addon_data : paint.example.good.mirror {\nmodel: \"/vehicle/shared/mirror.pmd\"\n}\n}\n",
+        );
+        write(
+            &source,
+            "def/vehicle/truck/example.good/paint_job/accessory/mirror.sii",
+            "SiiNunit\n{\nsimple_paint_job_data : .paint {\nacc_list[]: \"mirror.paint\"\npaint_job_mask: \"/mask_size_256x64\"\n}\n}\n",
+        );
+        let result = run(root, Some("example.good"));
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let batch = batches(root).pop().unwrap();
+        let report: Value =
+            serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
+        let result = &report["results"][0];
+        let bytes = std::fs::read(batch.join(result["package"].as_str().unwrap())).unwrap();
+        let package = tp_vehicles::Package::read(&bytes).unwrap();
+        assert_eq!(package.manifest.game.alt_uv, alternate);
+        assert_eq!(package.manifest.paint_job.main.len(), 1);
+        assert_eq!(package.manifest.paint_job.accessories.len(), 1);
+        assert_eq!(
+            package.manifest.paint_job.accessories[0].texture.size,
+            [256, 64].into()
+        );
+        for texture in result["textures"].as_array().unwrap() {
+            assert_eq!(texture["edges"], 3);
+            for contributor in texture["contributors"].as_array().unwrap() {
+                for selection in contributor["selections"].as_array().unwrap() {
+                    for surface in selection["painted_surfaces"].as_array().unwrap() {
+                        assert_eq!(
+                            surface["uv_alias"],
+                            if alternate {
+                                "_TEXCOORD2"
+                            } else {
+                                "_TEXCOORD1"
+                            }
+                        );
+                    }
+                }
+            }
+        }
+        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        let mut svg = String::new();
+        std::io::Read::read_to_string(
+            &mut archive.by_name("templates/mirror_paint.svg").unwrap(),
+            &mut svg,
+        )
+        .unwrap();
+        assert!(svg.contains(if alternate {
+            "M64.000,16.000"
+        } else {
+            "M0.000,0.000"
+        }));
+        write(
+            &source,
+            "def/vehicle/truck/example.good/cabin/conflict.sii",
+            "SiiNunit\n{\naccessory_cabin_data : conflict.example.good.cabin {\nname: \"Conflicting\"\nmodel: \"/vehicle/shared/mirror.pmd\"\n}\n}\n",
+        );
+        assert!(!run(root, Some("example.good")).status.success());
+        let batch = batches(root).pop().unwrap();
+        let report: Value =
+            serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
+        assert!(
+            report["results"][0]["error"]
+                .as_str()
+                .unwrap()
+                .contains("conflicting cabin paint UV modes")
+        );
+        assert_eq!(std::fs::read_dir(batch).unwrap().count(), 1);
+    }
+}
+
+#[test]
+fn metallic_shaders_and_finite_uv_overflow_produce_traceable_packages() {
+    let fixture = fixture();
+    let root = fixture.path();
+    let source = root.join("game/version.scs.files");
+    write(
+        &source,
+        "vehicle/shared/example.good.pim",
+        &PIM.replace("0 ( 0 0 )", "0 ( -2.125 1.75 )"),
+    );
+    write(
+        &source,
+        "vehicle/shared/example.good.pit",
+        &PIT.replace(
+            "truckpaint.tsnmapuv",
+            "truckpaint.tsnmapuv.airbrush.flipflake",
+        ),
+    );
+    let result = run(root, Some("example.good"));
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let batch = batches(root).pop().unwrap();
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
+    let vehicle = &report["results"][0];
+    let surface =
+        &vehicle["textures"][0]["contributors"][0]["selections"][0]["painted_surfaces"][0];
+    assert_eq!(surface["uv_alias"], "_TEXCOORD1");
+    assert_eq!(surface["out_of_bounds_vertices"], 1);
+    assert_eq!(
+        surface["uv_bounds"],
+        serde_json::json!({"min":[-2.125,0.0],"max":[1.0,1.75]})
+    );
+    let package = std::fs::read(batch.join(vehicle["package"].as_str().unwrap())).unwrap();
+    tp_pack::check(&package).unwrap();
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(package)).unwrap();
+    let manifest: Value = serde_json::from_reader(zip.by_name("vehicle.json").unwrap()).unwrap();
+    assert_eq!(manifest["game"]["alt_uv"], false);
+    let mut svg = String::new();
+    std::io::Read::read_to_string(&mut zip.by_name("templates/high.svg").unwrap(), &mut svg)
+        .unwrap();
+    assert!(svg.contains("-8704.000,7168.000"));
+}
+
+#[test]
+fn solid_colour_override_does_not_invent_a_paint_job_uv_mapping() {
+    let fixture = fixture();
+    let root = fixture.path();
+    let source = root.join("game/version.scs.files");
+    for (extension, text) in [
+        ("pmd", "binary"),
+        ("pim", PIM),
+        (
+            "pit",
+            &PIT.replace(
+                "eut2.truckpaint.tsnmapuv",
+                "eut2.dif.spec.weight.add.env.tsnmapuv.paint.a",
+            ),
+        ),
+    ] {
+        write(&source, &format!("vehicle/shared/solid.{extension}"), text);
+    }
+    write(
+        &source,
+        "def/vehicle/truck/example.good/accessory/guard/painted.sii",
+        "SiiNunit\n{\naccessory_addon_data : painted.example.good.guard {\nexterior_model: \"/vehicle/shared/solid.pmd\"\n}\n}\n",
+    );
+    write(
+        &source,
+        "def/vehicle/truck/example.good/paint_job/accessory/guard.sii",
+        "SiiNunit\n{\nsimple_paint_job_data : .guard {\nacc_list[]: \"guard.painted\"\npaint_job_mask: \"/mask_size_128x64.tobj\"\n}\n}\n",
+    );
+    let result = run(root, Some("example.good"));
+    assert!(!result.status.success());
+    let batch = batches(root).pop().unwrap();
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
+    let vehicle = &report["results"][0];
+    assert_eq!(vehicle["stage"], "coverage");
+    assert_eq!(
+        vehicle["missing_dependencies"][0]["reference"],
+        "guard.painted"
+    );
+    assert_eq!(
+        vehicle["missing_dependencies"][0]["kind"],
+        "painted_exterior_surface"
+    );
+    assert_eq!(
+        vehicle["missing_dependencies"][0]["disposition"],
+        "blocking"
+    );
+    assert_eq!(std::fs::read_dir(batch).unwrap().count(), 1);
 }

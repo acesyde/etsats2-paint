@@ -24,14 +24,16 @@
 - [ ] 4.2 Continue after per-vehicle failures and compute the final exit result; verify fake-converter batches preserve successful packages, refuse failed vehicles and return nonzero for any incomplete batch or report/publication failure.
 - [ ] 4.3 Publish structured JSON reports with source precedence, versions, per-texture contributors/coverage, errors and limits; verify report fixtures distinguish technical validation from game evidence and explicitly mark unknown converter metadata and vehicles needing game checks.
 
-- [x] 4.4 Record missing accessory definitions, painted surfaces and game files in `report.json`, with referencing sources when available and explicit unknown DLC ownership; verify that diagnostics preserve refusal and publish no Markdown or partial package.
+- [x] 4.4 Record missing accessory definitions, painted surfaces and game files in `report.json`, with referencing sources when available and explicit unknown DLC ownership; verify that diagnostics preserve refusal for required files and defined accessories and publish no Markdown or partial package.
+
+- [x] 4.5 Exclude paint overrides with no installed accessory definition, retaining their source diagnostics on successful vehicles; verify unchanged package bytes, continued refusal for defined accessories and required files, then regenerate MAN and validate its manual app workflow.
 
 ## 5. Remove the catalog chain and preserve manual workflows
 
 - [x] 5.1 Remove `catalog/`, vehicle/packer catalog modules and catalog CLI commands, updating exports and dependent tests; verify reference searches contain no live source-chain dependency and pack/check/custom/sample tests still pass.
 - [x] 5.2 Simplify shared New Project/Add Vehicle selectors to installed vehicles and remove official installation state, workers, dialogs and events; verify headless tests cover empty lists, filters, keyboard selection, multiple vehicles and texture choices without catalog offers.
 - [x] 5.3 Remove template pack preferences/controls and obsolete credits, updating all four locales; verify old preference files retain supported settings, removed fields are ignored and French/Spanish/German screens fit, especially German labels.
-- [ ] 5.4 Add explicit application regression tests for manual MAN/DAF `.tpv` installation, library listing, project creation/save/reload and mod export; verify cabin/accessory counts, DDS dimensions and exported game/TOBJ references against the generated packages.
+- [x] 5.4 Add explicit application regression tests for manual MAN/DAF `.tpv` installation, library listing, project creation/save/reload and mod export; verify cabin/accessory counts, DDS dimensions and exported game/TOBJ references against the generated packages.
 - [x] 5.5 Verify custom vehicles, original sample packages, ATS/manual trailer packages and embedded project templates still work; run the existing targeted tests without depending on the removed catalog.
 
 ## 6. Replace prototype documentation and affected media
@@ -43,7 +45,19 @@
 
 ## 7. Validate against the installed game and complete checks
 
-- [ ] 7.1 Generate fresh MAN/DAF packages from the local ETS2 installation with the maintained command and an explicit version; compare cabin ids, accessory assignments, dimensions and geometry/UV evidence with the validated runs, explaining any tuning-DLC additions or source changes in the delivered report.
-- [ ] 7.2 In an isolated application library, manually install the fresh MAN/DAF packages, create projects and export mods; verify the actual UI workflow completes, exported files match the packages and technical checks are recorded separately from historical game evidence.
-- [ ] 7.3 Generate the full discovered ETS2 truck batch under a unique `dist/` subdirectory; verify successful packages individually, record every refused vehicle and deliver the report with the list of new vehicles/configurations still needing in-game checks. An incomplete extraction batch is reported as such, not treated as a successful full batch.
+- [x] 7.1 Generate fresh MAN/DAF packages from the local ETS2 installation with the maintained command and an explicit version; compare cabin ids, accessory assignments, dimensions and geometry/UV evidence with the validated runs, explaining any tuning-DLC additions or source changes in the delivered report.
+- [x] 7.2 In an isolated application library, manually install the fresh MAN/DAF packages, create projects and export mods; verify the actual UI workflow completes, exported files match the packages and technical checks are recorded separately from historical game evidence.
+- [x] 7.3 Generate the full discovered ETS2 truck batch under a unique `dist/` subdirectory; verify successful packages individually, record every refused vehicle and deliver the report with the list of new vehicles/configurations still needing in-game checks. An incomplete extraction batch is reported as such, not treated as a successful full batch.
 - [x] 7.4 Delegate `mise run ci` to the rust-ui-tester as required by project apply guidance, resolve failures and explicitly run/confirm the app build and documentation build; verify format, lint, tests and build pass, reporting any GPU/game-only checks that could not be completed.
+
+## 8. Extend shared shader coverage
+
+- [x] 8.1 Establish SCS shader/UV semantics, recognize truckpaint/tsnmap/tsnmapuv with optional airbrush/altuv and a/asafew.a alpha-test suffixes, derive one cabin UV mode and enforce it on accessories and package metadata; cover distinct UV streams, missing/duplicate aliases, unsupported flavors, conflicting cabins, detail_model and UK reuse with no-game fixtures.
+- [x] 8.2 Regenerate Volvo FH 2024 and Mercedes Actros 2014 as TPV-only trials, validate any produced packages, and report precise further refusals and game-check requirements without publishing reduced packages.
+- [x] 8.3 Replay cached MAN/DAF geometry against all 45 validated SVGs, update four-language extraction documentation and source notes, then pass CI and documentation build.
+
+## 9. Address full-batch refusals
+
+- [x] 9.1 Support the geometry-neutral flipflake flavor and preserve finite representable UV overflow with original channel/coordinates and reported bounds/counts; test combinations, duplicate flavors and invalid geometry without game assets.
+- [x] 9.2 Diagnose all missing/conflicting accessory dimensions with mask and source provenance, retaining refusal for genuinely unresolved sizes and shared fill masks; test structured diagnostics, continued refusal for defined base-colour-only materials without paint-job UV coverage, and absence of partial packages.
+- [x] 9.3 Replay MAN/DAF baselines, regenerate the local ETS2 batch, validate resulting packages and report remaining failures/game-check requirements; update source notes and four-language documentation and pass CI/doc build.
