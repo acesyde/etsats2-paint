@@ -52,13 +52,29 @@ fn reserve(parent: &Path) -> Result<PathBuf, String> {
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_nanos();
-    let path = parent.join(format!("ets2-{stamp}-{}", std::process::id()));
-    std::fs::create_dir(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-    Ok(path)
+    // create_dir fails on an existing directory, so a batch never reuses another's.
+    for attempt in 0u32.. {
+        let path = parent.join(format!("ets2-{stamp}-{}-{attempt}", std::process::id()));
+        match std::fs::create_dir(&path) {
+            Ok(()) => return Ok(path),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(format!("{}: {e}", path.display())),
+        }
+    }
+    unreachable!()
 }
 
+/// Writes beside the target then renames, so an interrupted write leaves no partial file.
 fn publish(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    std::fs::write(path, bytes).map_err(|e| format!("{}: {e}", path.display()))
+    let error = |e: std::io::Error| format!("{}: {e}", path.display());
+    let name = path.file_name().ok_or("invalid output path")?;
+    let partial = path.with_file_name(format!(".{}.partial", name.to_string_lossy()));
+    std::fs::write(&partial, bytes)
+        .and_then(|()| std::fs::rename(&partial, path))
+        .map_err(|e| {
+            let _ = std::fs::remove_file(&partial);
+            error(e)
+        })
 }
 
 fn definition(
@@ -70,18 +86,54 @@ fn definition(
     syntax::parse(&text).map_err(|e| format!("{path}: {e}"))
 }
 
-fn label(value: &str) -> String {
-    value
-        .strip_prefix("@@")
-        .and_then(|v| v.strip_suffix("@@"))
-        .map(|v| {
-            v.trim_start_matches("brand_")
-                .trim_start_matches("series_")
-                .trim_start_matches("cabin_")
-                .replace('_', " ")
-                .to_uppercase()
-        })
-        .unwrap_or_else(|| value.to_owned())
+/// English game strings by key, from the localization files of the installed game.
+type Names = BTreeMap<String, String>;
+
+const NAME_FILES: [&str; 2] = ["/locale/common.sui", "/locale/en_us/accessories.sui"];
+
+/// Brand, series and cabin names; absent files fall back to the keys.
+fn names(sources: &mut Sources) -> Result<Names, String> {
+    let mut names = Names::new();
+    for path in NAME_FILES {
+        let text = match sources.read(path) {
+            Ok(text) => text,
+            Err(e) if e.starts_with("missing game file ") => continue,
+            Err(e) => return Err(e),
+        };
+        // Values may be followed by a comment: keep only the leading quoted string.
+        let quoted = |value: &str| {
+            let value = value.trim();
+            value
+                .strip_prefix('"')
+                .and_then(|v| v.split_once('"'))
+                .map_or(value, |(inner, _)| inner)
+                .to_owned()
+        };
+        let mut key = None;
+        for line in text.lines().map(str::trim) {
+            if let Some(value) = line.strip_prefix("key[]:") {
+                key = Some(quoted(value));
+            } else if let (Some(value), Some(key)) = (line.strip_prefix("val[]:"), key.take()) {
+                names.insert(key, quoted(value));
+            }
+        }
+    }
+    Ok(names)
+}
+
+fn label(value: &str, names: &Names) -> String {
+    let key = value.strip_prefix("@@").and_then(|v| v.strip_suffix("@@"));
+    if let Some(name) = key.and_then(|key| names.get(key)) {
+        return name.clone();
+    }
+    key.map(|v| {
+        v.trim_start_matches("brand_")
+            .trim_start_matches("series_")
+            .trim_start_matches("cabin_")
+            .replace('_', " ")
+            .to_uppercase()
+    })
+    .unwrap_or_else(|| value.to_owned())
 }
 
 struct Painted {
@@ -182,7 +234,6 @@ struct Parts {
     painted: BTreeMap<String, Painted>,
     cabins: BTreeMap<String, String>,
     seen: BTreeSet<String>,
-    alt_uv: Option<bool>,
 }
 
 #[derive(Default)]
@@ -196,6 +247,7 @@ struct Textures {
 /// One truck's extraction; what it gathered stays readable after a failure.
 struct Build<'a> {
     sources: &'a mut Sources,
+    names: &'a Names,
     vehicle: &'a str,
     root: String,
     evidence: BTreeSet<String>,
@@ -204,9 +256,10 @@ struct Build<'a> {
 }
 
 impl<'a> Build<'a> {
-    fn new(sources: &'a mut Sources, vehicle: &'a str) -> Self {
+    fn new(sources: &'a mut Sources, names: &'a Names, vehicle: &'a str) -> Self {
         Self {
             sources,
+            names,
             vehicle,
             root: format!("/def/vehicle/truck/{vehicle}/"),
             evidence: BTreeSet::new(),
@@ -219,7 +272,6 @@ impl<'a> Build<'a> {
         definition(self.sources, path, &mut self.evidence)
     }
 
-    /// Cabins come first: they establish the paint UV mode accessories use.
     fn definition_paths(&self) -> Vec<String> {
         let mut paths = self
             .sources
@@ -242,12 +294,19 @@ impl<'a> Build<'a> {
         let [brand, series, ..] = info.as_slice() else {
             return Err("missing truck brand or series".into());
         };
-        let (brand, series) = (label(brand), label(series));
-        let name = if series.starts_with(&format!("{brand} ")) {
-            series
+        let (brand, series) = (label(brand, self.names), label(series, self.names));
+        let mut name = if series.starts_with(&format!("{brand} ")) {
+            series.clone()
         } else {
             format!("{brand} {series}")
         };
+        // The optional short series tells apart trucks sharing a series (Iveco Stralis Hi-Way).
+        if let Some(short) = info.get(4).filter(|s| !s.is_empty()) {
+            let short = label(short, self.names);
+            if !series.contains(&short) {
+                name = format!("{name} {short}");
+            }
+        }
         Ok((brand, name))
     }
 
@@ -282,7 +341,6 @@ impl<'a> Build<'a> {
         &mut self,
         unit: &Section,
         path: &str,
-        alt_uv: Option<bool>,
     ) -> Result<(Vec<geometry::Mesh>, Vec<Value>), String> {
         let export = self.sources.work.join("models");
         std::fs::create_dir_all(&export).map_err(|e| e.to_string())?;
@@ -301,7 +359,9 @@ impl<'a> Build<'a> {
                 self.sources.command(&mounts, &export, &args)?;
             }
             self.stage = "geometry-selection";
-            let (found, selection) = model_geometry(&export, &model, &look, &variant, alt_uv)
+            // Always the ordinary paint UVs, as the game's colour paint jobs and the
+            // community templates use; `.altuv` materials also carry them.
+            let (found, selection) = model_geometry(&export, &model, &look, &variant, Some(false))
                 .map_err(|e| format!("{path}: {e}"))?;
             mesh.extend(found);
             selections.push(selection);
@@ -315,7 +375,6 @@ impl<'a> Build<'a> {
             painted: BTreeMap::new(),
             cabins: BTreeMap::new(),
             seen: BTreeSet::new(),
-            alt_uv: None,
         };
         for path in paths.iter().filter(|p| {
             ["cabin/", "chassis/", "accessory/"]
@@ -342,23 +401,15 @@ impl<'a> Build<'a> {
                 }
                 let cabin = group == "cabin";
                 if cabin {
-                    let name = unit.field("name").map(label);
+                    let name = unit.field("name").map(|n| label(n, self.names));
                     parts.cabins.insert(
                         unit_name.to_owned(),
                         name.unwrap_or_else(|_| unit_name.to_owned()),
                     );
                 }
-                let (mesh, selection) =
-                    self.unit_geometry(unit, path, if cabin { None } else { parts.alt_uv })?;
+                let (mesh, selection) = self.unit_geometry(unit, path)?;
                 if mesh.is_empty() {
                     continue;
-                }
-                if cabin {
-                    let modes = mesh.iter().map(|m| m.alt_uv).collect::<BTreeSet<_>>();
-                    if modes.len() != 1 || parts.alt_uv.is_some_and(|mode| !modes.contains(&mode)) {
-                        return Err(format!("{path}: conflicting cabin paint UV modes"));
-                    }
-                    parts.alt_uv = modes.first().copied();
                 }
                 let suffix = format!(".{}.cabin", self.vehicle);
                 let cabins = array(unit, "suitable_for[]")
@@ -382,12 +433,8 @@ impl<'a> Build<'a> {
         Ok(parts)
     }
 
-    /// Texture size of every accessory with its own paint mask; refuses unresolvable ones.
-    fn accessory_sizes(
-        &mut self,
-        parts: &Parts,
-        masks: &Masks,
-    ) -> Result<BTreeMap<String, [u32; 2]>, String> {
+    /// Texture size of every accessory with its own sized paint mask.
+    fn accessory_sizes(&mut self, parts: &Parts, masks: &Masks) -> BTreeMap<String, [u32; 2]> {
         let provenance = |sources: &Sources, id: &str| {
             sources.provenance(&masks[id].values().flatten().cloned().collect())
         };
@@ -397,48 +444,60 @@ impl<'a> Build<'a> {
             .collect::<Vec<_>>();
         for id in &uncovered {
             // Paint DLC can reference accessories absent from the installed definitions.
-            let blocking = parts.seen.contains(*id);
+            // A defined accessory without truckpaint material shows no livery whatever
+            // its override says (e.g. a base-colour-only paint flavor).
+            let defined = parts.seen.contains(*id);
             self.diagnostics.missing_dependencies.push(json!({
-                "kind": if blocking { "painted_exterior_surface" } else { "accessory_definition" },
-                "disposition": if blocking { "blocking" } else { "ignored_reference" },
+                "kind": if defined { "surface_without_livery_material" } else { "accessory_definition" },
+                "disposition": if defined { "excluded" } else { "ignored_reference" },
                 "reference": id,
                 "referenced_by": provenance(self.sources, id),
                 "expected_dlc": null,
                 "dlc_origin": "unknown",
             }));
         }
-        if let Some(id) = uncovered.iter().find(|id| parts.seen.contains(**id)) {
-            return Err(format!(
-                "paint override has no painted exterior model: {id}"
-            ));
-        }
         let mut sizes = BTreeMap::new();
-        for id in masks.keys().filter(|id| parts.seen.contains(*id)) {
+        for id in masks.keys().filter(|id| parts.painted.contains_key(*id)) {
             let found = masks[id]
                 .keys()
                 .filter_map(|m| crop_size(m))
                 .collect::<BTreeSet<_>>();
-            if let [size] = found.iter().collect::<Vec<_>>().as_slice() {
-                sizes.insert(id.clone(), **size);
+            // Paint UVs are normalized, so any size fits: the largest declared one keeps
+            // the most detail, and sides below MIN_SIDE are scaled up keeping the aspect
+            // ratio (Scania 2016's 32×32 mudflap). Without a sized mask (only shared
+            // fills), no size is inferred: the accessory stays on the main texture, as
+            // in paint jobs that do not override it.
+            let selected = found
+                .iter()
+                .max_by_key(|[w, h]| u64::from(*w) * u64::from(*h))
+                .map(|&size| {
+                    let factor = tp_vehicles::MIN_SIDE.div_ceil(size[0].min(size[1]).max(1));
+                    (size, size.map(|side| side.saturating_mul(factor.max(1))))
+                });
+            let (reason, disposition) = match selected {
+                None => ("missing_crop_dimensions", "main_texture"),
+                Some(_) if found.len() > 1 => ("conflicting_crop_dimensions", "resolved_largest"),
+                Some((declared, size)) if declared != size => {
+                    ("below_minimum_size", "raised_to_minimum")
+                }
+                Some(_) => ("", ""),
+            };
+            if let Some((_, size)) = selected {
+                sizes.insert(id.clone(), size);
+            }
+            if disposition.is_empty() {
                 continue;
             }
             self.diagnostics.dimensions.push(json!({
                 "reference": id,
-                "reason": if found.is_empty() { "missing_crop_dimensions" } else { "conflicting_crop_dimensions" },
-                "disposition": "blocking",
+                "reason": reason,
+                "disposition": disposition,
+                "selected": selected.map(|(_, size)| size),
                 "candidates": found,
                 "masks": masks[id].iter().map(|(mask, paths)| json!({"path": mask, "crop_size": crop_size(mask), "referenced_by": self.sources.provenance(paths)})).collect::<Vec<_>>(),
             }));
         }
-        if let Some(problem) = self.diagnostics.dimensions.first() {
-            return Err(format!(
-                "{} for {}: {}; see dimension_diagnostics",
-                problem["reason"].as_str().unwrap(),
-                problem["reference"].as_str().unwrap(),
-                problem["candidates"]
-            ));
-        }
-        Ok(sizes)
+        sizes
     }
 
     fn textures(parts: &Parts, sizes: &BTreeMap<String, [u32; 2]>) -> Result<Textures, String> {
@@ -457,7 +516,14 @@ impl<'a> Build<'a> {
                 edges,
             ))
         };
+        // The game gives some cabins the same name (8x4 versions): add the game id to tell them apart.
+        let shared = |name: &String| parts.cabins.values().filter(|n| *n == name).count() > 1;
         for (cabin, cabin_name) in &parts.cabins {
+            let cabin_name = if shared(cabin_name) {
+                format!("{cabin_name} ({cabin})")
+            } else {
+                cabin_name.clone()
+            };
             if !parts.painted.contains_key(&format!("cabin.{cabin}")) {
                 return Err(format!("cabin has no painted geometry: {cabin}"));
             }
@@ -511,8 +577,7 @@ impl<'a> Build<'a> {
         if parts.cabins.is_empty() {
             return Err("truck has no cabins".into());
         }
-        let alt_uv = parts.alt_uv.ok_or("truck has no painted cabins")?;
-        let sizes = self.accessory_sizes(&parts, &masks)?;
+        let sizes = self.accessory_sizes(&parts, &masks);
         let textures = Self::textures(&parts, &sizes)?;
         let minor = game_version
             .split('.')
@@ -522,7 +587,7 @@ impl<'a> Build<'a> {
             .map_err(|_| "invalid game minor version")?;
         let next = minor.checked_add(1).ok_or("invalid game version")?;
         let vehicle = self.vehicle;
-        let manifest = json!({"format":1,"id":format!("official.ets2.{vehicle}"),"version":package_version,"name":name,"brand":brand,"kind":"truck","description":format!("Generated from ETS2 {game_version}; technical validation only."),"game":{"id":"ets2","path":vehicle,"versions":format!(">=1.{minor}, <1.{next}"),"alt_uv":alt_uv,"colour_picker":false},"paint_job":{"main":textures.main,"accessories":textures.accessories}});
+        let manifest = json!({"format":1,"id":format!("official.ets2.{vehicle}"),"version":package_version,"name":name,"brand":brand,"kind":"truck","description":format!("Generated from ETS2 {game_version}; technical validation only."),"game":{"id":"ets2","path":vehicle,"versions":format!(">=1.{minor}, <1.{next}"),"alt_uv":false,"colour_picker":false},"paint_job":{"main":textures.main,"accessories":textures.accessories}});
         self.stage = "package-validation";
         let packed =
             crate::pack_entries(manifest, textures.templates).map_err(|e| e.to_string())?;
@@ -545,6 +610,7 @@ pub fn run(options: &Options) -> Result<Batch, String> {
     }
     let game_version = version.field("version")?.to_owned();
     sources.inventory()?;
+    let names = names(&mut sources)?;
     let discovered = sources
         .files
         .keys()
@@ -571,7 +637,7 @@ pub fn run(options: &Options) -> Result<Batch, String> {
     let mut failed = 0;
     for vehicle in &vehicles {
         eprintln!("extracting {vehicle}");
-        let mut build = Build::new(&mut sources, vehicle);
+        let mut build = Build::new(&mut sources, &names, vehicle);
         let result = build
             .package(&game_version, &options.package_version)
             .and_then(|(packed, coverage)| {
@@ -587,7 +653,7 @@ pub fn run(options: &Options) -> Result<Batch, String> {
             ..
         } = build;
         match result {
-            Ok((filename, coverage)) => results.push(json!({"vehicle":vehicle,"status":"success","package":filename,"technical_validation":"passed","in_game_validation":"required","missing_dependencies":diagnostics.missing_dependencies,"textures":coverage,"sources":sources.provenance(&evidence)})),
+            Ok((filename, coverage)) => results.push(json!({"vehicle":vehicle,"status":"success","package":filename,"technical_validation":"passed","in_game_validation":"required","missing_dependencies":diagnostics.missing_dependencies,"dimension_diagnostics":diagnostics.dimensions,"textures":coverage,"sources":sources.provenance(&evidence)})),
             Err(error) => {
                 if let Some(path) = error.strip_prefix("missing game file ") {
                     diagnostics.missing_dependencies.push(json!({"kind":"game_file","disposition":"blocking","reference":path,"expected_dlc":null,"dlc_origin":"unknown"}));
@@ -597,7 +663,7 @@ pub fn run(options: &Options) -> Result<Batch, String> {
             }
         }
     }
-    let report = json!({"format":1,"installation":options.installation,"converter":{"executable":sources.converter,"version":null,"version_status":"not exposed by CLI"},"tool_version":env!("CARGO_PKG_VERSION"),"game_version":game_version,"package_version":options.package_version,"archives":sources.archives,"archive_precedence":"last mounted wins; base source order and sorted DLC as observed in ETS2 mount log","requested_vehicle":options.vehicle,"discovered_vehicles":discovered,"processed_vehicles":vehicles,"work_directory":preliminary,"results":results,"failed":failed,"limits":["Truckpaint, tsnmap and tsnmapuv exterior models with optional airbrush/flipflake/altuv flavors and a/asafew.a alpha-test suffixes","Cabin paint materials must agree on one UV mode; accessories use that mode","Finite UV overflow is preserved in SVG coordinates; the texture viewport clips the wireframe without wrapping or changing UV mode; out-of-bounds surfaces need game checks","Main templates union compatible painted options","Cabin size 4096 square; accessory dimensions from crop names; missing/conflicting dimensions remain blocking, including shared fill masks without crop sizes","Package validation does not establish correctness in game"]});
+    let report = json!({"format":1,"installation":options.installation,"converter":{"executable":sources.converter,"version":null,"version_status":"not exposed by CLI"},"tool_version":env!("CARGO_PKG_VERSION"),"game_version":game_version,"package_version":options.package_version,"archives":sources.archives,"archive_precedence":"last mounted wins; base source order and sorted DLC as observed in ETS2 mount log","requested_vehicle":options.vehicle,"discovered_vehicles":discovered,"processed_vehicles":vehicles,"name_sources":NAME_FILES.iter().map(|p| sources.provenance(&BTreeSet::from([(*p).to_owned()]))[0].clone()).collect::<Vec<_>>(),"work_directory":preliminary,"results":results,"failed":failed,"limits":["Truckpaint, tsnmap and tsnmapuv exterior models with optional airbrush/flipflake/altuv flavors and a/asafew.a alpha-test suffixes","All paint materials use the ordinary paint UVs (_TEXCOORD1), including altuv flavors; packages never set alternate_uvset","Finite UV overflow is preserved in SVG coordinates; the texture viewport clips the wireframe without wrapping or changing UV mode; out-of-bounds surfaces need game checks","Main templates union compatible painted options","Accessories without a truckpaint material in their selected look/variant are excluded from templates","Cabin size 4096 square; accessory dimensions from crop names; conflicting sizes use the largest, accessories with only unsized (shared fill) masks stay on the main texture","Package validation does not establish correctness in game"]});
     publish(
         &output.join("report.json"),
         &serde_json::to_vec_pretty(&report).map_err(|e| e.to_string())?,
@@ -606,4 +672,26 @@ pub fn run(options: &Options) -> Result<Batch, String> {
         directory: output,
         failed,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reservations_are_unique_and_publication_leaves_no_partial_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let first = reserve(temp.path()).unwrap();
+        let second = reserve(temp.path()).unwrap();
+        assert_ne!(first, second);
+        publish(&first.join("a.tpv"), b"package").unwrap();
+        assert_eq!(std::fs::read(first.join("a.tpv")).unwrap(), b"package");
+        // A failed write (missing directory) publishes nothing.
+        assert!(publish(&first.join("missing/b.tpv"), b"package").is_err());
+        let names = std::fs::read_dir(&first)
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect::<Vec<_>>();
+        assert_eq!(names, ["a.tpv"]);
+    }
 }

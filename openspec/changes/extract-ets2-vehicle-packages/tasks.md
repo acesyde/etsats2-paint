@@ -20,7 +20,7 @@
 
 ## 4. Publish batches and reports
 
-- [ ] 4.1 Reserve unique output batch directories and separate `target/` workspaces, publishing only validated packages through temporary writes and rename; verify repeated/concurrent reservations do not overwrite batches and failed writes leave no partial `.tpv`.
+- [x] 4.1 Reserve unique output batch directories and separate `target/` workspaces, publishing only validated packages through temporary writes and rename; verify repeated/concurrent reservations do not overwrite batches and failed writes leave no partial `.tpv`.
 - [ ] 4.2 Continue after per-vehicle failures and compute the final exit result; verify fake-converter batches preserve successful packages, refuse failed vehicles and return nonzero for any incomplete batch or report/publication failure.
 - [ ] 4.3 Publish structured JSON reports with source precedence, versions, per-texture contributors/coverage, errors and limits; verify report fixtures distinguish technical validation from game evidence and explicitly mark unknown converter metadata and vehicles needing game checks.
 
@@ -61,3 +61,15 @@
 - [x] 9.1 Support the geometry-neutral flipflake flavor and preserve finite representable UV overflow with original channel/coordinates and reported bounds/counts; test combinations, duplicate flavors and invalid geometry without game assets.
 - [x] 9.2 Diagnose all missing/conflicting accessory dimensions with mask and source provenance, retaining refusal for genuinely unresolved sizes and shared fill masks; test structured diagnostics, continued refusal for defined base-colour-only materials without paint-job UV coverage, and absence of partial packages.
 - [x] 9.3 Replay MAN/DAF baselines, regenerate the local ETS2 batch, validate resulting packages and report remaining failures/game-check requirements; update source notes and four-language documentation and pass CI/doc build.
+
+## 10. Resolve the last refusals
+
+- [x] 10.1 Use the largest declared crop size for accessories with several sizes, scale sizes below the package minimum up keeping their aspect ratio, keep accessories overridden only by unsized fill masks on the main texture and exclude accessories without truckpaint material, all reported in `report.json`; test each case with no-game fixtures.
+- [x] 10.2 Publish packages and reports through a temporary file and rename, and make batch reservations retry instead of failing on a name collision; test that a failed write leaves no partial file.
+- [x] 10.3 Regenerate the local ETS2 batch, validate the packages and record the results in the source notes and four-language documentation; pass CI and the documentation build.
+
+## 11. Align with Paintjob Packer
+
+- [x] 11.1 Use the ordinary paint UVs (`_TEXCOORD1`) for every material, including `altuv` flavors, and record `game.alt_uv: false`; test that alternate-UV materials keep the ordinary layout.
+- [x] 11.2 Name trucks, brands and cabins from the game's English localization, appending the short series when it tells trucks apart and the cabin id when cabins share a name; test with a no-game localization fixture.
+- [ ] 11.3 Regenerate the local ETS2 batch, compare names and layouts with Paintjob Packer, validate the packages and update the source notes; pass CI and the documentation build.

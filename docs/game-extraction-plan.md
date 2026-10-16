@@ -291,3 +291,83 @@ valident pas ces nouvelles configurations.
 Le formatage, le lint, les tests workspace et le build release passent via
 `mise run ci`, ainsi que le build des 89 pages de documentation en quatre
 langues. Les tests GPU/jeu ignorés ne sont pas comptés comme réussis.
+
+
+## Résolution des quatre derniers refus
+
+Règles retenues le 16 octobre 2026, sans profil par camion :
+
+- **Tailles contradictoires** : la plus grande taille déclarée est utilisée
+  (`resolved_largest`). Les UV de livrée sont normalisés : le gabarit convient
+  à toute taille, la plus grande garde le plus de détail. Scania R/S 2016 :
+  2048×512 pour `r_fender.8x4_p`, `r_fendr_top.8x4_p` et
+  `r_fendr_top.low_8x4_p`.
+- **Tailles sous le minimum des paquets** (64) : la taille déclarée est
+  agrandie d’un facteur entier qui garde ses proportions (`raised_to_minimum`).
+  Ce cas, masqué jusque-là par le refus précédent, touche les garde-boue avant
+  32×32 (→ 64×64) et les pare-soleil 1024×32 (→ 2048×64) des Scania 2016.
+- **Masques de remplissage seuls** : un accessoire que les livrées ne
+  redéfinissent qu’avec un masque sans taille reste sur la texture principale
+  (`main_texture`). Sur le Scania S 2024 Electric, seule la livrée `electric_a`
+  applique le remplissage 4×4 à `r_bumper.stock_p`, `r_fender.4x2_p` et
+  `sunshld.stock` ; les livrées unies `color0`/`color1` ne les redéfinissent pas,
+  donc le jeu les peint avec la texture principale. Aucune taille n’est inventée.
+- **Accessoire sans matériau de livrée** : un accessoire défini dont le modèle
+  sélectionné n’a aucun matériau truckpaint est exclu des gabarits
+  (`surface_without_livery_material`, `excluded`). Renault T :
+  `s_guard.renault_pa` (teinte de couleur de base seulement).
+
+Les fichiers manquants, la géométrie illisible et les shaders non pris en charge
+restent bloquants. La publication passe par un fichier temporaire puis un
+renommage ; une collision de nom de lot ne fait plus échouer la réservation.
+
+## Passe complète 26/26
+
+Une mise à jour Steam a fait passer ETS2 de 1.61.1.1 à 1.61.1.9 entre la passe
+de référence (ancien code, `dist/ets2-1792164991140359630-19068/`, 22 TPV et
+4 refus identiques à la passe précédente) et la nouvelle passe
+(`dist/ets2-1792166009280378403-133602-0/`). Les 22 paquets déjà produits ont
+des gabarits identiques ; seule la description du manifeste change de version
+du jeu. La nouvelle passe produit en plus Renault T et Scania S 2024 Electric ;
+les Scania R/S 2016 ont été régénérés séparément après la règle du minimum
+(`dist/ets2-1792168409114020945-389482-0/`, `dist/ets2-1792168639785946742-401367-0/`).
+Les 26 TPV passent `tpv check`.
+
+À vérifier en jeu en priorité : les accessoires `resolved_largest` et
+`raised_to_minimum` des Scania 2016, les trois accessoires du Scania électrique
+passés sur la texture principale (un chevauchement d’UV avec la cabine serait
+visible) et l’absence de livrée sur la protection latérale du Renault T.
+
+
+## Alignement sur Paintjob Packer
+
+Comparaison du 16 octobre 2026 avec les données de
+[Paintjob Packer](https://github.com/carsmaniac/paintjob-packer)
+(`vehicles/ets/scs/*.json`, commit `a7a7ed3`). Le dépôt ne contient ni gabarits
+ni UV ni tailles : ses gabarits 4k sont des téléchargements séparés du forum SCS.
+Seules les métadonnées sont comparables.
+
+- **Disposition UV** : Paintjob Packer met `alt_uv: false` partout. Nous
+  utilisons désormais aussi `_TEXCOORD1` pour tous les matériaux, `altuv`
+  compris, et `game.alt_uv: false`. Les deux canaux diffèrent sur le DAF XF105,
+  l’Actros 2014, le Magnum, le Premium, le Scania R 2009, le Streamline et le
+  FH16 2009 : les livrées unies du jeu et les gabarits de la communauté
+  utilisent la disposition ordinaire, les livrées DLC de SCS la disposition
+  alternative (`alternate_uvset: true`). Seuls les gabarits de ces sept camions
+  changent ; le MAN TGX Euro 6 a deux canaux identiques.
+- **Noms** : les noms viennent de la localisation anglaise du jeu
+  (`/locale/common.sui` pour marques et séries, `/locale/en_us/accessories.sui`
+  pour les cabines), avec la série courte (cinquième `info[]`) quand elle
+  distingue deux camions (« Iveco Stralis Hi-Way »). Les 26 noms de camions et
+  les noms de cabines sont identiques à ceux de Paintjob Packer. Les cabines 8x4
+  que le jeu nomme comme leur version normale reçoivent leur identifiant
+  (« GigaSpace (gs_8x4) »).
+- **Erreurs de Paintjob Packer** (le jeu fait foi) : identifiants
+  `4x2.sideskirt`… au lieu de `sideskirt.4x2` sur le MAN TGX 2020, cabine
+  `l3h34_8x4` au lieu de `l3h3_8x4` sur le Volvo FH6.
+- **Accessoires** : les identifiants qu’ils sont seuls à lister n’existent pas
+  dans l’installation (pièces retirées ou DLC absent), sauf quelques pièces
+  qu’ils séparent alors que le jeu ne leur donne pas de masque dimensionné
+  (DAF XF Electric, Renault E-Tech T, `r_grill.boss_pn`, et le garde-boue arrière/
+  pare-soleil du Scania S BEV). Ces pièces restent sur la texture principale ;
+  à vérifier en jeu.

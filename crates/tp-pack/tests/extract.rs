@@ -220,7 +220,7 @@ fn invalid_version_and_excluded_vehicle_publish_nothing() {
 }
 
 #[test]
-fn ambiguous_masks_and_missing_model_outputs_refuse_whole_vehicle() {
+fn conflicting_sizes_use_the_largest_and_unsized_masks_stay_on_the_main_texture() {
     for (name, mask) in [
         ("missing-dimension", "/electric/shared_a4cfe8ff.tobj"),
         ("ambiguous-dimension", "/mask_size_128x64"),
@@ -258,44 +258,60 @@ fn ambiguous_masks_and_missing_model_outputs_refuse_whole_vehicle() {
             "SiiNunit\n{\nsimple_paint_job_data : .fill {\nacc_list[]: \"mirror.other\"\npaint_job_mask: \"/shared_00000000.tobj\"\n}\n}\n",
         );
         let result = run(root, Some("example.good"));
-        assert!(!result.status.success());
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
         let batch = batches(root).pop().unwrap();
         let report: Value =
             serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
-        assert_eq!(report["results"][0]["stage"], "coverage");
-        assert_eq!(
-            report["results"][0]["dimension_diagnostics"]
-                .as_array()
-                .unwrap()
-                .len(),
-            2
-        );
-        assert_eq!(
-            report["results"][0]["dimension_diagnostics"][1]["reference"],
-            "mirror.other"
-        );
-        let problem = &report["results"][0]["dimension_diagnostics"][0];
+        let vehicle = &report["results"][0];
+        let diagnostics = vehicle["dimension_diagnostics"].as_array().unwrap();
+        assert_eq!(diagnostics.len(), 2);
+        assert_eq!(diagnostics[1]["reference"], "mirror.other");
+        assert_eq!(diagnostics[1]["disposition"], "main_texture");
+        let problem = &diagnostics[0];
         assert_eq!(problem["reference"], "mirror.high");
-        assert_eq!(problem["disposition"], "blocking");
         assert_eq!(problem["masks"][0]["path"], mask);
         assert_eq!(
             problem["masks"][0]["referenced_by"][0]["source"],
             "version.scs"
         );
+        let package = tp_pack::check(
+            &std::fs::read(batch.join(vehicle["package"].as_str().unwrap())).unwrap(),
+        )
+        .unwrap();
+        let accessories = &package.paint_job.accessories;
         if name == "ambiguous-dimension" {
             assert_eq!(problem["reason"], "conflicting_crop_dimensions");
+            assert_eq!(problem["disposition"], "resolved_largest");
+            assert_eq!(problem["selected"], serde_json::json!([256, 64]));
             assert_eq!(
                 problem["candidates"],
                 serde_json::json!([[128, 64], [256, 64]])
             );
             assert_eq!(problem["masks"].as_array().unwrap().len(), 2);
+            assert_eq!(accessories.len(), 1);
+            assert_eq!(accessories[0].game_ids, ["mirror.high"]);
+            assert_eq!(<[u32; 2]>::from(accessories[0].texture.size), [256, 64]);
         } else {
             assert_eq!(problem["reason"], "missing_crop_dimensions");
+            assert_eq!(problem["disposition"], "main_texture");
             assert_eq!(problem["candidates"], serde_json::json!([]));
             assert!(problem["masks"][0]["crop_size"].is_null());
+            assert!(accessories.is_empty());
         }
-        assert_eq!(std::fs::read_dir(batch).unwrap().count(), 1);
+        let main = vehicle["textures"][0]["contributors"].as_array().unwrap();
+        let in_main = |id: &str| main.iter().any(|c| c["id"] == id);
+        assert!(in_main("mirror.other"));
+        assert_eq!(in_main("mirror.high"), name == "missing-dimension");
+        assert_eq!(std::fs::read_dir(batch).unwrap().count(), 2);
     }
+}
+
+#[test]
+fn missing_model_outputs_refuse_whole_vehicle() {
     let fixture = fixture();
     let root = fixture.path();
     let script = CONVERTER.replace("cp \"$root$path.pit\" \"$export$path.pit\"", ":");
@@ -351,15 +367,16 @@ fn missing_dependencies_are_reported_without_guessing_a_dlc() {
         "def/vehicle/truck/example.good/accessory/mirror/missing.sii",
         "SiiNunit\n{\naccessory_addon_data : missing.example.good.mirror {\n}\n}\n",
     );
-    assert!(!run(root, Some("example.good")).status.success());
+    // A defined accessory with no exterior model shows no livery: excluded, not blocking.
+    assert!(run(root, Some("example.good")).status.success());
     let batch = batches(root).pop().unwrap();
     let report: Value =
         serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
     let missing = &report["results"][0]["missing_dependencies"][0];
     assert_eq!(missing["reference"], "mirror.missing");
-    assert_eq!(missing["kind"], "painted_exterior_surface");
-    assert_eq!(missing["disposition"], "blocking");
-    assert_eq!(std::fs::read_dir(&batch).unwrap().count(), 1);
+    assert_eq!(missing["kind"], "surface_without_livery_material");
+    assert_eq!(missing["disposition"], "excluded");
+    assert_eq!(std::fs::read_dir(&batch).unwrap().count(), 2);
 
     let fixture = fixture();
     let root = fixture.path();
@@ -384,7 +401,7 @@ fn missing_dependencies_are_reported_without_guessing_a_dlc() {
 }
 
 #[test]
-fn cabin_uv_mode_drives_accessories_and_package_metadata() {
+fn every_material_uses_the_ordinary_paint_uvs() {
     for alternate in [false, true] {
         let fixture = fixture();
         let root = fixture.path();
@@ -436,7 +453,7 @@ fn cabin_uv_mode_drives_accessories_and_package_metadata() {
         let result = &report["results"][0];
         let bytes = std::fs::read(batch.join(result["package"].as_str().unwrap())).unwrap();
         let package = tp_vehicles::Package::read(&bytes).unwrap();
-        assert_eq!(package.manifest.game.alt_uv, alternate);
+        assert!(!package.manifest.game.alt_uv);
         assert_eq!(package.manifest.paint_job.main.len(), 1);
         assert_eq!(package.manifest.paint_job.accessories.len(), 1);
         assert_eq!(
@@ -448,14 +465,7 @@ fn cabin_uv_mode_drives_accessories_and_package_metadata() {
             for contributor in texture["contributors"].as_array().unwrap() {
                 for selection in contributor["selections"].as_array().unwrap() {
                     for surface in selection["painted_surfaces"].as_array().unwrap() {
-                        assert_eq!(
-                            surface["uv_alias"],
-                            if alternate {
-                                "_TEXCOORD2"
-                            } else {
-                                "_TEXCOORD1"
-                            }
-                        );
+                        assert_eq!(surface["uv_alias"], "_TEXCOORD1");
                     }
                 }
             }
@@ -467,27 +477,8 @@ fn cabin_uv_mode_drives_accessories_and_package_metadata() {
             &mut svg,
         )
         .unwrap();
-        assert!(svg.contains(if alternate {
-            "M64.000,16.000"
-        } else {
-            "M0.000,0.000"
-        }));
-        write(
-            &source,
-            "def/vehicle/truck/example.good/cabin/conflict.sii",
-            "SiiNunit\n{\naccessory_cabin_data : conflict.example.good.cabin {\nname: \"Conflicting\"\nmodel: \"/vehicle/shared/mirror.pmd\"\n}\n}\n",
-        );
-        assert!(!run(root, Some("example.good")).status.success());
-        let batch = batches(root).pop().unwrap();
-        let report: Value =
-            serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
-        assert!(
-            report["results"][0]["error"]
-                .as_str()
-                .unwrap()
-                .contains("conflicting cabin paint UV modes")
-        );
-        assert_eq!(std::fs::read_dir(batch).unwrap().count(), 1);
+        assert!(svg.contains("M0.000,0.000"), "{svg}");
+        assert!(!svg.contains("M64.000,16.000"), "{svg}");
     }
 }
 
@@ -539,7 +530,7 @@ fn metallic_shaders_and_finite_uv_overflow_produce_traceable_packages() {
 }
 
 #[test]
-fn solid_colour_override_does_not_invent_a_paint_job_uv_mapping() {
+fn solid_colour_surface_is_excluded_without_inventing_a_paint_job_uv_mapping() {
     let fixture = fixture();
     let root = fixture.path();
     let source = root.join("game/version.scs.files");
@@ -567,23 +558,126 @@ fn solid_colour_override_does_not_invent_a_paint_job_uv_mapping() {
         "SiiNunit\n{\nsimple_paint_job_data : .guard {\nacc_list[]: \"guard.painted\"\npaint_job_mask: \"/mask_size_128x64.tobj\"\n}\n}\n",
     );
     let result = run(root, Some("example.good"));
-    assert!(!result.status.success());
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
     let batch = batches(root).pop().unwrap();
     let report: Value =
         serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
     let vehicle = &report["results"][0];
-    assert_eq!(vehicle["stage"], "coverage");
-    assert_eq!(
-        vehicle["missing_dependencies"][0]["reference"],
-        "guard.painted"
+    let missing = &vehicle["missing_dependencies"][0];
+    assert_eq!(missing["reference"], "guard.painted");
+    assert_eq!(missing["kind"], "surface_without_livery_material");
+    assert_eq!(missing["disposition"], "excluded");
+    let package =
+        tp_pack::check(&std::fs::read(batch.join(vehicle["package"].as_str().unwrap())).unwrap())
+            .unwrap();
+    assert!(package.paint_job.accessories.is_empty());
+    let main = vehicle["textures"][0]["contributors"].as_array().unwrap();
+    assert!(main.iter().all(|c| c["id"] != "guard.painted"));
+}
+
+#[test]
+fn declared_sizes_below_the_package_minimum_are_scaled_up() {
+    let fixture = fixture();
+    let root = fixture.path();
+    let source = root.join("game/version.scs.files");
+    write(
+        &source,
+        "def/vehicle/truck/example.good/accessory/mudflap/small.sii",
+        "SiiNunit\n{\naccessory_addon_data : small.example.good.mudflap {\nmodel: \"/vehicle/shared/example.good.pmd\"\n}\n}\n",
     );
-    assert_eq!(
-        vehicle["missing_dependencies"][0]["kind"],
-        "painted_exterior_surface"
+    write(
+        &source,
+        "def/vehicle/truck/example.good/paint_job/accessory/mudflap.sii",
+        "SiiNunit\n{\nsimple_paint_job_data : .mudflap {\nacc_list[]: \"mudflap.small\"\npaint_job_mask: \"/mask_size_32x16.tobj\"\n}\n}\n",
     );
-    assert_eq!(
-        vehicle["missing_dependencies"][0]["disposition"],
-        "blocking"
+    let result = run(root, Some("example.good"));
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
     );
-    assert_eq!(std::fs::read_dir(batch).unwrap().count(), 1);
+    let batch = batches(root).pop().unwrap();
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
+    let vehicle = &report["results"][0];
+    let problem = &vehicle["dimension_diagnostics"][0];
+    assert_eq!(problem["reference"], "mudflap.small");
+    assert_eq!(problem["disposition"], "raised_to_minimum");
+    assert_eq!(problem["candidates"], serde_json::json!([[32, 16]]));
+    assert_eq!(problem["selected"], serde_json::json!([128, 64]));
+    let package =
+        tp_pack::check(&std::fs::read(batch.join(vehicle["package"].as_str().unwrap())).unwrap())
+            .unwrap();
+    let accessory = &package.paint_job.accessories[0];
+    assert_eq!(<[u32; 2]>::from(accessory.texture.size), [128, 64]);
+}
+
+#[test]
+fn names_come_from_the_game_localization() {
+    let fixture = fixture();
+    let root = fixture.path();
+    let source = root.join("game/version.scs.files");
+    write(
+        &source,
+        "def/vehicle/truck/example.good/data.sii",
+        "SiiNunit\n{\naccessory_truck_data : vehicle.example.good {\ninfo[]: \"@@brand_example@@\"\ninfo[]: \"@@series_example_stralis@@\"\ninfo[]: \"\"\ninfo[]: \"@@brand_example@@\"\ninfo[]: \"@@series_example_hiway@@\"\n}\n}\n",
+    );
+    write(
+        &source,
+        "def/vehicle/truck/example.good/cabin/high.sii",
+        "SiiNunit\n{\naccessory_cabin_data : high.example.good.cabin {\nname: \"@@cabin_high_roof@@\"\n@include \"../common.sui\"\n}\n}\n",
+    );
+    write(
+        &source,
+        "locale/common.sui",
+        "\tkey[]: \"brand_example\"\n\tval[]: \"Example\"\n\n\tkey[]: \"series_example_stralis\"\n\tval[]: \"Stralis\"\n\tkey[]: \"series_example_hiway\"\n\tval[]: \"Hi-Way\"\n",
+    );
+    write(
+        &source,
+        "locale/en_us/accessories.sui",
+        "\tkey[]: \"cabin_high_roof\"\n\tval[]: \"High Roof\" #+ Translator note \"quoted\"\n",
+    );
+    let result = run(root, Some("example.good"));
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let batch = batches(root).pop().unwrap();
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
+    assert_eq!(report["name_sources"][0]["source"], "version.scs");
+    let package = tp_pack::check(
+        &std::fs::read(batch.join(report["results"][0]["package"].as_str().unwrap())).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(package.name, "Example Stralis Hi-Way");
+    assert_eq!(package.brand, "Example");
+    assert_eq!(package.paint_job.main[0].name, "High Roof");
+
+    // Cabins the game names alike get their game id appended.
+    write(
+        &source,
+        "def/vehicle/truck/example.good/cabin/high_8x4.sii",
+        "SiiNunit\n{\naccessory_cabin_data : high_8x4.example.good.cabin {\nname: \"@@cabin_high_roof@@\"\n@include \"../common.sui\"\n}\n}\n",
+    );
+    assert!(run(root, Some("example.good")).status.success());
+    let batch = batches(root).pop().unwrap();
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
+    let package = tp_pack::check(
+        &std::fs::read(batch.join(report["results"][0]["package"].as_str().unwrap())).unwrap(),
+    )
+    .unwrap();
+    let names = package
+        .paint_job
+        .main
+        .iter()
+        .map(|p| p.name.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(names, ["High Roof (high)", "High Roof (high_8x4)"]);
 }
