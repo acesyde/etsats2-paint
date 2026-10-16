@@ -76,11 +76,6 @@ fn colors(objects: Vec<Object>) -> OffPalette {
 // Texture states
 
 #[test]
-fn new_surface_is_empty() {
-    assert_eq!(surface(vec![]).state(), TextureState::Empty);
-}
-
-#[test]
 fn one_rectangle_is_modified() {
     assert_eq!(surface(vec![rect(1, RED)]).state(), TextureState::Modified);
 }

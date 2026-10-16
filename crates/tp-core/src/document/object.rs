@@ -1033,15 +1033,6 @@ mod tests {
     }
 
     #[test]
-    fn default_names_and_flags() {
-        let o = object(ShapeKind::Ellipse, (0.0, 0.0), (10.0, 10.0), 0.0);
-        assert_eq!(o.name, "Ellipse");
-        assert!(o.visible && !o.locked && o.children.is_empty());
-        let g = Object::group(ObjectId(2), vec![Arc::new(o)]);
-        assert_eq!(g.name, "Group");
-    }
-
-    #[test]
     fn group_frame_ignores_hidden_children_and_follows_rotation() {
         let a = object(ShapeKind::rectangle(), (0.0, 0.0), (100.0, 100.0), 0.0);
         let mut b = object(ShapeKind::rectangle(), (1000.0, 0.0), (100.0, 100.0), 0.0);

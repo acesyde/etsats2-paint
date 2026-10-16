@@ -2,7 +2,7 @@
 //! duplicating, deleting and renaming symbols, and editing a symbol in its
 //! own view.
 
-use tp_core::document::{ObjectId, SymbolId};
+use tp_core::document::SymbolId;
 use tp_core::kurbo::Point;
 use tp_i18n::tr;
 
@@ -132,25 +132,6 @@ impl Workspace {
         self.points.clear();
         let active = self.project.active_surface;
         self.show_view(active, None);
-    }
-
-    /// The instances of the active texture (top level or in groups).
-    pub fn instances_on_texture(&self) -> Vec<ObjectId> {
-        fn walk(list: &[std::sync::Arc<tp_core::document::Object>], out: &mut Vec<ObjectId>) {
-            for o in list {
-                if o.is_instance() {
-                    out.push(o.id);
-                } else {
-                    walk(&o.children, out);
-                }
-            }
-        }
-        let mut out = Vec::new();
-        walk(
-            &self.project.surfaces[self.project.active_surface].objects,
-            &mut out,
-        );
-        out
     }
 }
 

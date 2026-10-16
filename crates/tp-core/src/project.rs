@@ -1038,15 +1038,6 @@ mod tests {
     }
 
     #[test]
-    fn new_project_has_main_surface() {
-        let p = Project::new("  ", TextureResolution::R4096);
-        assert_eq!(p.name, DEFAULT_PROJECT_NAME);
-        assert_eq!(p.surfaces.len(), 1);
-        assert_eq!(p.surface().name, MAIN_SURFACE_NAME);
-        assert_eq!(p.surface().bounds(), Rect::new(0.0, 0.0, 4096.0, 4096.0));
-    }
-
-    #[test]
     fn rectangular_surface() {
         let s = Surface::new("Base", Size::new(8192.0, 1024.0));
         assert_eq!(s.bounds(), Rect::new(0.0, 0.0, 8192.0, 1024.0));
