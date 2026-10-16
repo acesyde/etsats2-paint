@@ -1,5 +1,6 @@
 //! `tpv`: builds and checks TruckPaint vehicle packages.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -93,16 +94,19 @@ fn extract(args: &[String]) -> Result<(), String> {
         &["--converter", "--vehicle", "--output", "--package-version"],
     )?;
     let installation = installation.ok_or("extract needs an ETS2 installation directory")?;
-    let converter = values[0].ok_or("extract needs --converter <executable>")?;
-    let package_version = values[3]
+    let converter = values
+        .get("--converter")
+        .ok_or("extract needs --converter <executable>")?;
+    let package_version = values
+        .get("--package-version")
         .ok_or("extract needs --package-version <version>")?
         .parse::<semver::Version>()
         .map_err(|e| format!("invalid package version: {e}"))?;
     let options = tp_pack::extract::Options {
         installation: installation.into(),
         converter: converter.into(),
-        vehicle: values[1].map(str::to_owned),
-        output: values[2].unwrap_or("dist").into(),
+        vehicle: values.get("--vehicle").map(|v| (*v).to_owned()),
+        output: values.get("--output").unwrap_or(&"dist").into(),
         package_version,
     };
     let batch = tp_pack::extract::run(&options)?;
@@ -117,24 +121,24 @@ fn extract(args: &[String]) -> Result<(), String> {
     }
 }
 
-/// The positional argument and the values of `options` (`--name value`).
+/// The positional argument and the values given for `options` (`--name value`).
 fn parse_options<'a>(
     args: &'a [String],
-    options: &[&str],
-) -> Result<(Option<&'a str>, Vec<Option<&'a str>>), String> {
+    options: &[&'a str],
+) -> Result<(Option<&'a str>, HashMap<&'a str, &'a str>), String> {
     let mut positional = None;
-    let mut values = vec![None; options.len()];
+    let mut values = HashMap::new();
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
-        if let Some(i) = options.iter().position(|o| o == arg) {
-            if values[i].is_some() {
+        if let Some(&name) = options.iter().find(|o| **o == arg) {
+            if values.contains_key(name) {
                 return Err(format!("duplicate option {arg}"));
             }
             let value = rest.next().ok_or_else(|| format!("{arg} needs a value"))?;
             if value.starts_with("--") {
                 return Err(format!("{arg} needs a value"));
             }
-            values[i] = Some(value.as_str());
+            values.insert(name, value.as_str());
         } else if positional.is_none() && !arg.starts_with('-') {
             positional = Some(arg.as_str());
         } else {

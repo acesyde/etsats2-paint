@@ -42,7 +42,7 @@ fn array(section: &Section, field: &str) -> Vec<String> {
         .get(field)
         .into_iter()
         .flatten()
-        .map(|s| s.trim_matches('"').to_owned())
+        .map(|s| syntax::unquote(s).to_owned())
         .collect()
 }
 
@@ -52,35 +52,13 @@ fn reserve(parent: &Path) -> Result<PathBuf, String> {
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_nanos();
-    for attempt in 0..100 {
-        let path = parent.join(format!("ets2-{stamp}-{}-{attempt}", std::process::id()));
-        match std::fs::create_dir(&path) {
-            Ok(()) => return Ok(path),
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(e) => return Err(format!("{}: {e}", path.display())),
-        }
-    }
-    Err("cannot reserve unique batch directory".into())
+    let path = parent.join(format!("ets2-{stamp}-{}", std::process::id()));
+    std::fs::create_dir(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(path)
 }
 
 fn publish(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    use std::io::Write;
-    let temporary = path.with_extension("tmp");
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temporary)
-        .map_err(|e| format!("{}: {e}", temporary.display()))?;
-    let result = (|| {
-        file.write_all(bytes)?;
-        file.sync_all()?;
-        drop(file);
-        std::fs::rename(&temporary, path)
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(&temporary);
-    }
-    result.map_err(|e| format!("{}: {e}", path.display()))
+    std::fs::write(path, bytes).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 fn definition(
@@ -157,344 +135,399 @@ fn model_geometry(
     Ok((mesh, selection))
 }
 
-fn build_vehicle(
-    sources: &mut Sources,
-    vehicle: &str,
-    game_version: &str,
-    package_version: &semver::Version,
-    evidence: &mut BTreeSet<String>,
-    stage: &mut &'static str,
-    diagnostics: &mut Diagnostics,
-) -> Result<(crate::Packed, Value), String> {
-    *stage = "definitions";
-    let root = format!("/def/vehicle/truck/{vehicle}/");
-    let data = definition(sources, &format!("{root}data.sii"), evidence)?;
-    let truck = units(&data)
-        .iter()
-        .find(|u| u.header.starts_with("accessory_truck_data :"))
-        .ok_or("missing truck metadata")?;
-    let info = array(truck, "info[]");
-    if info.len() < 2 {
-        return Err("missing truck brand or series".into());
-    }
-    let brand = label(&info[0]);
-    let series = label(&info[1]);
-    let name = if series.starts_with(&format!("{brand} ")) {
-        series
-    } else {
-        format!("{brand} {series}")
+/// Accessory id -> paint mask -> definitions that assign it.
+type Masks = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
+
+const MODEL_FIELDS: [&str; 3] = ["model", "detail_model", "exterior_model"];
+
+/// The (model, look, variant) triples a unit paints: EU models first, then UK ones.
+fn model_selections(unit: &Section, path: &str) -> Result<Vec<[String; 3]>, String> {
+    let has = |name: &str| unit.fields.contains_key(name);
+    // A UK variant may reuse the EU model rather than provide a model_uk field.
+    let uk_reuses_eu = has("variant_uk") && MODEL_FIELDS.iter().all(|f| !has(&format!("{f}_uk")));
+    let pick = |name: &str, uk: bool| {
+        let uk_name = format!("{name}_uk");
+        let key = if uk && has(&uk_name) {
+            uk_name.as_str()
+        } else {
+            name
+        };
+        unit.field(key).unwrap_or("default").to_owned()
     };
-    let mut paths = sources
-        .files
-        .keys()
-        .filter(|p| p.starts_with(&root) && p.ends_with(".sii"))
-        .cloned()
-        .collect::<Vec<_>>();
-    // Cabins establish one paint UV mode before accessories use it.
-    paths.sort_by_key(|p| !p.starts_with(&format!("{root}cabin/")));
-    let mut sizes: BTreeMap<String, BTreeSet<[u32; 2]>> = BTreeMap::new();
-    let mut independent = BTreeSet::new();
-    let mut assignments: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    let mut masks: BTreeMap<String, BTreeMap<String, BTreeSet<String>>> = BTreeMap::new();
-    for path in paths
-        .iter()
-        .filter(|p| p.starts_with(&format!("{root}paint_job/accessory/")))
-    {
-        let data = definition(sources, path, evidence)?;
-        for unit in units(&data)
-            .iter()
-            .filter(|u| u.header.starts_with("simple_paint_job_data :"))
-        {
-            // Flake-only overrides also list accessories, but assign no independent texture.
-            if !unit.fields.contains_key("paint_job_mask") {
+    let mut result: Vec<[String; 3]> = Vec::new();
+    for uk in [false, true] {
+        for base in MODEL_FIELDS {
+            let field = if uk && !uk_reuses_eu {
+                format!("{base}_uk")
+            } else {
+                base.to_owned()
+            };
+            if !has(&field) {
                 continue;
             }
-            let ids = array(unit, "acc_list[]");
-            for id in ids {
-                independent.insert(id.clone());
-                assignments
-                    .entry(id.clone())
-                    .or_default()
-                    .insert(path.clone());
-                let mask = unit.field("paint_job_mask")?;
-                masks
-                    .entry(id.clone())
-                    .or_default()
-                    .entry(mask.to_owned())
-                    .or_default()
-                    .insert(path.clone());
-                if let Some(size) = crop_size(mask) {
-                    sizes.entry(id).or_default().insert(size);
-                }
+            let model = source::virtual_path(path, unit.field(&field)?)?;
+            if !model.ends_with(".pmd") {
+                return Err(format!("unsupported model {model}"));
+            }
+            let selection = [model, pick("look", uk), pick("variant", uk)];
+            if !result.contains(&selection) {
+                result.push(selection);
             }
         }
     }
-    let model_export = sources.work.join("models");
-    std::fs::create_dir_all(&model_export).map_err(|e| e.to_string())?;
-    let mut painted = BTreeMap::new();
-    let mut cabins = BTreeMap::new();
-    let mut seen_units = BTreeSet::new();
-    let mut alt_uv = None;
-    for path in paths.iter().filter(|p| {
-        ["cabin/", "chassis/", "accessory/"]
+    Ok(result)
+}
+
+struct Parts {
+    painted: BTreeMap<String, Painted>,
+    cabins: BTreeMap<String, String>,
+    seen: BTreeSet<String>,
+    alt_uv: Option<bool>,
+}
+
+#[derive(Default)]
+struct Textures {
+    main: Vec<Value>,
+    accessories: Vec<Value>,
+    templates: BTreeMap<String, Vec<u8>>,
+    coverage: Vec<Value>,
+}
+
+/// One truck's extraction; what it gathered stays readable after a failure.
+struct Build<'a> {
+    sources: &'a mut Sources,
+    vehicle: &'a str,
+    root: String,
+    evidence: BTreeSet<String>,
+    stage: &'static str,
+    diagnostics: Diagnostics,
+}
+
+impl<'a> Build<'a> {
+    fn new(sources: &'a mut Sources, vehicle: &'a str) -> Self {
+        Self {
+            sources,
+            vehicle,
+            root: format!("/def/vehicle/truck/{vehicle}/"),
+            evidence: BTreeSet::new(),
+            stage: "definitions",
+            diagnostics: Diagnostics::default(),
+        }
+    }
+
+    fn definition(&mut self, path: &str) -> Result<Section, String> {
+        definition(self.sources, path, &mut self.evidence)
+    }
+
+    /// Cabins come first: they establish the paint UV mode accessories use.
+    fn definition_paths(&self) -> Vec<String> {
+        let mut paths = self
+            .sources
+            .files
+            .keys()
+            .filter(|p| p.starts_with(&self.root) && p.ends_with(".sii"))
+            .cloned()
+            .collect::<Vec<_>>();
+        paths.sort_by_key(|p| !p.starts_with(&format!("{}cabin/", self.root)));
+        paths
+    }
+
+    fn identity(&mut self) -> Result<(String, String), String> {
+        let data = self.definition(&format!("{}data.sii", self.root))?;
+        let truck = units(&data)
             .iter()
-            .any(|group| p.starts_with(&format!("{root}{group}")))
-    }) {
-        let data = definition(sources, path, evidence)?;
-        for unit in units(&data)
-            .iter()
-            .filter(|u| u.header.starts_with("accessory_"))
-        {
-            let (_, unit_id) = unit
-                .header
-                .split_once(':')
-                .ok_or("invalid accessory unit")?;
-            let Some((unit_name, group)) = unit_id.trim().split_once(&format!(".{vehicle}."))
-            else {
-                continue;
-            };
-            let id = format!("{group}.{unit_name}");
-            if !seen_units.insert(id.clone()) {
-                return Err(format!("duplicate accessory unit {id}"));
+            .find(|u| u.header.starts_with("accessory_truck_data :"))
+            .ok_or("missing truck metadata")?;
+        let info = array(truck, "info[]");
+        let [brand, series, ..] = info.as_slice() else {
+            return Err("missing truck brand or series".into());
+        };
+        let (brand, series) = (label(brand), label(series));
+        let name = if series.starts_with(&format!("{brand} ")) {
+            series
+        } else {
+            format!("{brand} {series}")
+        };
+        Ok((brand, name))
+    }
+
+    fn paint_overrides(&mut self, paths: &[String]) -> Result<Masks, String> {
+        let prefix = format!("{}paint_job/accessory/", self.root);
+        let mut masks = Masks::new();
+        for path in paths.iter().filter(|p| p.starts_with(&prefix)) {
+            let data = self.definition(path)?;
+            for unit in units(&data)
+                .iter()
+                .filter(|u| u.header.starts_with("simple_paint_job_data :"))
+            {
+                // Flake-only overrides also list accessories, but assign no independent texture.
+                if !unit.fields.contains_key("paint_job_mask") {
+                    continue;
+                }
+                let mask = unit.field("paint_job_mask")?;
+                for id in array(unit, "acc_list[]") {
+                    masks
+                        .entry(id)
+                        .or_default()
+                        .entry(mask.to_owned())
+                        .or_default()
+                        .insert(path.clone());
+                }
             }
-            if group == "cabin" {
-                cabins.insert(
-                    unit_name.to_owned(),
-                    unit.field("name")
-                        .map(label)
-                        .unwrap_or_else(|_| unit_name.to_owned()),
-                );
+        }
+        Ok(masks)
+    }
+
+    fn unit_geometry(
+        &mut self,
+        unit: &Section,
+        path: &str,
+        alt_uv: Option<bool>,
+    ) -> Result<(Vec<geometry::Mesh>, Vec<Value>), String> {
+        let export = self.sources.work.join("models");
+        std::fs::create_dir_all(&export).map_err(|e| e.to_string())?;
+        let (mut mesh, mut selections) = (Vec::new(), Vec::new());
+        for [model, look, variant] in model_selections(unit, path)? {
+            // Locating the PMD records its binary source; conversion uses the same mount order.
+            self.evidence.insert(model.clone());
+            self.sources.locate(&model)?;
+            let pim = export
+                .join(model.trim_start_matches('/'))
+                .with_extension("pim");
+            if !pim.is_file() || !pim.with_extension("pit").is_file() {
+                self.stage = "model-conversion";
+                let mounts = (0..self.sources.archives.len()).collect::<Vec<_>>();
+                let args = ["-m", model.trim_end_matches(".pmd")];
+                self.sources.command(&mounts, &export, &args)?;
             }
-            let mut mesh = Vec::new();
-            let mut selections = Vec::new();
-            let mut selected_models = BTreeSet::new();
-            for field in [
-                "model",
-                "detail_model",
-                "exterior_model",
-                "model_uk",
-                "detail_model_uk",
-                "exterior_model_uk",
-            ] {
-                let Some(_) = unit.fields.get(field) else {
+            self.stage = "geometry-selection";
+            let (found, selection) = model_geometry(&export, &model, &look, &variant, alt_uv)
+                .map_err(|e| format!("{path}: {e}"))?;
+            mesh.extend(found);
+            selections.push(selection);
+        }
+        Ok((mesh, selections))
+    }
+
+    fn painted_parts(&mut self, paths: &[String]) -> Result<Parts, String> {
+        let root = self.root.clone();
+        let mut parts = Parts {
+            painted: BTreeMap::new(),
+            cabins: BTreeMap::new(),
+            seen: BTreeSet::new(),
+            alt_uv: None,
+        };
+        for path in paths.iter().filter(|p| {
+            ["cabin/", "chassis/", "accessory/"]
+                .iter()
+                .any(|group| p.starts_with(&format!("{root}{group}")))
+        }) {
+            let data = self.definition(path)?;
+            for unit in units(&data)
+                .iter()
+                .filter(|u| u.header.starts_with("accessory_"))
+            {
+                let (_, unit_id) = unit
+                    .header
+                    .split_once(':')
+                    .ok_or("invalid accessory unit")?;
+                let Some((unit_name, group)) =
+                    unit_id.trim().split_once(&format!(".{}.", self.vehicle))
+                else {
                     continue;
                 };
-                let model = source::virtual_path(path, unit.field(field)?)?;
-                if !model.ends_with(".pmd") {
-                    return Err(format!("unsupported model {model}"));
+                let id = format!("{group}.{unit_name}");
+                if !parts.seen.insert(id.clone()) {
+                    return Err(format!("duplicate accessory unit {id}"));
                 }
-                let uk = field.ends_with("_uk");
-                let look = unit
-                    .field(if uk && unit.fields.contains_key("look_uk") {
-                        "look_uk"
-                    } else {
-                        "look"
-                    })
-                    .unwrap_or("default");
-                let variant = unit
-                    .field(if uk && unit.fields.contains_key("variant_uk") {
-                        "variant_uk"
-                    } else {
-                        "variant"
-                    })
-                    .unwrap_or("default");
-                if !selected_models.insert((model.clone(), look.to_owned(), variant.to_owned())) {
+                let cabin = group == "cabin";
+                if cabin {
+                    let name = unit.field("name").map(label);
+                    parts.cabins.insert(
+                        unit_name.to_owned(),
+                        name.unwrap_or_else(|_| unit_name.to_owned()),
+                    );
+                }
+                let (mesh, selection) =
+                    self.unit_geometry(unit, path, if cabin { None } else { parts.alt_uv })?;
+                if mesh.is_empty() {
                     continue;
                 }
-                // Read the PMD to resolve and record its binary source; conversion uses the same mount order.
-                evidence.insert(model.clone());
-                sources.locate(&model)?;
-                let local = model_export
-                    .join(model.trim_start_matches('/'))
-                    .with_extension("pim");
-                let pit = local.with_extension("pit");
-                if !local.is_file() || !pit.is_file() {
-                    *stage = "model-conversion";
-                    let mounts = (0..sources.archives.len()).collect::<Vec<_>>();
-                    sources.command(
-                        &mounts,
-                        &model_export,
-                        &["-m", model.trim_end_matches(".pmd")],
-                    )?;
-                }
-                *stage = "geometry-selection";
-                let (geometry, selection) = model_geometry(
-                    &model_export,
-                    &model,
-                    look,
-                    variant,
-                    if group == "cabin" { None } else { alt_uv },
-                )
-                .map_err(|e| format!("{path}: {e}"))?;
-                mesh.extend(geometry);
-                selections.push(selection);
-            }
-            // A UK variant may reuse the EU model rather than provide a model_uk field.
-            if unit.fields.contains_key("variant_uk")
-                && !unit.fields.contains_key("model_uk")
-                && !unit.fields.contains_key("detail_model_uk")
-                && !unit.fields.contains_key("exterior_model_uk")
-            {
-                for field in ["model", "detail_model", "exterior_model"] {
-                    if let Ok(model) = unit.field(field) {
-                        let look = unit
-                            .field("look_uk")
-                            .or_else(|_| unit.field("look"))
-                            .unwrap_or("default");
-                        let variant = unit.field("variant_uk")?;
-                        let (geometry, selection) = model_geometry(
-                            &model_export,
-                            model,
-                            look,
-                            variant,
-                            if group == "cabin" { None } else { alt_uv },
-                        )
-                        .map_err(|e| format!("{path}: {e}"))?;
-                        mesh.extend(geometry);
-                        selections.push(selection);
-                    }
-                }
-            }
-            if !mesh.is_empty() {
-                if group == "cabin" {
+                if cabin {
                     let modes = mesh.iter().map(|m| m.alt_uv).collect::<BTreeSet<_>>();
-                    if modes.len() != 1 || alt_uv.is_some_and(|mode| !modes.contains(&mode)) {
+                    if modes.len() != 1 || parts.alt_uv.is_some_and(|mode| !modes.contains(&mode)) {
                         return Err(format!("{path}: conflicting cabin paint UV modes"));
                     }
-                    alt_uv = modes.first().copied();
+                    parts.alt_uv = modes.first().copied();
                 }
-                let compatible = array(unit, "suitable_for[]")
+                let suffix = format!(".{}.cabin", self.vehicle);
+                let cabins = array(unit, "suitable_for[]")
                     .into_iter()
-                    .filter_map(|s| {
-                        s.strip_suffix(&format!(".{vehicle}.cabin"))
-                            .map(str::to_owned)
-                    })
+                    .filter_map(|s| s.strip_suffix(&suffix).map(str::to_owned))
                     .collect();
-                painted.insert(
+                parts.painted.insert(
                     id.clone(),
                     Painted {
                         id,
                         group: group.to_owned(),
                         name: unit_name.to_owned(),
-                        cabins: compatible,
+                        cabins,
                         mesh,
-                        selection: selections,
+                        selection,
                         source: path.clone(),
                     },
                 );
             }
         }
+        Ok(parts)
     }
-    *stage = "coverage";
-    if cabins.is_empty() {
-        return Err("truck has no cabins".into());
-    }
-    let alt_uv = alt_uv.ok_or("truck has no painted cabins")?;
-    let uncovered = independent
-        .iter()
-        .filter(|id| !painted.contains_key(*id))
-        .collect::<Vec<_>>();
-    for id in &uncovered {
-        diagnostics.missing_dependencies.push(json!({
-            "kind": if seen_units.contains(*id) { "painted_exterior_surface" } else { "accessory_definition" },
-            "disposition": if seen_units.contains(*id) { "blocking" } else { "ignored_reference" },
-            "reference": id,
-            "referenced_by": sources.provenance(&assignments[*id]),
-            "expected_dlc": null,
-            "dlc_origin": "unknown",
-        }));
-    }
-    if let Some(id) = uncovered.iter().find(|id| seen_units.contains(**id)) {
-        return Err(format!(
-            "paint override has no painted exterior model: {id}"
-        ));
-    }
-    // Paint DLC can reference accessories absent from the installed definitions.
-    independent.retain(|id| seen_units.contains(id));
-    for id in &independent {
-        let dimensions = sizes.get(id).cloned().unwrap_or_default();
-        if dimensions.len() != 1 {
-            diagnostics.dimensions.push(json!({
+
+    /// Texture size of every accessory with its own paint mask; refuses unresolvable ones.
+    fn accessory_sizes(
+        &mut self,
+        parts: &Parts,
+        masks: &Masks,
+    ) -> Result<BTreeMap<String, [u32; 2]>, String> {
+        let provenance = |sources: &Sources, id: &str| {
+            sources.provenance(&masks[id].values().flatten().cloned().collect())
+        };
+        let uncovered = masks
+            .keys()
+            .filter(|id| !parts.painted.contains_key(*id))
+            .collect::<Vec<_>>();
+        for id in &uncovered {
+            // Paint DLC can reference accessories absent from the installed definitions.
+            let blocking = parts.seen.contains(*id);
+            self.diagnostics.missing_dependencies.push(json!({
+                "kind": if blocking { "painted_exterior_surface" } else { "accessory_definition" },
+                "disposition": if blocking { "blocking" } else { "ignored_reference" },
                 "reference": id,
-                "reason": if dimensions.is_empty() { "missing_crop_dimensions" } else { "conflicting_crop_dimensions" },
-                "disposition": "blocking",
-                "candidates": dimensions,
-                "masks": masks[id].iter().map(|(mask, paths)| json!({"path": mask, "crop_size": crop_size(mask), "referenced_by": sources.provenance(paths)})).collect::<Vec<_>>(),
+                "referenced_by": provenance(self.sources, id),
+                "expected_dlc": null,
+                "dlc_origin": "unknown",
             }));
         }
-    }
-    if let Some(problem) = diagnostics.dimensions.first() {
-        return Err(format!(
-            "{} for {}: {}; see dimension_diagnostics",
-            problem["reason"].as_str().unwrap(),
-            problem["reference"].as_str().unwrap(),
-            problem["candidates"]
-        ));
-    }
-    let mut main = Vec::new();
-    let mut accessories = Vec::new();
-    let mut templates = BTreeMap::new();
-    let mut coverage = Vec::new();
-    let mut part_ids = BTreeSet::new();
-    let mut covered = BTreeSet::new();
-    for (cabin, cabin_name) in &cabins {
-        if !painted.contains_key(&format!("cabin.{cabin}")) {
-            return Err(format!("cabin has no painted geometry: {cabin}"));
+        if let Some(id) = uncovered.iter().find(|id| parts.seen.contains(**id)) {
+            return Err(format!(
+                "paint override has no painted exterior model: {id}"
+            ));
         }
-        let contributors = painted
-            .values()
-            .filter(|p| {
-                !independent.contains(&p.id)
-                    && (p.group != "cabin" || p.name == *cabin)
-                    && (p.cabins.is_empty() || p.cabins.contains(cabin))
-            })
-            .collect::<Vec<_>>();
-        let meshes = contributors
-            .iter()
-            .flat_map(|p| p.mesh.clone())
-            .collect::<Vec<_>>();
-        let (svg, edges) = geometry::svg(&meshes, [4096, 4096])?;
-        let path = format!("templates/{cabin}.svg");
-        if !part_ids.insert(cabin.clone()) {
-            return Err(format!("duplicate part id {cabin}"));
+        let mut sizes = BTreeMap::new();
+        for id in masks.keys().filter(|id| parts.seen.contains(*id)) {
+            let found = masks[id]
+                .keys()
+                .filter_map(|m| crop_size(m))
+                .collect::<BTreeSet<_>>();
+            if let [size] = found.iter().collect::<Vec<_>>().as_slice() {
+                sizes.insert(id.clone(), **size);
+                continue;
+            }
+            self.diagnostics.dimensions.push(json!({
+                "reference": id,
+                "reason": if found.is_empty() { "missing_crop_dimensions" } else { "conflicting_crop_dimensions" },
+                "disposition": "blocking",
+                "candidates": found,
+                "masks": masks[id].iter().map(|(mask, paths)| json!({"path": mask, "crop_size": crop_size(mask), "referenced_by": self.sources.provenance(paths)})).collect::<Vec<_>>(),
+            }));
         }
-        templates.insert(path.clone(), svg);
-        main.push(json!({"id": cabin, "name": cabin_name, "game_ids": [cabin], "texture": {"size": [4096,4096], "template": path, "layout_version": 1}}));
-        for part in &contributors {
-            covered.insert(part.id.clone());
+        if let Some(problem) = self.diagnostics.dimensions.first() {
+            return Err(format!(
+                "{} for {}: {}; see dimension_diagnostics",
+                problem["reason"].as_str().unwrap(),
+                problem["reference"].as_str().unwrap(),
+                problem["candidates"]
+            ));
         }
-        coverage.push(json!({"part": cabin, "size": [4096,4096], "edges": edges, "contributors": contributors.iter().map(|p| json!({"id":p.id,"definition":p.source,"selections":p.selection})).collect::<Vec<_>>()}));
+        Ok(sizes)
     }
-    for id in independent {
-        let part = &painted[&id];
-        let size = *sizes[&id].first().unwrap();
-        let part_id = id.replace('.', "_");
-        if !part_ids.insert(part_id.clone()) {
-            return Err(format!("colliding part id {part_id}"));
+
+    fn textures(parts: &Parts, sizes: &BTreeMap<String, [u32; 2]>) -> Result<Textures, String> {
+        let mut out = Textures::default();
+        let mut part_ids = BTreeSet::new();
+        let mut covered = BTreeSet::new();
+        let mut add = |out: &mut Textures, id: &str, size: [u32; 2], meshes: &[geometry::Mesh]| {
+            if !part_ids.insert(id.to_owned()) {
+                return Err(format!("colliding part id {id}"));
+            }
+            let (svg, edges) = geometry::svg(meshes, size)?;
+            let template = format!("templates/{id}.svg");
+            out.templates.insert(template.clone(), svg);
+            Ok((
+                json!({"size": size, "template": template, "layout_version": 1}),
+                edges,
+            ))
+        };
+        for (cabin, cabin_name) in &parts.cabins {
+            if !parts.painted.contains_key(&format!("cabin.{cabin}")) {
+                return Err(format!("cabin has no painted geometry: {cabin}"));
+            }
+            let contributors = parts
+                .painted
+                .values()
+                .filter(|p| {
+                    !sizes.contains_key(&p.id)
+                        && (p.group != "cabin" || p.name == *cabin)
+                        && (p.cabins.is_empty() || p.cabins.contains(cabin))
+                })
+                .collect::<Vec<_>>();
+            let meshes = contributors
+                .iter()
+                .flat_map(|p| p.mesh.clone())
+                .collect::<Vec<_>>();
+            let (texture, edges) = add(&mut out, cabin, [4096, 4096], &meshes)?;
+            out.main.push(
+                json!({"id": cabin, "name": cabin_name, "game_ids": [cabin], "texture": texture}),
+            );
+            covered.extend(contributors.iter().map(|p| p.id.clone()));
+            out.coverage.push(json!({"part": cabin, "size": [4096, 4096], "edges": edges, "contributors": contributors.iter().map(|p| json!({"id": p.id, "definition": p.source, "selections": p.selection})).collect::<Vec<_>>()}));
         }
-        let path = format!("templates/{part_id}.svg");
-        let (svg, edges) = geometry::svg(&part.mesh, size)?;
-        templates.insert(path.clone(), svg);
-        accessories.push(json!({"id": part_id, "name": id, "game_ids": [id], "texture": {"size": size, "template": path, "layout_version": 1}}));
-        covered.insert(id.clone());
-        coverage.push(json!({"part":part_id,"size":size,"edges":edges,"contributors":[{"id":id,"definition":part.source,"selections":part.selection}]}));
+        for (id, &size) in sizes {
+            let part = &parts.painted[id];
+            let part_id = id.replace('.', "_");
+            let (texture, edges) = add(&mut out, &part_id, size, &part.mesh)?;
+            out.accessories
+                .push(json!({"id": part_id, "name": id, "game_ids": [id], "texture": texture}));
+            covered.insert(id.clone());
+            out.coverage.push(json!({"part": part_id, "size": size, "edges": edges, "contributors": [{"id": id, "definition": part.source, "selections": part.selection}]}));
+        }
+        if let Some(id) = parts.painted.keys().find(|id| !covered.contains(*id)) {
+            return Err(format!(
+                "painted definition has no compatible texture: {id}"
+            ));
+        }
+        Ok(out)
     }
-    if let Some(id) = painted.keys().find(|id| !covered.contains(*id)) {
-        return Err(format!(
-            "painted definition has no compatible texture: {id}"
-        ));
+
+    fn package(
+        &mut self,
+        game_version: &str,
+        package_version: &semver::Version,
+    ) -> Result<(crate::Packed, Value), String> {
+        let (brand, name) = self.identity()?;
+        let paths = self.definition_paths();
+        let masks = self.paint_overrides(&paths)?;
+        let parts = self.painted_parts(&paths)?;
+        self.stage = "coverage";
+        if parts.cabins.is_empty() {
+            return Err("truck has no cabins".into());
+        }
+        let alt_uv = parts.alt_uv.ok_or("truck has no painted cabins")?;
+        let sizes = self.accessory_sizes(&parts, &masks)?;
+        let textures = Self::textures(&parts, &sizes)?;
+        let minor = game_version
+            .split('.')
+            .nth(1)
+            .ok_or("invalid game version")?
+            .parse::<u32>()
+            .map_err(|_| "invalid game minor version")?;
+        let next = minor.checked_add(1).ok_or("invalid game version")?;
+        let vehicle = self.vehicle;
+        let manifest = json!({"format":1,"id":format!("official.ets2.{vehicle}"),"version":package_version,"name":name,"brand":brand,"kind":"truck","description":format!("Generated from ETS2 {game_version}; technical validation only."),"game":{"id":"ets2","path":vehicle,"versions":format!(">=1.{minor}, <1.{next}"),"alt_uv":alt_uv,"colour_picker":false},"paint_job":{"main":textures.main,"accessories":textures.accessories}});
+        self.stage = "package-validation";
+        let packed =
+            crate::pack_entries(manifest, textures.templates).map_err(|e| e.to_string())?;
+        Ok((packed, json!(textures.coverage)))
     }
-    let game = game_version.split('.').collect::<Vec<_>>();
-    if game.len() < 2 {
-        return Err("invalid game version".into());
-    }
-    let minor = game[1]
-        .parse::<u32>()
-        .map_err(|_| "invalid game minor version")?;
-    let manifest = json!({"format":1,"id":format!("official.ets2.{vehicle}"),"version":package_version,"name":name,"brand":brand,"kind":"truck","description":format!("Generated from ETS2 {game_version}; technical validation only."),"game":{"id":"ets2","path":vehicle,"versions":format!(">=1.{minor}, <1.{}",minor.checked_add(1).ok_or("invalid game version")?),"alt_uv":alt_uv,"colour_picker":false},"paint_job":{"main":main,"accessories":accessories}});
-    *stage = "package-validation";
-    let packed = crate::pack_entries(manifest, templates).map_err(|e| e.to_string())?;
-    Ok((packed, json!(coverage)))
 }
 
 /// Extracts a batch, continuing after per-vehicle refusals.
@@ -538,24 +571,21 @@ pub fn run(options: &Options) -> Result<Batch, String> {
     let mut failed = 0;
     for vehicle in &vehicles {
         eprintln!("extracting {vehicle}");
-        let mut evidence = BTreeSet::new();
-        let mut stage = "definitions";
-        let mut diagnostics = Diagnostics::default();
-        let result = build_vehicle(
-            &mut sources,
-            vehicle,
-            &game_version,
-            &options.package_version,
-            &mut evidence,
-            &mut stage,
-            &mut diagnostics,
-        )
-        .and_then(|(packed, coverage)| {
-            stage = "publication";
-            let filename = packed.file_name();
-            publish(&output.join(&filename), &packed.bytes)?;
-            Ok((filename, coverage))
-        });
+        let mut build = Build::new(&mut sources, vehicle);
+        let result = build
+            .package(&game_version, &options.package_version)
+            .and_then(|(packed, coverage)| {
+                build.stage = "publication";
+                let filename = packed.file_name();
+                publish(&output.join(&filename), &packed.bytes)?;
+                Ok((filename, coverage))
+            });
+        let Build {
+            evidence,
+            stage,
+            mut diagnostics,
+            ..
+        } = build;
         match result {
             Ok((filename, coverage)) => results.push(json!({"vehicle":vehicle,"status":"success","package":filename,"technical_validation":"passed","in_game_validation":"required","missing_dependencies":diagnostics.missing_dependencies,"textures":coverage,"sources":sources.provenance(&evidence)})),
             Err(error) => {

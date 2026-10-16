@@ -19,19 +19,21 @@ impl Section {
         let [value] = values.as_slice() else {
             return Err(format!("ambiguous {name}"));
         };
-        Ok(
-            if value.starts_with('"') && value.ends_with('"') && value.matches('"').count() == 2 {
-                &value[1..value.len() - 1]
-            } else {
-                value
-            },
-        )
+        Ok(unquote(value))
     }
 
     pub fn named(&self, name: &str) -> impl Iterator<Item = &Section> {
         self.children
             .iter()
             .filter(move |child| child.header == name)
+    }
+}
+
+/// Strips one pair of surrounding quotes.
+pub fn unquote(value: &str) -> &str {
+    match value.strip_prefix('"').and_then(|v| v.strip_suffix('"')) {
+        Some(inner) if !inner.contains('"') => inner,
+        _ => value,
     }
 }
 
@@ -60,21 +62,9 @@ pub fn parse(text: &str) -> Result<Section, String> {
                 quoted = true;
                 statement.push(c);
             }
-            '#' => {
-                for next in chars.by_ref() {
-                    if next == '\n' {
-                        break;
-                    }
-                }
-                finish(&mut statement, stack.last_mut().unwrap())?;
-            }
-            '/' if chars.peek() == Some(&'/') => {
-                chars.next();
-                for next in chars.by_ref() {
-                    if next == '\n' {
-                        break;
-                    }
-                }
+            '#' | '/' if c == '#' || chars.peek() == Some(&'/') => {
+                // Skips the rest of the line, including a second '/'.
+                chars.by_ref().find(|&next| next == '\n');
                 finish(&mut statement, stack.last_mut().unwrap())?;
             }
             '(' => {

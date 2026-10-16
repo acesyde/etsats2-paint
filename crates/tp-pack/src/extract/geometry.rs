@@ -19,40 +19,40 @@ fn paint_shader(effect: &str) -> Result<Option<bool>, String> {
     let Some(flavors) = family.strip_prefix("eut2.truckpaint") else {
         return Ok(None);
     };
-    let mut normal = false;
-    let mut airbrush = false;
-    let mut flipflake = false;
-    let mut alt_uv = false;
+    let mut groups = BTreeSet::new();
     if !flavors.is_empty() {
         let Some(flavors) = flavors.strip_prefix('.') else {
             return Err(format!("unsupported paint shader {effect}"));
         };
         for flavor in flavors.split('.') {
-            match flavor {
-                "tsnmap" | "tsnmapuv" if !normal => normal = true,
-                "airbrush" if !airbrush => airbrush = true,
-                "flipflake" if !flipflake => flipflake = true,
-                "altuv" if !alt_uv => alt_uv = true,
+            let group = match flavor {
+                "tsnmap" | "tsnmapuv" => "normal",
+                "airbrush" | "flipflake" | "altuv" => flavor,
                 _ => return Err(format!("unsupported paint shader {effect}")),
+            };
+            if !groups.insert(group) {
+                return Err(format!("unsupported paint shader {effect}"));
             }
         }
     }
-    Ok(Some(alt_uv))
+    Ok(Some(groups.contains("altuv")))
+}
+
+fn only<T>(items: impl IntoIterator<Item = T>, problem: &str) -> Result<T, String> {
+    let mut items = items.into_iter();
+    match (items.next(), items.next()) {
+        (Some(item), None) => Ok(item),
+        _ => Err(problem.to_owned()),
+    }
 }
 
 fn selected<'a>(tree: &'a Section, kind: &str, name: &str) -> Result<&'a Section, String> {
-    let matches = tree
-        .named(kind)
-        .filter(|section| {
-            section
-                .field("Name")
-                .is_ok_and(|n| n.eq_ignore_ascii_case(name))
-        })
-        .collect::<Vec<_>>();
-    let [section] = matches.as_slice() else {
-        return Err(format!("missing or ambiguous {kind}: {name}"));
-    };
-    Ok(section)
+    let matches = tree.named(kind).filter(|section| {
+        section
+            .field("Name")
+            .is_ok_and(|n| n.eq_ignore_ascii_case(name))
+    });
+    only(matches, &format!("missing or ambiguous {kind}: {name}"))
 }
 
 fn integer(section: &Section, field: &str) -> Result<usize, String> {
@@ -122,13 +122,11 @@ pub fn painted(
         .collect::<Result<Vec<_>, _>>()?;
     let mut visible = BTreeSet::new();
     for part in variant.named("Part") {
-        let attributes = part
-            .named("Attribute")
-            .filter(|a| a.field("Tag").is_ok_and(|tag| tag == "visible"))
-            .collect::<Vec<_>>();
-        let [attribute] = attributes.as_slice() else {
-            return Err("missing or ambiguous part visibility".into());
-        };
+        let attribute = only(
+            part.named("Attribute")
+                .filter(|a| a.field("Tag").is_ok_and(|tag| tag == "visible")),
+            "missing or ambiguous part visibility",
+        )?;
         match attribute
             .field("Value")?
             .split_whitespace()
@@ -174,24 +172,18 @@ pub fn painted(
         };
         let alt_uv = alt_uv.unwrap_or(source_alt_uv);
         let uv_alias = if alt_uv { "_TEXCOORD2" } else { "_TEXCOORD1" };
-        let streams = piece
-            .named("Stream")
-            .filter(|stream| {
+        let stream = only(
+            piece.named("Stream").filter(|stream| {
                 stream.field("Aliases").is_ok_and(|aliases| {
                     aliases
                         .split_whitespace()
                         .any(|a| a.trim_matches('"') == uv_alias)
                 })
-            })
-            .collect::<Vec<_>>();
-        let [stream] = streams.as_slice() else {
-            return Err(format!("missing or ambiguous paint UV alias {uv_alias}"));
-        };
+            }),
+            &format!("missing or ambiguous paint UV alias {uv_alias}"),
+        )?;
         let uv = row_values::<2, _>(stream, number)?;
-        let triangle_sections = piece.named("Triangles").collect::<Vec<_>>();
-        let [triangles] = triangle_sections.as_slice() else {
-            return Err("missing or ambiguous triangles".into());
-        };
+        let triangles = only(piece.named("Triangles"), "missing or ambiguous triangles")?;
         let triangles = row_values::<3, _>(triangles, |v| {
             v.parse::<usize>()
                 .map_err(|_| "invalid triangle index".into())
