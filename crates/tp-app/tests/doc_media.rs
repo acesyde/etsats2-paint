@@ -499,22 +499,12 @@ fn section_getting_started() {
 #[test]
 #[ignore = "needs a GPU; run with `mise run doc:media`"]
 fn section_vehicles() {
-    use egui::accesskit::Role;
     use tp_app::state::Modal;
     use tp_app::ui::custom_vehicle::{CustomVehicleDialog, Origin};
     for_each_language(|language| {
         let mut h = harness(language);
         modal(&mut h, Modal::VehicleLibrary(Default::default()));
         shot(&mut h, language, "vehicles/library");
-        h.state_mut().modal = None;
-        h.run();
-
-        // An official vehicle without its template pack: the pack dialog.
-        h.get_by_label(&tp_i18n::tr("home-new-project")).click();
-        settle_dialog(&mut h);
-        h.get_by_role_and_label(Role::CheckBox, "DAF NGD").click();
-        settle_dialog(&mut h);
-        shot(&mut h, language, "vehicles/template-pack");
         h.state_mut().modal = None;
         h.run();
 

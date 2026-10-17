@@ -1,55 +1,51 @@
 ---
 title: Offizielle Fahrzeuge
-description: Lackieren Sie die Lkw und Anhänger des Spiels selbst, installiert aus dem kostenlosen Vorlagenpaket von Carsmaniac.
+description: ETS2-Lkw-Pakete aus dem installierten Spiel erzeugen.
 sidebar:
   order: 2
 ---
 import Shot from '~/components/Shot.astro';
-import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-TruckPaint kennt die Spieldaten der offiziellen Fahrzeuge: ihre Kabinen, ihr Zubehör und ihren Platz in den Dateien des Spiels. Davon müssen Sie nichts eintippen. Was TruckPaint nicht mitliefert, sind die Vorlagen, denn sie gehören SCS Software. Es entnimmt sie dem **Vorlagenpaket** von Carsmaniac, das Sie einmal pro Spiel herunterladen.
+Offizielle Lkw werden über manuell installierte `.tpv`-Pakete verwendet. <Ui id="home-new-project" /> und <Ui id="cmd-add-vehicle" /> zeigen nur installierte Fahrzeuge. Ein Paket enthält seine Vorlagen und Spieldaten: Nach der Erzeugung brauchen Installation, Projekterstellung und Mod-Export weder die Spielinstallation noch ConverterPIX.
 
-## Welche Fahrzeuge verfügbar sind
+## Pakete erzeugen
 
-Die offiziellen Fahrzeuge stehen in <Ui id="home-new-project" /> und in <Ui id="cmd-add-vehicle" /> ganz oben, unter <Ui id="vehicles-section-official" />, ob sie installiert sind oder nicht. Derzeit enthält der Katalog zwei ETS2-Fahrzeuge:
+Paketautoren verwenden den Rust-Befehl `tpv` mit [ConverterPIX](https://github.com/mwl4/ConverterPIX), einem externen Programm:
 
-- den **DAF NGD**, einen Lkw mit drei Kabinenlayouts (XG+, XG und XF) und vier Zubehörteilen: Sonnenblende, Seitenverkleidungen, Standardspiegel und Kameraspiegel;
-- den **Krone Cool Liner**, einen Anhänger, dessen Aufbautextur (8192 × 1024) auch sein Aufbauzubehör lackiert, mit vier Fahrgestell-Zubehörteilen. Sein Heckstoßfänger fehlt: Das Paket enthält keine Vorlage dafür.
+```sh
+mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
+  --converter "/path/to/converter_pix" --package-version 2.0.0
+```
 
-Weitere Fahrzeuge beider Spiele kommen schubweise hinzu. Die Liste braucht keinen Netzwerkzugang.
+Ersetzen Sie die Pfade durch Ihre ETS2-Installation und das Konverterprogramm. Eine ausdrückliche SemVer-Paketversion ist erforderlich. Mit `--vehicle man.tgx_2020` oder `--vehicle daf.2021` wird nur ein Lkw verarbeitet; ohne Filter alle gefundenen Lkw. `--output <Verzeichnis>` ändert das übergeordnete Verzeichnis der Durchläufe.
 
-## Ihr erstes offizielles Fahrzeug installieren
+Das Werkzeug findet offizielle ETS2-Lkw einschließlich installierter Fahrzeug- und Tuning-DLCs. Benutzermods, ATS und Auflieger sind ausgeschlossen. Ein Paket umfasst alle unterstützten Fahrerhäuser und lackierten Zubehörteile. Lkw- und Fahrerhausnamen sind die englischen Namen des Spiels. Fahrerhäuser verwenden 4096 × 4096; Zubehörgrößen stammen aus den Lackierungsdefinitionen des Spiels. Hauptvorlagen überlagern kompatible lackierte Optionen.
 
-Wenn Sie zum ersten Mal ein offizielles Fahrzeug eines Spiels markieren, fragt TruckPaint nach dem Vorlagenpaket dieses Spiels.
+Jeder Durchlauf erstellt standardmäßig ein eigenes Unterverzeichnis in `dist/`, mit gültigen Paketen und `report.json`. Zwischendateien und Konverterprotokolle bleiben in `target/`. Unvollständige oder mehrdeutige Fahrzeuge sowie nicht unterstützte Shader und UV-Zuordnungen werden abgelehnt. Andere Fahrzeuge werden weiterverarbeitet; jeder Fehler führt zu einem Fehlercode. Es werden keine Teilpakete veröffentlicht.
 
-1. Markieren Sie in <Ui id="home-new-project" /> oder <Ui id="cmd-add-vehicle" /> ein offizielles Fahrzeug, zum Beispiel den DAF NGD. Der Dialog für das Vorlagenpaket öffnet sich.
-2. Klicken Sie auf <Ui id="pack-open-download" />. Ihr Webbrowser öffnet das Thema des Pakets im Forum von SCS Software. Öffnet sich der Browser nicht, klicken Sie auf <Ui id="pack-copy-link" /> und fügen Sie den Link dort ein.
-3. Laden Sie das Paket herunter. Es ist etwa 1,2 GB groß, und ein Paket dient allen Fahrzeugen des Spiels.
-4. Entpacken Sie es an einem beliebigen Ort auf Ihrem Computer.
-5. Klicken Sie zurück in TruckPaint auf <Ui id="pack-choose-folder" /> und wählen Sie den entpackten Ordner, oder ziehen Sie den Ordner auf den Dialog.
+Der Bericht enthält Quellen, Versionen, Texturabdeckung, Ergebnisse und Grenzen. Technische Paketprüfung beweist keine korrekte Darstellung im Spiel: Neue Fahrzeuge und Konfigurationen müssen noch im Spiel geprüft werden.
 
-<Shot name="vehicles/template-pack" alt="Der Dialog für das Vorlagenpaket nach dem Markieren des DAF NGD, mit den Schritten zum Herunterladen, Entpacken und Wählen des Pakets" />
+`missing_dependencies` führt fehlende Referenzen und, soweit verfügbar, ihre Quelldefinitionen auf. `expected_dlc: null` mit `dlc_origin: "unknown"` bedeutet, dass sich der benötigte DLC nicht bestimmen lässt; das Archiv mit der Referenz belegt nicht, welcher DLC sie bereitstellt.
 
-TruckPaint zeigt „Wird installiert…“, während es das Fahrzeug aus den Dateien des Pakets erstellt, mit einer Schaltfläche <Ui id="button-cancel" />. Danach ist das Fahrzeug wie jedes installierte Fahrzeug markiert: seine erste Haupttextur und alle Zubehörteile sind markiert.
+Lackierungszuweisungen für Zubehör ohne installierte Definition werden ausgeschlossen und mit `disposition: "ignored_reference"` gemeldet; sie verhindern die Paketerstellung nicht. Definiertes Zubehör, dessen ausgewähltes Modell kein Lackierungsmaterial hat, kann keine Lackierung zeigen: Es erhält keine Vorlage und wird mit `disposition: "excluded"` gemeldet. Fehlende erforderliche Dateien und unlesbare lackierte Geometrie blockieren die Extraktion weiterhin (`disposition: "blocking"`).
 
-Der gewählte Ordner kann der Ordner des Pakets selbst sein oder der Ordner, in den Sie es entpackt haben. Enthält er nicht das Paket dieses Spiels, sagt TruckPaint das und fragt erneut.
+Unterstützte Lackierungs-Shader sind `truckpaint`, `truckpaint.tsnmap` und `truckpaint.tsnmapuv`, optional mit `airbrush`, `flipflake` und `altuv` sowie den Alpha-Test-Suffixen `.a` oder `.asafew.a`. Die Vorlagen zeichnen die UV-Kanten des Meshs nach; sie bilden keine pixelweisen Deckkraftmasken ab. Alle Vorlagen verwenden die normale UV-Anordnung der Lackierung, die der einfarbigen Lackierungen des Spiels und der Community-Vorlagen, auch bei Lkw, deren Materialien zusätzlich eine alternative Anordnung haben. Fehlende oder mehrdeutige UV-Zuordnungen werden abgelehnt. Materialien, die nur mit der Grundlackfarbe eingefärbt werden, legen keine UV-Zuordnung für eine Lackierungstextur fest; Zubehör, das nur solche Materialien hat, wird wie oben beschrieben ausgeschlossen.
 
-## Nach dem ersten Mal
+Endliche UV-Koordinaten außerhalb von [0, 1] bleiben erhalten, ohne Wiederholung, Begrenzung der Werte oder Kanalwechsel. Der SVG-Anzeigebereich begrenzt das sichtbare Drahtgitter auf die Textur. Der Bericht enthält `uv_bounds` und `out_of_bounds_vertices`; diese Flächen erfordern besondere Aufmerksamkeit im Spiel. Nicht endliche oder nicht darstellbare Koordinaten bleiben ungültig.
 
-TruckPaint merkt sich den Paketordner jedes Spiels. Wählen Sie ein weiteres offizielles Fahrzeug, wird es sofort installiert, ohne Nachfrage.
+`dimension_diagnostics` führt sämtliches Zubehör mit fehlenden oder widersprüchlichen Zuschnittmaßen sowie mögliche Größen, Masken und referenzierende Definitionen und Archive auf. Gibt das Spiel für ein Zubehör mehrere Größen an, wird die größte verwendet (`disposition: "resolved_largest"`): Die Lackierungs-UVs passen zu jeder Größe. Aus demselben Grund wird eine Größe mit einer Seite unter 64 Pixeln vergrößert (`disposition: "raised_to_minimum"`). Zubehör, das das Spiel nur mit gemeinsam genutzten Füllmasken abdeckt, erhält keine eigene Textur und bleibt auf der Haupttextur (`disposition: "main_texture"`), wie in den Lackierungen des Spiels, die es nicht überschreiben. Der Extraktor erfindet nie eine Größe.
 
-Ein installiertes offizielles Fahrzeug braucht das Paket nicht mehr: Es funktioniert in Ihren Projekten und in den Listen weiter, auch wenn Sie das Paket verschieben oder löschen. Fehlt das Paket, wenn Sie ein weiteres offizielles Fahrzeug installieren, öffnet sich der Dialog für das Vorlagenpaket erneut und meldet, dass der Ordner verschoben oder gelöscht wurde.
+## Installieren und lackieren
 
-Um einen Paketordner zu ändern oder zu vergessen, öffnen Sie <Ui id="home-preferences" /> und gehen Sie zu <Ui id="prefs-template-packs" />: <Ui id="prefs-pack-choose" /> wählt einen anderen Ordner (zum Beispiel das Paket einer neueren Spielversion), und <Ui id="prefs-pack-clear" /> vergisst ihn. Keines von beiden ändert bereits installierte Fahrzeuge oder Ihre Projekte. Ein Ordner, der nicht mehr existiert, zeigt <Ui id="prefs-pack-missing" />.
+1. Öffnen Sie die [Fahrzeugbibliothek](../library/) und wählen Sie über <Ui id="vehicles-install" /> eine erzeugte `.tpv`-Datei.
+2. Markieren Sie das installierte Fahrzeug in <Ui id="home-new-project" />, wählen Sie Fahrerhäuser und Zubehör und verwenden Sie <Ui id="new-project-create" />.
+3. Lackieren und speichern Sie das Projekt und folgen Sie [Mod exportieren](../../export/mod/).
 
-## Wenn eine Installation fehlschlägt
+<Shot name="vehicles/library" alt="Die Fahrzeugbibliothek mit installierten Paketen und der Installationsschaltfläche" />
 
-Es wird nichts installiert, und eine Meldung nennt den Grund, wenn:
+Bewahren Sie die Pakete für spätere Installationen auf. Spiel und Konverter werden nur zum Erzeugen benötigt. Eigene Fahrzeuge und Beispielpakete bleiben verfügbar.
 
-- eine Datei, die das Fahrzeug braucht, im Paket fehlt: Die Meldung nennt das Fahrzeug und die Datei;
-- eine Vorlage nicht die erwartete Größe hat: Das Paket ist vielleicht für eine andere Spielversion. Laden Sie das Paket herunter, das zu Ihrem Spiel passt.
+## Alte Pakete
 
-:::note[Danksagung]
-Die Spieldaten der offiziellen Fahrzeuge stammen aus Paintjob Packer von Carsmaniac (MIT-Lizenz), die Vorlagenpakete sind von Carsmaniac. Beide werden in <Ui id="cmd-about-truckpaint" /> im Menü <Ui id="menu-help" /> genannt (unter macOS im Menü <Ui id="menu-app" />).
-:::
+Der Carsmaniac-Katalog und sein Vorlagenpaket-Ablauf wurden entfernt. Die Kennungen `official.ets2.<Fahrzeug>` bleiben erhalten, einschließlich `official.ets2.daf.2021`. Entfernen Sie alte Testpakete manuell vor der Installation ihrer Nachfolger. Platzierungen werden nicht migriert. Dieselbe Kennung und Version ersetzt diese installierte Version; eine andere Version bleibt daneben erhalten. Bestehende Projekte werden nicht automatisch umgeschrieben.

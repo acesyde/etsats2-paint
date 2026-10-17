@@ -1,55 +1,51 @@
 ---
 title: Official vehicles
-description: Paint the game's own trucks and trailers, installed from Carsmaniac's free template pack.
+description: Generate ETS2 truck packages from your installed game.
 sidebar:
   order: 2
 ---
 import Shot from '~/components/Shot.astro';
-import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-TruckPaint knows the game data of the official vehicles: their cabins, their accessories and their place in the game's files. You don't type any of it. What TruckPaint doesn't ship are the templates, which belong to SCS Software. It takes them from the **template pack** made by Carsmaniac, which you download once per game.
+Official trucks are used through manually installed `.tpv` packages. <Ui id="home-new-project" /> and <Ui id="cmd-add-vehicle" /> list only installed vehicles. A package contains its templates and game data: after generation, installation, project creation and mod export need neither the game installation nor ConverterPIX.
 
-## Which vehicles are available
+## Generate packages
 
-The official vehicles are listed first in <Ui id="home-new-project" /> and in <Ui id="cmd-add-vehicle" />, under <Ui id="vehicles-section-official" />, whether they are installed or not. For now, the catalog holds two ETS2 vehicles:
+Package authors can use the Rust `tpv` command with [ConverterPIX](https://github.com/mwl4/ConverterPIX), an external executable:
 
-- the **DAF NGD**, a truck with three cabin layouts (XG+, XG and XF) and four accessories: sun visor, side skirts, standard mirrors and camera mirrors;
-- the **Krone Cool Liner**, a trailer whose body texture (8192 × 1024) also paints its body accessories, with four chassis accessories. Its rear bumper is left out: the pack has no template for it.
+```sh
+mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
+  --converter "/path/to/converter_pix" --package-version 2.0.0
+```
 
-More vehicles of both games will be added in batches. The list needs no network access.
+Replace the paths with your ETS2 installation and converter executable. Supply an explicit SemVer package version. Add `--vehicle man.tgx_2020` or `--vehicle daf.2021` to process one truck; omit it for every discovered truck. `--output <directory>` changes the parent directory of the batches.
 
-## Install your first official vehicle
+The tool discovers official ETS2 trucks, including installed vehicle and tuning DLC. User mods, ATS and trailers are excluded. Each vehicle package contains all supported cabins and painted accessories. Truck and cabin names are the game's English names. Cabin templates are 4096 × 4096; accessory dimensions come from the game's paint definitions. Main templates superpose compatible painted options.
 
-The first time you check an official vehicle of a game, TruckPaint asks for that game's template pack.
+Each run writes a unique subdirectory under `dist/` by default, holding valid packages and `report.json`. Intermediates and converter logs stay under `target/`. Incomplete or ambiguous vehicles, unsupported shaders and unsupported UV mappings are refused. Other vehicles continue; any failure makes the command exit unsuccessfully. No partial vehicle package is published.
 
-1. In <Ui id="home-new-project" /> or <Ui id="cmd-add-vehicle" />, check an official vehicle, for example the DAF NGD. The template pack dialog opens.
-2. Click <Ui id="pack-open-download" />. Your web browser opens the pack's thread on the SCS Software forum. If the browser doesn't open, click <Ui id="pack-copy-link" /> and paste the link into it.
-3. Download the pack. It is about 1.2 GB, and one pack serves every vehicle of the game.
-4. Unzip it anywhere on your computer.
-5. Back in TruckPaint, click <Ui id="pack-choose-folder" /> and choose the unzipped folder, or drop the folder on the dialog.
+The report records sources, versions, texture coverage, successes, failures and limits. Technical package validation does not prove correctness in game: new vehicles and new configurations still need game checks.
 
-<Shot name="vehicles/template-pack" alt="The template pack dialog shown after checking the DAF NGD, with the steps to download, unzip and choose the pack" />
+`missing_dependencies` lists missing references and their source definitions when available. `expected_dlc: null` with `dlc_origin: "unknown"` means the required DLC cannot be identified; the archive mentioning a reference does not establish which DLC supplies it.
 
-TruckPaint shows "Installing…" while it builds the vehicle from the pack's files, with a <Ui id="button-cancel" /> button. The vehicle is then checked like any installed vehicle: its first main texture and every accessory are checked.
+Paint overrides pointing to accessories with no installed definition are excluded and reported with `disposition: "ignored_reference"`; they do not prevent package generation. Defined accessories whose selected model has no paint-job material cannot show a livery: they get no template and are reported with `disposition: "excluded"`. Required missing files and painted geometry that cannot be read still block extraction (`disposition: "blocking"`).
 
-The folder you choose may be the pack's own folder or the folder you unzipped it into. If it doesn't hold the pack of that game, TruckPaint says so and asks again.
+Supported paint shaders are `truckpaint`, `truckpaint.tsnmap` and `truckpaint.tsnmapuv`, with optional `airbrush`, `flipflake` and `altuv` flavors and `.a` or `.asafew.a` alpha-test suffixes. Templates trace the mesh UVs; they do not reproduce per-pixel opacity masks. Every template uses the ordinary paint UV layout, the one used by the game's colour paint jobs and by community templates, even on trucks whose materials also have an alternate layout. Missing or ambiguous UV mappings are refused. Materials tinted only by the base paint color do not establish a paint-job UV mapping; an accessory that only has such materials is excluded, as described above.
 
-## After the first time
+Finite UV coordinates outside [0, 1] are preserved, without wrapping, clamping or switching channels. The SVG viewport limits the visible wireframe to the texture. The report records `uv_bounds` and `out_of_bounds_vertices`; these surfaces need particular attention in game. Non-finite or unrepresentable coordinates remain invalid.
 
-TruckPaint remembers the pack folder of each game. Picking another official vehicle installs it straight away, without asking.
+`dimension_diagnostics` lists every accessory with missing or conflicting crop dimensions, the candidate sizes, masks and referencing definitions/archives. When the game declares several sizes for one accessory, the largest is used (`disposition: "resolved_largest"`): paint UVs fit any size. For the same reason, a size smaller than 64 pixels on a side is scaled up (`disposition: "raised_to_minimum"`). An accessory that the game only covers with shared fill masks gets no separate texture and stays on the main texture (`disposition: "main_texture"`), as in the game's paint jobs that do not override it. The extractor never invents a size.
 
-An installed official vehicle no longer needs the pack: it keeps working in your projects and in the lists even if you move or delete the pack. If the pack is gone when you install another official vehicle, the template pack dialog opens again and says that the folder was moved or deleted.
+## Install and paint
 
-To change or forget a pack folder, open <Ui id="home-preferences" /> and go to <Ui id="prefs-template-packs" />: <Ui id="prefs-pack-choose" /> picks another folder (for example the pack of a newer game version) and <Ui id="prefs-pack-clear" /> forgets it. Neither changes the vehicles already installed nor your projects. A folder that no longer exists shows <Ui id="prefs-pack-missing" />.
+1. Open the [Vehicle Library](../library/) and use <Ui id="vehicles-install" /> to choose a generated `.tpv`.
+2. In <Ui id="home-new-project" />, check that installed vehicle, choose cabins and accessories, then use <Ui id="new-project-create" />.
+3. Paint and save the project, then follow [Mod export](../../export/mod/).
 
-## When an installation fails
+<Shot name="vehicles/library" alt="The Vehicle Library with installed packages and the Install button" />
 
-Nothing is installed, and a message says why, when:
+Keep packages for future installation. The game and converter are needed only for generation. Custom vehicles and sample packages remain available.
 
-- a file the vehicle needs is missing from the pack: the message names the vehicle and the file;
-- a template doesn't have the expected size: the pack may be for another game version. Download the pack that matches your game.
+## Retired packages
 
-:::note[Credits]
-The game data of the official vehicles come from Paintjob Packer by Carsmaniac (MIT license), and the template packs are by Carsmaniac. Both are credited in <Ui id="cmd-about-truckpaint" />, in the <Ui id="menu-help" /> menu (the <Ui id="menu-app" /> menu on macOS).
-:::
+The Carsmaniac catalog and template pack workflow have been removed. Generated packages keep `official.ets2.<vehicle>`, including `official.ets2.daf.2021`. Remove old test packages manually before installing the generated replacements. There is no migration of old placements. Installing the same id and version replaces that installed version; another version is kept alongside it. Existing project files are not automatically rewritten.

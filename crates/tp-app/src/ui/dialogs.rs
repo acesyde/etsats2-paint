@@ -6,13 +6,12 @@ use egui::{
     Align, CornerRadius, Frame, Key, Layout, Margin, RichText, Stroke, TextEdit, Ui, WidgetInfo,
     WidgetType,
 };
-use std::path::{Path, PathBuf};
 
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::{TEXT_SCALE_RANGE, UI_SCALE_RANGE, label_strong_style, title_style};
-use tp_ui::tokens::{color, radius, size, space};
-use tp_ui::widgets::{IconButton, primary_button, secondary_button};
+use tp_ui::tokens::{color, radius, space};
+use tp_ui::widgets::{primary_button, secondary_button};
 
 use crate::commands::{CommandId, ShortcutFormatter};
 use crate::state::{AppState, Modal};
@@ -273,46 +272,16 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         super::new_project::show_modal(ctx, state);
         return;
     }
-    if matches!(state.modal, Some(Modal::TemplatePack(_))) {
-        super::template_pack::show_modal(ctx, state);
-        return;
-    }
     if matches!(state.modal, Some(Modal::Preferences)) {
         let mcp = state.mcp.view();
-        let outcome = preferences(
+        if preferences(
             ctx,
             &mut state.prefs,
             !state.macos,
-            state.preferences_refusal.as_deref(),
             &mcp,
             &mut state.reveal_mcp_preferences,
-        );
-        match outcome {
-            PrefsOutcome::Pending => {}
-            PrefsOutcome::Done => {
-                state.preferences_refusal = None;
-                state.modal = None;
-            }
-            PrefsOutcome::ShowPack(folder) => state.dialogs.show_folder(&folder),
-            PrefsOutcome::ChoosePack(game) => {
-                let title = tr!(
-                    "pack-title",
-                    game = super::vehicle_dialogs::game_label(game)
-                );
-                if let Some(folder) = state.dialogs.pick_folder(&title) {
-                    // The folder found, or the previous one kept.
-                    match tp_pack::catalog::find_pack(&folder, game) {
-                        Some(pack) => {
-                            state.prefs.set_template_pack(game, Some(pack));
-                            state.preferences_refusal = None;
-                        }
-                        None => {
-                            state.preferences_refusal =
-                                Some(super::template_pack::wrong_folder(game));
-                        }
-                    }
-                }
-            }
+        ) {
+            state.modal = None;
         }
         return;
     }
@@ -397,7 +366,6 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         | Modal::AddVehicle(_)
         | Modal::Textures(_)
         | Modal::CustomVehicle(_)
-        | Modal::TemplatePack(_)
         | Modal::Preferences
         | Modal::CopyFromCabin(_)
         | Modal::CommandPalette(_)
@@ -536,67 +504,41 @@ fn scale_slider(
 }
 
 /// What the Preferences dialog asks for this frame.
-enum PrefsOutcome {
-    Pending,
-    /// Closed.
-    Done,
-    /// Choose the template pack folder of a game.
-    ChoosePack(tp_vehicles::Game),
-    /// Show a template pack folder in the file manager.
-    ShowPack(PathBuf),
-}
-
-/// What the Template packs section asks for this frame.
-enum PackAction {
-    Choose(tp_vehicles::Game),
-    Show(PathBuf),
-}
-
 /// The window height (points) under which the settings of Preferences
 /// always scroll.
 const PREFERENCES_HEIGHT: f32 = 700.0;
 /// Room the dialog's title, footer and margins take around its settings.
 const PREFERENCES_CHROME: f32 = 200.0;
 
-/// The Preferences dialog. `title_bar` offers the system title bar option
-/// (Windows and Linux); `refusal` says why the last pack folder chosen was
-/// refused.
+/// Preferences, scrolling when its settings do not fit the window.
 fn preferences(
     ctx: &egui::Context,
     prefs: &mut crate::prefs::Prefs,
     title_bar: bool,
-    refusal: Option<&str>,
     mcp: &crate::mcp::McpView,
     reveal_mcp: &mut bool,
-) -> PrefsOutcome {
-    let mut choose = None;
+) -> bool {
     let response = modal("preferences_modal").show(ctx, |ui| {
         ui.set_width(440.0);
         title(ui, &tr("home-preferences"), None);
         ui.add_space(space::LG);
-        // The settings scroll when the window is too short for them (large
-        // UI scales), so the buttons stay in view.
-        // They also scroll when they were taller than the window last frame
-        // (long texts).
         let height = ctx.content_rect().height();
         let body_id = egui::Id::new("preferences_body_height");
         let body = ctx.data(|d| d.get_temp::<f32>(body_id)).unwrap_or(0.0);
-        choose = if height < PREFERENCES_HEIGHT || body + PREFERENCES_CHROME > height {
+        if height < PREFERENCES_HEIGHT || body + PREFERENCES_CHROME > height {
             let out = egui::ScrollArea::vertical()
                 .max_height((height - 160.0).max(160.0))
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
-                    preferences_body(ctx, ui, prefs, title_bar, refusal, mcp, reveal_mcp)
+                    preferences_body(ctx, ui, prefs, title_bar, mcp, reveal_mcp)
                 });
             ctx.data_mut(|d| d.insert_temp(body_id, out.content_size.y));
-            out.inner
         } else {
             let top = ui.cursor().top();
-            let inner = preferences_body(ctx, ui, prefs, title_bar, refusal, mcp, reveal_mcp);
+            preferences_body(ctx, ui, prefs, title_bar, mcp, reveal_mcp);
             let used = ui.cursor().top() - top;
             ctx.data_mut(|d| d.insert_temp(body_id, used));
-            inner
-        };
+        }
         let mut close = false;
         footer(ui, |ui| {
             close |= ui.add(primary_button(&tr("button-done"))).clicked();
@@ -606,29 +548,18 @@ fn preferences(
         });
         close
     });
-    if response.inner || response.should_close() {
-        PrefsOutcome::Done
-    } else if let Some(action) = choose {
-        match action {
-            PackAction::Choose(game) => PrefsOutcome::ChoosePack(game),
-            PackAction::Show(folder) => PrefsOutcome::ShowPack(folder),
-        }
-    } else {
-        PrefsOutcome::Pending
-    }
+    response.inner || response.should_close()
 }
 
-/// The settings of the Preferences dialog; returns what the Template packs
-/// section asks for.
+/// The settings of the Preferences dialog.
 fn preferences_body(
     ctx: &egui::Context,
     ui: &mut Ui,
     prefs: &mut crate::prefs::Prefs,
     title_bar: bool,
-    refusal: Option<&str>,
     mcp: &crate::mcp::McpView,
     reveal_mcp: &mut bool,
-) -> Option<PackAction> {
+) {
     ui.spacing_mut().item_spacing.y = space::MD;
     section(ui, &tr("prefs-interface"));
     // The room left beside the slider fits its value ("100%").
@@ -707,9 +638,7 @@ fn preferences_body(
             WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-grid-spacing"))
         });
     });
-    let action = template_packs(ui, prefs, refusal);
     mcp_section(ui, prefs, mcp, reveal_mcp);
-    action
 }
 
 /// The AI assistant (MCP) section of Preferences: the switch, the port
@@ -793,201 +722,6 @@ fn mcp_section(
     );
 }
 
-/// The Template packs section of Preferences: for each game with official
-/// vehicles, its name above a read-only field with its pack folder (shown
-/// in the file manager on click, its path copied from its context menu)
-/// or "Not set", then Choose Folder… and Clear as icons. Returns what was
-/// asked.
-fn template_packs(
-    ui: &mut Ui,
-    prefs: &mut crate::prefs::Prefs,
-    refusal: Option<&str>,
-) -> Option<PackAction> {
-    let games: Vec<tp_vehicles::Game> = tp_vehicles::Game::ALL
-        .into_iter()
-        .filter(|g| !tp_vehicles::catalog::entries(*g).is_empty())
-        .collect();
-    if games.is_empty() {
-        return None;
-    }
-    let mut action = None;
-    ui.add_space(space::SM);
-    section(ui, &tr("prefs-template-packs"));
-    ui.add(
-        egui::Label::new(
-            RichText::new(tr("prefs-template-packs-hint"))
-                .small()
-                .color(color::TEXT_SECONDARY),
-        )
-        .wrap(),
-    );
-    for game in games {
-        ui.vertical(|ui| {
-            ui.spacing_mut().item_spacing.y = space::XS;
-            ui.label(
-                RichText::new(super::vehicle_dialogs::game_name(game))
-                    .small()
-                    .color(color::TEXT_SECONDARY),
-            );
-            let folder = prefs.template_pack(game).map(Path::to_path_buf);
-            let missing = folder.as_ref().is_some_and(|f| !f.is_dir());
-            let row = egui::vec2(ui.available_width(), size::HIT_MIN);
-            ui.allocate_ui_with_layout(row, Layout::right_to_left(Align::Center), |ui| {
-                ui.spacing_mut().item_spacing.x = space::XS;
-                if ui
-                    .add_enabled(
-                        folder.is_some(),
-                        IconButton::new(icons::CLOSE, &tr("prefs-pack-clear")),
-                    )
-                    .clicked()
-                {
-                    prefs.set_template_pack(game, None);
-                }
-                if ui
-                    .add(IconButton::new(
-                        icons::OPEN_PROJECT,
-                        &tr("prefs-pack-choose"),
-                    ))
-                    .clicked()
-                {
-                    action = Some(PackAction::Choose(game));
-                }
-                ui.add_space(space::XS);
-                if let Some(shown) = pack_field(ui, folder.as_deref(), missing) {
-                    action = Some(PackAction::Show(shown));
-                }
-            });
-            if missing {
-                ui.label(
-                    RichText::new(tr("prefs-pack-missing"))
-                        .small()
-                        .color(color::ERROR),
-                );
-            }
-        });
-        ui.add_space(space::XS);
-    }
-    if let Some(refusal) = refusal {
-        problem(ui, refusal);
-    }
-    action
-}
-
-/// The read-only field of a template pack folder, filling the room left:
-/// the path cut in the middle, or "Not set". An existing folder looks like
-/// a link on hover and is returned when clicked; its context menu copies
-/// the path.
-fn pack_field(ui: &mut Ui, folder: Option<&Path>, missing: bool) -> Option<PathBuf> {
-    let clickable = folder.is_some() && !missing;
-    let sense = if clickable {
-        egui::Sense::click()
-    } else {
-        egui::Sense::hover()
-    };
-    let size = egui::vec2(ui.available_width(), size::HIT_MIN);
-    let (rect, response) = ui.allocate_exact_size(size, sense);
-    let full = folder.map(|f| f.display().to_string());
-    let label = full.clone().unwrap_or_else(|| tr("prefs-pack-not-set"));
-    response.widget_info(|| {
-        let kind = if clickable {
-            WidgetType::Button
-        } else {
-            WidgetType::Label
-        };
-        WidgetInfo::labeled(kind, true, &label)
-    });
-    let painter = ui.painter();
-    painter.rect(
-        rect,
-        CornerRadius::same(radius::MD),
-        color::FIELD,
-        Stroke::new(1.0, color::BORDER),
-        egui::StrokeKind::Inside,
-    );
-    let inner = rect.shrink2(egui::vec2(space::SM, 0.0));
-    let font = egui::TextStyle::Monospace.resolve(ui.style());
-    let (text, tint) = match &full {
-        Some(path) => (
-            fit_middle(ui, path, inner.width(), &font),
-            if missing {
-                color::ERROR
-            } else {
-                color::TEXT_PRIMARY
-            },
-        ),
-        None => (label.clone(), color::TEXT_SECONDARY),
-    };
-    let hovered = clickable && response.hovered();
-    let galley = painter.layout_no_wrap(text, font, tint);
-    let at = egui::pos2(inner.left(), rect.center().y - galley.size().y / 2.0);
-    let width = galley.size().x;
-    painter.galley(at, galley, tint);
-    if hovered {
-        let y = at.y + ui.text_style_height(&egui::TextStyle::Monospace) - 1.0;
-        painter.hline(at.x..=at.x + width, y, Stroke::new(1.0, tint));
-    }
-    let path = full?;
-    let response = if clickable {
-        response
-            .on_hover_cursor(egui::CursorIcon::PointingHand)
-            .on_hover_text(format!("{}\n{path}", tr(show_folder_key())))
-    } else {
-        response.on_hover_text(&path)
-    };
-    response.context_menu(|ui| {
-        if ui.button(tr("prefs-pack-copy-path")).clicked() {
-            ui.ctx().copy_text(path.clone());
-            ui.close();
-        }
-    });
-    (clickable && response.clicked()).then(|| PathBuf::from(&path))
-}
-
-/// "Show in Finder", "Show in Explorer" or "Show in file manager".
-fn show_folder_key() -> &'static str {
-    if cfg!(target_os = "macos") {
-        "prefs-pack-show-finder"
-    } else if cfg!(target_os = "windows") {
-        "prefs-pack-show-explorer"
-    } else {
-        "prefs-pack-show-files"
-    }
-}
-
-/// `text` cut in the middle to fit `width` in `font`
-/// ("/Users/…/ETS2 templates").
-fn fit_middle(ui: &Ui, text: &str, width: f32, font: &egui::FontId) -> String {
-    let fits = |t: &str| {
-        ui.painter()
-            .layout_no_wrap(t.to_owned(), font.clone(), color::TEXT_PRIMARY)
-            .size()
-            .x
-            <= width
-    };
-    let mut max = text.chars().count();
-    let mut shown = text.to_owned();
-    while max > 8 && !fits(&shown) {
-        max -= 1;
-        shown = shorten_middle(text, max);
-    }
-    shown
-}
-
-/// `text` cut to `max` characters in the middle.
-fn shorten_middle(text: &str, max: usize) -> String {
-    let chars: Vec<char> = text.chars().collect();
-    if chars.len() <= max {
-        return text.to_owned();
-    }
-    let keep = max.saturating_sub(1);
-    let head = keep / 2;
-    let tail = keep - head;
-    let mut out: String = chars[..head].iter().collect();
-    out.push('…');
-    out.extend(&chars[chars.len() - tail..]);
-    out
-}
-
 /// A section's heading in a dialog ("Interface", "Canvas").
 fn section(ui: &mut Ui, text: &str) {
     ui.label(
@@ -1065,58 +799,9 @@ fn about(ctx: &egui::Context) -> bool {
         ui.add_space(space::SM);
         ui.label(tr("about-tagline"));
         ui.add_space(space::SM);
-        ui.label(RichText::new(tr("about-credits-title")).text_style(label_strong_style()));
-        let credits = tr("about-credits");
-        ui.add(egui::Label::new(RichText::new(&credits).color(color::TEXT_SECONDARY)).wrap());
-        // Licenses… shows Paintjob Packer's notice under the credits.
-        let id = egui::Id::new("about_licenses");
-        let mut shown = ui.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
-        if ui.add(secondary_button(&tr("about-licenses"))).clicked() {
-            shown = !shown;
-            ui.data_mut(|d| d.insert_temp(id, shown));
-        }
-        if shown {
-            egui::ScrollArea::vertical()
-                .max_height(200.0)
-                .show(ui, |ui| {
-                    let notice = tp_vehicles::catalog::PAINTJOB_PACKER_LICENSE;
-                    // Its lines are cut at 80 characters: joined back into
-                    // paragraphs, which wrap to the dialog.
-                    let paragraphs: Vec<String> = notice
-                        .split("\n\n")
-                        .map(|p| p.split_whitespace().collect::<Vec<_>>().join(" "))
-                        .collect();
-                    // Kept clear of the scroll bar floating over the right.
-                    let gutter = ui.spacing().scroll.bar_width
-                        + ui.spacing().scroll.bar_outer_margin
-                        + space::SM;
-                    Frame::new()
-                        .inner_margin(Margin {
-                            right: gutter as i8,
-                            ..Margin::ZERO
-                        })
-                        .show(ui, |ui| {
-                            let label = ui.add(
-                                egui::Label::new(
-                                    RichText::new(paragraphs.join("\n\n"))
-                                        .small()
-                                        .color(color::TEXT_SECONDARY),
-                                )
-                                .wrap(),
-                            );
-                            label.widget_info(|| {
-                                WidgetInfo::labeled(WidgetType::Label, true, notice)
-                            });
-                        });
-                });
-        }
         footer(ui, |ui| {
             ui.add(primary_button(&tr("button-close"))).clicked()
         })
     });
-    let close = response.inner || response.should_close();
-    if close {
-        ctx.data_mut(|d| d.remove::<bool>(egui::Id::new("about_licenses")));
-    }
-    close
+    response.inner || response.should_close()
 }

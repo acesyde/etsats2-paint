@@ -23,7 +23,6 @@ pub mod mod_export;
 pub mod mod_previews;
 #[cfg(target_os = "macos")]
 pub mod native_menu;
-pub mod official;
 pub mod outline_text;
 pub mod package_previews;
 pub mod palette;

@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 use tp_vehicles::{MANIFEST, Manifest, Package, PackageError};
 
-pub mod catalog;
 pub mod custom;
 pub mod dds;
+pub mod extract;
 
 /// Why a folder could not be packed or a package is invalid.
 #[derive(Debug)]
