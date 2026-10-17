@@ -58,13 +58,11 @@ Choosing New Project SHALL open a modal dialog on one page:
 
 - **On top:** the **Project name** field and the **Game**, ETS2 or ATS, as a segmented control. The name defaults to the first checked vehicle's name when left empty. The game starts on the game of the installed vehicles, or ETS2 when vehicles of both games or none are installed. Changing the game unchecks the vehicles of the other game. A note says that vehicles can be added to the project at any time.
 - **On the left, the vehicle list**, each row with a checkbox, under the column headers Vehicle, Type and Package:
-  - first, under **Official**, the official vehicles of the chosen game from the catalog (see the official-vehicles capability), installed or not, one row each with the name, the kind and the brand, and "Official" in the Package column, followed by the newest installed version when it is installed;
-  - then, under **Installed**, the other installed vehicles of the chosen game, one row each (name, kind, brand and newest version). An installed official vehicle is listed only under Official.
-  - The section headers are shown only when both sections have rows.
-  - The list is searchable by name and brand, and filterable by kind with a segmented control **All / Trucks / Trailers**. Both sections follow the search and the filter. Checked vehicles stay checked when the search or the filter hides them.
-  - Under the list, a **Custom Vehicle…** entry explains that a vehicle without a package can be created from its template files (DDS, PNG or SVG) and its game data, and opens the Custom Vehicle dialog (see the custom-vehicles capability). An **Install…** button installs packages (see the vehicle-packages capability).
-  - With no vehicle installed and no official vehicle for the chosen game, the list offers Install…, Install the sample vehicles and Custom Vehicle…. With no vehicle installed but official vehicles listed, Install the sample vehicles is offered under the list.
-  - Clicking a row, or pressing Space on it, checks or unchecks the vehicle. Several vehicles, trucks and trailers, can be checked together. Checking an official vehicle installs it first when needed, asking for the template pack when its folder isn't known (see the official-vehicles capability), then checks it; until it is installed, the checked vehicles are unchanged.
+  - Only installed vehicles of the chosen game SHALL be listed, one row per vehicle with its name, kind, brand and newest installed version; no uninstalled catalog entries or automatic template pack installation SHALL be offered.
+  - The list is searchable by name and brand, and filterable by kind with a segmented control **All / Trucks / Trailers**. Checked vehicles stay checked when search or filtering hides them.
+  - Under the list, **Custom Vehicle…** explains creation from DDS, PNG or SVG templates and game data, and opens the Custom Vehicle dialog. **Install…** installs validated packages manually.
+  - With no installed vehicle for the chosen game, the list offers Install…, Install the sample vehicles and Custom Vehicle….
+  - Clicking a row or pressing Space checks or unchecks an installed vehicle. Several trucks and trailers can be checked together.
 - **On the right, "Your fleet",** with the number of checked vehicles ("3 vehicles"): one card per checked vehicle, in the order they were checked, each with the vehicle's name and **Remove**, which unchecks it. One card is open at a time: the vehicle checked last, or the card the user clicks. The open card shows:
   - under **Cabins**, one chip per main texture, named after it, that toggles it (filled when it is checked, outlined otherwise; the cabins it covers in its tooltip). The first one is checked when the vehicle is checked; the last checked main texture (and so a single main texture) can't be unchecked;
   - the **main texture mode**, read only, from the package: "One per cabin layout" when the package has several main textures, "One for every cabin" for a truck with a single main texture, "Single main texture" for a trailer. The user can't change it;
@@ -115,7 +113,7 @@ Confirming SHALL open the editor workspace, in the Project space, with a new pro
 - **THEN** the vehicle list shows only the ATS vehicles
 
 #### Scenario: No vehicle installed
-- **WHEN** the user opens New Project with no vehicle installed and the Game set to ATS, which has no official vehicle yet
+- **WHEN** the user opens New Project with no vehicle installed and the Game set to ATS
 - **THEN** Create Project is disabled, and Install…, Install the sample vehicles and Custom Vehicle… are offered
 
 #### Scenario: Project from a custom vehicle
@@ -127,16 +125,12 @@ Confirming SHALL open the editor workspace, in the Project space, with a new pro
 - **THEN** the dialog shows the Game ETS2 and the new vehicle chosen, with its textures checked
 
 #### Scenario: Official vehicles first
-- **WHEN** the sample truck is installed and the user opens New Project with the Game ETS2
-- **THEN** the list shows, under Official, the DAF NGD (Truck, DAF, Official) and the Krone Cool Liner (Trailer, Krone, Official), then, under Installed, the TruckPaint Sample Truck
-
-#### Scenario: Official vehicle filtered by kind
-- **WHEN** the user sets the kind filter to Trailers
-- **THEN** the Official section shows only the Krone Cool Liner
+- **WHEN** only the sample truck is installed and the user opens New Project with Game ETS2
+- **THEN** only the sample truck is listed; uninstalled DAF and Krone vehicles are not offered
 
 #### Scenario: Project from an official vehicle
-- **WHEN** the ETS2 pack folder is known, the user picks the DAF NGD, waits for it to install, checks XF and clicks Create Project
-- **THEN** the workspace opens with a project named "DAF NGD" on its XG+ and XF main textures and its four accessories, each showing its template
+- **WHEN** the user manually installs an extracted DAF NGD package, opens New Project, selects XF as its main texture and its accessories, and clicks Create Project
+- **THEN** a DAF NGD project opens with the chosen textures and no template pack prompt
 
 #### Scenario: A truck and a trailer at once
 - **WHEN** the user checks the sample truck, then the sample trailer, and clicks Create Project with an empty name
@@ -161,6 +155,10 @@ Confirming SHALL open the editor workspace, in the Project space, with a new pro
 #### Scenario: Custom vehicle added to the fleet
 - **WHEN** the sample truck is checked and the user creates a custom trailer with Custom Vehicle…
 - **THEN** the sample truck and the custom trailer are both checked, with the trailer's card open
+
+#### Scenario: Official vehicle filtered by kind
+- **WHEN** an extracted official truck and a manual trailer package are installed and the kind filter is set to Trailers
+- **THEN** only the installed trailer is shown, with no uninstalled official entries
 
 ### Requirement: Open Project action
 The home screen's Open Project action SHALL open the same file dialog as File › Open… and open the chosen project.
