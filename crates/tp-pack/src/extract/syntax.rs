@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Section {
     pub header: String,
     pub fields: BTreeMap<String, Vec<String>>,
@@ -63,9 +63,15 @@ pub fn parse(text: &str) -> Result<Section, String> {
                 statement.push(c);
             }
             '#' | '/' if c == '#' || chars.peek() == Some(&'/') => {
-                // Skips the rest of the line, including a second '/'.
+                // Skips the rest of the line, including a second '/'. The line then
+                // ends as at a newline: a unit header may be followed by a comment.
                 chars.by_ref().find(|&next| next == '\n');
-                finish(&mut statement, stack.last_mut().unwrap())?;
+                if parentheses == 0 && chars.clone().find(|next| !next.is_whitespace()) == Some('{')
+                {
+                    statement.push(' ');
+                } else {
+                    finish(&mut statement, stack.last_mut().unwrap())?;
+                }
             }
             '(' => {
                 parentheses += 1;
@@ -131,6 +137,14 @@ fn finish(statement: &mut String, section: &mut Section) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_unit_header_can_end_with_a_comment() {
+        let text = "SiiNunit\n{\naccessory_addon_data : bpl100.example.chs_r_l #(100cm)\n{\nname: box\n}\n}\n";
+        let unit = &parse(text).unwrap().children[0].children[0];
+        assert_eq!(unit.header, "accessory_addon_data : bpl100.example.chs_r_l");
+        assert_eq!(unit.field("name").unwrap(), "box");
+    }
 
     #[test]
     fn sections_keep_empty_fields_quotes_and_arrays() {

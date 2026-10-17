@@ -129,3 +129,63 @@ fn check_generated_package(variable: &str, vehicle: &str) {
         }
     }
 }
+
+/// A package shaped like `tpv extract` output for an owned trailer: a single
+/// `trailer` main texture without game ids, and one accessory texture shared
+/// by two bodies the game paints from the same region.
+#[test]
+fn extracted_trailer_installs_and_exports_its_grouped_bodies() {
+    use tp_app::mod_export;
+    use tp_vehicles::TextureSize;
+    use tp_vehicles::sample::{self, SampleTexture};
+    let main = SampleTexture {
+        id: "trailer",
+        name: "Trailer",
+        size: TextureSize::new(4096, 4096),
+        layout: 1,
+    };
+    let bodies = SampleTexture {
+        id: "body_dry_van",
+        name: "body.dry_van, body.ins",
+        size: TextureSize::new(512, 256),
+        layout: 1,
+    };
+    let mut manifest = sample::manifest_with(
+        "official.ets2.scs.box",
+        "SCS Box",
+        "2.0.0",
+        "trailer",
+        std::slice::from_ref(&main),
+        std::slice::from_ref(&bodies),
+    );
+    manifest["game"]["path"] = "scs.box".into();
+    manifest["paint_job"]["accessories"][0]["game_ids"] =
+        serde_json::json!(["body.dry_van", "body.ins"]);
+    let bytes = sample::zip(&manifest, &sample::templates(&[main, bodies]));
+    let dir = tempfile::tempdir().unwrap();
+    let mut library = tp_app::vehicles::VehicleLibrary::open(dir.path());
+    library.install_bytes(&bytes).unwrap();
+    let package = library
+        .load("official.ets2.scs.box", &"2.0.0".parse().unwrap())
+        .unwrap();
+    let textures = tp_app::vehicle_project::default_textures(&package.manifest);
+    let mut project =
+        tp_app::vehicle_project::fleet_project("ACE", &[(&package, &textures)]).unwrap();
+    assert_eq!(project.surfaces.len(), 2);
+    project.mod_settings.internal_name = Some("ace".into());
+    let plan = mod_export::plan(&project).unwrap();
+    let def = "def/vehicle/trailer_owned/scs.box/paint_job";
+    let unit = plan.text(&format!("{def}/ace.sii")).unwrap();
+    assert!(
+        unit.contains("accessory_paint_job_data : ace.scs.box.paint_job"),
+        "{unit}"
+    );
+    assert!(!unit.contains("suitable_for"), "{unit}");
+    let overrides = plan.text(&format!("{def}/accessory/ace.sii")).unwrap();
+    assert_eq!(
+        overrides,
+        "SiiNunit\n{\n\nsimple_paint_job_data : .ovr0\n{\n\
+         \tpaint_job_mask: \"/vehicle/trailer_owned/upgrade/paintjob/ace/scs.box/body_dry_van.tobj\"\n\
+         \tacc_list[]: \"body.dry_van\"\n\tacc_list[]: \"body.ins\"\n}\n}\n"
+    );
+}

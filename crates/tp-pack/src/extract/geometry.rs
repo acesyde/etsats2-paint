@@ -52,6 +52,9 @@ fn selected<'a>(tree: &'a Section, kind: &str, name: &str) -> Result<&'a Section
             .field("Name")
             .is_ok_and(|n| n.eq_ignore_ascii_case(name))
     });
+    let mut matches = matches.collect::<Vec<_>>();
+    // Some game models repeat a Look with the same content (Schwarzmüller Food Tank cage).
+    matches.dedup();
     only(matches, &format!("missing or ambiguous {kind}: {name}"))
 }
 
@@ -217,6 +220,11 @@ pub fn painted(
     Ok(result)
 }
 
+/// A template with no layout, for a texture that only carries a base colour.
+pub fn blank_svg([width, height]: [u32; 2]) -> Vec<u8> {
+    format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\"/>\n").into_bytes()
+}
+
 pub fn svg(meshes: &[Mesh], size: [u32; 2]) -> Result<(Vec<u8>, usize), String> {
     let mut edges = BTreeSet::new();
     for mesh in meshes {
@@ -278,6 +286,20 @@ mod tests {
             .unwrap()
             .is_empty()
         );
+    }
+
+    #[test]
+    fn identical_repeated_looks_are_one_look() {
+        let look = PIT.split("Variant").next().unwrap();
+        assert_eq!(
+            painted(PIM, &format!("{look}{PIT}"), "default", "default", None)
+                .unwrap()
+                .len(),
+            1
+        );
+        let other = look.replace("truckpaint", "dif");
+        let error = painted(PIM, &format!("{other}{PIT}"), "default", "default", None).unwrap_err();
+        assert_eq!(error, "missing or ambiguous Look: default");
     }
 
     #[test]
@@ -442,7 +464,6 @@ mod tests {
                 PIT.to_owned(),
             ),
             (PIM.replace("_TEXCOORD1", "_TEXCOORD3"), PIT.to_owned()),
-            (PIM.to_owned(), format!("{PIT}{PIT}")),
         ] {
             assert!(painted(&pim, &pit, "default", "default", None).is_err());
         }

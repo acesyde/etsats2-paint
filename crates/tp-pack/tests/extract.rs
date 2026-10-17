@@ -367,16 +367,16 @@ fn missing_dependencies_are_reported_without_guessing_a_dlc() {
         "def/vehicle/truck/example.good/accessory/mirror/missing.sii",
         "SiiNunit\n{\naccessory_addon_data : missing.example.good.mirror {\n}\n}\n",
     );
-    // A defined accessory whose exterior model cannot be read is unknown data: it blocks.
-    assert!(!run(root, Some("example.good")).status.success());
+    // A defined accessory with no model field has nothing to paint: excluded.
+    assert!(run(root, Some("example.good")).status.success());
     let batch = batches(root).pop().unwrap();
     let report: Value =
         serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
     let missing = &report["results"][0]["missing_dependencies"][0];
     assert_eq!(missing["reference"], "mirror.missing");
-    assert_eq!(missing["kind"], "painted_exterior_surface");
-    assert_eq!(missing["disposition"], "blocking");
-    assert_eq!(std::fs::read_dir(&batch).unwrap().count(), 1);
+    assert_eq!(missing["kind"], "accessory_without_model");
+    assert_eq!(missing["disposition"], "excluded");
+    assert_eq!(std::fs::read_dir(&batch).unwrap().count(), 2);
 
     let fixture = fixture();
     let root = fixture.path();
@@ -726,4 +726,339 @@ fn changed_templates_get_the_next_layout_version() {
     assert_eq!(version, 2);
     let (_, version) = layout(Some(&third));
     assert_eq!(version, 2);
+}
+
+/// An owned trailer `id` with one chassis and one body, both painted, using
+/// the shared painted model; `brand` is its first `info[]` value.
+fn trailer(root: &Path, id: &str, brand: &str) {
+    let source = root.join("game/version.scs.files");
+    let def = format!("def/vehicle/trailer_owned/{id}");
+    write(
+        &source,
+        &format!("{def}/data.sii"),
+        &format!(
+            "SiiNunit\n{{\naccessory_trailer_data : vehicle.{id} {{\ninfo[]: \"{brand}\"\ninfo[]: \"@@series_trailer@@\"\n}}\n}}\n"
+        ),
+    );
+    for (group, unit, data) in [
+        ("chassis", "ch_3", "accessory_chassis_data"),
+        ("body", "curtain", "accessory_trailer_body_data"),
+    ] {
+        write(
+            &source,
+            &format!("{def}/{group}/{unit}.sii"),
+            &format!(
+                "SiiNunit\n{{\n{data} : {unit}.{id}.{group} {{\nmodel: \"/vehicle/shared/example.good.pmd\"\n}}\n}}\n"
+            ),
+        );
+    }
+    write(
+        &source,
+        &format!("{def}/paint_job/default.sii"),
+        &format!(
+            "SiiNunit\n{{\naccessory_paint_job_data : default.{id}.paint_job {{\npaint_job_mask: \"/trailer/pjm_at_0x0_size_4x4.tobj\"\n}}\n}}\n"
+        ),
+    );
+}
+
+fn report(batch: &Path) -> Value {
+    serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap()
+}
+
+#[test]
+fn owned_trailers_are_discovered_and_can_be_requested_alone() {
+    let fixture = fixture();
+    let root = fixture.path();
+    trailer(root, "example.trailer", "");
+    run(root, None);
+    let all = report(&batches(root).pop().unwrap());
+    let discovered = all["discovered_vehicles"].as_array().unwrap();
+    assert!(discovered.iter().any(|v| v == "example.trailer"), "{all:#}");
+    // Trucks first, then trailers.
+    let kinds = all["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["kind"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(kinds, ["truck", "truck", "trailer"]);
+    run(root, Some("example.trailer"));
+    let one = report(&batches(root).pop().unwrap());
+    assert_eq!(
+        one["processed_vehicles"],
+        serde_json::json!(["example.trailer"])
+    );
+    assert_eq!(one["results"][0]["kind"], "trailer");
+}
+
+#[test]
+fn an_id_defined_as_truck_and_trailer_is_refused() {
+    let fixture = fixture();
+    let root = fixture.path();
+    trailer(root, "example.good", "");
+    assert!(!run(root, Some("example.good")).status.success());
+    let batch = batches(root).pop().unwrap();
+    let result = &report(&batch)["results"][0];
+    assert_eq!(result["stage"], "discovery");
+    assert_eq!(result["kinds"], serde_json::json!(["truck", "trailer"]));
+    assert_eq!(std::fs::read_dir(batch).unwrap().count(), 1);
+}
+
+#[test]
+fn help_mentions_trailers() {
+    let help = Command::new(env!("CARGO_BIN_EXE_tpv"))
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&help.stdout).contains("trailers"));
+}
+
+/// Extracts `vehicle` alone and returns its report entry and validated manifest.
+fn extract_one(root: &Path, vehicle: &str) -> (Value, tp_vehicles::Manifest) {
+    let result = run(root, Some(vehicle));
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let batch = batches(root).pop().unwrap();
+    let entry = report(&batch)["results"][0].clone();
+    let bytes = std::fs::read(batch.join(entry["package"].as_str().unwrap())).unwrap();
+    (entry, tp_pack::check(&bytes).unwrap())
+}
+
+#[test]
+fn trailers_get_one_main_texture_and_game_names() {
+    let fixture = fixture();
+    let root = fixture.path();
+    trailer(root, "scs.box", "");
+    trailer(root, "krone.coolliner", "Krone");
+    write(
+        &root.join("game/version.scs.files"),
+        "locale/en_us/localization.sui",
+        "\tkey[]: \"series_trailer\"\n\tval[]: \"Cool Liner\"\n",
+    );
+    let (entry, scs) = extract_one(root, "scs.box");
+    assert_eq!(entry["kind"], "trailer");
+    assert_eq!((scs.name.as_str(), scs.brand.as_str()), ("SCS Box", "SCS"));
+    assert_eq!(scs.kind, tp_vehicles::Kind::Trailer);
+    assert_eq!(scs.game.path, "scs.box");
+    let [main] = scs.paint_job.main.as_slice() else {
+        panic!("one main texture expected: {:?}", scs.paint_job.main);
+    };
+    assert_eq!(main.id, "trailer");
+    assert!(main.game_ids.is_empty());
+    assert_eq!(<[u32; 2]>::from(main.texture.size), [4096, 4096]);
+    // The chassis and the body both paint the main texture.
+    let contributors = entry["textures"][0]["contributors"].as_array().unwrap();
+    let ids = contributors
+        .iter()
+        .map(|c| c["id"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(ids, ["body.curtain", "chassis.ch_3"]);
+    let (_, krone) = extract_one(root, "krone.coolliner");
+    assert_eq!(krone.name, "Krone Cool Liner");
+}
+
+#[test]
+fn trailer_bodies_sharing_a_mask_in_every_paint_job_share_one_texture() {
+    let fixture = fixture();
+    let root = fixture.path();
+    trailer(root, "scs.box", "");
+    let source = root.join("game/version.scs.files");
+    let def = "def/vehicle/trailer_owned/scs.box";
+    for body in ["dry_van", "ins", "reefer"] {
+        write(
+            &source,
+            &format!("{def}/body/{body}.sii"),
+            &format!(
+                "SiiNunit\n{{\naccessory_trailer_body_data : {body}.scs.box.body {{\nmodel: \"/vehicle/shared/example.good.pmd\"\n}}\n}}\n"
+            ),
+        );
+    }
+    let ovr = |mask: &str, ids: &[&str]| {
+        let list = ids
+            .iter()
+            .map(|id| format!("acc_list[]: \"{id}\"\n"))
+            .collect::<String>();
+        format!(
+            "simple_paint_job_data : .o{} {{\npaint_job_mask: \"{mask}\"\n{list}}}\n",
+            ids.len()
+        )
+    };
+    let shared = "/t/pjm_at_0x0_size_512x256.tobj";
+    write(
+        &source,
+        &format!("{def}/paint_job/accessory/first.sii"),
+        &format!(
+            "SiiNunit\n{{\n{}}}\n",
+            ovr(shared, &["body.dry_van", "body.ins", "body.reefer"])
+        ),
+    );
+    // The second paint job paints the reefer from another region.
+    write(
+        &source,
+        &format!("{def}/paint_job/accessory/second.sii"),
+        &format!(
+            "SiiNunit\n{{\n{}{}}}\n",
+            ovr(shared, &["body.dry_van", "body.ins"]),
+            ovr("/t/pjm_at_512x0_size_512x256.tobj", &["body.reefer"])
+        ),
+    );
+    let (entry, manifest) = extract_one(root, "scs.box");
+    let accessories = &manifest.paint_job.accessories;
+    let ids = accessories
+        .iter()
+        .map(|a| a.game_ids.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        ids,
+        [vec!["body.dry_van", "body.ins"], vec!["body.reefer"]],
+        "{entry:#}"
+    );
+    assert_eq!(<[u32; 2]>::from(accessories[0].texture.size), [512, 256]);
+    let grouped = entry["textures"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["part"] == "body_dry_van")
+        .unwrap();
+    assert_eq!(grouped["contributors"].as_array().unwrap().len(), 2);
+    assert_eq!(grouped["shared_masks"], serde_json::json!([shared]));
+    // The ungrouped bodies still paint the main texture with the chassis.
+    let main = &entry["textures"][0]["contributors"];
+    assert_eq!(main.as_array().unwrap().len(), 2, "{main:#}");
+}
+
+#[test]
+fn trailers_follow_the_truck_rules_and_need_a_paint_job() {
+    let fixture = fixture();
+    let root = fixture.path();
+    let source = root.join("game/version.scs.files");
+    let def = "def/vehicle/trailer_owned/scs.box";
+    trailer(root, "scs.box", "");
+    // Only plain colours, no mask and no override: skipped, not a failure.
+    write(
+        &source,
+        &format!("{def}/paint_job/default.sii"),
+        "SiiNunit\n{\naccessory_paint_job_data : default.scs.box.paint_job {\nbase_color: (0.1, 0.2, 0.3)\nbase_color_locked: true\n}\n}\n",
+    );
+    assert!(run(root, Some("scs.box")).status.success());
+    let batch = batches(root).pop().unwrap();
+    let skipped = &report(&batch)["results"][0];
+    assert_eq!(skipped["status"], "skipped");
+    assert_eq!(skipped["reason"], "not_paintable");
+    assert_eq!(report(&batch)["failed"], 0);
+    assert_eq!(std::fs::read_dir(batch).unwrap().count(), 1);
+    // An override alone is enough; its 32×32 size is scaled up, and a part without
+    // livery material is left out.
+    for (extension, text) in [
+        ("pmd", "binary"),
+        ("pim", PIM),
+        (
+            "pit",
+            &PIT.replace(
+                "eut2.truckpaint.tsnmapuv",
+                "eut2.dif.spec.weight.add.env.tsnmapuv.paint.a",
+            ),
+        ),
+    ] {
+        write(&source, &format!("vehicle/shared/solid.{extension}"), text);
+    }
+    for (unit, model) in [("mudflap", "example.good"), ("guard", "solid")] {
+        write(
+            &source,
+            &format!("{def}/accessory/{unit}.sii"),
+            &format!(
+                "SiiNunit\n{{\naccessory_addon_data : {unit}.scs.box.r_part {{\nmodel: \"/vehicle/shared/{model}.pmd\"\n}}\n}}\n"
+            ),
+        );
+    }
+    write(
+        &source,
+        &format!("{def}/paint_job/accessory/first.sii"),
+        "SiiNunit\n{\nsimple_paint_job_data : .o {\npaint_job_mask: \"/t/pjm_size_32x32.tobj\"\nacc_list[]: \"r_part.mudflap\"\nacc_list[]: \"r_part.guard\"\n}\n}\n",
+    );
+    let (entry, manifest) = extract_one(root, "scs.box");
+    let mudflap = &manifest.paint_job.accessories[0];
+    assert_eq!(mudflap.game_ids, ["r_part.mudflap"]);
+    assert_eq!(<[u32; 2]>::from(mudflap.texture.size), [64, 64]);
+    assert_eq!(
+        entry["dimension_diagnostics"][0]["disposition"],
+        "raised_to_minimum"
+    );
+    let excluded = &entry["missing_dependencies"][0];
+    assert_eq!(
+        (&excluded["reference"], &excluded["disposition"]),
+        (
+            &serde_json::json!("r_part.guard"),
+            &serde_json::json!("excluded")
+        )
+    );
+    // Rebuilt against that batch: unchanged layouts keep version 1.
+    let first = batches(root).pop().unwrap();
+    let result = Command::new(env!("CARGO_BIN_EXE_tpv"))
+        .current_dir(root)
+        .arg("extract")
+        .arg(root.join("game"))
+        .arg("--converter")
+        .arg(root.join("converter"))
+        .args([
+            "--package-version",
+            "2.0.0",
+            "--vehicle",
+            "scs.box",
+            "--previous",
+        ])
+        .arg(&first)
+        .output()
+        .unwrap();
+    assert!(result.status.success());
+    let again = batches(root).pop().unwrap();
+    assert_eq!(
+        std::fs::read(again.join("official.ets2.scs.box-2.0.0.tpv")).unwrap(),
+        std::fs::read(first.join("official.ets2.scs.box-2.0.0.tpv")).unwrap()
+    );
+    // An overridden accessory with no model field is left out (Krone Box Liner's
+    // container body); a model that exists but cannot be read still refuses the trailer.
+    write(
+        &source,
+        &format!("{def}/accessory/mudflap.sii"),
+        "SiiNunit\n{\naccessory_addon_data : mudflap.scs.box.r_part {\n}\n}\n",
+    );
+    let (entry, _) = extract_one(root, "scs.box");
+    let mudflap = entry["missing_dependencies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["reference"] == "r_part.mudflap")
+        .unwrap();
+    assert_eq!(mudflap["kind"], "accessory_without_model");
+    assert_eq!(mudflap["disposition"], "excluded");
+    write(
+        &source,
+        &format!("{def}/accessory/mudflap.sii"),
+        "SiiNunit\n{\naccessory_addon_data : mudflap.scs.box.r_part {\nmodel: \"/vehicle/shared/absent.pmd\"\n}\n}\n",
+    );
+    assert!(!run(root, Some("scs.box")).status.success());
+}
+
+#[test]
+fn a_trailer_whose_parts_all_have_their_own_region_gets_a_plain_main_texture() {
+    let fixture = fixture();
+    let root = fixture.path();
+    trailer(root, "krone.coolliner", "Krone");
+    write(
+        &root.join("game/version.scs.files"),
+        "def/vehicle/trailer_owned/krone.coolliner/paint_job/accessory/default.sii",
+        "SiiNunit\n{\nsimple_paint_job_data : .o {\npaint_job_mask: \"/t/pjm_size_1024x512.tobj\"\nacc_list[]: \"body.curtain\"\n}\nsimple_paint_job_data : .p {\npaint_job_mask: \"/t/pjm_size_512x512.tobj\"\nacc_list[]: \"chassis.ch_3\"\n}\n}\n",
+    );
+    let (entry, manifest) = extract_one(root, "krone.coolliner");
+    let [main] = manifest.paint_job.main.as_slice() else {
+        panic!("one main texture expected");
+    };
+    assert_eq!(<[u32; 2]>::from(main.texture.size), [64, 64]);
+    assert!(main.game_ids.is_empty());
+    assert_eq!(entry["textures"][0]["edges"], 0);
+    assert_eq!(manifest.paint_job.accessories.len(), 2);
 }
