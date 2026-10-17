@@ -13,9 +13,11 @@ Usage:
                                       Default output: <id>-<version>.tpv
   tpv check <file.tpv>                Validate a package and print its contents.
   tpv extract <installation> --converter <executable> --package-version <version>
-              [--vehicle <identifier>] [--output <directory>]
+              [--vehicle <identifier>] [--output <directory>] [--previous <batch>]
                                       Extract official ETS2 trucks. Output parent:
                                       dist/ by default, one unique directory per batch.
+                                      --previous: the last published batch; changed
+                                      templates get the next layout version.
   tpv --help                          Show this help.
 
 Each texture's size is [width, height] in pixels, each side a power of two
@@ -91,7 +93,13 @@ fn check(args: &[String]) -> Result<(), String> {
 fn extract(args: &[String]) -> Result<(), String> {
     let (installation, values) = parse_options(
         args,
-        &["--converter", "--vehicle", "--output", "--package-version"],
+        &[
+            "--converter",
+            "--vehicle",
+            "--output",
+            "--package-version",
+            "--previous",
+        ],
     )?;
     let installation = installation.ok_or("extract needs an ETS2 installation directory")?;
     let converter = values
@@ -108,6 +116,7 @@ fn extract(args: &[String]) -> Result<(), String> {
         vehicle: values.get("--vehicle").map(|v| (*v).to_owned()),
         output: values.get("--output").unwrap_or(&"dist").into(),
         package_version,
+        previous: values.get("--previous").map(Into::into),
     };
     let batch = tp_pack::extract::run(&options)?;
     println!("report: {}", batch.directory.join("report.json").display());

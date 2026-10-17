@@ -18,7 +18,7 @@ mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2"
   --converter "/path/to/converter_pix" --package-version 2.0.0
 ```
 
-Replace the paths with your ETS2 installation and converter executable. Supply an explicit SemVer package version. Add `--vehicle man.tgx_2020` or `--vehicle daf.2021` to process one truck; omit it for every discovered truck. `--output <directory>` changes the parent directory of the batches.
+Replace the paths with your ETS2 installation and converter executable. Supply an explicit SemVer package version. Add `--vehicle man.tgx_2020` or `--vehicle daf.2021` to process one truck; omit it for every discovered truck. `--output <directory>` changes the parent directory of the batches. When you publish a new batch, add `--previous <batch directory>` with the last published batch: a template that did not change keeps its layout version, and a changed one gets the next version, so the app warns players who update their projects.
 
 The tool discovers official ETS2 trucks, including installed vehicle and tuning DLC. User mods, ATS and trailers are excluded. Each vehicle package contains all supported cabins and painted accessories. Truck and cabin names are the game's English names. Cabin templates are 4096 × 4096; accessory dimensions come from the game's paint definitions. Main templates superpose compatible painted options.
 

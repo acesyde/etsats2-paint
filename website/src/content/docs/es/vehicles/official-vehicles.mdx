@@ -18,7 +18,7 @@ mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2"
   --converter "/path/to/converter_pix" --package-version 2.0.0
 ```
 
-Sustituya las rutas por su instalación de ETS2 y el ejecutable del convertidor. La versión SemVer del paquete es obligatoria. Añada `--vehicle man.tgx_2020` o `--vehicle daf.2021` para un camión; sin el filtro se procesan todos los descubiertos. `--output <directorio>` cambia el directorio principal de los lotes.
+Sustituya las rutas por su instalación de ETS2 y el ejecutable del convertidor. La versión SemVer del paquete es obligatoria. Añada `--vehicle man.tgx_2020` o `--vehicle daf.2021` para un camión; sin el filtro se procesan todos los descubiertos. `--output <directorio>` cambia el directorio principal de los lotes. Al publicar un nuevo lote, añada `--previous <directorio del lote>` con el último lote publicado: una plantilla sin cambios conserva su versión de disposición y una plantilla modificada pasa a la siguiente, para que la aplicación avise a los jugadores que actualizan sus proyectos.
 
 La herramienta descubre los camiones oficiales de ETS2, incluidos los DLC de vehículos y tuning instalados. Excluye mods de usuario, ATS y remolques. Cada paquete reúne todas las cabinas y accesorios pintados compatibles. Los nombres de camiones y cabinas son los nombres en inglés del juego. Las cabinas usan 4096 × 4096; las dimensiones de accesorios proceden de las definiciones de pintura del juego. Las plantillas principales superponen las opciones pintadas compatibles.
 
