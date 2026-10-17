@@ -14,7 +14,8 @@ Usage:
   tpv check <file.tpv>                Validate a package and print its contents.
   tpv extract <installation> --converter <executable> --package-version <version>
               [--vehicle <identifier>] [--output <directory>] [--previous <batch>]
-                                      Extract official ETS2 trucks. Output parent:
+                                      Extract official ETS2 trucks and owned
+                                      trailers. Output parent:
                                       dist/ by default, one unique directory per batch.
                                       --previous: the last published batch; changed
                                       templates get the next layout version.

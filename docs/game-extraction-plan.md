@@ -371,3 +371,58 @@ Seules les métadonnées sont comparables.
   (DAF XF Electric, Renault E-Tech T, `r_grill.boss_pn`, et le garde-boue arrière/
   pare-soleil du Scania S BEV). Ces pièces restent sur la texture principale ;
   à vérifier en jeu.
+
+
+## Remorques : passe complète
+
+Passe du 17 octobre 2026 sur ETS2 1.61.1.9, avec `--previous` sur la dernière
+passe camions (`dist/ets2-1792238515665260153-512503-0/`). Les 26 camions sont
+identiques octet pour octet à la passe précédente. Sur 58 remorques
+possédées : 42 paquets, 15 ignorées (`not_paintable`), 1 refus. Les 68 TPV
+passent `tpv check`.
+
+- **Ignorées** (peintures unies sans masque ni surcharge) : Kässbohrer K.SHG,
+  K.SLA, K.SLL, Kögel Port, Schwarzmüller Lowloader, SCS Flatbed, Gooseneck,
+  Livestock, Log, Lowbed, Lowloader, Tırsan T.SHF, T.SHG, T.SPL, Wielton
+  Container Master.
+- **Refus résolu** : Schwarzmüller Food Tank, le modèle `cage.pmd` de
+  `sideprotection_02p_l` définit deux fois le Look `default`, avec un contenu
+  identique. Un Look ou une Variant répétés à l’identique comptent désormais
+  pour un ; des doublons différents restent refusés. La remorque produit un
+  paquet valide (6 textures), soit 43 remorques au total.
+- **Noms** : la série des remorques Schwarzmüller (DLC) n’est que dans
+  `/locale/en_us/localization.sui`, désormais lu aussi (aucune clé en commun
+  avec les deux autres fichiers, noms des camions inchangés).
+
+## Remorques : comparaison avec Paintjob Packer
+
+Même source que pour les camions (`vehicles/ets/scs/*.json`, commit `a7a7ed3`).
+
+- **Couverture** : 40 remorques chez eux, 43 chez nous. Nous seuls : Krone
+  Box Liner, Krone Profi Liner HD, Schwarzmüller Slidepost. Eux seuls :
+  aucune depuis la correction du Food Tank.
+- **Noms** : identiques pour les remorques de marque, sauf « Tırsan » (graphie
+  du jeu) contre « Tirsan ». Pour les remorques SCS, nous dérivons le nom de
+  l’identifiant (« SCS Chemtank ») là où ils écrivent un nom libre (« SCS
+  Chemical Tank », « SCS Box Trailer ») : choix assumé, le jeu n’a que des
+  abréviations.
+- **Texture principale** : aucune chez eux (`cabins: []`), toutes les pièces
+  sont des accessoires. Chez nous, les pièces sans masque dimensionné
+  (châssis, souvent les jupes) vont sur la texture principale, comme dans les
+  peintures du jeu.
+- **Regroupements** : aucun ensemble identique. Ils regroupent par famille de
+  pièce pour le joueur (« Sideskirts » gauche + droite + avant + arrière,
+  « Body » toutes longueurs) ; nous ne regroupons que les identifiants qui ont
+  le même masque dans toutes les peintures du jeu, donc plus de textures
+  (Krone Cool Liner : 14 contre 3). Leur regroupement suppose des UV
+  superposables entre gauche et droite, ce que les données du jeu ne disent
+  pas.
+- **Identifiants** : les leurs absents chez nous sont surtout des jupes et
+  pare-chocs que le jeu peint via la texture principale (Krone Profi Liner
+  Building) ou qui n’existent plus. Les nôtres absents chez eux sont surtout
+  `chassis.*`, `chs_*`, `markers.*` et `r_fender.*`.
+
+À vérifier en jeu en priorité : la SCS Box (porte et paroi avant `f_body.door_c`
+/`wall_c` regroupées avec `body.curtain_78` chez nous, avec `curtain_136` chez
+eux), une remorque à texture principale 64×64 (Kögel Cargo ; 24 remorques sur 42 en ont une, 18 ont une texture principale 4096²), et une jupe
+gauche/droite séparée chez nous pour voir si un seul dessin suffirait.

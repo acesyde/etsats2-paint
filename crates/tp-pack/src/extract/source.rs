@@ -156,36 +156,39 @@ impl Sources {
         Ok(stdout)
     }
 
-    pub fn inventory(&mut self) -> Result<(), String> {
+    /// Extracts the vehicle definitions under each of `folders` (`/def/vehicle/truck`…)
+    /// from every archive and records which archives provide each file.
+    pub fn inventory(&mut self, folders: &[&str]) -> Result<(), String> {
         for index in 0..self.archives.len() {
-            let export = self.work.join(format!("archive-{index}"));
-            std::fs::create_dir_all(&export).map_err(|e| e.to_string())?;
-            // Listing absent directories is allowed; actual extraction errors are not.
-            let listing = self.command(
-                &[index],
-                &export,
-                &["--list-directory", "/def/vehicle/truck"],
-            )?;
-            if !listing
-                .lines()
-                .any(|line| line.starts_with("[D] ") || line.starts_with("[F] "))
-            {
-                continue;
+            for folder in folders {
+                self.inventory_folder(index, folder)?;
             }
-            self.command(
-                &[index],
-                &export,
-                &["--extract-directory", "/def/vehicle/truck"],
-            )?;
-            let root = export.join("def/vehicle/truck");
-            if !root.is_dir() {
-                return Err("converter did not extract listed truck definitions".into());
-            }
-            for path in files(&root)? {
-                let relative = path.strip_prefix(&export).map_err(|e| e.to_string())?;
-                let virtual_name = format!("/{}", relative.to_string_lossy().replace('\\', "/"));
-                self.files.entry(virtual_name).or_default().push(index);
-            }
+        }
+        Ok(())
+    }
+
+    fn inventory_folder(&mut self, index: usize, folder: &str) -> Result<(), String> {
+        let export = self.work.join(format!("archive-{index}"));
+        std::fs::create_dir_all(&export).map_err(|e| e.to_string())?;
+        // Listing absent directories is allowed; actual extraction errors are not.
+        let listing = self.command(&[index], &export, &["--list-directory", folder])?;
+        if !listing
+            .lines()
+            .any(|line| line.starts_with("[D] ") || line.starts_with("[F] "))
+        {
+            return Ok(());
+        }
+        self.command(&[index], &export, &["--extract-directory", folder])?;
+        let root = export.join(folder.trim_start_matches('/'));
+        if !root.is_dir() {
+            return Err(format!(
+                "converter did not extract listed {folder} definitions"
+            ));
+        }
+        for path in files(&root)? {
+            let relative = path.strip_prefix(&export).map_err(|e| e.to_string())?;
+            let virtual_name = format!("/{}", relative.to_string_lossy().replace('\\', "/"));
+            self.files.entry(virtual_name).or_default().push(index);
         }
         Ok(())
     }
