@@ -405,21 +405,27 @@ fn modal(h: &mut H, modal: tp_app::state::Modal) {
 }
 
 /// The sample truck with both main textures and the sample trailer.
-fn sample_fleet(h: &mut H) {
-    use tp_app::vehicles::{SAMPLE_ID, SAMPLE_TRAILER_ID};
-    let load = |h: &H, id: &str, version: &str| {
-        h.state()
-            .vehicles
-            .load(id, &version.parse().unwrap())
-            .unwrap()
-    };
-    let truck = load(h, SAMPLE_ID, "1.1.0");
+fn load_sample(h: &H, id: &str, version: &str) -> tp_vehicles::Package {
+    h.state()
+        .vehicles
+        .load(id, &version.parse().unwrap())
+        .unwrap()
+}
+
+/// The sample truck alone, with both main textures.
+fn sample_truck_project(h: &mut H) {
+    let truck = load_sample(h, tp_app::vehicles::SAMPLE_ID, "1.1.0");
     let mut textures = tp_app::vehicle_project::default_textures(&truck.manifest);
     textures.insert(1, "high_roof".into());
     let project =
         tp_app::vehicle_project::fleet_project("ACE Logistics", &[(&truck, &textures)]).unwrap();
     common::open_project(h, project);
-    let trailer = load(h, SAMPLE_TRAILER_ID, "1.0.0");
+}
+
+/// The sample truck and the sample trailer.
+fn sample_fleet(h: &mut H) {
+    sample_truck_project(h);
+    let trailer = load_sample(h, tp_app::vehicles::SAMPLE_TRAILER_ID, "1.0.0");
     let all = tp_app::vehicle_project::default_textures(&trailer.manifest);
     h.state_mut()
         .workspace_mut()
@@ -533,7 +539,7 @@ fn section_vehicles() {
 fn section_fleet() {
     use tp_app::layout::{LeftTab, Space};
     use tp_app::state::Modal;
-    use tp_app::ui::vehicle_dialogs::{AddVehicleDialog, TexturesDialog};
+    use tp_app::ui::vehicle_dialogs::{AddVehicleDialog, TexturesDialog, VehicleChoice};
     for_each_language(|language| {
         let mut h = harness(language);
         sample_fleet(&mut h);
@@ -544,11 +550,19 @@ fn section_fleet() {
         space(&mut h, Space::Workshop);
         left_tab(&mut h, LeftTab::Textures);
         shot(&mut h, language, "fleet/textures-tab");
-        modal(
-            &mut h,
-            Modal::AddVehicle(AddVehicleDialog::for_game(Some("ets2"))),
-        );
-        shot(&mut h, language, "fleet/add-vehicle");
+        // Add Vehicle lists installed vehicles only: shown with the truck
+        // alone, so the installed sample trailer is offered, checked.
+        let mut add = harness(language);
+        sample_truck_project(&mut add);
+        demo_scene(&mut add);
+        let mut dialog = AddVehicleDialog::for_game(Some("ets2"));
+        let trailer = add
+            .state()
+            .vehicles
+            .get(tp_app::vehicles::SAMPLE_TRAILER_ID);
+        dialog.choices.push(VehicleChoice::of(trailer.unwrap()));
+        modal(&mut add, Modal::AddVehicle(dialog));
+        shot(&mut add, language, "fleet/add-vehicle");
         let dialog = {
             let p = &h.state().workspace().unwrap().project;
             TexturesDialog::new(p, &p.vehicles[0])
