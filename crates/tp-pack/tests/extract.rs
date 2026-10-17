@@ -27,9 +27,11 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 root="$mount.files"
+printf '%s %s %s\n' "$action" "$path" "${mount##*/}" >> "${0%/*}/calls.log"
 case "$action" in
     --list-directory)
-        if [ ! -d "$root$path" ]; then
+        # Like locale.scs, an archive marked `.noroot` cannot list its root.
+        if [ ! -d "$root$path" ] || { [ "$path" = / ] && [ -e "$root/.noroot" ]; }; then
             echo '<error> [system] : readDir returned null!'
             exit 1
         fi
@@ -111,6 +113,18 @@ fn fixture() -> tempfile::TempDir {
         }
     }
     temp
+}
+
+/// Converter calls of every batch run in `root`: (action, path, last mounted archive).
+fn calls(root: &Path) -> Vec<[String; 3]> {
+    std::fs::read_to_string(root.join("calls.log"))
+        .unwrap_or_default()
+        .lines()
+        .map(|line| {
+            let mut fields = line.splitn(3, ' ').map(str::to_owned);
+            [(); 3].map(|()| fields.next().unwrap_or_default())
+        })
+        .collect()
 }
 
 fn run(root: &Path, vehicle: Option<&str>) -> std::process::Output {
@@ -722,6 +736,8 @@ fn changed_templates_get_the_next_layout_version() {
         .unwrap()
         .replace("1 ( 1 0 )", "1 ( 0.5 0 )");
     std::fs::write(&source, moved).unwrap();
+    // The update also changes the archive itself, which invalidates converted models.
+    write(&root.join("game"), "version.scs", "updated fake archive");
     let (third, version) = layout(Some(&second));
     assert_eq!(version, 2);
     let (_, version) = layout(Some(&third));
@@ -1061,4 +1077,117 @@ fn a_trailer_whose_parts_all_have_their_own_region_gets_a_plain_main_texture() {
     assert!(main.game_ids.is_empty());
     assert_eq!(entry["textures"][0]["edges"], 0);
     assert_eq!(manifest.paint_job.accessories.len(), 2);
+}
+
+#[test]
+fn folders_are_listed_once_and_only_where_their_parent_is() {
+    let fixture = fixture();
+    let root = fixture.path();
+    // base.scs lists its root, without /vehicle.
+    write(&root.join("game/base.scs.files"), "material/a.mat", "");
+    // The model also lives in def.scs, whose root cannot be listed: both sources stay
+    // recorded, last mounted wins.
+    let def = root.join("game/def.scs.files");
+    write(&def, "vehicle/shared/example.good.pmd", "binary");
+    write(&def, ".noroot", "");
+    let output = run(root, Some("example.good"));
+    assert!(output.status.success(), "{output:?}");
+    let listings = calls(root)
+        .into_iter()
+        .filter(|[action, ..]| action == "--list-directory")
+        .map(|[_, path, archive]| (path, archive))
+        .collect::<Vec<_>>();
+    let unique = listings.iter().collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(unique.len(), listings.len(), "{listings:?}");
+    // base.scs has no /vehicle folder, so nothing below it is listed there.
+    assert!(listings.contains(&("/".into(), "base.scs".into())));
+    assert!(
+        !listings
+            .iter()
+            .any(|(path, archive)| archive == "base.scs" && path.starts_with("/vehicle"))
+    );
+    let report = report(&batches(root)[0]);
+    let model = report["results"][0]["sources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["path"] == "/vehicle/shared/example.good.pmd")
+        .unwrap();
+    assert_eq!(
+        model["mounted_sources"],
+        serde_json::json!(["def.scs", "version.scs"])
+    );
+    assert_eq!(model["source"], "version.scs");
+}
+
+#[test]
+fn converted_models_are_reused_until_an_archive_changes() {
+    let fixture = fixture();
+    let root = fixture.path();
+    let conversions = |root: &Path| {
+        calls(root)
+            .iter()
+            .filter(|[action, ..]| action == "-m")
+            .count()
+    };
+    let cached = root.join("target/game-extraction/cache/models/vehicle/shared");
+    // example.broken fails its conversion: nothing of it enters the cache.
+    assert!(!run(root, None).status.success());
+    assert_eq!(conversions(root), 2);
+    let first = report(&batches(root)[0]);
+    assert_eq!(first["model_cache"]["converted"], 1);
+    assert_eq!(first["model_cache"]["reused"], 0);
+    assert!(cached.join("example.good.pim").is_file());
+    assert!(!cached.join("example.broken.pim").exists());
+    assert!(!cached.join("example.broken.pit").exists());
+
+    assert!(run(root, Some("example.good")).status.success());
+    assert_eq!(conversions(root), 2, "the second batch converts nothing");
+    let package =
+        |batch: &Path| std::fs::read(batch.join("official.ets2.example.good-2.0.0.tpv")).unwrap();
+    let all = batches(root);
+    assert_eq!(package(&all[0]), package(&all[1]));
+    let second = report(&all[1]);
+    assert_eq!(second["model_cache"]["converted"], 0);
+    assert_eq!(second["model_cache"]["reused"], 1);
+
+    // A game update changes an archive: the cache is cleared and the model converted again.
+    write(&root.join("game"), "def.scs", "updated fake archive");
+    assert!(run(root, Some("example.good")).status.success());
+    assert_eq!(conversions(root), 3);
+    assert_eq!(report(&batches(root)[2])["model_cache"]["converted"], 1);
+}
+
+#[test]
+fn successful_batches_remove_their_work_folder() {
+    let fixture = fixture();
+    let root = fixture.path();
+    trailer(root, "scs.box", "");
+    write(
+        &root.join("game/version.scs.files"),
+        "def/vehicle/trailer_owned/scs.box/paint_job/default.sii",
+        "SiiNunit\n{\naccessory_paint_job_data : default.scs.box.paint_job {\nbase_color: (0.1, 0.2, 0.3)\n}\n}\n",
+    );
+    let work = || {
+        std::fs::read_dir(root.join("target/game-extraction"))
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.file_name().unwrap() != "cache")
+            .collect::<Vec<_>>()
+    };
+    // A built truck, then a skipped colour-only trailer: both batches succeed.
+    for vehicle in ["example.good", "scs.box"] {
+        assert!(run(root, Some(vehicle)).status.success());
+        let report = report(&batches(root).pop().unwrap());
+        assert_eq!(report["work_directory_kept"], false);
+        assert!(work().is_empty(), "{vehicle}: {:?}", work());
+    }
+    // A failed vehicle keeps the folder and the converter log its error names.
+    assert!(!run(root, Some("example.broken")).status.success());
+    let report = report(&batches(root).pop().unwrap());
+    assert_eq!(report["work_directory_kept"], true);
+    assert_eq!(work().len(), 1);
+    let error = report["results"][0]["error"].as_str().unwrap();
+    let log = error.rsplit_once("see ").unwrap().1;
+    assert!(root.join(log).is_file(), "{error}");
 }

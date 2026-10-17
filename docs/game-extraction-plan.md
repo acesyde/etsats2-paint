@@ -426,3 +426,32 @@ Même source que pour les camions (`vehicles/ets/scs/*.json`, commit `a7a7ed3`).
 /`wall_c` regroupées avec `body.curtain_78` chez nous, avec `curtain_136` chez
 eux), une remorque à texture principale 64×64 (Kögel Cargo ; 24 remorques sur 42 en ont une, 18 ont une texture principale 4096²), et une jupe
 gauche/droite séparée chez nous pour voir si un seul dessin suffirait.
+
+
+## Accélération de l’extraction
+
+Mesures du 17 octobre 2026 sur ETS2 1.61.1.9 (115 archives), passe complète
+de 84 véhicules (69 paquets, 15 remorques ignorées), avec `--previous` sur
+`dist/ets2-1792238515665260153-512503-0/`.
+
+| Passe | Appels au convertisseur | Conversions de modèles | Durée |
+|---|---|---|---|
+| Avant (listages répétés dans les 115 archives) | 197 361 | ~10 000 | 65 min |
+| Listages mémorisés, cache vide | 28 484 | 9 978 | 55 min |
+| Même jeu, cache rempli | 18 506 | 0 (32 090 réutilisations) | 4 min |
+
+- Les listages mémorisés et élagués divisent les appels par 7, mais la durée
+  de la première passe baisse peu : elle est dominée par les conversions
+  (~0,25 s chacune, 115 archives montées). Les paralléliser est la piste
+  suivante si la première passe après une mise à jour doit être plus courte.
+- `base_cfg.scs`, `core.scs` et `locale.scs` ne listent pas leur racine
+  (`readDir returned null` sur `/`) alors qu’elles contiennent des dossiers :
+  une liste vide n’y prouve pas l’absence, leurs sous-dossiers sont listés
+  directement.
+- Les 69 paquets des deux passes sont identiques entre eux et à la passe de
+  référence, sauf les quatre remorques Schwarzmüller, identiques aux passes
+  isolées faites après les corrections de noms et de Looks (seul le nom
+  diffère de la référence). Les preuves `sources` et `name_sources` sont
+  identiques. Les deux passes ont supprimé leur dossier de travail.
+- Le cache `target/game-extraction/cache/` pèse 11 Go (9 978 modèles en texte
+  `.pim`/`.pit`) ; le supprimer force une reconversion complète.
