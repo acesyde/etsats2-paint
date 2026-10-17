@@ -236,19 +236,30 @@ fn open_zip<'a>(
             Error::NotAProject
         }
     })?;
-    let mut found = String::new();
-    zip.by_name("mimetype")
-        .map_err(|_| Error::NotAProject)?
-        .read_to_string(&mut found)
-        .map_err(|_| Error::NotAProject)?;
-    if found.trim() != mimetype {
+    let found = entry_bytes(&mut zip, "mimetype").ok_or(Error::NotAProject)?;
+    if String::from_utf8_lossy(&found).trim() != mimetype {
         return Err(Error::NotAProject);
     }
-    let mut text = String::new();
-    zip.by_name(document)
-        .map_err(|_| Error::Damaged("missing document".into()))?
-        .read_to_string(&mut text)
-        .map_err(|e| Error::Damaged(e.to_string()))?;
+    // Saving has no size limit, so the cap grows with the file: stored images
+    // unpack 1:1 and the deflated document far below 64:1, a zip bomb far above.
+    let limit = (bytes.len() as u64)
+        .saturating_mul(64)
+        .saturating_add(64 << 20);
+    let mut total: u64 = 0;
+    for i in 0..zip.len() {
+        let entry = zip
+            .by_index_raw(i)
+            .map_err(|e| Error::Damaged(e.to_string()))?;
+        total = total.saturating_add(entry.size());
+    }
+    if total > limit {
+        return Err(Error::Damaged(format!(
+            "unpacks to {total} bytes, more than {limit}"
+        )));
+    }
+    let text =
+        entry_bytes(&mut zip, document).ok_or_else(|| Error::Damaged("missing document".into()))?;
+    let text = String::from_utf8(text).map_err(|e| Error::Damaged(e.to_string()))?;
     Ok((zip, text))
 }
 
@@ -258,9 +269,13 @@ fn header(text: &str) -> Result<Header, Error> {
         .map_err(|e| Error::Damaged(e.to_string()))
 }
 
+/// An entry's bytes, never more than its declared size (the total of which
+/// `open_zip` bounds).
 fn entry_bytes(zip: &mut Zip<'_>, entry: &str) -> Option<Vec<u8>> {
+    let entry = zip.by_name(entry).ok()?;
+    let size = entry.size();
     let mut out = Vec::new();
-    zip.by_name(entry).ok()?.read_to_end(&mut out).ok()?;
+    entry.take(size).read_to_end(&mut out).ok()?;
     Some(out)
 }
 

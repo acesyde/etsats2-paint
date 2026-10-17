@@ -624,6 +624,28 @@ fn zip_with(document: &str) -> Vec<u8> {
 }
 
 #[test]
+fn a_zip_bomb_is_refused_before_unpacking() {
+    // About 100 KB on disk, 100 MB unpacked: far beyond what saving produces.
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let o = zip::write::SimpleFileOptions::default();
+    zip.start_file("mimetype", o).unwrap();
+    zip.write_all(b"application/x-truckpaint").unwrap();
+    zip.start_file("project.ron", o).unwrap();
+    zip.write_all(b"(format: 1)").unwrap();
+    zip.start_file("assets/1.png", o).unwrap();
+    let zeros = vec![0u8; 1 << 20];
+    for _ in 0..100 {
+        zip.write_all(&zeros).unwrap();
+    }
+    let bytes = zip.finish().unwrap().into_inner();
+    let err = tp_file::from_bytes(&bytes).unwrap_err();
+    assert!(
+        matches!(&err, Error::Damaged(why) if why.starts_with("unpacks to")),
+        "{err:?}"
+    );
+}
+
+#[test]
 fn newer_version_is_detected_from_the_header_alone() {
     // A future document whose body does not match today's structures.
     let doc = r#"(format: 7, name: "x", surfaces: {"main": [1, 2, 3]}, new_thing: Some(true))"#;
