@@ -7,7 +7,7 @@ Generate autonomous official ETS2 truck packages from an installed game's defini
 ## Requirements
 
 ### Requirement: Extraction command and source boundary
-The tool SHALL expose `tpv extract <installation> --converter <executable> [--vehicle <identifier>] [--output <directory>] --package-version <version>`. The converter and a valid SemVer package version SHALL be required. Without a vehicle filter it SHALL discover official trucks from the installed ETS2 archives, including installed vehicle and tuning DLC. It SHALL exclude user mods, ATS vehicles and trailers, and SHALL NOT modify the installation. An unknown or excluded requested vehicle, invalid installation or invalid arguments SHALL return failure rather than an empty successful batch.
+The tool SHALL expose `tpv extract <installation> --converter <executable> [--vehicle <identifier>] [--output <directory>] [--previous <batch directory>] --package-version <version>`. The converter and a valid SemVer package version SHALL be required. Without a vehicle filter it SHALL discover official trucks from the installed ETS2 archives, including installed vehicle and tuning DLC. It SHALL exclude user mods, ATS vehicles and trailers, and SHALL NOT modify the installation. An unknown or excluded requested vehicle, invalid installation or invalid arguments SHALL return failure rather than an empty successful batch.
 
 #### Scenario: Installed DLC trucks
 - **WHEN** extraction runs without a vehicle filter on ETS2 with vehicle and tuning DLC installed
@@ -33,7 +33,7 @@ Truck, brand and cabin names SHALL come from the installed game's English locali
 - **THEN** its package is named "Iveco Stralis Hi-Way", distinct from `iveco.stralis` ("Iveco Stralis")
 
 ### Requirement: Definition-driven selection
-The extractor SHALL derive vehicle metadata, cabins, accessory game ids, model references and compatibility from game definitions rather than per-vehicle profiles. It SHALL resolve referenced inclusions and archive overrides with recorded provenance. It SHALL select each model's requested look and variant, retain only visible painted faces, and choose the UV stream by its semantic alias. Missing required files, inclusion cycles, conflicting unresolved definitions, unsupported paint shaders or UV mappings, and ambiguous looks, variants or UV streams SHALL refuse the affected vehicle. Unsupported data SHALL NOT be silently omitted. Paint overrides referencing accessory ids with no definition in the installed source view SHALL be excluded from texture assignments and reported as ignored references, without refusing the vehicle. A defined accessory whose painted geometry cannot be extracted (missing files, invalid geometry, unsupported paint shaders) SHALL still refuse the vehicle. A defined accessory whose selected looks/variants contain no truckpaint material (for example a base-colour-only `paint` flavor) cannot show a livery: it SHALL be excluded from all templates and reported with an `excluded` disposition, without refusing the vehicle.
+The extractor SHALL derive vehicle metadata, cabins, accessory game ids, model references and compatibility from game definitions rather than per-vehicle profiles. It SHALL resolve referenced inclusions and archive overrides with recorded provenance. It SHALL select each model's requested look and variant, retain only visible painted faces, and choose the UV stream by its semantic alias. Missing required files, inclusion cycles, conflicting unresolved definitions, unsupported paint shaders or UV mappings, and ambiguous looks, variants or UV streams SHALL refuse the affected vehicle. Unsupported data SHALL NOT be silently omitted. Paint overrides referencing accessory ids with no definition in the installed source view SHALL be excluded from texture assignments and reported as ignored references, without refusing the vehicle. A defined accessory whose painted geometry cannot be extracted (missing files, invalid geometry, unsupported paint shaders, or no readable exterior model) SHALL still refuse the vehicle. A defined accessory whose selected looks/variants contain no truckpaint material (for example a base-colour-only `paint` flavor) cannot show a livery: it SHALL be excluded from all templates and reported with an `excluded` disposition, without refusing the vehicle.
 
 #### Scenario: Included shared model
 - **WHEN** an accessory definition includes a file that references a shared model outside the truck's model directory
@@ -92,6 +92,13 @@ Each successful vehicle SHALL produce one `.tpv` containing its SVG templates an
 #### Scenario: Missing painted coverage
 - **WHEN** a cabin or painted accessory cannot be assigned a valid nonempty template
 - **THEN** the entire vehicle is refused rather than producing a reduced package
+
+### Requirement: Layout versions across batches
+Without `--previous`, every texture SHALL have layout version 1. With `--previous <batch directory>`, each texture SHALL keep the layout version of the same texture in the newest package of the same id found in that directory when its template is byte-identical, and SHALL get that version plus one when its template differs; a texture absent from the previous package SHALL get layout version 1. An unreadable or invalid previous package SHALL stop the batch before any vehicle is processed. The report SHALL record the previous batch directory.
+
+#### Scenario: A game update moves a texture's UVs
+- **WHEN** a batch runs with `--previous` pointing at a batch whose package has the same cabin at layout version 1 with a different template
+- **THEN** the new package records layout version 2 for that cabin, and unchanged textures keep their version
 
 ### Requirement: Isolated batch outputs
 Each invocation that starts a batch SHALL create a unique batch subdirectory under the output parent, defaulting to `dist/`. Intermediates SHALL remain under `target/`, separate from published packages. Existing batch contents SHALL NOT be overwritten. Vehicle failures SHALL NOT stop other vehicles. Only fully built and validated packages SHALL be published; failed vehicles and interrupted package writes SHALL leave no partial `.tpv`. The command SHALL return zero only when all requested/discovered vehicles succeed and the final report is written; any incomplete batch or output failure SHALL return nonzero.

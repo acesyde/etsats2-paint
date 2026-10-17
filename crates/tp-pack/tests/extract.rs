@@ -367,16 +367,16 @@ fn missing_dependencies_are_reported_without_guessing_a_dlc() {
         "def/vehicle/truck/example.good/accessory/mirror/missing.sii",
         "SiiNunit\n{\naccessory_addon_data : missing.example.good.mirror {\n}\n}\n",
     );
-    // A defined accessory with no exterior model shows no livery: excluded, not blocking.
-    assert!(run(root, Some("example.good")).status.success());
+    // A defined accessory whose exterior model cannot be read is unknown data: it blocks.
+    assert!(!run(root, Some("example.good")).status.success());
     let batch = batches(root).pop().unwrap();
     let report: Value =
         serde_json::from_slice(&std::fs::read(batch.join("report.json")).unwrap()).unwrap();
     let missing = &report["results"][0]["missing_dependencies"][0];
     assert_eq!(missing["reference"], "mirror.missing");
-    assert_eq!(missing["kind"], "surface_without_livery_material");
-    assert_eq!(missing["disposition"], "excluded");
-    assert_eq!(std::fs::read_dir(&batch).unwrap().count(), 2);
+    assert_eq!(missing["kind"], "painted_exterior_surface");
+    assert_eq!(missing["disposition"], "blocking");
+    assert_eq!(std::fs::read_dir(&batch).unwrap().count(), 1);
 
     let fixture = fixture();
     let root = fixture.path();
@@ -680,4 +680,50 @@ fn names_come_from_the_game_localization() {
         .map(|p| p.name.as_str())
         .collect::<Vec<_>>();
     assert_eq!(names, ["High Roof (high)", "High Roof (high_8x4)"]);
+}
+
+#[test]
+fn changed_templates_get_the_next_layout_version() {
+    let fixture = fixture();
+    let root = fixture.path();
+    let layout = |previous: Option<&Path>| {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_tpv"));
+        command
+            .current_dir(root)
+            .arg("extract")
+            .arg(root.join("game"))
+            .arg("--converter")
+            .arg(root.join("converter"))
+            .args(["--package-version", "2.0.0", "--vehicle", "example.good"]);
+        if let Some(previous) = previous {
+            command.arg("--previous").arg(previous);
+        }
+        let result = command.output().unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let batch = batches(root).pop().unwrap();
+        let package = tp_pack::check(
+            &std::fs::read(batch.join("official.ets2.example.good-2.0.0.tpv")).unwrap(),
+        )
+        .unwrap();
+        (batch, package.paint_job.main[0].texture.layout_version)
+    };
+    let (first, version) = layout(None);
+    assert_eq!(version, 1);
+    // Same template: the version is kept.
+    let (second, version) = layout(Some(&first));
+    assert_eq!(version, 1);
+    // A game update moves the UVs: the next version.
+    let source = root.join("game/version.scs.files/vehicle/shared/example.good.pim");
+    let moved = std::fs::read_to_string(&source)
+        .unwrap()
+        .replace("1 ( 1 0 )", "1 ( 0.5 0 )");
+    std::fs::write(&source, moved).unwrap();
+    let (third, version) = layout(Some(&second));
+    assert_eq!(version, 2);
+    let (_, version) = layout(Some(&third));
+    assert_eq!(version, 2);
 }
