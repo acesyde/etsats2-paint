@@ -72,4 +72,4 @@
 
 - [x] 11.1 Use the ordinary paint UVs (`_TEXCOORD1`) for every material, including `altuv` flavors, and record `game.alt_uv: false`; test that alternate-UV materials keep the ordinary layout.
 - [x] 11.2 Name trucks, brands and cabins from the game's English localization, appending the short series when it tells trucks apart and the cabin id when cabins share a name; test with a no-game localization fixture.
-- [ ] 11.3 Regenerate the local ETS2 batch, compare names and layouts with Paintjob Packer, validate the packages and update the source notes; pass CI and the documentation build.
+- [x] 11.3 Regenerate the local ETS2 batch, compare names and layouts with Paintjob Packer, validate the packages and update the source notes; pass CI and the documentation build.
