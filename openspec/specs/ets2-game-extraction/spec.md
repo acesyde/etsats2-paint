@@ -120,7 +120,7 @@ Without `--previous`, every texture SHALL have layout version 1. With `--previou
 - **THEN** the new package records layout version 2 for that cabin, and unchanged textures keep their version
 
 ### Requirement: Isolated batch outputs
-Each invocation that starts a batch SHALL create a unique batch subdirectory under the output parent, defaulting to `dist/`. Intermediates SHALL remain under `target/`, separate from published packages. Existing batch contents SHALL NOT be overwritten. Vehicle failures SHALL NOT stop other vehicles. Only fully built and validated packages SHALL be published; failed vehicles and interrupted package writes SHALL leave no partial `.tpv`. The command SHALL return zero only when every requested/discovered vehicle succeeds or is skipped as not paintable and the final report is written; any incomplete batch or output failure SHALL return nonzero.
+Each invocation that starts a batch SHALL create a unique batch subdirectory under the output parent, defaulting to `dist/`. Intermediates SHALL remain under `target/`, separate from published packages, in a work folder unique to the batch. When the batch succeeds (every requested or discovered vehicle built or skipped as not paintable), its work folder SHALL be deleted after the report is written. When any vehicle fails or the report cannot be written, the work folder SHALL be kept, so converter logs named in failure messages remain available. Work folders of other batches SHALL NOT be touched. Existing batch contents SHALL NOT be overwritten. Vehicle failures SHALL NOT stop other vehicles. Only fully built and validated packages SHALL be published; failed vehicles and interrupted package writes SHALL leave no partial `.tpv`. The command SHALL return zero only when every requested/discovered vehicle succeeds or is skipped as not paintable and the final report is written; any incomplete batch or output failure SHALL return nonzero.
 
 #### Scenario: Converter failure for one truck
 - **WHEN** the converter fails for one vehicle and succeeds for another
@@ -134,8 +134,16 @@ Each invocation that starts a batch SHALL create a unique batch subdirectory und
 - **WHEN** publishing a package fails partway through writing
 - **THEN** no partial `.tpv` is left as a published package and the command returns nonzero
 
+#### Scenario: Successful batch cleans its work folder
+- **WHEN** every vehicle of a batch is built or skipped as not paintable
+- **THEN** the packages and report are published and the batch's work folder under `target/` no longer exists
+
+#### Scenario: Failed batch keeps its work folder
+- **WHEN** one vehicle of a batch fails
+- **THEN** the batch's work folder, with its converter logs, is kept and the report names it
+
 ### Requirement: Traceable technical report
-Every completed or recoverably failed batch SHALL publish `report.json` beside its successful packages. The report SHALL identify the selected game installation, mounted archive sources and precedence, game version, converter identity/version when available, tool and package versions, requested and discovered vehicles, successes, failures and limits. Per-vehicle evidence SHALL identify source definitions and model/look/variant/UV selections contributing to each texture, its dimensions and coverage, or the stage and reason for refusal. Unavailable source/converter version information SHALL be marked explicitly. Native package validation SHALL be described as technical validation, never as proof of in-game correctness. Newly generated vehicles SHALL be identified as needing in-game checks unless explicit matching in-game evidence is available.
+Every completed or recoverably failed batch SHALL publish `report.json` beside its successful packages. The report SHALL identify the selected game installation, mounted archive sources and precedence, game version, converter identity/version when available, tool and package versions, requested and discovered vehicles, successes, failures and limits, the batch work folder with whether it was kept, and the model cache folder with the number of models converted and reused. Per-vehicle evidence SHALL identify source definitions and model/look/variant/UV selections contributing to each texture, its dimensions and coverage, or the stage and reason for refusal. Unavailable source/converter version information SHALL be marked explicitly. Native package validation SHALL be described as technical validation, never as proof of in-game correctness. Newly generated vehicles SHALL be identified as needing in-game checks unless explicit matching in-game evidence is available.
 
 #### Scenario: Technical success without game evidence
 - **WHEN** a new truck passes extraction and native package validation
@@ -162,6 +170,7 @@ Every completed or recoverably failed batch SHALL publish `report.json` beside i
 #### Scenario: Accessory without livery material
 - **WHEN** a paint override references an installed accessory whose selected model has no truckpaint material
 - **THEN** the vehicle package is generated without a template for it, and `missing_dependencies` records it as `surface_without_livery_material` with an `excluded` disposition
+
 ### Requirement: Trailer packages
 Each successful owned trailer SHALL produce one `.tpv` with id `official.ets2.<trailer>`, `kind: "trailer"`, its game path, and the same validation, size rules, UV rules, exclusions, layout versions and report entries as trucks. A trailer package SHALL have exactly one main texture with no cabin ids. When at least one painted body, chassis or accessory has no independent texture, the main texture SHALL be 4096 × 4096 and its template SHALL superpose all those painted options. When every painted part has its own texture, the main texture SHALL be 64 × 64 with a blank template: it only carries the trailer's base colour, as the game's fill mask does. Accessory textures SHALL be shared by the whole trailer; trailers SHALL have no variants. Accessory ids that use the same sized mask in every game paint job that overrides any of them SHALL form one accessory texture listing all those game ids, whose size follows the size rules applied to that mask and whose template superposes their layouts; ids whose masks differ in at least one paint job SHALL keep separate textures. A trailer whose paint jobs define no main mask and no override (only plain, possibly locked, colours) cannot carry a livery: it SHALL be reported as `skipped` with a `not_paintable` reason, SHALL produce no package and SHALL NOT count as a failure. The report SHALL record each vehicle's kind and, for every grouped texture, its game ids and the shared mask references.
 
@@ -188,3 +197,17 @@ Each successful owned trailer SHALL produce one `.tpv` with id `official.ets2.<t
 #### Scenario: Install and export an extracted trailer
 - **WHEN** the player installs `official.ets2.krone.coolliner` and exports a mod painting its main texture and body
 - **THEN** the mod writes the trailer paint job under `trailer_owned` with one override for the body texture listing its game ids
+### Requirement: Model cache between batches
+Converted models SHALL be kept in a cache under `target/` shared by batches, keyed by the identity of every mounted archive (name, size, modification time) and of the converter executable (path, size, modification time). A batch whose key matches the cache's SHALL reuse a cached model instead of converting it again. A batch whose key differs SHALL clear the cache before converting, so no model converted from other game files or by another converter is used. A model SHALL enter the cache only once its conversion has succeeded completely; an interrupted or failed conversion SHALL leave no cached model. Packages and report evidence SHALL be identical whether models were reused or converted. The cache SHALL survive the cleanup of a batch work folder.
+
+#### Scenario: Second batch on the same game
+- **WHEN** a batch runs after another on the same archives with the same converter
+- **THEN** it converts no model already converted, reports them as reused, and publishes byte-identical packages
+
+#### Scenario: Game update
+- **WHEN** a mounted archive's size or modification time differs from the cache key, or an archive is added or removed
+- **THEN** the cache is cleared and every model the batch needs is converted again
+
+#### Scenario: Interrupted conversion
+- **WHEN** a model conversion fails or the batch stops during it
+- **THEN** that model is not in the cache and the next batch converts it
