@@ -10,6 +10,12 @@ pub struct Sources {
     pub files: BTreeMap<String, Vec<usize>>,
     pub work: PathBuf,
     pub log_index: usize,
+    /// `[D]`/`[F]` entries of each (archive, folder) seen so far; `None` when known absent.
+    pub listed: BTreeMap<(usize, String), Option<Vec<String>>>,
+    /// Converted `.pim`/`.pit` models; shared by batches once `share_models` succeeds.
+    pub models: PathBuf,
+    pub converted: usize,
+    pub reused: usize,
 }
 
 pub fn files(dir: &Path) -> Result<Vec<PathBuf>, String> {
@@ -111,7 +117,49 @@ impl Sources {
             files: BTreeMap::new(),
             work: work.to_owned(),
             log_index: 0,
+            listed: BTreeMap::new(),
+            models: work.join("models"),
+            converted: 0,
+            reused: 0,
         })
+    }
+
+    /// Uses `cache` for converted models, clearing it when a mounted archive or the
+    /// converter differs (name or path, size, modification time) from what filled it.
+    pub fn share_models(&mut self, cache: &Path) -> Result<(), String> {
+        let identity = |path: &Path, name: String| {
+            let meta = std::fs::metadata(path).map_err(|e| format!("{}: {e}", path.display()))?;
+            let modified = meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_nanos().to_string());
+            Ok::<_, String>(json!([name, meta.len(), modified]))
+        };
+        let mut archives = Vec::new();
+        for path in &self.archives {
+            let name = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned();
+            archives.push(identity(path, name)?);
+        }
+        let converter = identity(&self.converter, self.converter.display().to_string())?;
+        let key = serde_json::to_vec_pretty(&json!({"archives": archives, "converter": converter}))
+            .map_err(|e| e.to_string())?;
+        let models = cache.join("models");
+        let key_path = cache.join("key.json");
+        if std::fs::read(&key_path).ok().as_deref() != Some(key.as_slice()) {
+            if models.exists() {
+                std::fs::remove_dir_all(&models)
+                    .map_err(|e| format!("{}: {e}", models.display()))?;
+            }
+            std::fs::create_dir_all(cache).map_err(|e| format!("{}: {e}", cache.display()))?;
+            std::fs::write(&key_path, &key).map_err(|e| format!("{}: {e}", key_path.display()))?;
+        }
+        self.models = models;
+        Ok(())
     }
 
     pub fn command(
@@ -167,17 +215,52 @@ impl Sources {
         Ok(())
     }
 
+    /// Lists `folder` in one archive at most once per batch. A folder missing from its
+    /// parent's listing is absent without a call; an empty listing proves nothing, since
+    /// some archives (`locale.scs`) cannot list their root, so children are then listed.
+    fn listing(&mut self, index: usize, folder: &str) -> Result<Vec<String>, String> {
+        let key = (index, folder.to_owned());
+        if let Some(entries) = self.listed.get(&key) {
+            return Ok(entries.clone().unwrap_or_default());
+        }
+        let present = match folder.rsplit_once('/') {
+            Some((parent, _)) if folder != "/" => {
+                let parent = if parent.is_empty() { "/" } else { parent };
+                self.listing(index, parent)?;
+                match &self.listed[&(index, parent.to_owned())] {
+                    Some(entries) => {
+                        entries.is_empty() || entries.contains(&format!("[D] {folder}"))
+                    }
+                    None => false,
+                }
+            }
+            _ => true,
+        };
+        let mut entries = None;
+        if present {
+            let export = self.work.join(format!("archive-{index}"));
+            std::fs::create_dir_all(&export).map_err(|e| e.to_string())?;
+            // Listing absent directories is allowed; actual extraction errors are not.
+            let listing = self.command(&[index], &export, &["--list-directory", folder])?;
+            let found = listing
+                .lines()
+                .filter_map(|line| {
+                    let (kind, path) = line.split_at_checked(4)?;
+                    matches!(kind, "[D] " | "[F] ")
+                        .then(|| virtual_path("/", path.trim()).map(|path| format!("{kind}{path}")))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            entries = Some(found);
+        }
+        self.listed.insert(key, entries.clone());
+        Ok(entries.unwrap_or_default())
+    }
+
     fn inventory_folder(&mut self, index: usize, folder: &str) -> Result<(), String> {
-        let export = self.work.join(format!("archive-{index}"));
-        std::fs::create_dir_all(&export).map_err(|e| e.to_string())?;
-        // Listing absent directories is allowed; actual extraction errors are not.
-        let listing = self.command(&[index], &export, &["--list-directory", folder])?;
-        if !listing
-            .lines()
-            .any(|line| line.starts_with("[D] ") || line.starts_with("[F] "))
-        {
+        if self.listing(index, folder)?.is_empty() {
             return Ok(());
         }
+        let export = self.work.join(format!("archive-{index}"));
         self.command(&[index], &export, &["--extract-directory", folder])?;
         let root = export.join(folder.trim_start_matches('/'));
         if !root.is_dir() {
@@ -204,10 +287,9 @@ impl Sources {
             let parent = path.rsplit_once('/').unwrap().0;
             let parent = if parent.is_empty() { "/" } else { parent };
             for index in 0..self.archives.len() {
-                let export = self.work.join(format!("archive-{index}"));
-                let listing = self.command(&[index], &export, &["--list-directory", parent])?;
-                for entry in listing.lines().filter_map(|line| line.strip_prefix("[F] ")) {
-                    let entry = virtual_path("/", entry.trim())?;
+                let listing = self.listing(index, parent)?;
+                for entry in listing.iter().filter_map(|line| line.strip_prefix("[F] ")) {
+                    let entry = entry.to_owned();
                     let indices = self.files.entry(entry).or_default();
                     if !indices.contains(&index) {
                         indices.push(index);
@@ -338,6 +420,10 @@ mod tests {
             ]),
             work: temp.path().to_owned(),
             log_index: 0,
+            listed: BTreeMap::new(),
+            models: temp.path().join("models"),
+            converted: 0,
+            reused: 0,
         };
         let mut evidence = BTreeSet::new();
         let text = sources

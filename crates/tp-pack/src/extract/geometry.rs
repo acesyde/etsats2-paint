@@ -398,9 +398,13 @@ mod tests {
             .expect("set TRUCKPAINT_BASELINE_REPORTS");
         for report_path in std::env::split_paths(&reports) {
             let report: Value = serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
-            let exported = root
-                .join(report["work_directory"].as_str().unwrap())
-                .join("models");
+            // Older reports kept converted models in their work folder.
+            let exported = match report["model_cache"]["directory"].as_str() {
+                Some(cache) => root.join(cache),
+                None => root
+                    .join(report["work_directory"].as_str().unwrap())
+                    .join("models"),
+            };
             for result in report["results"].as_array().unwrap() {
                 assert_eq!(result["status"], "success");
                 let package_path = report_path
