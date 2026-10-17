@@ -114,7 +114,7 @@ A project SHALL belong to exactly one game, ETS2 or ATS: the game of its first v
 ### Requirement: Adding and removing vehicles and textures
 The user SHALL be able to change which vehicles and textures a project covers. Each change is one undo step.
 
-- **Add vehicles:** Vehicle › Add Vehicle…, also reached from the Add Vehicle button of the Textures tab and of the Project space, opens a dialog listing the vehicles of the project's game that aren't in the project yet: first the official vehicles of the catalog, installed or not, marked "Official", then the other installed vehicles (see the official-vehicles capability). It is searchable by name and brand and filterable by kind. Each row has a checkbox: clicking a row checks or unchecks the vehicle, and several vehicles can be checked. Checking an official vehicle installs it first when needed, asking for the template pack when its folder isn't known. Each checked vehicle shows its main textures and accessories as checkboxes under its row, as in New Project, and keeps at least one main texture checked. **Add** is enabled when at least one vehicle is checked. Confirming adds every checked vehicle at its newest installed version, in the order they were checked, with one surface per chosen texture, after the existing surfaces, in one undo step. The first new surface becomes active.
+- **Add vehicles:** Vehicle › Add Vehicle…, also reached from the Add Vehicle button of the Textures tab and of the Project space, opens a dialog listing only installed vehicles of the project's game that are not already in the project. It SHALL NOT list uninstalled catalog entries or trigger template pack installation. It is searchable by name and brand and filterable by kind. Each row has a checkbox: clicking a row checks or unchecks the vehicle, and several vehicles can be checked. Each checked vehicle shows its main textures and accessories as checkboxes under its row, as in New Project, and keeps at least one main texture checked. **Add** is enabled when at least one vehicle is checked. Confirming adds every checked vehicle at its newest installed version, in selection order, with one surface per chosen texture after the existing surfaces, in one undo step. The first new surface becomes active.
   - The dialog SHALL also offer **Custom Vehicle…**, which opens the Custom Vehicle dialog with the project's game, locked (see the custom-vehicles capability). A vehicle created there SHALL be listed and checked when Add Vehicle… is shown again, with its textures checked as for any checked vehicle, and the vehicles checked before stay checked; it is not added to the project until the user confirms Add.
 - **Change the textures of a vehicle:** the vehicle's **Textures…** action (its ⋯ menu in the Textures tab, or its vehicle card in the Project space) shows checkboxes for the main textures and accessories of the project's recorded version. A single main texture is shown checked and can't be unchecked.
   - Checking a texture adds its surface, in package order among the vehicle's surfaces.
@@ -149,13 +149,17 @@ Template images no longer used by any surface SHALL be dropped from the project'
 - **WHEN** in an ETS2 project, the user opens Add Vehicle…, clicks Custom Vehicle…, creates a trailer from the template `base.png`, then clicks Add
 - **THEN** the trailer is added to the project with its "base" texture active, and the Custom Vehicle dialog showed ETS2 without a way to change it
 
-#### Scenario: Official trailer added to a fleet
-- **WHEN** in an ETS2 project holding the sample truck, with the ETS2 pack folder known, the user opens Add Vehicle…, picks the Krone Cool Liner, waits for it to install, and clicks Add
-- **THEN** the trailer is added with its Body and four chassis accessories, and Body is active
+#### Scenario: Extracted truck added to a fleet
+- **WHEN** in an ETS2 project holding the sample truck, the user opens Add Vehicle… with an extracted DAF NGD installed, checks that truck and clicks Add
+- **THEN** the DAF is added with its chosen cabin and accessory textures in one undo step, without a template pack prompt
 
 #### Scenario: Several vehicles in one step
-- **WHEN** in an ETS2 project holding the sample truck, the user opens Add Vehicle…, checks the sample trailer and the Krone Cool Liner, and clicks Add
+- **WHEN** in an ETS2 project holding the sample truck, the user opens Add Vehicle…, checks the installed sample trailer and an already installed Krone Cool Liner package, and clicks Add
 - **THEN** both trailers are added, the sample trailer's textures then the Krone's, the sample trailer's Base is active, and one Undo removes both
+
+#### Scenario: Official trailer added to a fleet
+- **WHEN** an ETS2 project holds the sample truck and a valid official trailer package is already manually installed
+- **THEN** Add Vehicle… can add that trailer with its chosen textures without invoking a catalog or template pack installation
 
 ### Requirement: Copy from cabin
 **Vehicle › Copy from Cabin…** SHALL copy the artwork of another main texture of the same truck onto the active texture. The cabin layouts of a truck share most of their texture, so the same coordinates fit.

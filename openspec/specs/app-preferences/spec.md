@@ -7,7 +7,7 @@ Remembers the user's interface preferences and workspace layout between sessions
 ## Requirements
 
 ### Requirement: Persisted preferences
-The application SHALL persist, in the operating system's standard per-user configuration directory, at least: UI scale, text size, the workspace layout, window size/position/maximized state, the recent projects list, the interface language when the user has chosen one, whether the grid and guides are shown, whether snapping is on, the grid spacing, on Windows and Linux whether the system title bar is used, and the template pack folder of each game (see the official-vehicles capability).
+The application SHALL persist, in the operating system's standard per-user configuration directory, at least: UI scale, text size, the workspace layout, window size/position/maximized state, the recent projects list, the interface language when the user has chosen one, whether the grid and guides are shown, whether snapping is on, the grid spacing, on Windows and Linux whether the system title bar is used.
 
 The workspace layout SHALL be: the active tab of the left panel (Textures, Layers or Resources), the width of the left panel, the width of the inspector, and whether the panels are hidden (Hide Panels). The active space (Project, Workshop or Brand) SHALL NOT be persisted: opening a project always shows the Project space.
 
@@ -32,8 +32,8 @@ A preferences file written by a build before the spaces, which stores a stack of
 - **THEN** the interface is in German, whatever the system language
 
 #### Scenario: Pack folder survives restart
-- **WHEN** the user chooses the ETS2 template pack folder, quits and restarts the application
-- **THEN** Preferences shows that folder for ETS2, and picking an official ETS2 vehicle doesn't ask for the pack
+- **WHEN** the application loads an older preferences file containing template pack folders and a UI scale of 125%
+- **THEN** the UI scale remains 125%, obsolete pack fields are ignored, and no invalid-file backup or error is produced
 
 #### Scenario: Active space not persisted
 - **WHEN** the user is in the Brand space, quits, restarts and opens the project again
@@ -47,10 +47,12 @@ A preferences file written by a build before the spaces, which stores a stack of
 - **WHEN** the application starts with a preferences file that stores the UI scale 125%, a panel stack with the Assets panel closed, a panel column width and a hidden Vehicles sidebar
 - **THEN** the UI scale is 125%, the workspace layout has its default values (Textures tab, default widths, panels shown), no backup of the file is made, and no message about the preferences appears
 
+Old template pack folder fields SHALL be ignored when loading preferences and SHALL no longer be persisted.
+
 ### Requirement: Preferences dialog
 The application SHALL provide a Preferences dialog (Edit > Preferences, shortcut `⌘,` on macOS and `Ctrl+,` elsewhere) to change UI scale and text size with a live preview, the grid spacing (texture pixels, 4 to 1024) and the interface language, and a "Reset to defaults" action that restores UI scale, text size and grid spacing. The Language setting SHALL list "System default" followed by English, Français, Español and Deutsch, each named in its own language. "System default" follows the operating system's language, and choosing a language applies it immediately. "Reset to defaults" SHALL NOT change the language. On Windows and Linux, the dialog SHALL also offer **Use the system title bar** (see the window-title-bar capability), applied at once; "Reset to defaults" SHALL NOT change it.
 
-Under **Template packs**, with a line saying what the packs are for, the dialog SHALL show, for each game that has official vehicles, the game's name above a read-only field holding the remembered pack folder (cut in the middle when too long, in full in its tooltip) or "Not set", followed by two icon buttons: **Choose Folder…**, which checks the chosen folder as the template pack dialog does and keeps the previous folder when it is refused, and **Clear**, which forgets it and is disabled when nothing is set. Clicking the field of an existing folder SHALL show it in the system's file manager; the field SHALL look like a link on hover, with a tooltip naming the file manager ("Show in Finder", "Show in Explorer", "Show in File Manager"), and its context menu SHALL offer **Copy Path**. A remembered folder that no longer exists SHALL be shown in the error color with "Folder not found" and SHALL NOT open. Changing or clearing a pack folder SHALL NOT change installed vehicles or projects. "Reset to defaults" SHALL NOT change the pack folders.
+The dialog SHALL NOT offer template pack folder settings or Carsmaniac import controls.
 
 View > Reset Workspace SHALL restore the workspace layout to its defaults: the left panel and the inspector shown at their default widths, with the Textures tab active. It SHALL NOT change the active space, the document, the selection or the zoom.
 
@@ -67,20 +69,20 @@ View > Reset Workspace SHALL restore the workspace layout to its defaults: the l
 - **THEN** the interface switches to French and no language choice is saved
 
 #### Scenario: Change the pack folder
-- **WHEN** the user clicks Choose Folder… under Template packs for ETS2 and chooses a folder holding the ETS2 pack for a newer game version
-- **THEN** that folder is shown and remembered, and the vehicles already installed are unchanged
+- **WHEN** Preferences is opened
+- **THEN** no template pack folder chooser is offered
 
 #### Scenario: Refused pack folder
-- **WHEN** the user clicks Choose Folder… for ETS2 and chooses a folder holding no vehicle folder of the pack
-- **THEN** a message says the folder doesn't hold the ETS2 template pack, and the previous folder is kept
+- **WHEN** an older preferences file contains a path that is not a template pack
+- **THEN** the retired field is ignored without validating it or changing installed vehicles
 
 #### Scenario: Showing the pack folder
-- **WHEN** the ETS2 pack folder is set and exists, and the user clicks its field in Preferences
-- **THEN** the folder is shown in the system's file manager
+- **WHEN** an older preferences file contains an existing template pack path and Preferences is opened
+- **THEN** no pack path field or action to open it is shown
 
 #### Scenario: Pack folder gone
-- **WHEN** the remembered ETS2 pack folder was deleted and the user opens Preferences
-- **THEN** its field shows the path in the error color with "Folder not found", and clicking it opens nothing
+- **WHEN** an older preferences file contains a deleted template pack path
+- **THEN** Preferences shows no pack-folder warning and other settings remain usable
 
 ### Requirement: Robust preferences loading
 If the preferences file is missing, unreadable, from an unknown version or invalid, the application SHALL start with default preferences, SHALL NOT crash, and SHALL keep a backup copy of the invalid file. Saving preferences SHALL be atomic so that a crash during write never leaves a truncated file.
